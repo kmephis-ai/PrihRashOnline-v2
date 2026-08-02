@@ -1,0 +1,27 @@
+name: Income Sidebar Safety
+
+on:
+  pull_request:
+    paths:
+      - 'IncomeSidebarController.js'
+      - 'IncomeSidebar.html'
+      - 'tests/income_sidebar_validation_test.js'
+      - '.github/workflows/income-sidebar-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: node --check IncomeSidebarController.js
+      - name: Validation regression tests
+        run: node tests/income_sidebar_validation_test.js
