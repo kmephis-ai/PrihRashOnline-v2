@@ -1,31 +1,47 @@
 [CmdletBinding()]
 param(
-    [string]$Branch = "agent/income-review-filter-v0.2.1",
+    [string]$Branch = 'agent/income-review-filter-v0.2.1',
     [switch]$OpenEditor
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
-function Run([string]$Title, [scriptblock]$Command) {
-    Write-Host "`n==> $Title" -ForegroundColor Cyan
+function Invoke-Step {
+    param(
+        [Parameter(Mandatory = $true)][string]$Title,
+        [Parameter(Mandatory = $true)][scriptblock]$Command
+    )
+
+    Write-Host ''
+    Write-Host ('==> ' + $Title) -ForegroundColor Cyan
     & $Command
-    if ($LASTEXITCODE -ne 0) { throw "Ошибка шага: $Title" }
+    if ($LASTEXITCODE -ne 0) {
+        throw ('Step failed: ' + $Title)
+    }
 }
 
-$clasp = Get-Command clasp.cmd -ErrorAction SilentlyContinue
-if (-not $clasp) { $clasp = Get-Command clasp -ErrorAction SilentlyContinue }
-if (-not $clasp) { throw "clasp не найден. Выполните: npm install -g @google/clasp" }
+$claspCommand = Get-Command 'clasp.cmd' -ErrorAction SilentlyContinue
+if (-not $claspCommand) {
+    $claspCommand = Get-Command 'clasp' -ErrorAction SilentlyContinue
+}
+if (-not $claspCommand) {
+    throw 'clasp was not found. Install it with: npm install -g @google/clasp'
+}
 
-Run "Получение обновлений" { git fetch origin --prune }
-Run "Переключение на $Branch" { git checkout $Branch }
-Run "Синхронизация без merge-коммита" { git pull --ff-only origin $Branch }
+Invoke-Step -Title 'Fetch repository updates' -Command { git fetch origin --prune }
+Invoke-Step -Title ('Checkout branch ' + $Branch) -Command { git checkout $Branch }
+Invoke-Step -Title 'Fast-forward branch' -Command { git pull --ff-only origin $Branch }
 
-$file = Join-Path $repoRoot "DashboardController.js"
-$content = Get-Content $file -Raw -Encoding UTF8
+$file = Join-Path $repoRoot 'DashboardController.js'
+if (-not (Test-Path $file)) {
+    throw 'DashboardController.js was not found.'
+}
+
+$content = Get-Content -Path $file -Raw -Encoding UTF8
 
 $old = @'
   var criteria = SpreadsheetApp.newFilterCriteria()
@@ -50,26 +66,30 @@ $new = @'
   filter.setColumnFilterCriteria(PRH_INCOME_DASHBOARD.STATUS_COLUMN, criteria);
 '@
 
-if ($content.Contains(".setVisibleValues(PRH_INCOME_DASHBOARD.REVIEW_STATUSES)")) {
+if ($content.Contains('.setVisibleValues(PRH_INCOME_DASHBOARD.REVIEW_STATUSES)')) {
     if (-not $content.Contains($old)) {
-        throw "Найдена устаревшая конструкция, но шаблон не совпал. Публикация остановлена fail-closed."
+        throw 'Legacy filter call was found, but the expected code block did not match. Publication stopped fail-closed.'
     }
+
     $content = $content.Replace($old, $new)
     Set-Content -Path $file -Value $content -Encoding UTF8 -NoNewline
-    Write-Host "Совместимость фильтра автоматически исправлена." -ForegroundColor Green
-} elseif ($content.Contains(".setHiddenValues(hiddenStatuses)")) {
-    Write-Host "Исправление фильтра уже присутствует." -ForegroundColor Green
-} else {
-    throw "Не удалось подтвердить безопасную реализацию фильтра. Публикация остановлена fail-closed."
+    Write-Host 'Filter compatibility patch applied.' -ForegroundColor Green
+}
+elseif ($content.Contains('.setHiddenValues(hiddenStatuses)')) {
+    Write-Host 'Filter compatibility patch is already present.' -ForegroundColor Green
+}
+else {
+    throw 'Safe filter implementation could not be verified. Publication stopped fail-closed.'
 }
 
-Run "Проверка отслеживаемых файлов" { & $clasp.Source status }
-Run "Публикация в Apps Script" { & $clasp.Source push --force }
+Invoke-Step -Title 'Check clasp tracked files' -Command { & $claspCommand.Source status }
+Invoke-Step -Title 'Push code to Apps Script' -Command { & $claspCommand.Source push --force }
 
 if ($OpenEditor) {
-    Run "Открытие Apps Script" { & $clasp.Source open }
+    Invoke-Step -Title 'Open Apps Script editor' -Command { & $claspCommand.Source open }
 }
 
-Write-Host "`nГотово: код опубликован." -ForegroundColor Green
-Write-Host "Обновите таблицу через Ctrl+F5. Меню «Доходы» создаст установленный onOpen-триггер."
-Write-Host "Проверьте: Доходы → Показать проблемные операции."
+Write-Host ''
+Write-Host 'Done: Apps Script code was published.' -ForegroundColor Green
+Write-Host 'Refresh the spreadsheet with Ctrl+F5.'
+Write-Host 'Then run: Income menu -> Show problematic operations.'
