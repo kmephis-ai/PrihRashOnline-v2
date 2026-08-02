@@ -1,14 +1,14 @@
-/**
- * ПрихРасхOnline v2 DEV — Income Dashboard Controller v0.2.0
+﻿/**
+ * ПрихРасхOnline v2 DEV — Income Dashboard Controller v0.2.1
  *
  * Safety contract:
- * - never writes to sheet "01 Операции";
- * - only changes dashboard filters, row visibility and active selection;
+ * - never writes values to sheet "01 Операции";
+ * - only changes dashboard filters, row visibility, sheet filter criteria and active selection;
  * - preserves the existing Foundation onOpen() and dry-run command flow.
  */
 
 var PRH_INCOME_DASHBOARD = Object.freeze({
-  VERSION: '0.2.0',
+  VERSION: '0.2.1',
   MENU: 'Доходы',
   SHEET: '14 Аналитика',
   OPERATIONS: '01 Операции',
@@ -19,6 +19,8 @@ var PRH_INCOME_DASHBOARD = Object.freeze({
   CATEGORY_CELL: 'A545',
   MIN_AMOUNT_CELL: 'D545',
   DETAIL_RANGE: 'A541',
+  STATUS_COLUMN: 19,
+  REVIEW_STATUSES: Object.freeze(['Требует проверки', 'Возможный дубль']),
   MODES: Object.freeze({
     'Обзор': { row: 10, groups: ['overview'] },
     'Годы': { row: 10, groups: ['years'] },
@@ -47,13 +49,10 @@ var PRH_INCOME_DASHBOARD = Object.freeze({
 
 function prhInstallIncomeDashboard() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var triggers = ScriptApp.getProjectTriggers();
-  var exists = triggers.some(function (trigger) {
+  var exists = ScriptApp.getProjectTriggers().some(function (trigger) {
     return trigger.getHandlerFunction() === 'prhIncomeDashboardOnOpen_';
   });
-  if (!exists) {
-    ScriptApp.newTrigger('prhIncomeDashboardOnOpen_').forSpreadsheet(ss).onOpen().create();
-  }
+  if (!exists) ScriptApp.newTrigger('prhIncomeDashboardOnOpen_').forSpreadsheet(ss).onOpen().create();
   prhIncomeDashboardOnOpen_();
   prhUpdateIncomeDashboardSettings_('READY', 'Income Dashboard Controller v' + PRH_INCOME_DASHBOARD.VERSION + ' установлен');
   SpreadsheetApp.getUi().alert('Дашборд доходов подключён', 'Меню «Доходы» установлено. Финансовые операции не изменялись.', SpreadsheetApp.getUi().ButtonSet.OK);
@@ -70,10 +69,11 @@ function prhIncomeDashboardOnOpen_() {
     .addSeparator()
     .addItem('Последний месяц с доходами', 'prhIncomeSetLatestPeriod')
     .addItem('Текущий календарный месяц', 'prhIncomeSetCurrentPeriod')
-    .addItem('Сбросить фильтры', 'prhIncomeResetFilters')
+    .addItem('Сбросить фильтры дашборда', 'prhIncomeResetFilters')
     .addSeparator()
     .addItem('Открыть детализацию месяца', 'prhIncomeOpenDrilldown')
-    .addItem('Показать проблемные записи', 'prhIncomeShowReviewRows')
+    .addItem('Показать проблемные операции', 'prhIncomeShowReviewRows')
+    .addItem('Снять фильтр проблемных операций', 'prhIncomeClearReviewFilter')
     .addSeparator()
     .addItem('Обновить расчёты', 'prhIncomeRefreshDashboard')
     .addItem('Проверить конфигурацию', 'prhIncomeValidateDashboard')
@@ -129,14 +129,14 @@ function prhSetIncomeDashboardVisibility_(sheet, selectedGroups) {
     return;
   }
   selectedGroups.forEach(function (name) {
-    (PRH_INCOME_DASHBOARD.GROUPS[name] || []).forEach(function (range) { sheet.showRows(range[0], range[1] - range[0] + 1); });
+    (PRH_INCOME_DASHBOARD.GROUPS[name] || []).forEach(function (range) {
+      sheet.showRows(range[0], range[1] - range[0] + 1);
+    });
   });
 }
 
 function prhIncomeSetLatestPeriod() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var operations = ss.getSheetByName(PRH_INCOME_DASHBOARD.OPERATIONS);
-  if (!operations) throw new Error('Лист «01 Операции» не найден.');
+  var operations = prhIncomeOperationsSheet_();
   var lastRow = operations.getLastRow();
   if (lastRow < 2) throw new Error('Доходные операции отсутствуют.');
   var values = operations.getRange(2, 3, lastRow - 1, 3).getValues();
@@ -184,11 +184,43 @@ function prhIncomeOpenDrilldown() {
 }
 
 function prhIncomeShowReviewRows() {
-  var sheet = prhIncomeDashboardSheet_();
-  prhSetIncomeDashboardVisibility_(sheet, ['quality', 'drilldown']);
+  var sheet = prhIncomeOperationsSheet_();
+  var lastRow = sheet.getLastRow();
+  var lastColumn = sheet.getLastColumn();
+  if (lastRow < 2) throw new Error('На листе «01 Операции» нет данных.');
+  var filter = sheet.getFilter();
+  if (!filter) filter = sheet.getRange(1, 1, lastRow, lastColumn).createFilter();
+  var statuses = sheet.getRange(2, PRH_INCOME_DASHBOARD.STATUS_COLUMN, lastRow - 1, 1).getDisplayValues();
+  var hiddenStatuses = [];
+  statuses.forEach(function (row) {
+    var status = String(row[0] || '').trim();
+    if (PRH_INCOME_DASHBOARD.REVIEW_STATUSES.indexOf(status) < 0 && hiddenStatuses.indexOf(status) < 0) {
+      hiddenStatuses.push(status);
+    }
+  });
+  var criteria = SpreadsheetApp.newFilterCriteria()
+    .setHiddenValues(hiddenStatuses)
+    .build();
+  filter.setColumnFilterCriteria(PRH_INCOME_DASHBOARD.STATUS_COLUMN, criteria);
+  var count = statuses.reduce(function (sum, row) {
+    return sum + (PRH_INCOME_DASHBOARD.REVIEW_STATUSES.indexOf(row[0]) >= 0 ? 1 : 0);
+  }, 0);
   sheet.activate();
-  sheet.getRange('A382').activate();
-  SpreadsheetApp.getUi().alert('Проблемные записи', 'На листе «01 Операции» отфильтруйте столбец «Статус» по значению «Требует проверки». Автоматическое изменение операций запрещено.', SpreadsheetApp.getUi().ButtonSet.OK);
+  sheet.getRange('A1').activate();
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getActive().toast('Показано проблемных операций: ' + count, 'Доходы', 6);
+  prhAuditIncomeDashboard_('OPERATIONS_REVIEW_FILTER', count + ' записей', 'OK');
+}
+
+function prhIncomeClearReviewFilter() {
+  var sheet = prhIncomeOperationsSheet_();
+  var filter = sheet.getFilter();
+  if (filter) filter.removeColumnFilterCriteria(PRH_INCOME_DASHBOARD.STATUS_COLUMN);
+  sheet.activate();
+  sheet.getRange('A1').activate();
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getActive().toast('Фильтр проблемных операций снят', 'Доходы', 4);
+  prhAuditIncomeDashboard_('OPERATIONS_REVIEW_FILTER_CLEAR', 'Статус', 'OK');
 }
 
 function prhIncomeRefreshDashboard() {
@@ -211,6 +243,7 @@ function prhIncomeValidateDashboard() {
       try { dashboard.getRange(a1); } catch (error) { errors.push('нет диапазона ' + a1); }
     });
   }
+  if (operations && operations.getLastColumn() < PRH_INCOME_DASHBOARD.STATUS_COLUMN) errors.push('нет столбца «Статус»');
   var message = errors.length ? errors.join('\n') : 'Конфигурация корректна. Запись в «01 Операции» не выполняется.';
   prhAuditIncomeDashboard_('DASHBOARD_VALIDATE', PRH_INCOME_DASHBOARD.SHEET, errors.length ? 'ERROR' : 'OK');
   SpreadsheetApp.getUi().alert('Проверка дашборда', message, SpreadsheetApp.getUi().ButtonSet.OK);
@@ -219,6 +252,12 @@ function prhIncomeValidateDashboard() {
 function prhIncomeDashboardSheet_() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PRH_INCOME_DASHBOARD.SHEET);
   if (!sheet) throw new Error('Лист «14 Аналитика» не найден.');
+  return sheet;
+}
+
+function prhIncomeOperationsSheet_() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(PRH_INCOME_DASHBOARD.OPERATIONS);
+  if (!sheet) throw new Error('Лист «01 Операции» не найден.');
   return sheet;
 }
 
@@ -242,6 +281,7 @@ function prhUpdateIncomeDashboardSettings_(status, description) {
     var values = sheet.getRange(1, 1, sheet.getLastRow(), 3).getValues();
     var keys = {
       income_dashboard_phase_1_2: [status, description],
+      income_dashboard_phase_1_4: ['READY', 'Фильтр проблемных операций подключён'],
       income_dashboard_script_version: [PRH_INCOME_DASHBOARD.VERSION, 'Версия контроллера дашборда доходов']
     };
     Object.keys(keys).forEach(function (key) {
