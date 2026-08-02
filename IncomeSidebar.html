@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body{font:14px Arial,sans-serif;margin:16px;color:#202124}label{display:block;margin-top:12px;font-weight:600}select,input,button{box-sizing:border-box;width:100%;margin-top:6px;padding:9px;border:1px solid #dadce0;border-radius:6px}button{cursor:pointer;font-weight:600}.primary{background:#1a73e8;color:#fff;border:0}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.status{margin-top:12px;padding:9px;border-radius:6px;background:#f1f3f4;white-space:pre-wrap}.small{font-size:12px;color:#5f6368}
+  </style>
+</head>
+<body>
+  <h2>Доходы</h2>
+  <div class="small" id="version"></div>
+  <label>Режим<select id="mode"></select></label>
+  <div class="row">
+    <label>Год<select id="year"></select></label>
+    <label>Месяц<select id="month"></select></label>
+  </div>
+  <label>Категория<select id="category"></select></label>
+  <label>Минимальная сумма<input id="minAmount" type="number" min="0" step="100" value="0"></label>
+  <button class="primary" onclick="applyFilters()">Применить</button>
+  <div class="row">
+    <button onclick="latest()">Последний месяц</button>
+    <button onclick="resetFilters()">Сбросить</button>
+  </div>
+  <button onclick="openProblems()">Проблемные операции</button>
+  <div class="status" id="status">Загрузка…</div>
+<script>
+function setStatus(text){document.getElementById('status').textContent=text;}
+function fill(id,values,current){const el=document.getElementById(id);el.innerHTML='';values.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(String(v)===String(current))o.selected=true;el.appendChild(o);});}
+function render(state){fill('mode',state.modes,state.mode);fill('year',state.years,state.year);fill('month',state.months,state.month);fill('category',state.categories,state.category);document.getElementById('minAmount').value=state.minAmount;document.getElementById('version').textContent='Controller '+state.version;setStatus('Готово');}
+function fail(error){setStatus('Ошибка: '+(error.message||error));}
+function load(){google.script.run.withSuccessHandler(render).withFailureHandler(fail).prhGetIncomeSidebarState();}
+function applyFilters(){setStatus('Применение…');google.script.run.withSuccessHandler(render).withFailureHandler(fail).prhApplyIncomeSidebarFilters({mode:mode.value,year:year.value,month:month.value,category:category.value,minAmount:minAmount.value});}
+function latest(){setStatus('Поиск последнего периода…');google.script.run.withSuccessHandler(render).withFailureHandler(fail).prhIncomeSidebarLatestPeriod();}
+function resetFilters(){setStatus('Сброс…');google.script.run.withSuccessHandler(render).withFailureHandler(fail).prhIncomeSidebarReset();}
+function openProblems(){setStatus('Открытие…');google.script.run.withSuccessHandler(()=>setStatus('Проблемные операции открыты')).withFailureHandler(fail).prhIncomeSidebarOpenProblems();}
+load();
+</script>
+</body>
+</html>
