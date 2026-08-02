@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ПрихРасхOnline v2 DEV — Income Dashboard Controller v0.2.1
  *
  * Safety contract:
@@ -190,11 +190,18 @@ function prhIncomeShowReviewRows() {
   if (lastRow < 2) throw new Error('На листе «01 Операции» нет данных.');
   var filter = sheet.getFilter();
   if (!filter) filter = sheet.getRange(1, 1, lastRow, lastColumn).createFilter();
+  var statuses = sheet.getRange(2, PRH_INCOME_DASHBOARD.STATUS_COLUMN, lastRow - 1, 1).getDisplayValues();
+  var hiddenStatuses = [];
+  statuses.forEach(function (row) {
+    var status = String(row[0] || '').trim();
+    if (PRH_INCOME_DASHBOARD.REVIEW_STATUSES.indexOf(status) < 0 && hiddenStatuses.indexOf(status) < 0) {
+      hiddenStatuses.push(status);
+    }
+  });
   var criteria = SpreadsheetApp.newFilterCriteria()
-    .setVisibleValues(PRH_INCOME_DASHBOARD.REVIEW_STATUSES)
+    .setHiddenValues(hiddenStatuses)
     .build();
   filter.setColumnFilterCriteria(PRH_INCOME_DASHBOARD.STATUS_COLUMN, criteria);
-  var statuses = sheet.getRange(2, PRH_INCOME_DASHBOARD.STATUS_COLUMN, lastRow - 1, 1).getDisplayValues();
   var count = statuses.reduce(function (sum, row) {
     return sum + (PRH_INCOME_DASHBOARD.REVIEW_STATUSES.indexOf(row[0]) >= 0 ? 1 : 0);
   }, 0);
