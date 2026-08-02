@@ -47,8 +47,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install clasp
         run: npm install --no-save @google/clasp@3
@@ -74,9 +72,6 @@ jobs:
           test -f DashboardModeService.js
           test -f IncomeSidebarController.js
           test -f IncomeSidebar.html
-          if find tests docs .github -type f \( -name '*.js' -o -name '*.html' \) -print 2>/dev/null | grep -q .; then
-            echo "Non-root source files exist but are excluded by .claspignore"
-          fi
           npx clasp status
 
       - name: Push to bound Apps Script project
