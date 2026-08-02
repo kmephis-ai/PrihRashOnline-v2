@@ -1,9 +1,9 @@
 /**
- * ПрихРасхOnline v2 DEV — Income Sidebar Controller v0.5.0.
+ * ПрихРасхOnline v2 DEV — Income Sidebar Controller v0.5.1.
  * Read-only with respect to «01 Операции».
  */
 var PRH_INCOME_SIDEBAR = Object.freeze({
-  VERSION: '0.5.0',
+  VERSION: '0.5.1',
   DASHBOARD: '14 Аналитика',
   OPERATIONS: '01 Операции',
   SETTINGS: '09 Настройки',
@@ -67,28 +67,36 @@ function prhGetIncomeSidebarState() {
   };
 }
 
-function prhApplyIncomeSidebarFilters(payload) {
+function prhValidateIncomeSidebarPayload_(payload, state) {
   payload = payload || {};
-  var mode = String(payload.mode || 'Обзор').trim();
-  var year = Number(payload.year);
-  var month = String(payload.month || '').trim();
-  var category = String(payload.category || 'Все').trim();
-  var minAmount = Number(payload.minAmount || 0);
-  if (PRH_INCOME_SIDEBAR.ALLOWED_MODES.indexOf(mode) < 0) throw new Error('Недопустимый режим.');
-  if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error('Недопустимый год.');
-  if (PRH_INCOME_SIDEBAR.MONTHS.indexOf(month) < 0) throw new Error('Недопустимый месяц.');
-  if (!isFinite(minAmount) || minAmount < 0) throw new Error('Минимальная сумма должна быть неотрицательной.');
+  state = state || { years: [], categories: [] };
+  var normalized = {
+    mode: String(payload.mode || 'Обзор').trim(),
+    year: Number(payload.year),
+    month: String(payload.month || '').trim(),
+    category: String(payload.category || 'Все').trim(),
+    minAmount: Number(payload.minAmount || 0)
+  };
+  if (PRH_INCOME_SIDEBAR.ALLOWED_MODES.indexOf(normalized.mode) < 0) throw new Error('Недопустимый режим.');
+  if (!Number.isInteger(normalized.year) || state.years.indexOf(normalized.year) < 0) throw new Error('Год отсутствует в доходных операциях.');
+  if (PRH_INCOME_SIDEBAR.MONTHS.indexOf(normalized.month) < 0) throw new Error('Недопустимый месяц.');
+  if (!isFinite(normalized.minAmount) || normalized.minAmount < 0) throw new Error('Минимальная сумма должна быть неотрицательной.');
+  if (state.categories.indexOf(normalized.category) < 0) throw new Error('Категория отсутствует в доходных операциях.');
+  return normalized;
+}
+
+function prhApplyIncomeSidebarFilters(payload) {
   var state = prhGetIncomeSidebarState();
-  if (state.categories.indexOf(category) < 0) throw new Error('Категория отсутствует в доходных операциях.');
+  var filters = prhValidateIncomeSidebarPayload_(payload, state);
   var dashboard = prhIncomeSidebarSheet_();
-  dashboard.getRange(PRH_INCOME_SIDEBAR.MODE_CELL).setValue(mode);
-  dashboard.getRange(PRH_INCOME_SIDEBAR.YEAR_CELL).setValue(year);
-  dashboard.getRange(PRH_INCOME_SIDEBAR.MONTH_CELL).setValue(month);
-  dashboard.getRange(PRH_INCOME_SIDEBAR.CATEGORY_CELL).setValue(category);
-  dashboard.getRange(PRH_INCOME_SIDEBAR.MIN_AMOUNT_CELL).setValue(minAmount);
-  if (typeof prhApplyIncomeDashboardMode_ === 'function') prhApplyIncomeDashboardMode_(mode);
+  dashboard.getRange(PRH_INCOME_SIDEBAR.MODE_CELL).setValue(filters.mode);
+  dashboard.getRange(PRH_INCOME_SIDEBAR.YEAR_CELL).setValue(filters.year);
+  dashboard.getRange(PRH_INCOME_SIDEBAR.MONTH_CELL).setValue(filters.month);
+  dashboard.getRange(PRH_INCOME_SIDEBAR.CATEGORY_CELL).setValue(filters.category);
+  dashboard.getRange(PRH_INCOME_SIDEBAR.MIN_AMOUNT_CELL).setValue(filters.minAmount);
+  if (typeof prhApplyIncomeDashboardMode_ === 'function') prhApplyIncomeDashboardMode_(filters.mode);
   SpreadsheetApp.flush();
-  prhIncomeSidebarAudit_('SIDEBAR_APPLY', mode, 'OK');
+  prhIncomeSidebarAudit_('SIDEBAR_APPLY', filters.mode, 'OK');
   return prhGetIncomeSidebarState();
 }
 
@@ -109,9 +117,10 @@ function prhIncomeSidebarOpenProblems() {
 }
 function prhValidateIncomeSidebar() {
   var errors = [];
-  try { prhIncomeSidebarSheet_(); } catch (error) { errors.push(error.message); }
-  try { prhIncomeSidebarOperations_(); } catch (error) { errors.push(error.message); }
+  var state = null;
+  try { state = prhGetIncomeSidebarState(); } catch (error) { errors.push(error.message); }
   if (typeof prhApplyIncomeDashboardMode_ !== 'function') errors.push('DashboardController.js не установлен');
+  if (state && !state.years.length) errors.push('нет датированных доходных операций');
   var message = errors.length ? errors.join('\n') : 'Панель готова. Запись в «01 Операции» отсутствует.';
   SpreadsheetApp.getUi().alert('Проверка панели доходов', message, SpreadsheetApp.getUi().ButtonSet.OK);
   prhIncomeSidebarAudit_('SIDEBAR_VALIDATE', 'IncomeSidebar', errors.length ? 'ERROR' : 'OK');
