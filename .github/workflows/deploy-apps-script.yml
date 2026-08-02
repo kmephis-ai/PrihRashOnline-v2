@@ -1,0 +1,92 @@
+name: Deploy Apps Script DEV
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - '*.js'
+      - '*.html'
+      - 'appsscript.json'
+      - '.claspignore'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: apps-script-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'agent/dashboard-ux-structure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout tested PR revision
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        shell: bash
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          set -euo pipefail
+          [[ -n "${APPS_SCRIPT_ID}" ]] || { echo "::error::Missing repository secret APPS_SCRIPT_ID"; exit 1; }
+          [[ -n "${CLASPRC_JSON}" ]] || { echo "::error::Missing repository secret CLASPRC_JSON"; exit 1; }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install --no-save @google/clasp@3
+
+      - name: Configure clasp
+        shell: bash
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
+
+      - name: Validate deployment payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f appsscript.json
+          test -f ApplicationMenuService.js
+          test -f DashboardModeService.js
+          test -f IncomeSidebarController.js
+          test -f IncomeSidebar.html
+          npx clasp status
+
+      - name: Push to bound Apps Script project
+        run: npx clasp push --force
+
+      - name: Report successful deployment to PR
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ Apps Script DEV deployment succeeded. Commit: \`$GITHUB_SHA\`. Package pushed with \`clasp push --force\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Report failed deployment to PR
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ Apps Script DEV deployment failed for commit \`$GITHUB_SHA\`. Workflow log: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
