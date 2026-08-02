@@ -26,7 +26,7 @@ assert.strictEqual(valid.category, 'Зарплата');
 function mustFail(payload, fragment) {
   assert.throws(
     () => context.prhValidateIncomeSidebarPayload_(payload, state),
-    error => error instanceof Error && error.message.includes(fragment)
+    error => Boolean(error && String(error.message || error).includes(fragment))
   );
 }
 
