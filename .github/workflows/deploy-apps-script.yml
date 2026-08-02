@@ -10,6 +10,17 @@ on:
       - 'appsscript.json'
       - '.claspignore'
       - '.github/workflows/deploy-apps-script.yml'
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+    paths:
+      - '*.js'
+      - '*.html'
+      - 'appsscript.json'
+      - '.claspignore'
+      - '.github/workflows/deploy-apps-script.yml'
   workflow_dispatch:
 
 permissions:
