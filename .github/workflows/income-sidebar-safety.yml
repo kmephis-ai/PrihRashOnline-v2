@@ -1,6 +1,14 @@
 name: Income Sidebar Safety
 
 on:
+  push:
+    branches:
+      - 'agent/phase-2-income-sidebar'
+    paths:
+      - 'IncomeSidebarController.js'
+      - 'IncomeSidebar.html'
+      - 'tests/income_sidebar_validation_test.js'
+      - '.github/workflows/income-sidebar-safety.yml'
   pull_request:
     paths:
       - 'IncomeSidebarController.js'
