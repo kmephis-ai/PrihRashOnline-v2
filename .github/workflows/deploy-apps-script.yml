@@ -1,0 +1,91 @@
+name: Deploy Apps Script DEV
+
+on:
+  push:
+    branches:
+      - agent/dashboard-ux-structure
+    paths:
+      - '*.js'
+      - '*.html'
+      - 'appsscript.json'
+      - '.claspignore'
+      - '.github/workflows/deploy-apps-script.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        shell: bash
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${APPS_SCRIPT_ID}" ]]; then
+            echo "::error::Missing repository secret APPS_SCRIPT_ID"
+            exit 1
+          fi
+          if [[ -z "${CLASPRC_JSON}" ]]; then
+            echo "::error::Missing repository secret CLASPRC_JSON"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install clasp
+        run: npm install --no-save @google/clasp@3
+
+      - name: Configure clasp
+        shell: bash
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
+
+      - name: Validate deployment payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f appsscript.json
+          test -f ApplicationMenuService.js
+          test -f DashboardModeService.js
+          test -f IncomeSidebarController.js
+          test -f IncomeSidebar.html
+          if find tests docs .github -type f \( -name '*.js' -o -name '*.html' \) -print 2>/dev/null | grep -q .; then
+            echo "Non-root source files exist but are excluded by .claspignore"
+          fi
+          npx clasp status
+
+      - name: Push to bound Apps Script project
+        run: npx clasp push --force
+
+      - name: Deployment summary
+        run: |
+          echo "### Apps Script DEV deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Result: code pushed with clasp" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Next: reopen the spreadsheet and run ПрихРасхOnline → Настройки → Проверить структуру дашборда" >> "$GITHUB_STEP_SUMMARY"
