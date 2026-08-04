@@ -1,11 +1,12 @@
 /**
- * ApplicationMenuService v0.6.0
+ * ApplicationMenuService v2.0.0
  *
  * Single UI entry point for ПрихРасхOnline. Menu actions may change dashboard
- * controls and row visibility, but never write financial values to `01 Операции`.
+ * controls, shell styling and row visibility, but never write financial values
+ * to `01 Операции`.
  */
 const PRH_APPLICATION_MENU = Object.freeze({
-  VERSION: '0.6.0',
+  VERSION: '2.0.0',
   DASHBOARD: '14 Аналитика',
   YEAR_CELL: 'A7',
   MONTH_CELL: 'D7',
@@ -20,12 +21,22 @@ const PRH_APPLICATION_MENU = Object.freeze({
 /** The project must have exactly one onOpen entry point. */
 function onOpen(e) {
   prhBuildApplicationMenu();
+  if (typeof prhRestoreDashboardShell === 'function') {
+    try {
+      prhRestoreDashboardShell();
+    } catch (error) {
+      console.error('Dashboard Shell restore failed: ' + error.message);
+    }
+  }
 }
 
 /** The project must have exactly one onEdit entry point. */
 function onEdit(e) {
   if (typeof prhHandleDashboardModeEdit === 'function') {
     prhHandleDashboardModeEdit(e);
+  }
+  if (typeof prhHandleDashboardShellEdit === 'function') {
+    prhHandleDashboardShellEdit(e);
   }
 }
 
@@ -60,6 +71,9 @@ function prhBuildApplicationMenu() {
 
   const settingsMenu = ui.createMenu('Настройки')
     .addItem('Открыть боковую панель', 'prhMenuOpenSidebar')
+    .addSeparator()
+    .addItem('Установить Dashboard Shell 2.0', 'prhInstallDashboardShell')
+    .addItem('Обновить оболочку', 'prhRefreshDashboardShell')
     .addItem('Проверить структуру дашборда', 'prhValidateDashboardApplication');
 
   ui.createMenu('ПрихРасхOnline')
@@ -85,8 +99,11 @@ function prhRefreshIncomeDashboard() {
         typeof prhDashboardUxSheet_ === 'function') {
       checks.ux = prhValidateDashboardUxStructure_(prhDashboardUxSheet_());
     }
+    if (typeof prhRefreshDashboardShell === 'function') {
+      checks.shell = prhRefreshDashboardShell();
+    }
     SpreadsheetApp.getActive().toast(
-      'Расчёты обновлены, структура проверена',
+      'Расчёты, оболочка и структура обновлены',
       'ПрихРасхOnline',
       4
     );
@@ -176,13 +193,18 @@ function prhValidateDashboardApplication() {
   } else {
     throw new Error('DashboardModeService.js не установлен.');
   }
+  if (typeof prhValidateDashboardShell_ === 'function') {
+    results.shell = prhValidateDashboardShell_(prhApplicationDashboard_());
+  } else {
+    throw new Error('DashboardShellService.js не установлен.');
+  }
   const chartCount = prhApplicationDashboard_().getCharts().length;
   if (chartCount !== 20) throw new Error('Ожидалось 20 диаграмм, найдено: ' + chartCount);
   results.chartCount = chartCount;
 
   SpreadsheetApp.getUi().alert(
     'Проверка дашборда',
-    'Структура корректна: 9 режимов, 13 разделов, 20 диаграмм. Финансовые операции не изменяются.',
+    'Dashboard Shell 2.0 корректен: 10 вкладок, 9 режимов, 13 разделов, 20 диаграмм. Финансовые операции не изменяются.',
     SpreadsheetApp.getUi().ButtonSet.OK
   );
   return { status: 'VALID', version: PRH_APPLICATION_MENU.VERSION, results: results };
