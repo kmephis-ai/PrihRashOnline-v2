@@ -7,6 +7,8 @@ on:
     paths:
       - '*.js'
       - '*.html'
+      - 'tests/**'
+      - 'docs/**'
       - 'appsscript.json'
       - '.claspignore'
       - '.github/workflows/deploy-apps-script.yml'
@@ -57,6 +59,16 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Run contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f tests/dashboard_shell_contract_test.js
+          for test_file in tests/*test.js; do
+            echo "Running ${test_file}"
+            node "${test_file}"
+          done
+
       - name: Install clasp
         run: npm install --no-save @google/clasp@3
 
@@ -79,6 +91,7 @@ jobs:
           test -f appsscript.json
           test -f ApplicationMenuService.js
           test -f DashboardModeService.js
+          test -f DashboardShellService.js
           test -f IncomeSidebarController.js
           test -f IncomeSidebar.html
           npx clasp status
@@ -92,6 +105,7 @@ jobs:
           echo "- Runner: \`${RUNNER_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Contract tests: passed" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: code pushed with clasp" >> "$GITHUB_STEP_SUMMARY"
           echo "- Next: reopen the spreadsheet and run ПрихРасхOnline → Настройки → Проверить структуру дашборда" >> "$GITHUB_STEP_SUMMARY"
 
@@ -101,7 +115,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ Apps Script DEV deployment succeeded on self-hosted runner \`$RUNNER_NAME\`. Commit: \`$GITHUB_SHA\`. Package pushed with \`clasp push --force\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ Dashboard Shell 2.0 deployed on self-hosted runner \`$RUNNER_NAME\`. Contract tests passed. Commit: \`$GITHUB_SHA\`. Package pushed with \`clasp push --force\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
       - name: Report failed deployment to PR
         if: failure()
@@ -109,4 +123,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ Apps Script DEV deployment failed on self-hosted runner \`$RUNNER_NAME\` for commit \`$GITHUB_SHA\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ Dashboard Shell 2.0 deployment failed on self-hosted runner \`$RUNNER_NAME\` for commit \`$GITHUB_SHA\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
