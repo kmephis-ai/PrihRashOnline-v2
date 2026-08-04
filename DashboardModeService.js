@@ -1,11 +1,13 @@
 /**
- * DashboardModeService v0.6.0
+ * DashboardModeService v0.7.0
  *
  * Turns `14 Аналитика` into nine app-like views by changing row visibility only.
- * Financial values, formulas, chart ranges and `01 Операции` are never edited.
+ * The compact Overview uses rows 10–58; detailed calculations remain available
+ * through the other modes. Financial values, formulas and `01 Операции` are
+ * never edited.
  */
 const PRH_DASHBOARD_MODE = Object.freeze({
-  VERSION: '0.6.0',
+  VERSION: '0.7.0',
   SHEET_NAME: '14 Аналитика',
   MODE_CELL: 'E3',
   YEAR_CELL: 'A7',
@@ -13,7 +15,7 @@ const PRH_DASHBOARD_MODE = Object.freeze({
   FIRST_BODY_ROW: 10,
   LAST_BODY_ROW: 700,
   MODES: Object.freeze({
-    'Обзор': Object.freeze({ ranges: Object.freeze([[10, 75]]), anchor: 'A10' }),
+    'Обзор': Object.freeze({ ranges: Object.freeze([[10, 58]]), anchor: 'A10' }),
     'По годам': Object.freeze({ ranges: Object.freeze([[10, 25]]), anchor: 'A10' }),
     'По месяцам года': Object.freeze({ ranges: Object.freeze([[26, 52]]), anchor: 'A26' }),
     'Выбранный месяц': Object.freeze({ ranges: Object.freeze([[53, 75]]), anchor: 'A53' }),
@@ -51,68 +53,51 @@ const PRH_DASHBOARD_MODE = Object.freeze({
 function prhInstallDashboardModes() {
   const sheet = prhDashboardModeSheet_();
   prhValidateDashboardModeStructure_(sheet);
-
   const names = Object.keys(PRH_DASHBOARD_MODE.MODES);
   const rule = SpreadsheetApp.newDataValidation()
     .requireValueInList(names, true)
     .setAllowInvalid(false)
     .setHelpText('Выберите экран дашборда. Скрипт покажет только нужные разделы.')
     .build();
-
   const modeCell = sheet.getRange(PRH_DASHBOARD_MODE.MODE_CELL);
   modeCell.setDataValidation(rule).setNote(
     'Режимы меняют только видимость строк. Год, месяц, формулы и операции сохраняются.'
   );
-
   const initial = prhNormalizeDashboardMode_(modeCell.getDisplayValue());
-  return prhApplyDashboardMode(initial || 'Полный дашборд');
+  return prhApplyDashboardMode(initial || 'Обзор');
 }
 
 function prhApplyDashboardMode(requestedMode) {
   const lock = LockService.getDocumentLock();
   if (!lock.tryLock(5000)) throw new Error('Дашборд занят другим действием. Повторите попытку.');
-
   try {
     const spreadsheet = SpreadsheetApp.getActive();
     const sheet = prhDashboardModeSheet_();
     prhValidateDashboardModeStructure_(sheet);
-
     const mode = prhNormalizeDashboardMode_(
       requestedMode || sheet.getRange(PRH_DASHBOARD_MODE.MODE_CELL).getDisplayValue()
     );
     if (!mode) throw new Error('Неизвестный режим дашборда: ' + requestedMode);
-
     const yearBefore = sheet.getRange(PRH_DASHBOARD_MODE.YEAR_CELL).getValue();
     const monthBefore = sheet.getRange(PRH_DASHBOARD_MODE.MONTH_CELL).getValue();
-    const maxRows = sheet.getMaxRows();
-    const lastBodyRow = Math.min(PRH_DASHBOARD_MODE.LAST_BODY_ROW, maxRows);
-
-    // Reset visibility first. This prevents stale hidden groups from a previous mode.
+    const lastBodyRow = Math.min(PRH_DASHBOARD_MODE.LAST_BODY_ROW, sheet.getMaxRows());
     sheet.showRows(1, lastBodyRow);
-    sheet.hideRows(
-      PRH_DASHBOARD_MODE.FIRST_BODY_ROW,
-      lastBodyRow - PRH_DASHBOARD_MODE.FIRST_BODY_ROW + 1
-    );
-
+    sheet.hideRows(PRH_DASHBOARD_MODE.FIRST_BODY_ROW, lastBodyRow - PRH_DASHBOARD_MODE.FIRST_BODY_ROW + 1);
     const profile = PRH_DASHBOARD_MODE.MODES[mode];
     profile.ranges.forEach(function (pair) {
       const start = pair[0];
       const end = Math.min(pair[1], lastBodyRow);
       if (end >= start) sheet.showRows(start, end - start + 1);
     });
-
-    // Update only the UI selector and preserve the analytical period.
     sheet.getRange(PRH_DASHBOARD_MODE.MODE_CELL).setValue(mode);
     if (sheet.getRange(PRH_DASHBOARD_MODE.YEAR_CELL).getValue() !== yearBefore ||
         sheet.getRange(PRH_DASHBOARD_MODE.MONTH_CELL).getValue() !== monthBefore) {
       throw new Error('Защитная остановка: год или месяц изменились при переключении режима.');
     }
-
     PropertiesService.getUserProperties().setProperty('prh.dashboard.mode', mode);
     spreadsheet.setActiveSheet(sheet);
     sheet.getRange(profile.anchor).activate();
     SpreadsheetApp.flush();
-
     return {
       status: 'DEV_APPLIED',
       version: PRH_DASHBOARD_MODE.VERSION,
@@ -126,7 +111,6 @@ function prhApplyDashboardMode(requestedMode) {
   }
 }
 
-/** Route this from the project's single onEdit(e) handler. */
 function prhHandleDashboardModeEdit(e) {
   if (!e || !e.range) return;
   const range = e.range;
@@ -137,7 +121,7 @@ function prhHandleDashboardModeEdit(e) {
 
 function prhRestoreLastDashboardMode() {
   const stored = PropertiesService.getUserProperties().getProperty('prh.dashboard.mode');
-  return prhApplyDashboardMode(stored || 'Полный дашборд');
+  return prhApplyDashboardMode(stored || 'Обзор');
 }
 
 function prhDashboardOverview() { return prhApplyDashboardMode('Обзор'); }
@@ -149,14 +133,8 @@ function prhDashboardOperations() { return prhApplyDashboardMode('Операци
 function prhDashboardForecast() { return prhApplyDashboardMode('Прогноз'); }
 function prhDashboardQuality() { return prhApplyDashboardMode('Качество данных'); }
 function prhDashboardFull() { return prhApplyDashboardMode('Полный дашборд'); }
-
-function prhGetDashboardModes() {
-  return Object.keys(PRH_DASHBOARD_MODE.MODES);
-}
-
-function prhValidateDashboardModes() {
-  return prhValidateDashboardModeStructure_(prhDashboardModeSheet_());
-}
+function prhGetDashboardModes() { return Object.keys(PRH_DASHBOARD_MODE.MODES); }
+function prhValidateDashboardModes() { return prhValidateDashboardModeStructure_(prhDashboardModeSheet_()); }
 
 function prhNormalizeDashboardMode_(value) {
   const trimmed = String(value || '').trim();
@@ -168,7 +146,6 @@ function prhValidateDashboardModeStructure_(sheet) {
   if (sheet.getMaxRows() < PRH_DASHBOARD_MODE.LAST_BODY_ROW) {
     throw new Error('Недостаточно строк для структуры режимов дашборда.');
   }
-
   Object.keys(PRH_DASHBOARD_MODE.SECTION_HEADERS).forEach(function (rowKey) {
     const row = Number(rowKey);
     const expected = PRH_DASHBOARD_MODE.SECTION_HEADERS[row];
@@ -177,7 +154,6 @@ function prhValidateDashboardModeStructure_(sheet) {
       throw new Error('Структура изменена в строке ' + row + ': ожидалось «' + expected + '».');
     }
   });
-
   return {
     ok: true,
     version: PRH_DASHBOARD_MODE.VERSION,
