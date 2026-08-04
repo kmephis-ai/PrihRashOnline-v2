@@ -1,13 +1,13 @@
 /**
- * DashboardModeService v0.7.0
+ * DashboardModeService v0.8.0
  *
  * Turns `14 Аналитика` into nine app-like views by changing row visibility only.
- * The compact Overview uses rows 10–58; detailed calculations remain available
+ * The compact Overview uses rows 10–52; detailed calculations remain available
  * through the other modes. Financial values, formulas and `01 Операции` are
  * never edited.
  */
 const PRH_DASHBOARD_MODE = Object.freeze({
-  VERSION: '0.7.0',
+  VERSION: '0.8.0',
   SHEET_NAME: '14 Аналитика',
   MODE_CELL: 'E3',
   YEAR_CELL: 'A7',
@@ -15,7 +15,7 @@ const PRH_DASHBOARD_MODE = Object.freeze({
   FIRST_BODY_ROW: 10,
   LAST_BODY_ROW: 700,
   MODES: Object.freeze({
-    'Обзор': Object.freeze({ ranges: Object.freeze([[10, 58]]), anchor: 'A10' }),
+    'Обзор': Object.freeze({ ranges: Object.freeze([[10, 52]]), anchor: 'A10' }),
     'По годам': Object.freeze({ ranges: Object.freeze([[10, 25]]), anchor: 'A10' }),
     'По месяцам года': Object.freeze({ ranges: Object.freeze([[26, 52]]), anchor: 'A26' }),
     'Выбранный месяц': Object.freeze({ ranges: Object.freeze([[53, 75]]), anchor: 'A53' }),
