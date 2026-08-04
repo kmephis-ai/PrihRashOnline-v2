@@ -25,9 +25,11 @@ requiredModes.forEach((mode) => expect(source.includes(`'${mode}'`), `Missing mo
 
 const sectionHeaders = (source.match(/^\s+\d+: '\d+\./gm) || []).length;
 expect(sectionHeaders === 13, `Expected 13 guarded section headers, found ${sectionHeaders}`);
+expect(source.includes("VERSION: '0.7.0'"), 'Unexpected mode service version');
 expect(source.includes("MODE_CELL: 'E3'"), 'Mode selector must stay in E3');
 expect(source.includes("YEAR_CELL: 'A7'"), 'Year guard must stay in A7');
 expect(source.includes("MONTH_CELL: 'D7'"), 'Month guard must stay in D7');
+expect(source.includes("'Обзор': Object.freeze({ ranges: Object.freeze([[10, 58]])"), 'Overview must remain compact in rows 10-58');
 expect(source.includes("[322, 381], [541, 690]"), 'Operations mode must expose summary and drill-down details');
 expect(source.includes("[10, 700]"), 'Full mode must expose the complete dashboard');
 expect(source.includes('sheet.showRows('), 'Missing visibility reset/show operation');
