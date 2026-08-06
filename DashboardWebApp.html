@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light">
+  <style>
+    :root {
+      --navy-950: #06223f;
+      --navy-900: #082f55;
+      --navy-800: #0b4770;
+      --teal-700: #087f82;
+      --teal-600: #0d9b99;
+      --teal-100: #dff6f3;
+      --blue-600: #1967d2;
+      --blue-100: #eaf2ff;
+      --green-700: #168447;
+      --green-100: #e7f6ec;
+      --orange-500: #ff6b2c;
+      --ink: #10233f;
+      --muted: #61728a;
+      --line: #dfe6ef;
+      --surface: #ffffff;
+      --canvas: #f3f6fa;
+      --shadow: 0 10px 30px rgba(24, 45, 78, 0.08);
+      --radius: 16px;
+      --gap: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--canvas); color: var(--ink); }
+    body { font-family: Arial, Roboto, sans-serif; font-size: 14px; }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .app-shell { min-width: 320px; min-height: 100vh; }
+    .topbar {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 12px clamp(18px, 3vw, 44px);
+      background: linear-gradient(120deg, var(--navy-950), #001a34 72%);
+      color: #fff;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .brand-mark {
+      width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px;
+      display: grid; place-items: center; font-weight: 800; font-size: 22px;
+      background: linear-gradient(150deg, #12b8a5, #087b8d); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+    }
+    .brand-copy { min-width: 0; }
+    .brand-title { margin: 0; font-size: clamp(21px, 2vw, 31px); line-height: 1.05; font-weight: 800; }
+    .brand-subtitle { margin: 5px 0 0; color: rgba(255,255,255,.78); font-size: 13px; white-space: normal; }
+    .headline-stat { flex: 0 0 auto; font-size: clamp(18px, 1.8vw, 27px); font-weight: 800; white-space: nowrap; }
+
+    .nav-wrap { background: var(--surface); border-bottom: 1px solid var(--line); padding: 8px clamp(14px, 2vw, 28px); }
+    .tabs {
+      max-width: 1720px; margin: 0 auto; display: grid; grid-template-columns: repeat(10, minmax(92px, 1fr));
+      border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: #fff;
+    }
+    .tab {
+      min-height: 48px; padding: 10px 8px; border: 0; border-right: 1px solid var(--line);
+      background: #fff; color: #173357; font-weight: 700; white-space: nowrap;
+    }
+    .tab:last-child { border-right: 0; }
+    .tab:hover { background: #f5f9fd; }
+    .tab.active { color: #fff; background: linear-gradient(145deg, #0ea5a1, #087d89); }
+
+    .page { max-width: 1720px; margin: 0 auto; padding: 14px clamp(14px, 2vw, 28px) 28px; }
+    .filters {
+      display: grid; grid-template-columns: 1.05fr 1.05fr 1.2fr .9fr 1.2fr; gap: var(--gap); margin-bottom: var(--gap);
+    }
+    .filter-card, .metric-card, .panel, .kpi-card {
+      min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .filter-card { min-height: 86px; padding: 13px 16px; display: flex; flex-direction: column; justify-content: center; }
+    .filter-label { color: #314d72; font-weight: 700; font-size: 12px; margin-bottom: 8px; }
+    .filter-select {
+      width: 100%; min-height: 40px; border: 0; background: transparent; color: var(--ink); font-weight: 800;
+      font-size: 18px; outline: none;
+    }
+    .filter-card.period { background: linear-gradient(135deg, #edfafa, #e8f6f4); border-color: #bee5df; }
+    .filter-card.operations { background: linear-gradient(135deg, #f2f7ff, #ebf2ff); border-color: #cbdcf8; }
+    .filter-card.quality { background: linear-gradient(135deg, #f0f9f1, #eaf6ec); border-color: #cce7d1; }
+    .metric-value { font-size: 21px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+    .metric-note { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .quality .metric-value { color: var(--green-700); }
+    .operations .metric-value { color: var(--blue-600); }
+    .period .metric-value { color: var(--teal-700); }
+
+    .dashboard-grid { display: grid; grid-template-columns: 1.06fr 1fr; gap: var(--gap); align-items: stretch; }
+    .panel { padding: 18px; overflow: hidden; }
+    .panel-title { margin: 0 0 14px; font-size: 19px; line-height: 1.2; }
+    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .panel-heading .panel-title { margin: 0; }
+    .panel-note { color: var(--muted); font-size: 12px; }
+
+    .kpi-layout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .kpi-card { min-height: 92px; padding: 13px; display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 11px; align-items: center; box-shadow: none; }
+    .kpi-icon { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(145deg, #0ba6a0, #087789); color: #fff; font-weight: 800; }
+    .kpi-label { color: #3a5272; font-size: 12px; line-height: 1.28; }
+    .kpi-value { margin-top: 4px; font-weight: 800; font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; }
+
+    .insight {
+      margin-top: 13px; min-height: 68px; display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center;
+      padding: 12px 14px; border-radius: 13px; border: 1px solid #c8dcfb; background: linear-gradient(135deg, #f3f8ff, #eef5ff);
+    }
+    .insight.warning { border-color: #f1d4b7; background: linear-gradient(135deg, #fff9ef, #fff4e7); }
+    .insight-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--blue-100); color: var(--blue-600); font-size: 22px; }
+    .insight.warning .insight-icon { background: #fff0d8; color: #b76100; }
+    .insight-title { font-weight: 800; color: var(--blue-600); }
+    .insight.warning .insight-title { color: #9a5500; }
+    .insight-text { margin-top: 3px; color: #34506f; line-height: 1.4; }
+
+    .chart-panel { min-height: 340px; }
+    .chart-host { width: 100%; height: 280px; min-width: 0; overflow: hidden; }
+    .chart-host svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .chart-empty { height: 100%; display: grid; place-items: center; color: var(--muted); }
+
+    .bottom-grid { grid-column: 1 / -1; display: grid; grid-template-columns: 1.08fr .92fr; gap: var(--gap); }
+    .monthly-panel, .structure-panel { min-height: 330px; }
+    .structure-layout { height: 270px; display: grid; grid-template-columns: minmax(220px, .9fr) minmax(250px, 1.1fr); gap: 18px; align-items: center; }
+    .donut-wrap { min-width: 0; display: grid; place-items: center; }
+    .donut {
+      width: min(230px, 100%); aspect-ratio: 1; border-radius: 50%; position: relative;
+      background: conic-gradient(var(--teal-700) 0 45%, var(--teal-600) 45% 68%, #75a5ed 68% 91%, #bed0e8 91% 100%);
+    }
+    .donut::after { content: ''; position: absolute; inset: 25%; border-radius: 50%; background: #fff; }
+    .donut-center { position: absolute; z-index: 2; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+    .donut-total { font-size: 20px; font-weight: 800; }
+    .donut-caption { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .legend { display: grid; gap: 12px; }
+    .legend-row { display: grid; grid-template-columns: 12px minmax(0,1fr) auto auto; gap: 9px; align-items: center; min-width: 0; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .legend-label { min-width: 0; overflow-wrap: anywhere; }
+    .legend-percent, .legend-value { white-space: nowrap; font-weight: 700; }
+    .legend-value { min-width: 92px; text-align: right; }
+
+    .actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+    .primary-button {
+      border: 0; border-radius: 11px; padding: 11px 17px; color: #fff; font-weight: 800;
+      background: linear-gradient(135deg, #1769e0, #0b5cc7); box-shadow: 0 7px 18px rgba(25,103,210,.2);
+    }
+    .primary-button:hover { filter: brightness(1.04); }
+
+    .status-toast {
+      position: fixed; z-index: 30; left: 50%; bottom: 22px; transform: translate(-50%, 130%);
+      max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 12px; color: #fff; background: var(--navy-900);
+      box-shadow: 0 12px 30px rgba(0,0,0,.22); transition: transform .2s ease;
+    }
+    .status-toast.visible { transform: translate(-50%, 0); }
+    .loading-layer { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(243,246,250,.75); backdrop-filter: blur(3px); }
+    .loading-layer.visible { display: grid; }
+    .loader-card { padding: 18px 24px; border-radius: 14px; background: #fff; box-shadow: var(--shadow); font-weight: 800; }
+
+    @media (max-width: 1250px) {
+      .tabs { overflow-x: auto; grid-template-columns: repeat(10, minmax(120px, 1fr)); }
+      .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filter-card.period { grid-column: span 2; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .bottom-grid { grid-column: auto; grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .topbar { align-items: flex-start; flex-direction: column; gap: 10px; }
+      .headline-stat { white-space: normal; }
+      .filters { grid-template-columns: 1fr; }
+      .filter-card.period { grid-column: auto; }
+      .kpi-layout { grid-template-columns: 1fr 1fr; }
+      .structure-layout { height: auto; grid-template-columns: 1fr; }
+      .chart-host { height: 250px; }
+    }
+    @media (max-width: 500px) {
+      .kpi-layout { grid-template-columns: 1fr; }
+      .brand-subtitle { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <script id="initial-data" type="application/json"><?!= initialData ?></script>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">₽</div>
+        <div class="brand-copy">
+          <h1 class="brand-title">Дашборд доходов</h1>
+          <p class="brand-subtitle">Единый интерактивный обзор: годы, месяцы, структура, устойчивость, прогноз и качество данных</p>
+        </div>
+      </div>
+      <div class="headline-stat" id="headline-stat">Доходы • — операций</div>
+    </header>
+
+    <div class="nav-wrap">
+      <nav class="tabs" id="tabs" aria-label="Разделы дашборда"></nav>
+    </div>
+
+    <main class="page">
+      <section class="filters" aria-label="Фильтры и контекст анализа">
+        <article class="filter-card" data-testid="filter-card">
+          <label class="filter-label" for="year-select">Выбранный год</label>
+          <select class="filter-select" id="year-select"></select>
+        </article>
+        <article class="filter-card" data-testid="filter-card">
+          <label class="filter-label" for="month-select">Выбранный месяц</label>
+          <select class="filter-select" id="month-select"></select>
+        </article>
+        <article class="filter-card period" data-testid="filter-card">
+          <div class="filter-label">Текущий период</div>
+          <div class="metric-value" id="current-period">—</div>
+          <div class="metric-note" id="period-note">Данные загружаются</div>
+        </article>
+        <article class="filter-card operations" data-testid="filter-card">
+          <div class="filter-label">Операций дохода</div>
+          <div class="metric-value" id="operations-value">—</div>
+          <div class="metric-note">Полная история</div>
+        </article>
+        <article class="filter-card quality" data-testid="filter-card">
+          <div class="filter-label">Качество данных</div>
+          <div class="metric-value" id="quality-value">—</div>
+          <div class="metric-note" id="quality-note">Оценка полноты</div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel" data-testid="overview-kpis">
+          <h2 class="panel-title">Ключевые KPI и выводы</h2>
+          <div class="kpi-layout" id="kpi-layout"></div>
+          <div class="insight" id="insight">
+            <div class="insight-icon">💡</div>
+            <div>
+              <div class="insight-title" id="insight-title">Главный вывод</div>
+              <div class="insight-text" id="insight-text">Загрузка аналитического вывода…</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel chart-panel" data-testid="yearly-panel">
+          <div class="panel-heading">
+            <h2 class="panel-title">Доходы по годам</h2>
+            <span class="panel-note">История доходов</span>
+          </div>
+          <div class="chart-host" id="yearly-chart" aria-label="График доходов по годам"></div>
+        </article>
+
+        <div class="bottom-grid">
+          <article class="panel monthly-panel" data-testid="monthly-panel">
+            <div class="panel-heading">
+              <h2 class="panel-title" id="monthly-title">Доходы по месяцам</h2>
+              <span class="panel-note">Выбранный год</span>
+            </div>
+            <div class="chart-host" id="monthly-chart" aria-label="График доходов по месяцам"></div>
+          </article>
+
+          <article class="panel structure-panel" data-testid="structure-panel">
+            <div class="panel-heading">
+              <h2 class="panel-title" id="structure-title">Структура доходов за выбранный месяц</h2>
+              <span class="panel-note">Категории</span>
+            </div>
+            <div class="structure-layout">
+              <div class="donut-wrap"><div class="donut" id="donut"><div class="donut-center"><div class="donut-total" id="donut-total">0 ₽</div><div class="donut-caption">Итого</div></div></div></div>
+              <div class="legend" id="structure-legend"></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div class="actions"><button class="primary-button" id="open-sheet">Открыть расширенную аналитику ↓</button></div>
+    </main>
+  </div>
+  <div class="status-toast" id="status-toast" role="status"></div>
+  <div class="loading-layer" id="loading-layer"><div class="loader-card">Обновляем дашборд…</div></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const COLORS = ['#075985', '#0d9b99', '#74a3ea', '#ff6b2c', '#9db2ca', '#36b37e'];
+      const FIXTURE = {
+        schemaVersion: 1,
+        appVersion: 'fixture',
+        spreadsheetUrl: '#',
+        period: { year: 2026, month: 'Июль', monthIndex: 6, years: [2023, 2024, 2025, 2026], months: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'], latestDate: '31.07.2026' },
+        summary: { incomeOperations: 1010, datedOperations: 1009, qualityScore: 86, qualityLabel: 'высокое', selectedYearIncome: 3322811, selectedMonthIncome: 151360, monthOperations: 9, averageOperation: 16818 },
+        kpis: { averageYearIncome: 2099711, maximumYear: { year: 2025, value: 3869563 }, activeMonths: 7, averageActiveMonth: 474687, peakMonth: { month: 'Май', value: 864039 }, minimumActiveMonth: { month: 'Июль', value: 151360 }, specialShare: .144, yearChange: -.141, historyShare: .176 },
+        yearlyIncome: [{year:2023,value:1845221},{year:2024,value:2481349},{year:2025,value:3869563},{year:2026,value:3322811}],
+        monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,231646,268112,208945,184221,98724].map(function(value,index){ const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']; return {month:months[index],short:months[index].slice(0,3),value:value,operations:value?10:0}; }),
+        monthStructure: [{label:'Зарплата',value:68578},{label:'Аванс',value:35516},{label:'Другое',value:34998},{label:'ЕДВ',value:2268}],
+        insight: { title:'Главный вывод', text:'В 2026 году доход выбранного года снизился на 14%. Доля года в общей истории: 17,6%.', tone:'warning' },
+        navigation: { active:'overview', tabs:[['overview','Обзор'],['years','Годы'],['months','Месяцы'],['month','Месяц'],['seasonality','Сезонность'],['structure','Структура'],['operations','Операции'],['forecast','Прогноз'],['quality','Качество'],['details','Детали']] }
+      };
+
+      let state = parseInitialData() || FIXTURE;
+      const elements = {};
+
+      document.addEventListener('DOMContentLoaded', function () {
+        cacheElements();
+        bindEvents();
+        render(state);
+      });
+
+      function cacheElements() {
+        ['headline-stat','tabs','year-select','month-select','current-period','period-note','operations-value','quality-value','quality-note','kpi-layout','insight','insight-title','insight-text','yearly-chart','monthly-title','monthly-chart','structure-title','donut','donut-total','structure-legend','open-sheet','status-toast','loading-layer'].forEach(function (id) {
+          elements[id] = document.getElementById(id);
+        });
+      }
+
+      function bindEvents() {
+        elements['year-select'].addEventListener('change', refreshFromFilters);
+        elements['month-select'].addEventListener('change', refreshFromFilters);
+        elements['open-sheet'].addEventListener('click', function () {
+          if (state.spreadsheetUrl && state.spreadsheetUrl !== '#') window.open(state.spreadsheetUrl, '_blank', 'noopener');
+          else showToast('В локальном прототипе ссылка на таблицу недоступна.');
+        });
+        window.addEventListener('resize', debounce(function () { renderCharts(state); }, 100));
+      }
+
+      function parseInitialData() {
+        try {
+          const text = document.getElementById('initial-data').textContent.trim();
+          if (!text || text.indexOf('<?') === 0) return null;
+          return JSON.parse(text);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function refreshFromFilters() {
+        const year = Number(elements['year-select'].value);
+        const month = Number(elements['month-select'].value);
+        if (!(window.google && google.script && google.script.run)) {
+          state = Object.assign({}, state, { period: Object.assign({}, state.period, { year: year, month: state.period.months[month], monthIndex: month }) });
+          render(state);
+          showToast('Локальный режим: структура интерфейса проверена на fixture-данных.');
+          return;
+        }
+        setLoading(true);
+        google.script.run
+          .withSuccessHandler(function (data) { state = data; render(state); setLoading(false); })
+          .withFailureHandler(function (error) { setLoading(false); showToast('Не удалось обновить данные: ' + (error && error.message ? error.message : error)); })
+          .prhGetWebDashboardData(year, month);
+      }
+
+      function render(data) {
+        renderTabs(data.navigation);
+        fillSelect(elements['year-select'], data.period.years, data.period.year, function (value) { return value; });
+        fillSelect(elements['month-select'], data.period.months.map(function (month, index) { return { value:index, label:month }; }), data.period.monthIndex, function (item) { return item.label; });
+        elements['headline-stat'].textContent = 'Доходы • ' + formatInt(data.summary.incomeOperations) + ' операций';
+        elements['current-period'].textContent = data.period.year + ' • ' + data.period.month.toLowerCase();
+        elements['period-note'].textContent = 'Данные по ' + data.period.latestDate;
+        elements['operations-value'].textContent = formatInt(data.summary.incomeOperations);
+        elements['quality-value'].textContent = data.summary.qualityScore + '/100 • ' + data.summary.qualityLabel;
+        elements['quality-note'].textContent = formatInt(data.summary.datedOperations) + ' операций с датой';
+        elements['monthly-title'].textContent = 'Доходы по месяцам (' + data.period.year + ')';
+        elements['structure-title'].textContent = 'Структура доходов (' + data.period.month + ' ' + data.period.year + ')';
+        renderKpis(data);
+        renderInsight(data.insight);
+        renderCharts(data);
+      }
+
+      function renderTabs(navigation) {
+        elements.tabs.innerHTML = '';
+        navigation.tabs.forEach(function (tab) {
+          const button = document.createElement('button');
+          button.className = 'tab' + (tab[0] === navigation.active ? ' active' : '');
+          button.type = 'button';
+          button.textContent = tab[1];
+          button.dataset.view = tab[0];
+          button.addEventListener('click', function () {
+            if (tab[0] !== 'overview') showToast('Раздел «' + tab[1] + '» будет подключён в Блоке 2.');
+          });
+          elements.tabs.appendChild(button);
+        });
+      }
+
+      function fillSelect(select, items, selected, labeler) {
+        select.innerHTML = '';
+        items.forEach(function (item) {
+          const value = typeof item === 'object' ? item.value : item;
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = labeler(item);
+          option.selected = String(value) === String(selected);
+          select.appendChild(option);
+        });
+      }
+
+      function renderKpis(data) {
+        const k = data.kpis;
+        const cards = [
+          ['₽', 'Средний доход за год', money(k.averageYearIncome)],
+          ['★', 'Максимальный год в истории', k.maximumYear ? k.maximumYear.year + ' • ' + money(k.maximumYear.value) : '—'],
+          ['◉', 'Доход за год (' + data.period.year + ')', money(data.summary.selectedYearIncome)],
+          ['▦', 'Активных месяцев', String(k.activeMonths)],
+          ['↗', 'Средний активный месяц', money(k.averageActiveMonth)],
+          ['◆', 'Пиковый месяц', k.peakMonth ? k.peakMonth.month + ' • ' + money(k.peakMonth.value) : '—'],
+          ['↘', 'Минимальный активный', k.minimumActiveMonth ? k.minimumActiveMonth.month + ' • ' + money(k.minimumActiveMonth.value) : '—'],
+          ['%', 'Доля спецдоходов (' + data.period.year + ')', percent(k.specialShare)]
+        ];
+        elements['kpi-layout'].innerHTML = cards.map(function (card) {
+          return '<article class="kpi-card" data-testid="kpi-card"><div class="kpi-icon">' + escapeHtml(card[0]) + '</div><div><div class="kpi-label">' + escapeHtml(card[1]) + '</div><div class="kpi-value">' + escapeHtml(card[2]) + '</div></div></article>';
+        }).join('');
+      }
+
+      function renderInsight(insight) {
+        elements.insight.className = 'insight' + (insight.tone === 'warning' ? ' warning' : '');
+        elements['insight-title'].textContent = insight.title;
+        elements['insight-text'].textContent = insight.text;
+      }
+
+      function renderCharts(data) {
+        renderBarChart(elements['yearly-chart'], data.yearlyIncome.map(function (item) { return String(item.year); }), data.yearlyIncome.map(function (item) { return item.value; }), data.period.year);
+        renderMonthlyChart(elements['monthly-chart'], data.monthlyIncome, data.period.monthIndex);
+        renderDonut(data.monthStructure, data.summary.selectedMonthIncome);
+      }
+
+      function renderBarChart(host, labels, values, selectedLabel) {
+        if (!values.some(function (value) { return value > 0; })) { host.innerHTML = '<div class="chart-empty">Нет данных</div>'; return; }
+        const size = chartSize(host, 620, 270);
+        const margin = { top: 24, right: 18, bottom: 42, left: 70 };
+        const plotW = size.width - margin.left - margin.right;
+        const plotH = size.height - margin.top - margin.bottom;
+        const max = niceMax(Math.max.apply(null, values));
+        const step = plotW / labels.length;
+        const barW = Math.max(18, step * .55);
+        let svg = svgStart(size);
+        svg += gridLines(margin, plotW, plotH, max, 4);
+        values.forEach(function (value, index) {
+          const height = max ? (value / max) * plotH : 0;
+          const x = margin.left + index * step + (step - barW) / 2;
+          const y = margin.top + plotH - height;
+          const fill = String(labels[index]) === String(selectedLabel) ? '#0d9b99' : '#123c70';
+          svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + height.toFixed(1) + '" rx="3" fill="' + fill + '"></rect>';
+          svg += text(x + barW / 2, margin.top + plotH + 22, labels[index], 'middle', 11, '#405675');
+          svg += text(x + barW / 2, Math.max(14, y - 7), compactMoney(value), 'middle', 10, '#172b4d', '600');
+        });
+        svg += '</svg>';
+        host.innerHTML = svg;
+      }
+
+      function renderMonthlyChart(host, rows, selectedMonthIndex) {
+        const values = rows.map(function (row) { return row.value; });
+        const labels = rows.map(function (row) { return row.short; });
+        const size = chartSize(host, 700, 270);
+        const margin = { top: 24, right: 18, bottom: 44, left: 70 };
+        const plotW = size.width - margin.left - margin.right;
+        const plotH = size.height - margin.top - margin.bottom;
+        const max = niceMax(Math.max.apply(null, values));
+        const step = plotW / labels.length;
+        const barW = Math.max(12, step * .46);
+        const points = [];
+        let svg = svgStart(size) + gridLines(margin, plotW, plotH, max, 4);
+        values.forEach(function (value, index) {
+          const height = max ? (value / max) * plotH : 0;
+          const x = margin.left + index * step + (step - barW) / 2;
+          const y = margin.top + plotH - height;
+          const centerX = x + barW / 2;
+          points.push(centerX.toFixed(1) + ',' + y.toFixed(1));
+          svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + height.toFixed(1) + '" rx="3" fill="' + (index === selectedMonthIndex ? '#075985' : '#0d9b99') + '" opacity=".9"></rect>';
+          svg += text(centerX, margin.top + plotH + 22, labels[index], 'middle', 10, '#405675');
+        });
+        svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="#087f82" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>';
+        points.forEach(function (point, index) {
+          const parts = point.split(',');
+          svg += '<circle cx="' + parts[0] + '" cy="' + parts[1] + '" r="' + (index === selectedMonthIndex ? 5 : 3.5) + '" fill="#fff" stroke="#087f82" stroke-width="2"></circle>';
+        });
+        svg += '</svg>';
+        host.innerHTML = svg;
+      }
+
+      function renderDonut(rows, explicitTotal) {
+        const safeRows = rows.filter(function (row) { return row.value > 0; });
+        const total = explicitTotal || safeRows.reduce(function (sum, row) { return sum + row.value; }, 0);
+        elements['donut-total'].textContent = money(total);
+        if (!safeRows.length || !total) {
+          elements.donut.style.background = '#e8edf3';
+          elements['structure-legend'].innerHTML = '<div class="chart-empty">В выбранном месяце нет доходов</div>';
+          return;
+        }
+        let cursor = 0;
+        const stops = safeRows.map(function (row, index) {
+          const start = cursor;
+          cursor += (row.value / total) * 100;
+          return COLORS[index % COLORS.length] + ' ' + start.toFixed(2) + '% ' + cursor.toFixed(2) + '%';
+        });
+        elements.donut.style.background = 'conic-gradient(' + stops.join(',') + ')';
+        elements['structure-legend'].innerHTML = safeRows.map(function (row, index) {
+          return '<div class="legend-row"><span class="legend-dot" style="background:' + COLORS[index % COLORS.length] + '"></span><span class="legend-label">' + escapeHtml(row.label) + '</span><span class="legend-percent">' + percent(row.value / total) + '</span><span class="legend-value">' + money(row.value) + '</span></div>';
+        }).join('');
+      }
+
+      function chartSize(host, fallbackWidth, height) {
+        return { width: Math.max(320, host.clientWidth || fallbackWidth), height: height };
+      }
+      function svgStart(size) { return '<svg viewBox="0 0 ' + size.width + ' ' + size.height + '" role="img" aria-hidden="true">'; }
+      function gridLines(margin, plotW, plotH, max, count) {
+        let output = '';
+        for (let i = 0; i <= count; i += 1) {
+          const y = margin.top + (plotH / count) * i;
+          const value = max - (max / count) * i;
+          output += '<line x1="' + margin.left + '" y1="' + y + '" x2="' + (margin.left + plotW) + '" y2="' + y + '" stroke="#dfe6ef" stroke-dasharray="3 4"></line>';
+          output += text(margin.left - 10, y + 4, compactMoney(value), 'end', 10, '#60728b');
+        }
+        return output;
+      }
+      function text(x, y, value, anchor, size, fill, weight) { return '<text x="' + x + '" y="' + y + '" text-anchor="' + anchor + '" font-family="Arial, sans-serif" font-size="' + size + '" font-weight="' + (weight || '400') + '" fill="' + fill + '">' + escapeHtml(value) + '</text>'; }
+      function niceMax(value) { if (!value) return 1; const magnitude = Math.pow(10, Math.floor(Math.log10(value))); return Math.ceil(value / magnitude) * magnitude; }
+      function money(value) { return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(value) || 0) + ' ₽'; }
+      function compactMoney(value) { const number = Number(value) || 0; if (Math.abs(number) >= 1000000) return (number / 1000000).toFixed(number >= 10000000 ? 0 : 1).replace('.', ',') + ' млн'; if (Math.abs(number) >= 1000) return Math.round(number / 1000) + ' тыс'; return Math.round(number) + ' ₽'; }
+      function formatInt(value) { return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(value) || 0); }
+      function percent(value) { return ((Number(value) || 0) * 100).toFixed(1).replace('.', ',') + '%'; }
+      function escapeHtml(value) { return String(value == null ? '' : value).replace(/[&<>'"]/g, function (char) { return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]; }); }
+      function setLoading(visible) { elements['loading-layer'].classList.toggle('visible', Boolean(visible)); }
+      function showToast(message) { elements['status-toast'].textContent = message; elements['status-toast'].classList.add('visible'); clearTimeout(showToast.timer); showToast.timer = setTimeout(function () { elements['status-toast'].classList.remove('visible'); }, 3000); }
+      function debounce(fn, wait) { let timer; return function () { clearTimeout(timer); timer = setTimeout(fn, wait); }; }
+    }());
+  </script>
+</body>
+</html>
