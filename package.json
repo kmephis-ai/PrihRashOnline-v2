@@ -1,6 +1,6 @@
 {
   "name": "prihrashonline-dashboard-web",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Reproducible build and visual contract tooling for the ПрихРасхOnline HTML dashboard",
   "scripts": {
