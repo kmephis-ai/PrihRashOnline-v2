@@ -2,6 +2,8 @@
  * DashboardWebExecutiveService v1.3.0
  * Read-only enrichment for Web Dashboard blocks 4–5:
  * drill-down to source operations + executive metrics.
+ *
+ * Safety: this module never writes to 01 Операции or spreadsheet geometry.
  */
 const PRH_WEB_EXECUTIVE = Object.freeze({
   VERSION: '1.3.0',
@@ -30,28 +32,28 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
   const duplicateBuckets = {};
 
   for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
-    const row = values[rowIndex];
-    if (String(row[index.type] || '').trim().toLowerCase() !== 'доход') continue;
+    const source = values[rowIndex];
+    if (String(source[index.type] || '').trim().toLowerCase() !== 'доход') continue;
 
-    const amount = Number(row[index.amount]);
+    const amount = Number(source[index.amount]);
     if (!Number.isFinite(amount)) continue;
 
-    const date = prhWebDate_(row[index.date]);
-    const rawCategory = String(row[index.category] || '').trim();
+    const date = prhWebDate_(source[index.date]);
+    const rawCategory = String(source[index.category] || '').trim();
     const category = rawCategory || 'Без категории';
-    const name = index.name >= 0 ? String(row[index.name] || '').trim() : '';
-    const comment = index.comment >= 0 ? String(row[index.comment] || '').trim() : '';
+    const name = index.name >= 0 ? String(source[index.name] || '').trim() : '';
+    const comment = index.comment >= 0 ? String(source[index.comment] || '').trim() : '';
     const description = name || comment || '';
     const specialText = [category, name, comment].filter(Boolean).join(' ');
     const operation = {
       row: rowIndex + 1,
-      id: index.id >= 0 ? String(row[index.id] || '').trim() : '',
+      id: index.id >= 0 ? String(source[index.id] || '').trim() : '',
       date: date,
       amount: amount,
       category: category,
       rawCategory: rawCategory,
       description: description,
-      status: index.status >= 0 ? String(row[index.status] || '').trim() : '',
+      status: index.status >= 0 ? String(source[index.status] || '').trim() : '',
       isSpecial: prhWebExecutiveIsSpecial_(specialText),
       isLarge: amount >= PRH_WEB_EXECUTIVE.LARGE_AMOUNT,
       duplicate: false
@@ -69,7 +71,9 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
   });
   const duplicateKeySet = {};
   duplicateKeys.forEach(function (key) { duplicateKeySet[key] = true; });
-  rows.forEach(function (row) { row.duplicate = Boolean(row.duplicateKey && duplicateKeySet[row.duplicateKey]); });
+  rows.forEach(function (row) {
+    row.duplicate = Boolean(row.duplicateKey && duplicateKeySet[row.duplicateKey]);
+  });
 
   const selectedYear = base.period.year;
   const selectedMonthIndex = base.period.monthIndex;
@@ -84,13 +88,17 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
     ? { year: selectedYear, month: selectedMonthIndex - 1 }
     : { year: selectedYear - 1, month: 11 };
   const previousMonthRows = rows.filter(function (row) {
-    return row.date && row.date.getFullYear() === previousMonthRef.year && row.date.getMonth() === previousMonthRef.month;
+    return row.date && row.date.getFullYear() === previousMonthRef.year &&
+      row.date.getMonth() === previousMonthRef.month;
   });
 
   const activeMonthIndexes = yearRows.map(function (row) { return row.date.getMonth(); });
-  const comparisonEndMonth = activeMonthIndexes.length ? Math.max.apply(null, activeMonthIndexes) : selectedMonthIndex;
+  const comparisonEndMonth = activeMonthIndexes.length
+    ? Math.max.apply(null, activeMonthIndexes)
+    : selectedMonthIndex;
   const previousComparableRows = rows.filter(function (row) {
-    return row.date && row.date.getFullYear() === selectedYear - 1 && row.date.getMonth() <= comparisonEndMonth;
+    return row.date && row.date.getFullYear() === selectedYear - 1 &&
+      row.date.getMonth() <= comparisonEndMonth;
   });
 
   const specialRows = yearRows.filter(function (row) { return row.isSpecial; });
@@ -102,8 +110,8 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
   const duplicateRows = yearRows.filter(function (row) { return row.duplicate; });
   const qualityRows = rows.filter(prhWebExecutiveHasQualityIssue_);
 
-  const yearCategoryTotals = prhWebExecutiveCategoryTotals_(yearRows);
-  const largestSource = prhWebExecutiveLargestCategory_(yearCategoryTotals);
+  const categoryTotals = prhWebExecutiveCategoryTotals_(yearRows);
+  const largestSource = prhWebExecutiveLargestCategory_(categoryTotals);
   const largestSourceRows = largestSource
     ? yearRows.filter(function (row) { return row.category === largestSource.label; })
     : [];
@@ -114,21 +122,23 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
   const previousComparableIncome = prhWebExecutiveSum_(previousComparableRows);
   const specialIncome = prhWebExecutiveSum_(specialRows);
   const baseIncome = prhWebExecutiveSum_(baseRows);
+  const otherIncome = prhWebExecutiveSum_(otherRows);
   const monthChange = previousMonthIncome
     ? (selectedMonthIncome - previousMonthIncome) / previousMonthIncome
     : null;
   const comparableYearChange = previousComparableIncome
     ? (selectedYearIncome - previousComparableIncome) / previousComparableIncome
     : null;
-  const otherIncome = prhWebExecutiveSum_(otherRows);
-  const stabilityIndex = prhWebExecutiveStabilityIndex_(baseRows);
+  const stabilityIndex = prhWebExecutiveStabilityIndex_(yearRows, specialIncome);
   const forecast = prhWebExecutiveForecast_(baseRows, specialIncome);
   const duplicateGroupCount = prhWebExecutiveDuplicateGroupCount_(duplicateBuckets, selectedYear);
 
   const qualityCounts = {
     withoutDate: rows.filter(function (row) { return !row.date; }).length,
     withoutDescription: rows.filter(function (row) { return !row.description; }).length,
-    other: rows.filter(function (row) { return row.category.toLowerCase() === PRH_WEB_EXECUTIVE.OTHER_CATEGORY.toLowerCase(); }).length,
+    other: rows.filter(function (row) {
+      return row.category.toLowerCase() === PRH_WEB_EXECUTIVE.OTHER_CATEGORY.toLowerCase();
+    }).length,
     zeroOrNegative: rows.filter(function (row) { return row.amount <= 0; }).length,
     duplicateGroups: duplicateKeys.length,
     large: rows.filter(function (row) { return row.isLarge; }).length
@@ -158,7 +168,9 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
       month: prhWebExecutiveDeltaReason_(monthRows, previousMonthRows, 'месяца'),
       year: prhWebExecutiveDeltaReason_(yearRows, previousComparableRows, 'сопоставимого периода года'),
       special: specialIncome
-        ? 'Специальные доходы составляют ' + prhWebExecutivePercentText_(selectedYearIncome ? specialIncome / selectedYearIncome : 0) + ' дохода выбранного года.'
+        ? 'Специальные доходы составляют ' +
+          prhWebExecutivePercentText_(selectedYearIncome ? specialIncome / selectedYearIncome : 0) +
+          ' дохода выбранного года.'
         : 'Специальные доходы в выбранном году не обнаружены.'
     }
   };
@@ -170,11 +182,18 @@ function prhGetWebDashboardDataV13(requestedYear, requestedMonth, requestedView)
     previousYear: prhWebExecutiveGroup_('Сопоставимый период прошлого года', previousComparableRows, spreadsheet, sheet, timeZone),
     base: prhWebExecutiveGroup_('Базовые доходы', baseRows, spreadsheet, sheet, timeZone),
     special: prhWebExecutiveGroup_('Специальные доходы', specialRows, spreadsheet, sheet, timeZone),
-    largestSource: prhWebExecutiveGroup_(largestSource ? 'Крупнейший источник: ' + largestSource.label : 'Крупнейший источник', largestSourceRows, spreadsheet, sheet, timeZone),
+    largestSource: prhWebExecutiveGroup_(
+      largestSource ? 'Крупнейший источник: ' + largestSource.label : 'Крупнейший источник',
+      largestSourceRows, spreadsheet, sheet, timeZone
+    ),
     other: prhWebExecutiveGroup_('Категория «Другое»', otherRows, spreadsheet, sheet, timeZone),
     large: prhWebExecutiveGroup_('Крупные операции ≥ ' + PRH_WEB_EXECUTIVE.LARGE_AMOUNT + ' ₽', largeRows, spreadsheet, sheet, timeZone),
-    duplicates: prhWebExecutiveGroup_('Возможные точные дубли', duplicateRows, spreadsheet, sheet, timeZone, { groupCount: duplicateGroupCount }),
-    quality: prhWebExecutiveGroup_('Операции, требующие контроля качества', qualityRows, spreadsheet, sheet, timeZone, { qualityCounts: qualityCounts })
+    duplicates: prhWebExecutiveGroup_('Возможные точные дубли', duplicateRows, spreadsheet, sheet, timeZone, {
+      groupCount: duplicateGroupCount
+    }),
+    quality: prhWebExecutiveGroup_('Операции, требующие контроля качества', qualityRows, spreadsheet, sheet, timeZone, {
+      qualityCounts: qualityCounts
+    })
   };
 
   base.kpis.specialShare = selectedYearIncome ? specialIncome / selectedYearIncome : 0;
@@ -222,7 +241,9 @@ function prhWebExecutiveSum_(rows) {
 
 function prhWebExecutiveCategoryTotals_(rows) {
   const totals = {};
-  rows.forEach(function (row) { totals[row.category] = (totals[row.category] || 0) + row.amount; });
+  rows.forEach(function (row) {
+    totals[row.category] = (totals[row.category] || 0) + row.amount;
+  });
   return totals;
 }
 
@@ -234,17 +255,36 @@ function prhWebExecutiveLargestCategory_(totals) {
   }).sort(function (a, b) { return b.value - a.value; })[0];
 }
 
-function prhWebExecutiveStabilityIndex_(baseRows) {
+/**
+ * Same stability definition as `14 Аналитика` for any selected year:
+ * - variability of total active months (population standard deviation / active-month average);
+ * - penalty for months without income;
+ * - penalty for special-income share;
+ * - penalty for concentration in the largest month.
+ */
+function prhWebExecutiveStabilityIndex_(yearRows, specialIncome) {
   const monthly = Array(12).fill(0);
-  baseRows.forEach(function (row) { monthly[row.date.getMonth()] += row.amount; });
+  yearRows.forEach(function (row) { monthly[row.date.getMonth()] += row.amount; });
   const active = monthly.filter(function (value) { return value > 0; });
-  if (active.length < 2) return active.length ? 100 : 0;
-  const mean = active.reduce(function (sum, value) { return sum + value; }, 0) / active.length;
+  if (!active.length) return 0;
+
+  const total = active.reduce(function (sum, value) { return sum + value; }, 0);
+  const mean = total / active.length;
   const variance = active.reduce(function (sum, value) {
     return sum + Math.pow(value - mean, 2);
   }, 0) / active.length;
-  const coefficient = mean ? Math.sqrt(variance) / mean : 1;
-  return Math.max(0, Math.min(100, Math.round(100 - coefficient * 100)));
+  const coefficient = mean ? Math.sqrt(variance) / mean : 0;
+  const monthsWithoutIncome = 12 - active.length;
+  const specialShare = total ? specialIncome / total : 0;
+  const concentration = total ? Math.max.apply(null, monthly) / total : 0;
+
+  const score = 100 -
+    Math.min(coefficient * 40, 40) -
+    monthsWithoutIncome * 4 -
+    Math.min(specialShare * 25, 25) -
+    Math.min(concentration * 20, 20);
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function prhWebExecutiveForecast_(baseRows, specialIncome) {
@@ -261,6 +301,7 @@ function prhWebExecutiveDeltaReason_(currentRows, previousRows, label) {
   const previous = prhWebExecutiveCategoryTotals_(previousRows);
   const keys = Array.from(new Set(Object.keys(current).concat(Object.keys(previous))));
   if (!keys.length) return 'Недостаточно данных для объяснения изменения ' + label + '.';
+
   const deltas = keys.map(function (key) {
     return { label: key, delta: (current[key] || 0) - (previous[key] || 0) };
   }).sort(function (a, b) { return Math.abs(b.delta) - Math.abs(a.delta); });
@@ -305,6 +346,7 @@ function prhWebExecutiveGroup_(title, rows, spreadsheet, sheet, timeZone, extra)
       openUrl: spreadsheet.getUrl() + '#gid=' + sheet.getSheetId() + '&range=A' + row.row + ':S' + row.row
     };
   });
+
   const result = {
     title: title,
     count: rows.length,
