@@ -47,7 +47,7 @@ async function inspectLayout(page, viewport) {
 
     const clipped = Array.from(document.querySelectorAll([
       '.filter-card', '.kpi-card', '.panel-title', '.metric-value', '.kpi-value',
-      '.insight-text', '.legend-label', '.legend-value', '.tab'
+      '.insight-text', '.legend-label', '.legend-value', '.tab', '.view-context'
     ].join(',')))
       .filter((element) => {
         const style = window.getComputedStyle(element);
@@ -77,6 +77,7 @@ async function inspectLayout(page, viewport) {
       overlaps,
       clipped,
       tabCount: document.querySelectorAll('.tab').length,
+      activeTabCount: document.querySelectorAll('.tab.active[aria-selected="true"]').length,
       kpiCount: document.querySelectorAll('[data-testid="kpi-card"]').length,
       filterCount: document.querySelectorAll('[data-testid="filter-card"]').length,
       charts
@@ -93,6 +94,7 @@ function assertLayout(result) {
   if (result.overlaps.length) throw new Error(`[${label}] Layout overlaps: ${result.overlaps.join('; ')}`);
   if (result.clipped.length) throw new Error(`[${label}] Clipped content: ${JSON.stringify(result.clipped)}`);
   if (result.tabCount !== 10) throw new Error(`[${label}] Expected 10 navigation tabs, found ${result.tabCount}`);
+  if (result.activeTabCount !== 1) throw new Error(`[${label}] Expected one active tab, found ${result.activeTabCount}`);
   if (result.kpiCount !== 8) throw new Error(`[${label}] Expected 8 KPI cards, found ${result.kpiCount}`);
   if (result.filterCount !== 5) throw new Error(`[${label}] Expected 5 context cards, found ${result.filterCount}`);
   if (result.charts.length !== 2) throw new Error(`[${label}] Expected 2 SVG chart hosts, found ${result.charts.length}`);
@@ -102,6 +104,23 @@ function assertLayout(result) {
     }
     if (!chart.hasSvgOrEmptyState) throw new Error(`[${label}] Chart ${index + 1} was not rendered`);
   });
+}
+
+async function assertInteraction(page) {
+  await page.click('.tab[data-view="forecast"]');
+  await page.waitForSelector('#view-detail:not([hidden])');
+  const forecast = await page.evaluate(() => ({
+    active: document.querySelector('.tab.active')?.dataset.view,
+    urlView: new URL(window.location.href).searchParams.get('view'),
+    title: document.getElementById('detail-title').textContent,
+    hasForecast: document.getElementById('detail-content').textContent.includes('Оценка года')
+  }));
+  if (forecast.active !== 'forecast') throw new Error(`Forecast tab did not activate: ${JSON.stringify(forecast)}`);
+  if (forecast.urlView !== 'forecast') throw new Error(`Forecast view was not saved in URL: ${JSON.stringify(forecast)}`);
+  if (!forecast.hasForecast) throw new Error(`Forecast detail was not rendered: ${JSON.stringify(forecast)}`);
+
+  await page.click('.tab[data-view="overview"]');
+  await page.waitForFunction(() => document.getElementById('view-detail').hidden === true);
 }
 
 (async () => {
@@ -122,6 +141,8 @@ function assertLayout(result) {
     await page.waitForSelector('[data-testid="overview-kpis"]');
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="kpi-card"]').length === 8);
     await page.waitForTimeout(250);
+
+    if (viewport.name === 'desktop') await assertInteraction(page);
 
     const result = await inspectLayout(page, viewport);
     assertLayout(result);

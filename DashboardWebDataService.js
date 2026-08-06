@@ -1,18 +1,30 @@
 /**
- * DashboardWebDataService v1.0.0
+ * DashboardWebDataService v1.1.0
  * Read-only data API and Web App entry point for the HTML dashboard.
  *
  * Source of truth: `01 Операции` and quality score from `14 Аналитика`.
  * This service never writes financial values or changes spreadsheet geometry.
  */
 const PRH_WEB_DASHBOARD = Object.freeze({
-  VERSION: '1.0.0',
+  VERSION: '1.1.0',
   OPERATIONS_SHEET: '01 Операции',
   ANALYTICS_SHEET: '14 Аналитика',
   QUALITY_CELL: 'E397',
   MONTHS: Object.freeze([
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ]),
+  VIEWS: Object.freeze([
+    ['overview', 'Обзор'],
+    ['years', 'Годы'],
+    ['months', 'Месяцы'],
+    ['month', 'Месяц'],
+    ['seasonality', 'Сезонность'],
+    ['structure', 'Структура'],
+    ['operations', 'Операции'],
+    ['forecast', 'Прогноз'],
+    ['quality', 'Качество'],
+    ['details', 'Детали']
   ]),
   SPECIAL_PATTERNS: Object.freeze([
     /капитализац/i,
@@ -24,7 +36,7 @@ const PRH_WEB_DASHBOARD = Object.freeze({
 function doGet(e) {
   const params = (e && e.parameter) || {};
   const template = HtmlService.createTemplateFromFile('DashboardWebApp');
-  const data = prhGetWebDashboardData(params.year, params.month);
+  const data = prhGetWebDashboardData(params.year, params.month, params.view);
   template.initialData = JSON.stringify(data).replace(/</g, '\\u003c');
 
   return template.evaluate()
@@ -33,7 +45,7 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function prhGetWebDashboardData(requestedYear, requestedMonth) {
+function prhGetWebDashboardData(requestedYear, requestedMonth, requestedView) {
   const spreadsheet = SpreadsheetApp.getActive();
   const operationsSheet = spreadsheet.getSheetByName(PRH_WEB_DASHBOARD.OPERATIONS_SHEET);
   if (!operationsSheet) throw new Error('Лист «01 Операции» не найден.');
@@ -41,7 +53,9 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
   const values = operationsSheet.getDataRange().getValues();
   if (values.length < 2) throw new Error('В «01 Операции» нет данных для дашборда.');
 
-  const headers = values[0].map(function (value) { return String(value || '').trim(); });
+  const headers = values[0].map(function (value) {
+    return String(value || '').trim();
+  });
   const index = prhWebHeaderIndex_(headers);
   const incomeRows = [];
   let rowsWithValidDate = 0;
@@ -66,7 +80,9 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
   }
 
   const datedRows = incomeRows.filter(function (item) { return item.date; });
-  if (!datedRows.length) throw new Error('Не найдены доходные операции с корректной датой.');
+  if (!datedRows.length) {
+    throw new Error('Не найдены доходные операции с корректной датой.');
+  }
 
   const years = Array.from(new Set(datedRows.map(function (item) {
     return item.date.getFullYear();
@@ -79,6 +95,7 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
   const selectedYear = prhWebResolveYear_(requestedYear, years, latestDate.getFullYear());
   const selectedMonthIndex = prhWebResolveMonth_(requestedMonth, selectedYear, datedRows, latestDate);
   const selectedMonth = PRH_WEB_DASHBOARD.MONTHS[selectedMonthIndex];
+  const selectedView = prhWebResolveView_(requestedView);
 
   const yearTotalsMap = {};
   years.forEach(function (year) { yearTotalsMap[year] = 0; });
@@ -123,7 +140,9 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
   const previousYearIncome = prhWebMoney_(yearTotalsMap[selectedYear - 1] || 0);
   const monthIncome = prhWebMoney_(monthlyTotals[selectedMonthIndex]);
   const activeMonthValues = monthlyTotals.filter(function (value) { return value > 0; });
-  const historyTotal = yearlyIncome.reduce(function (sum, item) { return sum + item.value; }, 0);
+  const historyTotal = yearlyIncome.reduce(function (sum, item) {
+    return sum + item.value;
+  }, 0);
   const specialIncome = selectedYearRows.reduce(function (sum, item) {
     return sum + (prhWebIsSpecial_(item.category) ? item.amount : 0);
   }, 0);
@@ -136,7 +155,9 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
   const monthOperations = selectedMonthRows.length;
   const averageOperation = monthOperations ? monthIncome / monthOperations : 0;
   const qualityScore = prhWebQualityScore_(spreadsheet, incomeRows.length, rowsWithValidDate);
-  const yearChange = previousYearIncome ? (selectedYearIncome - previousYearIncome) / previousYearIncome : null;
+  const yearChange = previousYearIncome
+    ? (selectedYearIncome - previousYearIncome) / previousYearIncome
+    : null;
   const historyShare = historyTotal ? selectedYearIncome / historyTotal : 0;
 
   return {
@@ -150,7 +171,11 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
       monthIndex: selectedMonthIndex,
       years: years,
       months: PRH_WEB_DASHBOARD.MONTHS.slice(),
-      latestDate: Utilities.formatDate(latestDate, spreadsheet.getSpreadsheetTimeZone(), 'dd.MM.yyyy')
+      latestDate: Utilities.formatDate(
+        latestDate,
+        spreadsheet.getSpreadsheetTimeZone(),
+        'dd.MM.yyyy'
+      )
     },
     summary: {
       incomeOperations: incomeRows.length,
@@ -167,13 +192,22 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
       maximumYear: maxYearItem,
       activeMonths: activeMonthValues.length,
       averageActiveMonth: activeMonthValues.length
-        ? prhWebMoney_(activeMonthValues.reduce(function (sum, value) { return sum + value; }, 0) / activeMonthValues.length)
+        ? prhWebMoney_(
+          activeMonthValues.reduce(function (sum, value) { return sum + value; }, 0) /
+          activeMonthValues.length
+        )
         : 0,
       peakMonth: peakMonthIndex >= 0
-        ? { month: PRH_WEB_DASHBOARD.MONTHS[peakMonthIndex], value: prhWebMoney_(monthlyTotals[peakMonthIndex]) }
+        ? {
+          month: PRH_WEB_DASHBOARD.MONTHS[peakMonthIndex],
+          value: prhWebMoney_(monthlyTotals[peakMonthIndex])
+        }
         : null,
       minimumActiveMonth: minimumActiveMonthIndex >= 0
-        ? { month: PRH_WEB_DASHBOARD.MONTHS[minimumActiveMonthIndex], value: prhWebMoney_(monthlyTotals[minimumActiveMonthIndex]) }
+        ? {
+          month: PRH_WEB_DASHBOARD.MONTHS[minimumActiveMonthIndex],
+          value: prhWebMoney_(monthlyTotals[minimumActiveMonthIndex])
+        }
         : null,
       specialShare: selectedYearIncome ? specialIncome / selectedYearIncome : 0,
       yearChange: yearChange,
@@ -184,12 +218,10 @@ function prhGetWebDashboardData(requestedYear, requestedMonth) {
     monthStructure: monthStructure,
     insight: prhWebInsight_(selectedYear, yearChange, historyShare),
     navigation: {
-      active: 'overview',
-      tabs: [
-        ['overview', 'Обзор'], ['years', 'Годы'], ['months', 'Месяцы'], ['month', 'Месяц'],
-        ['seasonality', 'Сезонность'], ['structure', 'Структура'], ['operations', 'Операции'],
-        ['forecast', 'Прогноз'], ['quality', 'Качество'], ['details', 'Детали']
-      ]
+      active: selectedView,
+      tabs: PRH_WEB_DASHBOARD.VIEWS.map(function (item) {
+        return item.slice();
+      })
     }
   };
 }
@@ -205,7 +237,10 @@ function prhOpenWebDashboard() {
     return { status: 'NOT_DEPLOYED' };
   }
 
-  const safeUrl = String(url).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const safeUrl = String(url)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
   const output = HtmlService.createHtmlOutput(
     '<div style="font-family:Arial,sans-serif;padding:20px">' +
       '<h3 style="margin:0 0 12px">Открытие Web Dashboard</h3>' +
@@ -216,16 +251,25 @@ function prhOpenWebDashboard() {
       '<script>window.open(' + JSON.stringify(url) + ',"_blank","noopener");</script>' +
     '</div>'
   ).setWidth(420).setHeight(210);
+
   SpreadsheetApp.getUi().showModalDialog(output, 'ПрихРасхOnline');
   return { status: 'OPENING', url: url };
 }
 
 function prhWebHeaderIndex_(headers) {
-  const required = { date: 'Дата', type: 'Тип', amount: 'Сумма', category: 'Категория', status: 'Статус' };
+  const required = {
+    date: 'Дата',
+    type: 'Тип',
+    amount: 'Сумма',
+    category: 'Категория',
+    status: 'Статус'
+  };
   const result = {};
   Object.keys(required).forEach(function (key) {
     const index = headers.indexOf(required[key]);
-    if (index < 0) throw new Error('В «01 Операции» отсутствует колонка «' + required[key] + '».');
+    if (index < 0) {
+      throw new Error('В «01 Операции» отсутствует колонка «' + required[key] + '».');
+    }
     result[key] = index;
   });
   return result;
@@ -234,39 +278,63 @@ function prhWebHeaderIndex_(headers) {
 function prhWebDate_(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (!value) return null;
+
   const text = String(value).trim();
   const match = text.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/);
   if (!match) return null;
+
   const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function prhWebResolveYear_(requested, years, fallback) {
   const parsed = Number(requested);
-  return years.indexOf(parsed) >= 0 ? parsed : (years.indexOf(fallback) >= 0 ? fallback : years[years.length - 1]);
+  if (years.indexOf(parsed) >= 0) return parsed;
+  if (years.indexOf(fallback) >= 0) return fallback;
+  return years[years.length - 1];
 }
 
 function prhWebResolveMonth_(requested, selectedYear, rows, latestDate) {
   const text = String(requested == null ? '' : requested).trim();
   let monthIndex = Number(text);
-  if (Number.isInteger(monthIndex) && monthIndex >= 0 && monthIndex <= 11) return monthIndex;
-  monthIndex = PRH_WEB_DASHBOARD.MONTHS.map(function (month) { return month.toLowerCase(); }).indexOf(text.toLowerCase());
+  if (Number.isInteger(monthIndex) && monthIndex >= 0 && monthIndex <= 11) {
+    return monthIndex;
+  }
+
+  monthIndex = PRH_WEB_DASHBOARD.MONTHS
+    .map(function (month) { return month.toLowerCase(); })
+    .indexOf(text.toLowerCase());
   if (monthIndex >= 0) return monthIndex;
 
-  const active = rows.filter(function (item) { return item.date.getFullYear() === selectedYear; })
+  const active = rows
+    .filter(function (item) { return item.date.getFullYear() === selectedYear; })
     .map(function (item) { return item.date.getMonth(); });
+
   if (selectedYear === latestDate.getFullYear()) return latestDate.getMonth();
   return active.length ? Math.max.apply(null, active) : 0;
 }
 
+function prhWebResolveView_(requested) {
+  const normalized = String(requested || '').trim().toLowerCase();
+  const supported = PRH_WEB_DASHBOARD.VIEWS.some(function (item) {
+    return item[0] === normalized;
+  });
+  return supported ? normalized : 'overview';
+}
+
 function prhWebTopStructure_(categoryMap, limit) {
-  const entries = Object.keys(categoryMap).map(function (category) {
-    return { label: category, value: prhWebMoney_(categoryMap[category]) };
-  }).sort(function (a, b) { return b.value - a.value; });
+  const entries = Object.keys(categoryMap)
+    .map(function (category) {
+      return { label: category, value: prhWebMoney_(categoryMap[category]) };
+    })
+    .sort(function (a, b) { return b.value - a.value; });
 
   if (entries.length <= limit) return entries;
+
   const visible = entries.slice(0, limit - 1);
-  const remainder = entries.slice(limit - 1).reduce(function (sum, item) { return sum + item.value; }, 0);
+  const remainder = entries.slice(limit - 1).reduce(function (sum, item) {
+    return sum + item.value;
+  }, 0);
   visible.push({ label: 'Прочее', value: prhWebMoney_(remainder) });
   return visible;
 }
@@ -281,7 +349,9 @@ function prhWebIndexOfExtreme_(values, mode) {
   let index = -1;
   values.forEach(function (value, currentIndex) {
     if (mode === 'min-positive' && value <= 0) return;
-    if (index < 0 || (mode === 'max' ? value > values[index] : value < values[index])) index = currentIndex;
+    if (index < 0 || (mode === 'max' ? value > values[index] : value < values[index])) {
+      index = currentIndex;
+    }
   });
   return index;
 }
@@ -290,9 +360,14 @@ function prhWebQualityScore_(spreadsheet, totalIncomeRows, validDateRows) {
   const analytics = spreadsheet.getSheetByName(PRH_WEB_DASHBOARD.ANALYTICS_SHEET);
   if (analytics) {
     const score = Number(analytics.getRange(PRH_WEB_DASHBOARD.QUALITY_CELL).getValue());
-    if (Number.isFinite(score) && score >= 0 && score <= 100) return Math.round(score);
+    if (Number.isFinite(score) && score >= 0 && score <= 100) {
+      return Math.round(score);
+    }
   }
-  return totalIncomeRows ? Math.round((validDateRows / totalIncomeRows) * 100) : 0;
+
+  return totalIncomeRows
+    ? Math.round((validDateRows / totalIncomeRows) * 100)
+    : 0;
 }
 
 function prhWebQualityLabel_(score) {
@@ -304,14 +379,22 @@ function prhWebQualityLabel_(score) {
 
 function prhWebInsight_(year, change, historyShare) {
   let trend;
-  if (change == null) trend = 'Для сравнения с предыдущим годом пока недостаточно данных.';
-  else if (change > 0.03) trend = 'доход выбранного года вырос на ' + Math.round(change * 100) + '%';
-  else if (change < -0.03) trend = 'доход выбранного года снизился на ' + Math.abs(Math.round(change * 100)) + '%';
-  else trend = 'доход выбранного года остаётся примерно на уровне прошлого года';
+  if (change == null) {
+    trend = 'Для сравнения с предыдущим годом пока недостаточно данных.';
+  } else if (change > 0.03) {
+    trend = 'доход выбранного года вырос на ' + Math.round(change * 100) + '%';
+  } else if (change < -0.03) {
+    trend = 'доход выбранного года снизился на ' +
+      Math.abs(Math.round(change * 100)) + '%';
+  } else {
+    trend = 'доход выбранного года остаётся примерно на уровне прошлого года';
+  }
 
   return {
     title: 'Главный вывод',
-    text: 'В ' + year + ' году ' + trend + '. Доля года в общей истории: ' + (historyShare * 100).toFixed(1).replace('.', ',') + '%.',
+    text: 'В ' + year + ' году ' + trend +
+      '. Доля года в общей истории: ' +
+      (historyShare * 100).toFixed(1).replace('.', ',') + '%.',
     tone: change != null && change < -0.03 ? 'warning' : 'info'
   };
 }
