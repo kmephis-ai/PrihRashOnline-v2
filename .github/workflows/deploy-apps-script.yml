@@ -7,6 +7,8 @@ on:
     paths:
       - '*.js'
       - '*.html'
+      - 'package.json'
+      - 'package-lock.json'
       - 'tests/**'
       - 'docs/**'
       - 'appsscript.json'
@@ -16,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   issues: write
   pull-requests: write
 
@@ -33,7 +36,7 @@ jobs:
       - wsl
       - apps-script
       - dev
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,13 +67,37 @@ jobs:
         run: |
           set -euo pipefail
           test -f tests/dashboard_shell_contract_test.js
-          for test_file in tests/*test.js; do
+          test -f tests/dashboard_web_contract_test.js
+          for test_file in tests/*contract_test.js tests/*_contract_test.js; do
+            [[ -f "${test_file}" ]] || continue
             echo "Running ${test_file}"
             node "${test_file}"
           done
 
+      - name: Install visual test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npx playwright install chromium
+
+      - name: Run Web Dashboard visual gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/dashboard_web_visual_test.js
+
+      - name: Upload Web Dashboard screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-web-visual-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Install clasp
-        run: npm install --no-save @google/clasp@3
+        run: npm install --no-save --no-audit --no-fund @google/clasp@3
 
       - name: Configure clasp
         shell: bash
@@ -90,6 +117,8 @@ jobs:
           set -euo pipefail
           test -f appsscript.json
           test -f ApplicationMenuService.js
+          test -f DashboardWebDataService.js
+          test -f DashboardWebApp.html
           test -f DashboardModeService.js
           test -f DashboardShellService.js
           test -f IncomeSidebarController.js
@@ -99,15 +128,44 @@ jobs:
       - name: Push to bound Apps Script project
         run: npx clasp push --force
 
-      - name: Deployment summary
+      - name: Create or update DEV Web App deployment
+        id: webapp
+        shell: bash
         run: |
-          echo "### Apps Script DEV deployment" >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV'
+          DEPLOYMENTS="$(npx clasp deployments || true)"
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+
+          if [[ -n "${DEPLOYMENT_ID}" ]]; then
+            OUTPUT="$(npx clasp deploy -i "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
+          else
+            OUTPUT="$(npx clasp deploy -d "${DEPLOYMENT_NAME}")"
+            DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+          fi
+
+          printf '%s\n' "${OUTPUT}"
+          if [[ -z "${DEPLOYMENT_ID}" ]]; then
+            echo '::error::Web App deployment completed without a parseable deployment ID.'
+            exit 1
+          fi
+
+          WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo "web_app_url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          echo "### ПрихРасхOnline Web Dashboard DEV" >> "$GITHUB_STEP_SUMMARY"
           echo "- Runner: \`${RUNNER_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Contract tests: passed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Result: code pushed with clasp" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Next: reopen the spreadsheet and run ПрихРасхOnline → Настройки → Проверить структуру дашборда" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Playwright visual gate: passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Apps Script push: passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Web App: ${{ steps.webapp.outputs.web_app_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Screenshot artifact: \`dashboard-web-visual-${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report successful deployment to PR
         if: success()
@@ -115,7 +173,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ Dashboard Shell 2.0 deployed on self-hosted runner \`$RUNNER_NAME\`. Contract tests passed. Commit: \`$GITHUB_SHA\`. Package pushed with \`clasp push --force\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ HTML Web Dashboard deployed on \`$RUNNER_NAME\`. Contract tests and Playwright visual gate passed. Commit: \`$GITHUB_SHA\`. Web App: ${{ steps.webapp.outputs.web_app_url }}. Screenshot artifact: \`dashboard-web-visual-$GITHUB_SHA\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
       - name: Report failed deployment to PR
         if: failure()
@@ -123,4 +181,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ Dashboard Shell 2.0 deployment failed on self-hosted runner \`$RUNNER_NAME\` for commit \`$GITHUB_SHA\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ HTML Web Dashboard pipeline failed closed on \`$RUNNER_NAME\` for commit \`$GITHUB_SHA\`. No successful Web App release is claimed. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
