@@ -245,6 +245,7 @@ jobs:
         shell: bash
         run: |
           echo '### Chat-driven DEV release' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Trigger model: code change after an explicit chat command; no cron or background polling.' >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- PR: \`#${{ steps.pr.outputs.number }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
