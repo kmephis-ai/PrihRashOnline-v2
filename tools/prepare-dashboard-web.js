@@ -161,6 +161,16 @@ const REPLACEMENTS = [
 `
   },
   {
+    name: 'collapse hidden dashboard columns',
+    before: `    .dashboard-grid { display: grid; grid-template-columns: 1.06fr 1fr; gap: var(--gap); align-items: stretch; }
+`,
+    after: `    .dashboard-grid { display: grid; grid-template-columns: 1.06fr 1fr; gap: var(--gap); align-items: stretch; }
+    .dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis { grid-column: 1 / -1; }
+    .bottom-grid:has(.monthly-panel[hidden]),
+    .bottom-grid:has(.structure-panel[hidden]) { grid-template-columns: 1fr; }
+`
+  },
+  {
     name: 'add visual 1.2 loading skeleton',
     before: `    .loader-card { padding: 18px 24px; border-radius: 14px; background: #fff; box-shadow: var(--shadow); font-weight: 800; }
 `,
