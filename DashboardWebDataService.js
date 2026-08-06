@@ -1,15 +1,15 @@
 /**
- * DashboardWebDataService v1.1.0
+ * DashboardWebDataService v1.2.0
  * Read-only data API and Web App entry point for the HTML dashboard.
  *
  * Source of truth: `01 Операции` and quality score from `14 Аналитика`.
  * This service never writes financial values or changes spreadsheet geometry.
  */
 const PRH_WEB_DASHBOARD = Object.freeze({
-  VERSION: '1.1.0',
+  VERSION: '1.2.0',
   OPERATIONS_SHEET: '01 Операции',
   ANALYTICS_SHEET: '14 Аналитика',
-  QUALITY_CELL: 'E397',
+  QUALITY_CELL: 'E396',
   MONTHS: Object.freeze([
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
