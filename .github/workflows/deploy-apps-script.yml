@@ -7,6 +7,13 @@ on:
         description: Git ref to deploy to Apps Script DEV
         required: true
         default: agent/dashboard-ux-structure
+      force_deploy:
+        description: Deploy even when this source SHA was already released
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
 
 permissions:
   contents: read
@@ -15,7 +22,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: apps-script-dev-deploy-v2-${{ github.event.inputs.target_ref || 'agent-dashboard-ux-structure' }}
+  group: apps-script-dev-autodeploy-${{ github.event.inputs.target_ref || 'agent-dashboard-ux-structure' }}
   cancel-in-progress: true
 
 jobs:
@@ -39,9 +46,34 @@ jobs:
           SOURCE_SHA="$(git rev-parse HEAD)"
           echo "sha=${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
           echo "ref=${TARGET_REF}" >> "$GITHUB_OUTPUT"
-          echo "Deploying ${TARGET_REF} at ${SOURCE_SHA}"
+          echo "Deploying candidate ${TARGET_REF} at ${SOURCE_SHA}"
+
+      - name: Check successful deployment marker
+        id: deployed
+        uses: actions/cache/restore@v4
+        with:
+          path: .deployment-cache
+          key: apps-script-dev-deployed-v1-${{ steps.source.outputs.sha }}
+          lookup-only: true
+
+      - name: Decide whether deployment is required
+        id: gate
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.deployed.outputs.cache-hit }}
+          FORCE_DEPLOY: ${{ github.event.inputs.force_deploy || 'false' }}
+        run: |
+          set -euo pipefail
+          if [[ "${FORCE_DEPLOY}" == "true" || "${CACHE_HIT}" != "true" ]]; then
+            echo 'should_deploy=true' >> "$GITHUB_OUTPUT"
+            echo 'New or explicitly forced source revision; deployment will run.'
+          else
+            echo 'should_deploy=false' >> "$GITHUB_OUTPUT"
+            echo 'This source revision was already deployed successfully; no action required.'
+          fi
 
       - name: Validate GitHub-hosted execution
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -52,6 +84,7 @@ jobs:
           echo "Runner: ${RUNNER_NAME}; environment: ${RUNNER_ENVIRONMENT}; OS: ${RUNNER_OS}"
 
       - name: Validate deployment secrets
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
@@ -68,17 +101,20 @@ jobs:
           fi
 
       - name: Set up Node.js
+        if: steps.gate.outputs.should_deploy == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Prepare Web Dashboard bundle
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
           npm run prepare:web
 
       - name: Run contract tests
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -95,6 +131,7 @@ jobs:
           done
 
       - name: Install visual test dependencies
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -102,13 +139,14 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Run Web Dashboard visual gate
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
           node tests/dashboard_web_visual_test.js
 
       - name: Upload Web Dashboard visual artifacts
-        if: always()
+        if: always() && steps.gate.outputs.should_deploy == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-web-visual-${{ steps.source.outputs.sha }}
@@ -117,9 +155,11 @@ jobs:
           retention-days: 30
 
       - name: Install clasp
+        if: steps.gate.outputs.should_deploy == 'true'
         run: npm install --no-save --no-audit --no-fund @google/clasp@3
 
       - name: Configure clasp
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
@@ -132,6 +172,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
 
       - name: Validate deployment payload
+        if: steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -146,9 +187,11 @@ jobs:
           npx clasp status
 
       - name: Push to bound Apps Script project
+        if: steps.gate.outputs.should_deploy == 'true'
         run: npx clasp push --force
 
       - name: Create or update DEV Web App deployment
+        if: steps.gate.outputs.should_deploy == 'true'
         id: webapp
         shell: bash
         run: |
@@ -186,7 +229,7 @@ jobs:
           JSON
 
       - name: Upload deployment metadata
-        if: success()
+        if: success() && steps.gate.outputs.should_deploy == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-web-deployment-${{ steps.source.outputs.sha }}
@@ -194,14 +237,32 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Save successful deployment marker
+        if: success() && steps.gate.outputs.should_deploy == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .deployment-cache
+          printf '%s\n' "${{ steps.source.outputs.sha }}" > .deployment-cache/source-sha.txt
+          printf '%s\n' "${{ steps.webapp.outputs.web_app_url }}" > .deployment-cache/web-app-url.txt
+
+      - name: Cache successful deployment marker
+        if: success() && steps.gate.outputs.should_deploy == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .deployment-cache
+          key: apps-script-dev-deployed-v1-${{ steps.source.outputs.sha }}
+
       - name: Deployment summary
         if: always()
         shell: bash
         run: |
           echo "### ПрихРасхOnline Web Dashboard DEV" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trigger: \`${GITHUB_EVENT_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Runner: \`${RUNNER_NAME}\` (\`${RUNNER_ENVIRONMENT}\`)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Requested ref: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source commit: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Deployment required: \`${{ steps.gate.outputs.should_deploy }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
           if [[ -n "${{ steps.webapp.outputs.web_app_url }}" ]]; then
             echo "- Web App: ${{ steps.webapp.outputs.web_app_url }}" >> "$GITHUB_STEP_SUMMARY"
@@ -209,17 +270,17 @@ jobs:
           echo "- Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report successful deployment to PR
-        if: success()
+        if: success() && steps.gate.outputs.should_deploy == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ HTML Web Dashboard deployed on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. Contract tests and Playwright visual gate passed. Web App: ${{ steps.webapp.outputs.web_app_url }}. Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ HTML Web Dashboard deployed autonomously on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. Contract tests and Playwright visual gate passed. Web App: ${{ steps.webapp.outputs.web_app_url }}. Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
       - name: Report failed deployment to PR
-        if: failure()
+        if: failure() && steps.gate.outputs.should_deploy == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ HTML Web Dashboard deployment failed closed on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. No successful Web App release is claimed. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ Autonomous HTML Web Dashboard deployment failed closed on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. It will retry on the next scheduled cycle unless the source changes. No successful Web App release is claimed. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
