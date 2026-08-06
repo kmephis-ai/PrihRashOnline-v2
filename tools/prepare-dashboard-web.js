@@ -112,6 +112,22 @@ const REPLACEMENTS = [
 `
   },
   {
+    name: 'align fixture monthly operation counts with real DEV analytics',
+    before: `        monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]
+          .map(function (value,index) {
+            const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+            return { month: months[index], short: months[index].slice(0,3), value: value, operations: value ? 10 : 0 };
+          }),
+`,
+    after: `        monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]
+          .map(function (value,index) {
+            const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+            const operations = [11,17,31,18,25,17,9,0,0,0,0,0];
+            return { month: months[index], short: months[index].slice(0,3), value: value, operations: operations[index] };
+          }),
+`
+  },
+  {
     name: 'align fixture July structure with real DEV analytics',
     before: `        monthStructure: [
           {label:'Зарплата',value:68578},{label:'Аванс',value:35516},{label:'Другое',value:34998},{label:'ЕДВ',value:2268}
