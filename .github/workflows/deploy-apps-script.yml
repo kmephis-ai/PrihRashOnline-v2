@@ -16,29 +16,100 @@ on:
     - cron: '7,17,27,37,47,57 * * * *'
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   issues: write
   pull-requests: write
 
 concurrency:
-  group: apps-script-dev-autodeploy-${{ github.event.inputs.target_ref || 'agent-dashboard-ux-structure' }}
+  group: apps-script-dev-autorelease-${{ github.event.inputs.target_ref || 'agent-dashboard-ux-structure' }}
   cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       TARGET_REF: ${{ github.event.inputs.target_ref || 'agent/dashboard-ux-structure' }}
+      TARGET_PR: '6'
     steps:
+      - name: Inspect autonomous release target
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR_JSON="$(gh pr view "${TARGET_PR}" --repo "${GITHUB_REPOSITORY}" --json state,isDraft,headRefName,headRefOid,baseRefName)"
+          STATE="$(jq -r '.state' <<<"${PR_JSON}")"
+          HEAD_REF="$(jq -r '.headRefName' <<<"${PR_JSON}")"
+          HEAD_SHA="$(jq -r '.headRefOid' <<<"${PR_JSON}")"
+          BASE_REF="$(jq -r '.baseRefName' <<<"${PR_JSON}")"
+
+          if [[ "${STATE}" == 'OPEN' && "${HEAD_REF}" == "${TARGET_REF}" && "${BASE_REF}" == 'main' ]]; then
+            echo 'active=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'active=false' >> "$GITHUB_OUTPUT"
+          fi
+          echo "initial_head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "state=${STATE}" >> "$GITHUB_OUTPUT"
+          echo "Target PR #${TARGET_PR}: state=${STATE}; ${HEAD_REF}@${HEAD_SHA} -> ${BASE_REF}"
+
       - name: Checkout requested source
+        if: steps.pr.outputs.active == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_REF }}
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Synchronize candidate with main
+        if: steps.pr.outputs.active == 'true'
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main "${TARGET_REF}" --prune
+          git checkout -B "${TARGET_REF}" "origin/${TARGET_REF}"
+
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'Candidate already contains current main.'
+            exit 0
+          fi
+
+          set +e
+          git merge --no-ff origin/main -m "chore: synchronize ${TARGET_REF} with main before autonomous release"
+          MERGE_EXIT=$?
+          set -e
+
+          if [[ "${MERGE_EXIT}" -ne 0 ]]; then
+            mapfile -t CONFLICTS < <(git diff --name-only --diff-filter=U)
+            printf 'Merge conflicts: %s\n' "${CONFLICTS[*]:-none}"
+
+            if [[ "${#CONFLICTS[@]}" -eq 1 && "${CONFLICTS[0]}" == '.github/workflows/deploy-apps-script.yml' ]]; then
+              git checkout --theirs .github/workflows/deploy-apps-script.yml
+              git add .github/workflows/deploy-apps-script.yml
+              if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+                echo '::error::Unresolved files remain after the approved workflow-only conflict resolution.'
+                git merge --abort || true
+                exit 1
+              fi
+              git commit -m "chore: synchronize ${TARGET_REF} with autonomous main workflow"
+            else
+              echo '::error::Candidate cannot be synchronized automatically without touching functional files.'
+              git merge --abort || true
+              exit 1
+            fi
+          fi
+
+          git push origin HEAD:"${TARGET_REF}"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+          echo "Synchronized candidate at $(git rev-parse HEAD)"
 
       - name: Resolve source revision
+        if: steps.pr.outputs.active == 'true'
         id: source
         shell: bash
         run: |
@@ -49,14 +120,16 @@ jobs:
           echo "Deploying candidate ${TARGET_REF} at ${SOURCE_SHA}"
 
       - name: Check successful deployment marker
+        if: steps.pr.outputs.active == 'true'
         id: deployed
         uses: actions/cache/restore@v4
         with:
           path: .deployment-cache
-          key: apps-script-dev-deployed-v1-${{ steps.source.outputs.sha }}
+          key: apps-script-dev-deployed-v2-${{ steps.source.outputs.sha }}
           lookup-only: true
 
       - name: Decide whether deployment is required
+        if: steps.pr.outputs.active == 'true'
         id: gate
         shell: bash
         env:
@@ -64,27 +137,27 @@ jobs:
           FORCE_DEPLOY: ${{ github.event.inputs.force_deploy || 'false' }}
         run: |
           set -euo pipefail
-          if [[ "${FORCE_DEPLOY}" == "true" || "${CACHE_HIT}" != "true" ]]; then
+          if [[ "${FORCE_DEPLOY}" == 'true' || "${CACHE_HIT}" != 'true' ]]; then
             echo 'should_deploy=true' >> "$GITHUB_OUTPUT"
             echo 'New or explicitly forced source revision; deployment will run.'
           else
             echo 'should_deploy=false' >> "$GITHUB_OUTPUT"
-            echo 'This source revision was already deployed successfully; no action required.'
+            echo 'This exact source revision already has a successful DEV deployment marker.'
           fi
 
       - name: Validate GitHub-hosted execution
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${RUNNER_ENVIRONMENT}" != "github-hosted" ]]; then
-            echo "::error::DEV deployment must run on a GitHub-hosted runner."
+          if [[ "${RUNNER_ENVIRONMENT}" != 'github-hosted' ]]; then
+            echo '::error::DEV deployment must run on a GitHub-hosted runner.'
             exit 1
           fi
           echo "Runner: ${RUNNER_NAME}; environment: ${RUNNER_ENVIRONMENT}; OS: ${RUNNER_OS}"
 
       - name: Validate deployment secrets
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
@@ -92,29 +165,29 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${APPS_SCRIPT_ID}" ]]; then
-            echo "::error::Missing repository secret APPS_SCRIPT_ID"
+            echo '::error::Missing repository secret APPS_SCRIPT_ID'
             exit 1
           fi
           if [[ -z "${CLASPRC_JSON}" ]]; then
-            echo "::error::Missing repository secret CLASPRC_JSON"
+            echo '::error::Missing repository secret CLASPRC_JSON'
             exit 1
           fi
 
       - name: Set up Node.js
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Prepare Web Dashboard bundle
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
           npm run prepare:web
 
       - name: Run contract tests
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -131,7 +204,7 @@ jobs:
           done
 
       - name: Install visual test dependencies
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -139,14 +212,14 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Run Web Dashboard visual gate
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
           node tests/dashboard_web_visual_test.js
 
       - name: Upload Web Dashboard visual artifacts
-        if: always() && steps.gate.outputs.should_deploy == 'true'
+        if: always() && steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-web-visual-${{ steps.source.outputs.sha }}
@@ -155,11 +228,11 @@ jobs:
           retention-days: 30
 
       - name: Install clasp
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         run: npm install --no-save --no-audit --no-fund @google/clasp@3
 
       - name: Configure clasp
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
@@ -172,7 +245,7 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
 
       - name: Validate deployment payload
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -187,11 +260,11 @@ jobs:
           npx clasp status
 
       - name: Push to bound Apps Script project
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         run: npx clasp push --force
 
       - name: Create or update DEV Web App deployment
-        if: steps.gate.outputs.should_deploy == 'true'
+        if: steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         id: webapp
         shell: bash
         run: |
@@ -229,7 +302,7 @@ jobs:
           JSON
 
       - name: Upload deployment metadata
-        if: success() && steps.gate.outputs.should_deploy == 'true'
+        if: success() && steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-web-deployment-${{ steps.source.outputs.sha }}
@@ -237,50 +310,103 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Save successful deployment marker
-        if: success() && steps.gate.outputs.should_deploy == 'true'
+      - name: Auto-merge validated pull request
+        if: steps.pr.outputs.active == 'true' && (steps.gate.outputs.should_deploy == 'false' || success())
+        id: merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          PR_JSON="$(gh pr view "${TARGET_PR}" --repo "${GITHUB_REPOSITORY}" --json state,isDraft,headRefName,headRefOid,baseRefName)"
+          STATE="$(jq -r '.state' <<<"${PR_JSON}")"
+          IS_DRAFT="$(jq -r '.isDraft' <<<"${PR_JSON}")"
+          CURRENT_HEAD="$(jq -r '.headRefOid' <<<"${PR_JSON}")"
+          CURRENT_REF="$(jq -r '.headRefName' <<<"${PR_JSON}")"
+          CURRENT_BASE="$(jq -r '.baseRefName' <<<"${PR_JSON}")"
+
+          if [[ "${STATE}" != 'OPEN' || "${CURRENT_REF}" != "${TARGET_REF}" || "${CURRENT_BASE}" != 'main' ]]; then
+            echo '::error::Pull request state or refs changed during validation.'
+            exit 1
+          fi
+          if [[ "${CURRENT_HEAD}" != "${SOURCE_SHA}" ]]; then
+            echo "::error::Pull request head moved from ${SOURCE_SHA} to ${CURRENT_HEAD}; refusing stale merge."
+            exit 1
+          fi
+
+          if [[ "${IS_DRAFT}" == 'true' ]]; then
+            gh pr ready "${TARGET_PR}" --repo "${GITHUB_REPOSITORY}"
+          fi
+
+          sleep 3
+          PAYLOAD="$(jq -n \
+            --arg sha "${SOURCE_SHA}" \
+            --arg title 'Merge Web Dashboard 1.1 into main' \
+            --arg message "Autonomous merge after successful contract tests, Playwright visual gate and Apps Script DEV deployment. Source: ${SOURCE_SHA}." \
+            '{sha:$sha,merge_method:"merge",commit_title:$title,commit_message:$message}')"
+
+          RESPONSE="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}/merge" --input - <<<"${PAYLOAD}")"
+          MERGED="$(jq -r '.merged' <<<"${RESPONSE}")"
+          MERGE_SHA="$(jq -r '.sha // empty' <<<"${RESPONSE}")"
+          MESSAGE="$(jq -r '.message // empty' <<<"${RESPONSE}")"
+
+          if [[ "${MERGED}" != 'true' ]]; then
+            echo "::error::GitHub refused autonomous merge: ${MESSAGE}"
+            exit 1
+          fi
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+          echo "merge_sha=${MERGE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Merged PR #${TARGET_PR} as ${MERGE_SHA}"
+
+      - name: Save successful release marker
+        if: success() && steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true' && steps.merge.outputs.merged == 'true'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .deployment-cache
           printf '%s\n' "${{ steps.source.outputs.sha }}" > .deployment-cache/source-sha.txt
           printf '%s\n' "${{ steps.webapp.outputs.web_app_url }}" > .deployment-cache/web-app-url.txt
+          printf '%s\n' "${{ steps.merge.outputs.merge_sha }}" > .deployment-cache/merge-sha.txt
 
-      - name: Cache successful deployment marker
-        if: success() && steps.gate.outputs.should_deploy == 'true'
+      - name: Cache successful release marker
+        if: success() && steps.pr.outputs.active == 'true' && steps.gate.outputs.should_deploy == 'true' && steps.merge.outputs.merged == 'true'
         uses: actions/cache/save@v4
         with:
           path: .deployment-cache
-          key: apps-script-dev-deployed-v1-${{ steps.source.outputs.sha }}
+          key: apps-script-dev-deployed-v2-${{ steps.source.outputs.sha }}
 
-      - name: Deployment summary
+      - name: Deployment and merge summary
         if: always()
         shell: bash
         run: |
-          echo "### ПрихРасхOnline Web Dashboard DEV" >> "$GITHUB_STEP_SUMMARY"
+          echo '### ПрихРасхOnline autonomous DEV release' >> "$GITHUB_STEP_SUMMARY"
           echo "- Trigger: \`${GITHUB_EVENT_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Runner: \`${RUNNER_NAME}\` (\`${RUNNER_ENVIRONMENT}\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PR active: \`${{ steps.pr.outputs.active }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Requested ref: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source commit: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Deployment required: \`${{ steps.gate.outputs.should_deploy }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Merge completed: \`${{ steps.merge.outputs.merged }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Merge SHA: \`${{ steps.merge.outputs.merge_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
           if [[ -n "${{ steps.webapp.outputs.web_app_url }}" ]]; then
             echo "- Web App: ${{ steps.webapp.outputs.web_app_url }}" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "- Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Report successful deployment to PR
-        if: success() && steps.gate.outputs.should_deploy == 'true'
+      - name: Report successful autonomous release
+        if: success() && steps.pr.outputs.active == 'true' && steps.merge.outputs.merged == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ HTML Web Dashboard deployed autonomously on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. Contract tests and Playwright visual gate passed. Web App: ${{ steps.webapp.outputs.web_app_url }}. Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment "${TARGET_PR}" --repo "${GITHUB_REPOSITORY}" --body "✅ Web Dashboard autonomously validated, deployed to Apps Script DEV and merged into \`main\`. Source: \`${{ steps.source.outputs.sha }}\`. Merge: \`${{ steps.merge.outputs.merge_sha }}\`. Web App: ${{ steps.webapp.outputs.web_app_url || 'existing successful deployment marker' }}. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-      - name: Report failed deployment to PR
-        if: failure() && steps.gate.outputs.should_deploy == 'true'
+      - name: Report failed autonomous release
+        if: failure() && steps.pr.outputs.active == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ Autonomous HTML Web Dashboard deployment failed closed on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. It will retry on the next scheduled cycle unless the source changes. No successful Web App release is claimed. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment "${TARGET_PR}" --repo "${GITHUB_REPOSITORY}" --body "❌ Autonomous Web Dashboard release stopped fail-closed. No merge was claimed unless the merge step explicitly completed. Source candidate: \`${{ steps.source.outputs.sha }}\`. It will retry on the next scheduled cycle after the blocker is resolved. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
