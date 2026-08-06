@@ -53,6 +53,8 @@ function expect(condition, message) {
   '.tabs::-webkit-scrollbar { display: none; }',
   'overscroll-behavior-x: contain',
   'grid-auto-rows: 1fr',
+  '.dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis',
+  '.bottom-grid:has(.structure-panel[hidden])',
   'class="skeleton-stack"',
   '@keyframes skeleton-shimmer',
   'years: [2018,2019,2020,2021,2022,2023,2024,2025,2026]',
