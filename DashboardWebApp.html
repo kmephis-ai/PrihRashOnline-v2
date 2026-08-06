@@ -29,7 +29,10 @@
 
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; background: var(--canvas); color: var(--ink); }
-    body { font-family: Arial, Roboto, sans-serif; font-size: 14px; }
+    body {
+      font-family: Arial, Roboto, sans-serif; font-size: 14px; line-height: 1.45;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
     button, select { font: inherit; }
     button { cursor: pointer; }
     [hidden] { display: none !important; }
@@ -75,6 +78,7 @@
     .page { max-width: 1720px; margin: 0 auto; padding: 14px clamp(14px,2vw,28px) 28px; }
     .filters {
       display: grid; grid-template-columns: 1.05fr 1.05fr 1.2fr .9fr 1.2fr;
+      grid-auto-rows: 1fr; align-items: stretch;
       gap: var(--gap); margin-bottom: var(--gap);
     }
     .filter-card, .panel, .kpi-card {
@@ -109,14 +113,20 @@
     .view-context span { color: #405675; line-height: 1.4; }
 
     .dashboard-grid { display: grid; grid-template-columns: 1.06fr 1fr; gap: var(--gap); align-items: stretch; }
+    .dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis { grid-column: 1 / -1; }
+    .bottom-grid:has(.monthly-panel[hidden]),
+    .bottom-grid:has(.structure-panel[hidden]) { grid-template-columns: 1fr; }
     .panel { padding: 18px; overflow: hidden; }
     .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
     .panel-title { margin: 0; font-size: 19px; line-height: 1.25; }
     .panel-note { color: var(--muted); font-size: 12px; text-align: right; }
     .overview-kpis { min-height: 340px; }
-    .kpi-layout { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+    .kpi-layout {
+      display: grid; grid-template-columns: repeat(3,minmax(0,1fr));
+      grid-auto-rows: 1fr; gap: 12px; align-items: stretch;
+    }
     .kpi-card {
-      min-height: 92px; padding: 13px;
+      min-height: 96px; height: 100%; padding: 14px;
       display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 11px; align-items: center;
       box-shadow: none;
     }
@@ -212,42 +222,66 @@
       background: rgba(243,246,250,.75); backdrop-filter: blur(3px);
     }
     .loading-layer.visible { display: grid; }
-    .loader-card { padding: 18px 24px; border-radius: 14px; background: #fff; box-shadow: var(--shadow); font-weight: 800; }
+    .loader-card {
+      width: min(420px,calc(100vw - 36px)); padding: 20px 22px;
+      border-radius: 16px; background: #fff; box-shadow: var(--shadow); font-weight: 800;
+    }
+    .loader-title { margin-bottom: 14px; color: #173357; }
+    .skeleton-stack { display: grid; gap: 9px; }
+    .skeleton-line {
+      height: 11px; border-radius: 999px;
+      background: linear-gradient(90deg,#edf1f6 25%,#f8fafc 45%,#edf1f6 65%);
+      background-size: 220% 100%; animation: skeleton-shimmer 1.15s ease-in-out infinite;
+    }
+    .skeleton-line.short { width: 62%; }
+    @keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+    @media (prefers-reduced-motion: reduce) { .skeleton-line { animation: none; } }
 
     @media (max-width: 1250px) {
       .tabs {
         display: flex; overflow-x: auto; scroll-snap-type: x proximity;
-        border-radius: 12px; scrollbar-width: thin;
+        border-radius: 12px; scrollbar-width: none;
+        -ms-overflow-style: none;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scroll-padding-inline: 12px;
       }
+      .tabs::-webkit-scrollbar { display: none; }
       .tab { min-width: 120px; flex: 0 0 120px; scroll-snap-align: center; border-bottom: 0; }
       .filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
       .filter-card.period { grid-column: span 2; }
       .dashboard-grid { grid-template-columns: 1fr; }
       .bottom-grid { grid-column: auto; grid-template-columns: 1fr; }
-      .detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .kpi-layout { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .structure-layout { grid-template-columns: minmax(200px,.8fr) minmax(230px,1.2fr); }
     }
+
     @media (max-width: 760px) {
-      .topbar { align-items: flex-start; flex-direction: column; gap: 10px; }
-      .headline-stat { white-space: normal; }
-      .filters { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; gap: 9px; padding: 14px 16px; }
+      .brand-mark { width: 40px; height: 40px; flex-basis: 40px; }
+      .brand-title { font-size: 23px; }
+      .brand-subtitle { font-size: 12px; }
+      .headline-stat { font-size: 17px; }
+      .nav-wrap { padding: 7px 10px; }
+      .page { padding: 12px 10px 24px; }
+      .filters { grid-template-columns: 1fr; gap: 10px; }
       .filter-card.period { grid-column: auto; }
+      .filter-card { min-height: 78px; }
       .view-context { align-items: flex-start; flex-direction: column; gap: 4px; }
-      .kpi-layout { grid-template-columns: 1fr 1fr; }
-      .structure-layout { min-height: 0; grid-template-columns: 1fr; }
-      .chart-host { height: 250px; }
-      .detail-grid { grid-template-columns: 1fr 1fr; }
-      .actions { justify-content: stretch; }
-      .primary-button { width: 100%; }
-    }
-    @media (max-width: 500px) {
-      .page { padding-left: 10px; padding-right: 10px; }
-      .nav-wrap { padding-left: 10px; padding-right: 10px; }
-      .kpi-layout, .detail-grid { grid-template-columns: 1fr; }
-      .brand-subtitle { display: none; }
       .panel { padding: 14px; }
+      .panel-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .panel-note { text-align: left; }
+      .kpi-layout { grid-template-columns: 1fr; }
+      .overview-kpis, .chart-panel { min-height: auto; }
+      .chart-host { height: 250px; }
+      .structure-layout { grid-template-columns: 1fr; }
+      .donut { width: 210px; }
       .legend-row { grid-template-columns: 12px minmax(0,1fr) auto; }
       .legend-percent { display: none; }
       .legend-value { min-width: 84px; }
+      .detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .actions { justify-content: stretch; }
+      .primary-button { width: 100%; min-height: 46px; }
     }
   </style>
 </head>
@@ -361,7 +395,7 @@
   </div>
 
   <div class="status-toast" id="status-toast" role="status" aria-live="polite"></div>
-  <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loader-card">Обновляем дашборд…</div></div>
+  <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loader-card"><div class="loader-title">Обновляем дашборд…</div><div class="skeleton-stack" aria-hidden="true"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div></div></div></div>
 
   <script>
     (function () {
@@ -387,9 +421,9 @@
         spreadsheetUrl: '#',
         period: {
           year: 2026, month: 'Июль', monthIndex: 6,
-          years: [2023,2024,2025,2026],
+          years: [2018,2019,2020,2021,2022,2023,2024,2025,2026],
           months: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
-          latestDate: '31.07.2026'
+          latestDate: '28.07.2026'
         },
         summary: {
           incomeOperations: 1010, datedOperations: 1009, qualityScore: 86, qualityLabel: 'высокое',
@@ -401,15 +435,17 @@
           minimumActiveMonth: { month: 'Июль', value: 151360 }, specialShare: .144, yearChange: -.141, historyShare: .176
         },
         yearlyIncome: [
-          {year:2023,value:1845221},{year:2024,value:2481349},{year:2025,value:3869563},{year:2026,value:3322811}
+          {year:2018,value:228236},{year:2019,value:1019745},{year:2020,value:1416997},
+          {year:2021,value:1901776},{year:2022,value:2334790},{year:2023,value:2129741},
+          {year:2024,value:2598662},{year:2025,value:3869563},{year:2026,value:3322811}
         ],
-        monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,231646,268112,208945,184221,98724]
+        monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]
           .map(function (value,index) {
             const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
             return { month: months[index], short: months[index].slice(0,3), value: value, operations: value ? 10 : 0 };
           }),
         monthStructure: [
-          {label:'Зарплата',value:68578},{label:'Аванс',value:35516},{label:'Другое',value:34998},{label:'ЕДВ',value:2268}
+          {label:'Зарплата',value:66712},{label:'Другое',value:58775},{label:'Аванс',value:16320},{label:'ЕДВ',value:9553}
         ],
         insight: {
           title: 'Главный вывод',
@@ -813,15 +849,13 @@
         if (view === 'month' || view === 'structure') {
           elements['detail-content'].innerHTML =
             detailStats([
-              ['Доход месяца',money(data.summary.selectedMonthIncome)],
-              ['Операций',formatInt(data.summary.monthOperations)],
+              ['Доход за месяц',money(data.summary.selectedMonthIncome)],
+              ['Операций',data.summary.monthOperations],
               ['Средняя операция',money(data.summary.averageOperation)],
-              ['Категорий',formatInt(data.monthStructure.length)]
+              ['Доля в году',data.summary.selectedYearIncome ? percent(data.summary.selectedMonthIncome / data.summary.selectedYearIncome) : '0,0%']
             ]) + table(
               ['Категория','Доход'],
-              data.monthStructure.length
-                ? data.monthStructure.map(function (row) { return [row.label,money(row.value)]; })
-                : [['Нет данных','0 ₽']]
+              data.monthStructure.map(function (row) { return [row.label,money(row.value)]; })
             );
           return;
         }
@@ -829,55 +863,43 @@
         if (view === 'operations') {
           elements['detail-content'].innerHTML = detailStats([
             ['Доходных операций',formatInt(data.summary.incomeOperations)],
-            ['С корректной датой',formatInt(data.summary.datedOperations)],
-            ['Операций в месяце',formatInt(data.summary.monthOperations)],
-            ['Средняя операция',money(data.summary.averageOperation)]
+            ['В выбранном месяце',formatInt(data.summary.monthOperations)],
+            ['Средняя операция',money(data.summary.averageOperation)],
+            ['С датой',formatInt(data.summary.datedOperations)]
           ]);
           return;
         }
 
         if (view === 'forecast') {
           elements['detail-content'].innerHTML = detailStats([
-            ['Факт выбранного года',money(data.summary.selectedYearIncome)],
+            ['Факт',money(data.summary.selectedYearIncome)],
+            ['Оценка года',money(forecast.value)],
             ['Активных месяцев',data.kpis.activeMonths],
-            ['Средний активный месяц',money(data.kpis.averageActiveMonth)],
-            ['Оценка года',money(forecast.value)]
-          ]) + '<p class="metric-note">Метод: факт активных месяцев плюс средний активный месяц на оставшиеся месяцы. Прогноз не учитывает сезонные и разовые события.</p>';
+            ['Средний активный',money(data.kpis.averageActiveMonth)]
+          ]) + '<div class="chart-empty"><div><strong>Ориентировочная экстраполяция</strong><span>Прогноз = средний доход активного месяца × 12. Он не заменяет финансовое планирование.</span></div></div>';
           return;
         }
 
         if (view === 'quality') {
           elements['detail-content'].innerHTML = detailStats([
             ['Оценка',data.summary.qualityScore + '/100'],
-            ['Статус',data.summary.qualityLabel],
-            ['Покрытие датами',percent(coverage)],
-            ['Без корректной даты',formatInt(Math.max(0,data.summary.incomeOperations - data.summary.datedOperations))]
+            ['Уровень',data.summary.qualityLabel],
+            ['С корректной датой',percent(coverage)],
+            ['Без даты',formatInt(Math.max(0,data.summary.incomeOperations - data.summary.datedOperations))]
           ]);
           return;
         }
 
         elements['detail-content'].innerHTML =
           detailStats([
-            ['Год',data.period.year],
-            ['Месяц',data.period.month],
             ['Доход года',money(data.summary.selectedYearIncome)],
-            ['Доход месяца',money(data.summary.selectedMonthIncome)]
-          ]) +
-          table(
+            ['Доход месяца',money(data.summary.selectedMonthIncome)],
+            ['Операций месяца',data.summary.monthOperations],
+            ['Качество',data.summary.qualityScore + '/100']
+          ]) + table(
             ['Год','Доход'],
             data.yearlyIncome.map(function (row) { return [row.year,money(row.value)]; })
-          ) +
-          '<div style="height:12px"></div>' +
-          table(
-            ['Месяц','Операций','Доход'],
-            data.monthlyIncome.map(function (row) { return [row.month,row.operations,money(row.value)]; })
           );
-      }
-
-      function forecastYear(data) {
-        const active = Math.max(0,Math.min(12,Number(data.kpis.activeMonths) || 0));
-        const remaining = Math.max(0,12 - active);
-        return { value: data.summary.selectedYearIncome + remaining * (Number(data.kpis.averageActiveMonth) || 0) };
       }
 
       function detailStats(rows) {
@@ -887,21 +909,27 @@
         }).join('') + '</div>';
       }
 
-      function table(headers,rows) {
+      function table(headers, rows) {
         return '<div class="table-wrap"><table class="data-table"><thead><tr>' +
           headers.map(function (header) { return '<th>' + escapeHtml(header) + '</th>'; }).join('') +
-          '</tr></thead><tbody>' +
-          rows.map(function (row) {
-            return '<tr>' + row.map(function (cell) { return '<td>' + escapeHtml(cell) + '</td>'; }).join('') + '</tr>';
-          }).join('') +
-          '</tbody></table></div>';
+          '</tr></thead><tbody>' + rows.map(function (row) {
+            return '<tr>' + row.map(function (value) { return '<td>' + escapeHtml(value) + '</td>'; }).join('') + '</tr>';
+          }).join('') + '</tbody></table></div>';
+      }
+
+      function forecastYear(data) {
+        const active = Math.max(1,Number(data.kpis.activeMonths) || 0);
+        const actual = Number(data.summary.selectedYearIncome) || 0;
+        return { value: Math.round((actual / active) * 12) };
       }
 
       function readUrlState() {
         try {
           const params = new URL(window.location.href).searchParams;
-          const year = Number(params.get('year'));
-          const month = Number(params.get('month'));
+          const yearRaw = params.get('year');
+          const monthRaw = params.get('month');
+          const year = yearRaw === null || yearRaw === '' ? null : Number(yearRaw);
+          const month = monthRaw === null || monthRaw === '' ? null : Number(monthRaw);
           return {
             year: Number.isFinite(year) && year > 0 ? year : null,
             month: Number.isInteger(month) && month >= 0 && month <= 11 ? month : null,
@@ -927,7 +955,7 @@
 
       function updateLocalPeriod(year,month) {
         if (year && state.period.years.indexOf(Number(year)) >= 0) state.period.year = Number(year);
-        if (Number.isInteger(Number(month)) && Number(month) >= 0 && Number(month) <= 11) {
+        if (month !== null && month !== '' && Number.isInteger(Number(month)) && Number(month) >= 0 && Number(month) <= 11) {
           state.period.monthIndex = Number(month);
           state.period.month = state.period.months[Number(month)];
         }
