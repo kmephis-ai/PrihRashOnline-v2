@@ -11,6 +11,12 @@ const VIEWPORTS = [
   { name: 'mobile', width: 390, height: 844, maxPageHeight: 5300 }
 ];
 
+const VIEWS = [
+  ['overview','Обзор'], ['years','Годы'], ['months','Месяцы'], ['month','Месяц'],
+  ['seasonality','Сезонность'], ['structure','Структура'], ['operations','Операции'],
+  ['forecast','Прогноз'], ['quality','Качество'], ['details','Детали']
+];
+
 async function inspectLayout(page, viewport) {
   return page.evaluate(({ maxPageHeight, mobile }) => {
     function visibleRect(element) {
@@ -145,34 +151,62 @@ function assertLayout(result) {
   });
 }
 
-async function assertInteraction(page) {
-  await page.click('.tab[data-view="forecast"]');
-  await page.waitForSelector('#view-detail:not([hidden])');
-  const forecast = await page.evaluate(() => {
-    const params = new URL(window.location.href).searchParams;
-    const kpi = document.getElementById('kpi-panel').getBoundingClientRect();
-    const monthly = document.getElementById('monthly-panel').getBoundingClientRect();
-    const detail = document.getElementById('view-detail').getBoundingClientRect();
-    return {
-      active: document.querySelector('.tab.active')?.dataset.view,
-      urlView: params.get('view'),
-      urlMonth: params.get('month'),
-      detailHidden: document.getElementById('view-detail').hidden,
-      hasForecast: document.getElementById('detail-content').textContent.includes('Оценка года'),
-      viewportWidth: window.innerWidth,
-      kpiWidth: Math.round(kpi.width),
-      monthlyWidth: Math.round(monthly.width),
-      detailWidth: Math.round(detail.width)
-    };
-  });
-  if (forecast.active !== 'forecast' || forecast.urlView !== 'forecast' || forecast.urlMonth !== '6') {
-    throw new Error(`Forecast URL state is inconsistent: ${JSON.stringify(forecast)}`);
-  }
-  if (forecast.detailHidden || !forecast.hasForecast) throw new Error(`Forecast detail was not rendered: ${JSON.stringify(forecast)}`);
-  if (forecast.viewportWidth > 1250) {
-    const minimumWidePanel = forecast.viewportWidth * .9;
-    if (forecast.kpiWidth < minimumWidePanel || forecast.monthlyWidth < minimumWidePanel || forecast.detailWidth < minimumWidePanel) {
-      throw new Error(`Forecast view leaves an empty desktop column: ${JSON.stringify(forecast)}`);
+async function assertAllViews(page) {
+  for (const [view, expectedTitle] of VIEWS) {
+    await page.click(`.tab[data-view="${view}"]`);
+    await page.waitForFunction((expected) => document.querySelector('.tab.active')?.dataset.view === expected, view);
+
+    const snapshot = await page.evaluate((currentView) => {
+      const params = new URL(window.location.href).searchParams;
+      const detail = document.getElementById('view-detail');
+      const detailText = document.getElementById('detail-content').textContent.replace(/\s+/g, ' ').trim();
+      const kpi = document.getElementById('kpi-panel').getBoundingClientRect();
+      const monthly = document.getElementById('monthly-panel').getBoundingClientRect();
+      const detailRect = detail.getBoundingClientRect();
+      const monthOps = currentView === 'months'
+        ? Array.from(document.querySelectorAll('#detail-content tbody tr')).map((row) => row.children[1]?.textContent.trim())
+        : [];
+      return {
+        active: document.querySelector('.tab.active')?.dataset.view,
+        title: document.getElementById('view-title').textContent.trim(),
+        detailHidden: detail.hidden,
+        detailText,
+        urlView: params.get('view'),
+        urlMonth: params.get('month'),
+        viewportWidth: window.innerWidth,
+        kpiWidth: Math.round(kpi.width),
+        monthlyWidth: Math.round(monthly.width),
+        detailWidth: Math.round(detailRect.width),
+        monthOps
+      };
+    }, view);
+
+    if (snapshot.active !== view || snapshot.title !== expectedTitle || snapshot.urlView !== view) {
+      throw new Error(`View ${view} did not activate correctly: ${JSON.stringify(snapshot)}`);
+    }
+    if (view === 'overview') {
+      if (!snapshot.detailHidden) throw new Error(`Overview detail must stay hidden: ${JSON.stringify(snapshot)}`);
+    } else if (snapshot.detailHidden || !snapshot.detailText) {
+      throw new Error(`View ${view} did not render detail content: ${JSON.stringify(snapshot)}`);
+    }
+
+    if (view === 'months') {
+      const expected = ['11','17','31','18','25','17','9','0','0','0','0','0'];
+      if (JSON.stringify(snapshot.monthOps) !== JSON.stringify(expected)) {
+        throw new Error(`Monthly operation counts differ from DEV data: ${JSON.stringify(snapshot.monthOps)}`);
+      }
+    }
+
+    if (view === 'forecast') {
+      if (snapshot.urlMonth !== '6' || !snapshot.detailText.includes('Оценка года')) {
+        throw new Error(`Forecast URL/detail state is inconsistent: ${JSON.stringify(snapshot)}`);
+      }
+      if (snapshot.viewportWidth > 1250) {
+        const minimumWidePanel = snapshot.viewportWidth * .9;
+        if (snapshot.kpiWidth < minimumWidePanel || snapshot.monthlyWidth < minimumWidePanel || snapshot.detailWidth < minimumWidePanel) {
+          throw new Error(`Forecast view leaves an empty desktop column: ${JSON.stringify(snapshot)}`);
+        }
+      }
     }
   }
 
@@ -199,7 +233,7 @@ async function assertInteraction(page) {
 
     const result = await inspectLayout(page, viewport);
     assertLayout(result);
-    await assertInteraction(page);
+    await assertAllViews(page);
     results.push(result);
 
     await page.screenshot({ path: path.join(artifactDir, `dashboard-web-${viewport.name}.png`), fullPage: true });
