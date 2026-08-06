@@ -7,11 +7,6 @@ on:
         description: Git ref to deploy to Apps Script DEV
         required: true
         default: agent/dashboard-ux-structure
-  push:
-    branches:
-      - main
-    paths:
-      - '.deploy/apps-script-dev.ref'
 
 permissions:
   contents: read
@@ -20,8 +15,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: apps-script-dev-deploy
-  cancel-in-progress: false
+  group: apps-script-dev-deploy-v2-${{ github.event.inputs.target_ref || 'agent-dashboard-ux-structure' }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -46,6 +41,16 @@ jobs:
           echo "ref=${TARGET_REF}" >> "$GITHUB_OUTPUT"
           echo "Deploying ${TARGET_REF} at ${SOURCE_SHA}"
 
+      - name: Validate GitHub-hosted execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RUNNER_ENVIRONMENT}" != "github-hosted" ]]; then
+            echo "::error::DEV deployment must run on a GitHub-hosted runner."
+            exit 1
+          fi
+          echo "Runner: ${RUNNER_NAME}; environment: ${RUNNER_ENVIRONMENT}; OS: ${RUNNER_OS}"
+
       - name: Validate deployment secrets
         shell: bash
         env:
@@ -66,6 +71,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Prepare Web Dashboard bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run prepare:web
 
       - name: Run contract tests
         shell: bash
@@ -188,7 +199,7 @@ jobs:
         shell: bash
         run: |
           echo "### ПрихРасхOnline Web Dashboard DEV" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Runner: \`${RUNNER_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Runner: \`${RUNNER_NAME}\` (\`${RUNNER_ENVIRONMENT}\`)" >> "$GITHUB_STEP_SUMMARY"
           echo "- Requested ref: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source commit: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
@@ -203,7 +214,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ HTML Web Dashboard deployed on \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. Contract tests and Playwright visual gate passed. Web App: ${{ steps.webapp.outputs.web_app_url }}. Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "✅ HTML Web Dashboard deployed on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. Contract tests and Playwright visual gate passed. Web App: ${{ steps.webapp.outputs.web_app_url }}. Visual artifact: \`dashboard-web-visual-${{ steps.source.outputs.sha }}\`. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
       - name: Report failed deployment to PR
         if: failure()
@@ -211,4 +222,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ HTML Web Dashboard deployment failed closed on \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. No successful Web App release is claimed. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh pr comment 6 --repo "$GITHUB_REPOSITORY" --body "❌ HTML Web Dashboard deployment failed closed on GitHub-hosted runner \`$RUNNER_NAME\`. Source: \`${TARGET_REF}\` at \`${{ steps.source.outputs.sha }}\`. No successful Web App release is claimed. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
