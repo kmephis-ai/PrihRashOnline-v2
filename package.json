@@ -1,0 +1,13 @@
+{
+  "name": "prihrashonline-dashboard-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Visual contract tooling for the ПрихРасхOnline HTML dashboard",
+  "scripts": {
+    "test:web-contract": "node tests/dashboard_web_contract_test.js",
+    "test:web-visual": "node tests/dashboard_web_visual_test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.50.1"
+  }
+}
