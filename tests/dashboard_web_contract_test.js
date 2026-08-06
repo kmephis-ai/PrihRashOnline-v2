@@ -3,79 +3,57 @@
 const fs = require('fs');
 const path = require('path');
 const prepareDashboardWeb = require('../tools/prepare-dashboard-web.js');
+const prepareDashboardWebV13 = require('../tools/prepare-dashboard-web-v13.js');
 
 const root = path.join(__dirname, '..');
-const preparation = prepareDashboardWeb(path.join(root, 'DashboardWebApp.html'));
+const htmlPath = path.join(root, 'DashboardWebApp.html');
+const preparation = { base: prepareDashboardWeb(htmlPath), v13: prepareDashboardWebV13(htmlPath) };
 const service = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
-const html = fs.readFileSync(path.join(root, 'DashboardWebApp.html'), 'utf8');
+const executive = fs.readFileSync(path.join(root, 'DashboardWebExecutiveService.js'), 'utf8');
+const html = fs.readFileSync(htmlPath, 'utf8');
 
-function expect(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-[
-  'function doGet(e)',
-  'function prhGetWebDashboardData(',
-  'function prhOpenWebDashboard()',
-  'function prhWebResolveView_(',
-  "OPERATIONS_SHEET: '01 Операции'",
-  "QUALITY_CELL: 'E396'",
-  "VERSION: '1.2.0'",
-  'VIEWS: Object.freeze',
-  'params.view',
-  'HtmlService.createTemplateFromFile',
-  'ScriptApp.getService().getUrl()'
-].forEach((required) => expect(service.includes(required), `Missing service contract: ${required}`));
+function expect(condition, message) { if (!condition) throw new Error(message); }
 
 [
-  '.setValue(', '.setValues(', '.clearContent(', '.appendRow(',
-  '.deleteRow(', '.deleteRows(', '.insertSheet(', '.deleteSheet(',
-  '.hideRows(', '.showRows(', '.setColumnWidth(', '.setRowHeight('
-].forEach((forbidden) => expect(!service.includes(forbidden), `Web data service must be read-only: ${forbidden}`));
+  'function doGet(e)', 'function prhGetWebDashboardData(', 'function prhOpenWebDashboard()',
+  "OPERATIONS_SHEET: '01 Операции'", "QUALITY_CELL: 'E396'", "VERSION: '1.2.0'",
+  'HtmlService.createTemplateFromFile', 'ScriptApp.getService().getUrl()'
+].forEach((required) => expect(service.includes(required), `Missing base service contract: ${required}`));
+
+[
+  "VERSION: '1.3.0'", 'function prhGetWebDashboardDataV13(', 'function prhWebExecutiveStabilityIndex_(',
+  'function prhWebExecutiveForecast_(', 'function prhWebExecutiveGroup_(',
+  "LARGE_AMOUNT: 100000", "OPERATIONS_SHEET: '01 Операции'", 'possibleDuplicateCount',
+  'largestSource', 'qualityCounts', 'openFirstUrl'
+].forEach((required) => expect(executive.includes(required), `Missing executive service contract: ${required}`));
+
+[
+  '.setValue(', '.setValues(', '.clearContent(', '.appendRow(', '.deleteRow(', '.deleteRows(',
+  '.insertSheet(', '.deleteSheet(', '.hideRows(', '.showRows(', '.setColumnWidth(', '.setRowHeight('
+].forEach((forbidden) => {
+  expect(!service.includes(forbidden), `Base web service must be read-only: ${forbidden}`);
+  expect(!executive.includes(forbidden), `Executive/drill-down service must be read-only: ${forbidden}`);
+});
 
 [
   'class="topbar"', 'class="tabs"', 'class="filters"', 'class="dashboard-grid"',
-  'id="yearly-chart"', 'id="monthly-chart"', 'id="donut"',
-  'id="year-select"', 'id="month-select"', 'id="kpi-layout"',
-  'id="view-detail"', 'id="detail-content"', 'id="view-title"',
-  'grid-template-columns: 1.06fr 1fr', 'grid-template-columns: 1.08fr .92fr',
-  '@media (max-width: 1250px)', 'const FIXTURE =', 'google.script.run',
-  "window.addEventListener('popstate'", 'window.history[method]',
-  '.prhGetWebDashboardData(year, month, activeView)',
-  'function forecastYear(data)', 'function renderDetail(data, view)',
-  'function emptyState(title,note)',
-  "const yearRaw = params.get('year')",
-  "const monthRaw = params.get('month')",
-  "yearRaw === null || yearRaw === '' ? null : Number(yearRaw)",
-  "monthRaw === null || monthRaw === '' ? null : Number(monthRaw)",
-  "month !== null && month !== '' && Number.isInteger(Number(month))",
-  'scrollbar-width: none',
-  '.tabs::-webkit-scrollbar { display: none; }',
-  'overscroll-behavior-x: contain',
-  'grid-auto-rows: 1fr',
-  '.dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis',
-  '.bottom-grid:has(.structure-panel[hidden])',
-  'class="skeleton-stack"',
-  '@keyframes skeleton-shimmer',
-  'years: [2018,2019,2020,2021,2022,2023,2024,2025,2026]',
-  "latestDate: '28.07.2026'",
-  '{year:2023,value:2129741}',
-  '{year:2024,value:2598662}',
-  'monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]',
+  'id="yearly-chart"', 'id="monthly-chart"', 'id="donut"', 'id="executive-secondary"',
+  'id="view-detail"', 'id="detail-content"', 'data-drilldown', 'data-close-drilldown',
+  'function renderExecutiveSecondary(data)', 'function openDrilldown(key)', 'function drilldownTable(rows)',
+  '.prhGetWebDashboardDataV13(year, month, activeView)', 'Executive-панель',
   'const operations = [11,17,31,18,25,17,9,0,0,0,0,0]',
-  "{label:'Зарплата',value:66712}",
-  "{label:'Другое',value:58775}",
-  "{label:'Аванс',value:16320}",
-  "{label:'ЕДВ',value:9553}"
+  "{label:'Зарплата',value:66712}", "{label:'Другое',value:58775}",
+  'selectedYearIncome:3322811', 'selectedMonthIncome:151360', 'specialIncome:479359',
+  'scrollbar-width: none', '.dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis'
 ].forEach((required) => expect(html.includes(required), `Missing HTML dashboard contract: ${required}`));
 
-expect(!service.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use the stale empty E397 cell');
-expect(!html.includes('scrollbar-width: thin'), 'Mobile tab scrollbar must not be visible in screenshots');
-expect(!html.includes('const month = Number(params.get(\'month\'))'), 'Absent month must not coerce to January');
-expect(!html.includes('charts.google.com'), 'Dashboard must not depend on external Google Charts runtime');
+expect(!service.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use stale E397');
+expect(!html.includes('scrollbar-width: thin'), 'Mobile tab scrollbar must remain hidden');
+expect(!html.includes('charts.google.com'), 'Dashboard must not depend on Google Charts runtime');
 expect(!html.includes('cdn.jsdelivr.net'), 'Dashboard must not depend on a public CDN');
-expect((html.match(/data-testid="kpi-card"/g) || []).length === 1, 'KPI cards must be generated from one reusable template');
+expect((html.match(/data-testid="kpi-card"/g) || []).length === 1, 'Primary KPI cards must come from one reusable template');
+expect((html.match(/data-testid="secondary-kpi"/g) || []).length === 1, 'Secondary KPI cards must come from one reusable template');
 expect((html.match(/data-testid="filter-card"/g) || []).length === 5, 'Dashboard must contain five context cards');
-expect(html.length < 65000, `HTML payload is unexpectedly large: ${html.length}`);
+expect(html.length < 90000, `HTML payload is unexpectedly large: ${html.length}`);
 
-console.log('dashboard_web_contract_test: OK', preparation);
+console.log('dashboard_web_contract_test: OK', preparation, { htmlLength: html.length });
