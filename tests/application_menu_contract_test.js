@@ -9,14 +9,15 @@ function expect(condition, message) {
 
 [
   "createMenu('ПрихРасхOnline')",
-  "createMenu('Дашборд')",
+  "createMenu('Листовая аналитика')",
   "createMenu('Действия')",
   "createMenu('Экспорт')",
   "createMenu('Настройки')"
 ].forEach((required) => expect(source.includes(required), `Missing menu contract: ${required}`));
 
 [
-  'Обновить дашборд', 'Текущий год', 'Текущий месяц', 'Сбросить фильтры',
+  'Открыть Web Dashboard', 'prhOpenWebDashboard', 'Обновить расчёты',
+  'Текущий год', 'Текущий месяц', 'Сбросить фильтры',
   'Открыть операции периода', 'Проверить качество данных', 'Создать PDF',
   'Сделать снимок показателей', 'Восстановить диаграммы обзора'
 ].forEach((label) => expect(source.includes(label), `Missing required action: ${label}`));
@@ -24,7 +25,8 @@ function expect(condition, message) {
 expect(source.includes('function onOpen(e)'), 'Missing single onOpen entry point');
 expect(source.includes('function onEdit(e)'), 'Missing single onEdit entry point');
 expect(source.includes('prhHandleDashboardModeEdit(e)'), 'onEdit must route dashboard mode changes');
-expect(source.includes('getCharts().length'), 'Missing chart-count read');
+expect(source.includes("primaryUx:'WEB_DASHBOARD'"), 'Web Dashboard must be declared as the primary UX');
+expect(source.includes('getCharts().length'), 'Missing fallback chart-count read');
 expect(/!==\s*20/.test(source), 'Missing 20-chart validation');
 expect(source.includes('prhEnsureCriticalChartSources()'), 'Missing critical chart repair lifecycle');
 expect(source.includes("YEAR_CELL: 'A7'"), 'Current year action must target A7');
