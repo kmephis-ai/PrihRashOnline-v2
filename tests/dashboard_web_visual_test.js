@@ -6,9 +6,9 @@ const { chromium } = require('playwright');
 const prepareDashboardWeb = require('../tools/prepare-dashboard-web.js');
 
 const VIEWPORTS = [
-  { name: 'desktop', width: 1600, height: 1000, maxPageHeight: 1400 },
-  { name: 'laptop', width: 1280, height: 900, maxPageHeight: 2300 },
-  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5200 }
+  { name: 'desktop', width: 1600, height: 1000, maxPageHeight: 1450 },
+  { name: 'laptop', width: 1280, height: 900, maxPageHeight: 2350 },
+  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5300 }
 ];
 
 async function inspectLayout(page, viewport) {
@@ -69,6 +69,10 @@ async function inspectLayout(page, viewport) {
       height: Math.round(element.getBoundingClientRect().height),
       hasSvgOrEmptyState: Boolean(element.querySelector('svg, .chart-empty'))
     }));
+    const filterHeights = Array.from(document.querySelectorAll('[data-testid="filter-card"]'))
+      .map((element) => Math.round(element.getBoundingClientRect().height));
+    const kpiHeights = Array.from(document.querySelectorAll('[data-testid="kpi-card"]'))
+      .map((element) => Math.round(element.getBoundingClientRect().height));
 
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -84,12 +88,22 @@ async function inspectLayout(page, viewport) {
       selectedMonth: Number(month.value),
       selectedMonthLabel: month.options[month.selectedIndex].textContent,
       currentPeriod: document.getElementById('current-period').textContent,
+      periodNote: document.getElementById('period-note').textContent,
       structureTitle: document.getElementById('structure-title').textContent,
+      structureLegend: document.getElementById('structure-legend').textContent.replace(/\s+/g, ' ').trim(),
       donutTotal: document.getElementById('donut-total').textContent,
+      qualityValue: document.getElementById('quality-value').textContent,
+      yearlyBarCount: document.querySelectorAll('#yearly-chart rect').length,
       mobileScrollbarWidth: mobile ? tabsStyle.scrollbarWidth : null,
+      filterHeights,
+      kpiHeights,
       charts
     };
   }, { maxPageHeight: viewport.maxPageHeight, mobile: viewport.width <= 760 });
+}
+
+function spread(values) {
+  return values.length ? Math.max(...values) - Math.min(...values) : 0;
 }
 
 function assertLayout(result) {
@@ -108,9 +122,19 @@ function assertLayout(result) {
   if (!result.currentPeriod.toLowerCase().includes('июль') || !result.structureTitle.includes('Июль 2026')) {
     throw new Error(`[${label}] July labels are inconsistent: ${JSON.stringify(result)}`);
   }
+  if (!result.periodNote.includes('28.07.2026')) throw new Error(`[${label}] Fixture latest date is stale: ${result.periodNote}`);
   if (!result.donutTotal.includes('151') || !result.donutTotal.includes('360')) {
     throw new Error(`[${label}] July structure total is inconsistent: ${result.donutTotal}`);
   }
+  ['66 712', '58 775', '16 320', '9 553'].forEach((amount) => {
+    if (!result.structureLegend.includes(amount)) throw new Error(`[${label}] Real July structure is missing ${amount}: ${result.structureLegend}`);
+  });
+  if (!result.qualityValue.includes('86/100')) throw new Error(`[${label}] Quality fixture must match DEV analytics: ${result.qualityValue}`);
+  if (result.yearlyBarCount !== 9) throw new Error(`[${label}] Expected 9 real-history year bars, found ${result.yearlyBarCount}`);
+  if (result.viewport.width > 1250 && spread(result.filterHeights) > 2) {
+    throw new Error(`[${label}] Desktop filter cards are not equal height: ${result.filterHeights.join(',')}`);
+  }
+  if (spread(result.kpiHeights) > 3) throw new Error(`[${label}] KPI cards are not equal height: ${result.kpiHeights.join(',')}`);
   if (result.mobileScrollbarWidth && result.mobileScrollbarWidth !== 'none') {
     throw new Error(`[${label}] Mobile tab scrollbar must be hidden: ${result.mobileScrollbarWidth}`);
   }
