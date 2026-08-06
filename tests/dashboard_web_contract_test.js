@@ -62,6 +62,7 @@ function expect(condition, message) {
   '{year:2023,value:2129741}',
   '{year:2024,value:2598662}',
   'monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]',
+  'const operations = [11,17,31,18,25,17,9,0,0,0,0,0]',
   "{label:'Зарплата',value:66712}",
   "{label:'Другое',value:58775}",
   "{label:'Аванс',value:16320}",
