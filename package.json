@@ -4,7 +4,7 @@
   "private": true,
   "description": "Reproducible build and visual contract tooling for the ПрихРасхOnline HTML dashboard",
   "scripts": {
-    "prepare:web": "node tools/prepare-dashboard-web.js && node tools/prepare-dashboard-web-v13.js",
+    "prepare:web": "node tools/prepare-dashboard-web.js && node tools/prepare-dashboard-web-v13.js && node tools/prepare-dashboard-web-v13-data.js",
     "test:web-contract": "node tests/dashboard_web_contract_test.js",
     "test:web-visual": "node tests/dashboard_web_visual_test.js",
     "test:web": "npm run test:web-contract && npm run test:web-visual"
