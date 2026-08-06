@@ -19,8 +19,8 @@ function expect(condition, message) {
   'function prhOpenWebDashboard()',
   'function prhWebResolveView_(',
   "OPERATIONS_SHEET: '01 Операции'",
-  "QUALITY_CELL: 'E397'",
-  "VERSION: '1.1.0'",
+  "QUALITY_CELL: 'E396'",
+  "VERSION: '1.2.0'",
   'VIEWS: Object.freeze',
   'params.view',
   'HtmlService.createTemplateFromFile',
@@ -50,15 +50,29 @@ function expect(condition, message) {
   "monthRaw === null || monthRaw === '' ? null : Number(monthRaw)",
   "month !== null && month !== '' && Number.isInteger(Number(month))",
   'scrollbar-width: none',
-  '.tabs::-webkit-scrollbar { display: none; }'
+  '.tabs::-webkit-scrollbar { display: none; }',
+  'overscroll-behavior-x: contain',
+  'grid-auto-rows: 1fr',
+  'class="skeleton-stack"',
+  '@keyframes skeleton-shimmer',
+  'years: [2018,2019,2020,2021,2022,2023,2024,2025,2026]',
+  "latestDate: '28.07.2026'",
+  '{year:2023,value:2129741}',
+  '{year:2024,value:2598662}',
+  'monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]',
+  "{label:'Зарплата',value:66712}",
+  "{label:'Другое',value:58775}",
+  "{label:'Аванс',value:16320}",
+  "{label:'ЕДВ',value:9553}"
 ].forEach((required) => expect(html.includes(required), `Missing HTML dashboard contract: ${required}`));
 
+expect(!service.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use the stale empty E397 cell');
 expect(!html.includes('scrollbar-width: thin'), 'Mobile tab scrollbar must not be visible in screenshots');
 expect(!html.includes('const month = Number(params.get(\'month\'))'), 'Absent month must not coerce to January');
 expect(!html.includes('charts.google.com'), 'Dashboard must not depend on external Google Charts runtime');
 expect(!html.includes('cdn.jsdelivr.net'), 'Dashboard must not depend on a public CDN');
 expect((html.match(/data-testid="kpi-card"/g) || []).length === 1, 'KPI cards must be generated from one reusable template');
 expect((html.match(/data-testid="filter-card"/g) || []).length === 5, 'Dashboard must contain five context cards');
-expect(html.length < 60000, `HTML payload is unexpectedly large: ${html.length}`);
+expect(html.length < 65000, `HTML payload is unexpectedly large: ${html.length}`);
 
 console.log('dashboard_web_contract_test: OK', preparation);
