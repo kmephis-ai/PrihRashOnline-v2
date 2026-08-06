@@ -150,18 +150,31 @@ async function assertInteraction(page) {
   await page.waitForSelector('#view-detail:not([hidden])');
   const forecast = await page.evaluate(() => {
     const params = new URL(window.location.href).searchParams;
+    const kpi = document.getElementById('kpi-panel').getBoundingClientRect();
+    const monthly = document.getElementById('monthly-panel').getBoundingClientRect();
+    const detail = document.getElementById('view-detail').getBoundingClientRect();
     return {
       active: document.querySelector('.tab.active')?.dataset.view,
       urlView: params.get('view'),
       urlMonth: params.get('month'),
       detailHidden: document.getElementById('view-detail').hidden,
-      hasForecast: document.getElementById('detail-content').textContent.includes('Оценка года')
+      hasForecast: document.getElementById('detail-content').textContent.includes('Оценка года'),
+      viewportWidth: window.innerWidth,
+      kpiWidth: Math.round(kpi.width),
+      monthlyWidth: Math.round(monthly.width),
+      detailWidth: Math.round(detail.width)
     };
   });
   if (forecast.active !== 'forecast' || forecast.urlView !== 'forecast' || forecast.urlMonth !== '6') {
     throw new Error(`Forecast URL state is inconsistent: ${JSON.stringify(forecast)}`);
   }
   if (forecast.detailHidden || !forecast.hasForecast) throw new Error(`Forecast detail was not rendered: ${JSON.stringify(forecast)}`);
+  if (forecast.viewportWidth > 1250) {
+    const minimumWidePanel = forecast.viewportWidth * .9;
+    if (forecast.kpiWidth < minimumWidePanel || forecast.monthlyWidth < minimumWidePanel || forecast.detailWidth < minimumWidePanel) {
+      throw new Error(`Forecast view leaves an empty desktop column: ${JSON.stringify(forecast)}`);
+    }
+  }
 
   await page.click('.tab[data-view="overview"]');
   await page.waitForFunction(() => document.getElementById('view-detail').hidden === true);
