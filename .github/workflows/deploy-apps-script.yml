@@ -46,14 +46,7 @@ concurrency:
 jobs:
   deploy:
     if: github.event_name != 'pull_request' || github.head_ref == 'agent/dashboard-ux-structure'
-    runs-on:
-      - self-hosted
-      - Linux
-      - X64
-      - prih-rashonline
-      - wsl
-      - apps-script
-      - dev
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -97,7 +90,7 @@ jobs:
         run: |
           set -euo pipefail
           npm install --no-audit --no-fund
-          npx playwright install chromium
+          npx playwright install --with-deps chromium
 
       - name: Run Web Dashboard visual gate
         shell: bash
