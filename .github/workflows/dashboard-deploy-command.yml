@@ -1,0 +1,37 @@
+name: Dashboard Deploy Command
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: read
+  actions: write
+  issues: read
+  pull-requests: read
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.number == 6 &&
+      github.event.comment.body == '/deploy-dashboard-dev' &&
+      github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch Apps Script DEV deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-apps-script.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f target_ref=agent/dashboard-ux-structure
+
+      - name: Command summary
+        run: |
+          echo '### Dashboard DEV deployment command accepted' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Target ref: `agent/dashboard-ux-structure`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Deployment workflow: `deploy-apps-script.yml`' >> "$GITHUB_STEP_SUMMARY"
