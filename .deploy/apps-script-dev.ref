@@ -1,0 +1,4 @@
+target_ref=agent/dashboard-ux-structure
+requested_source_sha=8bd826cd9ac82b9f94d466f837799a7cfd813949
+requested_at=2026-08-06T22:10:00+03:00
+reason=Dashboard Web 1.1 visual acceptance and Apps Script DEV deployment
