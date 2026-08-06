@@ -8,32 +8,28 @@ const VIEWPORTS = [
   { name: 'mobile', width: 390, height: 844, maxPageHeight: 5200 }
 ];
 
-function visibleRect(element) {
-  const style = window.getComputedStyle(element);
-  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null;
-  const rect = element.getBoundingClientRect();
-  if (rect.width < 2 || rect.height < 2) return null;
-  return {
-    name: element.getAttribute('data-testid') || element.className || element.tagName,
-    left: rect.left,
-    right: rect.right,
-    top: rect.top,
-    bottom: rect.bottom
-  };
-}
-
 async function inspectLayout(page, viewport) {
   return page.evaluate(({ maxPageHeight }) => {
+    function visibleRect(element) {
+      const style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null;
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return null;
+      return {
+        name: element.getAttribute('data-testid') || element.className || element.tagName,
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom
+      };
+    }
+
     const root = document.documentElement;
     const body = document.body;
     const overflow = Math.max(root.scrollWidth, body.scrollWidth) - window.innerWidth;
     const pageHeight = Math.max(root.scrollHeight, body.scrollHeight);
 
-    const selectors = [
-      '.filters > *',
-      '.dashboard-grid > .panel',
-      '.bottom-grid > *'
-    ];
+    const selectors = ['.filters > *', '.dashboard-grid > .panel', '.bottom-grid > *'];
     const boxes = Array.from(document.querySelectorAll(selectors.join(',')))
       .map(visibleRect)
       .filter(Boolean);
