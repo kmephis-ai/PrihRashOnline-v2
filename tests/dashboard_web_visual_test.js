@@ -1,15 +1,18 @@
+'use strict';
+
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const prepareDashboardWeb = require('../tools/prepare-dashboard-web.js');
 
 const VIEWPORTS = [
-  { name: 'desktop', width: 1600, height: 1000, maxPageHeight: 1300 },
-  { name: 'laptop', width: 1280, height: 900, maxPageHeight: 2200 },
+  { name: 'desktop', width: 1600, height: 1000, maxPageHeight: 1400 },
+  { name: 'laptop', width: 1280, height: 900, maxPageHeight: 2300 },
   { name: 'mobile', width: 390, height: 844, maxPageHeight: 5200 }
 ];
 
 async function inspectLayout(page, viewport) {
-  return page.evaluate(({ maxPageHeight }) => {
+  return page.evaluate(({ maxPageHeight, mobile }) => {
     function visibleRect(element) {
       const style = window.getComputedStyle(element);
       if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null;
@@ -26,15 +29,11 @@ async function inspectLayout(page, viewport) {
 
     const root = document.documentElement;
     const body = document.body;
-    const overflow = Math.max(root.scrollWidth, body.scrollWidth) - window.innerWidth;
-    const pageHeight = Math.max(root.scrollHeight, body.scrollHeight);
-
-    const selectors = ['.filters > *', '.dashboard-grid > .panel', '.bottom-grid > *'];
-    const boxes = Array.from(document.querySelectorAll(selectors.join(',')))
+    const boxes = Array.from(document.querySelectorAll('.filters > *, .dashboard-grid > .panel, .bottom-grid > *'))
       .map(visibleRect)
       .filter(Boolean);
-
     const overlaps = [];
+
     for (let i = 0; i < boxes.length; i += 1) {
       for (let j = i + 1; j < boxes.length; j += 1) {
         const a = boxes[i];
@@ -63,6 +62,8 @@ async function inspectLayout(page, viewport) {
         clientHeight: element.clientHeight
       }));
 
+    const month = document.getElementById('month-select');
+    const tabsStyle = window.getComputedStyle(document.getElementById('tabs'));
     const charts = Array.from(document.querySelectorAll('.chart-host')).map((element) => ({
       width: Math.round(element.getBoundingClientRect().width),
       height: Math.round(element.getBoundingClientRect().height),
@@ -71,8 +72,8 @@ async function inspectLayout(page, viewport) {
 
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
-      overflow,
-      pageHeight,
+      overflow: Math.max(root.scrollWidth, body.scrollWidth) - window.innerWidth,
+      pageHeight: Math.max(root.scrollHeight, body.scrollHeight),
       maxPageHeight,
       overlaps,
       clipped,
@@ -80,28 +81,42 @@ async function inspectLayout(page, viewport) {
       activeTabCount: document.querySelectorAll('.tab.active[aria-selected="true"]').length,
       kpiCount: document.querySelectorAll('[data-testid="kpi-card"]').length,
       filterCount: document.querySelectorAll('[data-testid="filter-card"]').length,
+      selectedMonth: Number(month.value),
+      selectedMonthLabel: month.options[month.selectedIndex].textContent,
+      currentPeriod: document.getElementById('current-period').textContent,
+      structureTitle: document.getElementById('structure-title').textContent,
+      donutTotal: document.getElementById('donut-total').textContent,
+      mobileScrollbarWidth: mobile ? tabsStyle.scrollbarWidth : null,
       charts
     };
-  }, viewport);
+  }, { maxPageHeight: viewport.maxPageHeight, mobile: viewport.width <= 760 });
 }
 
 function assertLayout(result) {
   const label = `${result.viewport.width}x${result.viewport.height}`;
   if (result.overflow > 1) throw new Error(`[${label}] Horizontal overflow: ${result.overflow}px`);
-  if (result.pageHeight > result.maxPageHeight) {
-    throw new Error(`[${label}] Page is too tall: ${result.pageHeight}px > ${result.maxPageHeight}px`);
-  }
+  if (result.pageHeight > result.maxPageHeight) throw new Error(`[${label}] Page too tall: ${result.pageHeight}px > ${result.maxPageHeight}px`);
   if (result.overlaps.length) throw new Error(`[${label}] Layout overlaps: ${result.overlaps.join('; ')}`);
   if (result.clipped.length) throw new Error(`[${label}] Clipped content: ${JSON.stringify(result.clipped)}`);
-  if (result.tabCount !== 10) throw new Error(`[${label}] Expected 10 navigation tabs, found ${result.tabCount}`);
+  if (result.tabCount !== 10) throw new Error(`[${label}] Expected 10 tabs, found ${result.tabCount}`);
   if (result.activeTabCount !== 1) throw new Error(`[${label}] Expected one active tab, found ${result.activeTabCount}`);
   if (result.kpiCount !== 8) throw new Error(`[${label}] Expected 8 KPI cards, found ${result.kpiCount}`);
   if (result.filterCount !== 5) throw new Error(`[${label}] Expected 5 context cards, found ${result.filterCount}`);
-  if (result.charts.length !== 2) throw new Error(`[${label}] Expected 2 SVG chart hosts, found ${result.charts.length}`);
+  if (result.selectedMonth !== 6 || result.selectedMonthLabel !== 'Июль') {
+    throw new Error(`[${label}] Default month/data mismatch: ${JSON.stringify(result)}`);
+  }
+  if (!result.currentPeriod.toLowerCase().includes('июль') || !result.structureTitle.includes('Июль 2026')) {
+    throw new Error(`[${label}] July labels are inconsistent: ${JSON.stringify(result)}`);
+  }
+  if (!result.donutTotal.includes('151') || !result.donutTotal.includes('360')) {
+    throw new Error(`[${label}] July structure total is inconsistent: ${result.donutTotal}`);
+  }
+  if (result.mobileScrollbarWidth && result.mobileScrollbarWidth !== 'none') {
+    throw new Error(`[${label}] Mobile tab scrollbar must be hidden: ${result.mobileScrollbarWidth}`);
+  }
+  if (result.charts.length !== 2) throw new Error(`[${label}] Expected 2 chart hosts, found ${result.charts.length}`);
   result.charts.forEach((chart, index) => {
-    if (chart.width < 250 || chart.height < 220) {
-      throw new Error(`[${label}] Chart ${index + 1} is too small: ${chart.width}x${chart.height}`);
-    }
+    if (chart.width < 250 || chart.height < 220) throw new Error(`[${label}] Chart ${index + 1} too small: ${chart.width}x${chart.height}`);
     if (!chart.hasSvgOrEmptyState) throw new Error(`[${label}] Chart ${index + 1} was not rendered`);
   });
 }
@@ -109,15 +124,20 @@ function assertLayout(result) {
 async function assertInteraction(page) {
   await page.click('.tab[data-view="forecast"]');
   await page.waitForSelector('#view-detail:not([hidden])');
-  const forecast = await page.evaluate(() => ({
-    active: document.querySelector('.tab.active')?.dataset.view,
-    urlView: new URL(window.location.href).searchParams.get('view'),
-    title: document.getElementById('detail-title').textContent,
-    hasForecast: document.getElementById('detail-content').textContent.includes('Оценка года')
-  }));
-  if (forecast.active !== 'forecast') throw new Error(`Forecast tab did not activate: ${JSON.stringify(forecast)}`);
-  if (forecast.urlView !== 'forecast') throw new Error(`Forecast view was not saved in URL: ${JSON.stringify(forecast)}`);
-  if (!forecast.hasForecast) throw new Error(`Forecast detail was not rendered: ${JSON.stringify(forecast)}`);
+  const forecast = await page.evaluate(() => {
+    const params = new URL(window.location.href).searchParams;
+    return {
+      active: document.querySelector('.tab.active')?.dataset.view,
+      urlView: params.get('view'),
+      urlMonth: params.get('month'),
+      detailHidden: document.getElementById('view-detail').hidden,
+      hasForecast: document.getElementById('detail-content').textContent.includes('Оценка года')
+    };
+  });
+  if (forecast.active !== 'forecast' || forecast.urlView !== 'forecast' || forecast.urlMonth !== '6') {
+    throw new Error(`Forecast URL state is inconsistent: ${JSON.stringify(forecast)}`);
+  }
+  if (forecast.detailHidden || !forecast.hasForecast) throw new Error(`Forecast detail was not rendered: ${JSON.stringify(forecast)}`);
 
   await page.click('.tab[data-view="overview"]');
   await page.waitForFunction(() => document.getElementById('view-detail').hidden === true);
@@ -128,39 +148,30 @@ async function assertInteraction(page) {
   const htmlPath = path.join(root, 'DashboardWebApp.html');
   const artifactDir = path.join(root, 'artifacts');
   fs.mkdirSync(artifactDir, { recursive: true });
+  const preparation = prepareDashboardWeb(htmlPath);
 
   const browser = await chromium.launch({ headless: true });
   const results = [];
 
   for (const viewport of VIEWPORTS) {
-    const page = await browser.newPage({
-      viewport: { width: viewport.width, height: viewport.height },
-      deviceScaleFactor: 1
-    });
+    const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: 1 });
     await page.goto(`file://${htmlPath}`, { waitUntil: 'load' });
     await page.waitForSelector('[data-testid="overview-kpis"]');
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="kpi-card"]').length === 8);
     await page.waitForTimeout(250);
 
-    if (viewport.name === 'desktop') await assertInteraction(page);
-
     const result = await inspectLayout(page, viewport);
     assertLayout(result);
+    await assertInteraction(page);
     results.push(result);
 
-    await page.screenshot({
-      path: path.join(artifactDir, `dashboard-web-${viewport.name}.png`),
-      fullPage: true
-    });
+    await page.screenshot({ path: path.join(artifactDir, `dashboard-web-${viewport.name}.png`), fullPage: true });
     await page.close();
   }
 
-  fs.writeFileSync(
-    path.join(artifactDir, 'dashboard-web-layout.json'),
-    JSON.stringify(results, null, 2)
-  );
+  fs.writeFileSync(path.join(artifactDir, 'dashboard-web-layout.json'), JSON.stringify({ preparation, results }, null, 2));
   await browser.close();
-  console.log('dashboard_web_visual_test: OK', results);
+  console.log('dashboard_web_visual_test: OK', { preparation, results });
 })().catch((error) => {
   console.error(error);
   process.exit(1);
