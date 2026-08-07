@@ -1,0 +1,59 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '*.js'
+      - '*.html'
+      - 'package.json'
+      - 'appsscript.json'
+      - '.claspignore'
+      - 'tests/**'
+      - 'tools/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Prepare dashboard bundle
+        run: npm run prepare:web
+      - name: Run all contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t TEST_FILES < <(find tests -maxdepth 1 -type f -name '*contract_test.js' -print | sort -u)
+          [[ "${#TEST_FILES[@]}" -gt 0 ]] || { echo '::error::No contract tests found'; exit 1; }
+          for test_file in "${TEST_FILES[@]}"; do node "${test_file}"; done
+      - name: Install Playwright
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Responsive visual gate
+        run: node tests/dashboard_web_visual_test.js
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-${{ github.event.pull_request.number }}-dashboard-validation
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
