@@ -13,14 +13,6 @@ on:
       - 'tests/**'
       - 'tools/**'
       - '.github/workflows/chat-driven-dev-release.yml'
-  pull_request:
-    branches:
-      - main
-    types:
-      - synchronize
-      - reopened
-      - ready_for_review
-      - edited
   workflow_dispatch:
     inputs:
       target_ref:
@@ -35,16 +27,15 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: chat-driven-dev-release-${{ github.event.inputs.target_ref || github.event.pull_request.head.ref || github.ref_name }}
+  group: chat-driven-dev-release-${{ github.event.inputs.target_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   release:
-    if: github.event_name != 'pull_request' || startsWith(github.event.pull_request.head.ref, 'agent/')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      TARGET_REF: ${{ github.event.inputs.target_ref || github.event.pull_request.head.ref || github.ref_name }}
+      TARGET_REF: ${{ github.event.inputs.target_ref || github.ref_name }}
     steps:
       - name: Resolve open pull request
         id: pr
@@ -201,15 +192,66 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Verify unchanged PR head
+      - name: Publish Dashboard link in README
+        id: readme
+        shell: bash
+        env:
+          WEB_APP_URL: ${{ steps.webapp.outputs.url }}
+        run: |
+          set -euo pipefail
+
+          REMOTE_SHA="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          if [[ "${REMOTE_SHA}" != "${{ steps.source.outputs.sha }}" ]]; then
+            echo '::error::PR head moved before README publication; refusing stale link update.'
+            exit 1
+          fi
+
+          git reset --hard "${{ steps.source.outputs.sha }}"
+          git clean -fd
+
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path('README.md')
+          text = path.read_text(encoding='utf-8') if path.exists() else '# ПрихРасхOnline v2\n'
+          start = '<!-- DASHBOARD_LINK_START -->'
+          end = '<!-- DASHBOARD_LINK_END -->'
+          url = os.environ['WEB_APP_URL']
+          block = f'''{start}\n[▶ Открыть Dashboard]({url})\n\n> DEV Web App • ссылка обновляется автоматически успешным release workflow.\n{end}'''
+
+          if start in text and end in text:
+              prefix = text.split(start, 1)[0]
+              suffix = text.split(end, 1)[1]
+              text = prefix + block + suffix
+          else:
+              text += '\n\n## ▶ Dashboard\n\n' + block + '\n'
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          if git diff --quiet -- README.md; then
+            RELEASE_SHA="$(git rev-parse HEAD)"
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add README.md
+            git commit -m 'docs: publish DEV dashboard link'
+            RELEASE_SHA="$(git rev-parse HEAD)"
+            git push origin "HEAD:${TARGET_REF}"
+          fi
+
+          echo "sha=${RELEASE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release head
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           CURRENT_SHA="$(gh pr view "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" --json headRefOid --jq '.headRefOid')"
-          if [[ "${CURRENT_SHA}" != "${{ steps.source.outputs.sha }}" ]]; then
-            echo "::error::PR head moved during validation; refusing stale merge."
+          if [[ "${CURRENT_SHA}" != "${{ steps.readme.outputs.sha }}" ]]; then
+            echo "::error::PR head moved after validation; refusing stale merge."
             exit 1
           fi
 
@@ -227,9 +269,9 @@ jobs:
         run: |
           set -euo pipefail
           PAYLOAD="$(jq -n \
-            --arg sha "${{ steps.source.outputs.sha }}" \
+            --arg sha "${{ steps.readme.outputs.sha }}" \
             --arg title "Merge PR #${{ steps.pr.outputs.number }} after DEV validation" \
-            --arg message "Contract tests, responsive Playwright gate and Apps Script DEV deployment passed." \
+            --arg message "Contract tests, responsive Playwright gate, Apps Script DEV deployment and README Dashboard link publication passed." \
             '{sha:$sha,merge_method:"merge",commit_title:$title,commit_message:$message}')"
           RESPONSE="$(gh api --method PUT \
             "repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.number }}/merge" \
@@ -247,17 +289,18 @@ jobs:
         run: |
           gh pr comment "${{ steps.pr.outputs.number }}" \
             --repo "${GITHUB_REPOSITORY}" \
-            --body "✅ Chat-driven block validated, deployed to DEV and merged. Source: \`${{ steps.source.outputs.sha }}\`. Merge: \`${{ steps.merge.outputs.sha }}\`. Web App: ${{ steps.webapp.outputs.url }}."
+            --body "✅ Chat-driven block validated, deployed to DEV, Dashboard link published in README and merged. Source: \`${{ steps.source.outputs.sha }}\`. Release head: \`${{ steps.readme.outputs.sha }}\`. Merge: \`${{ steps.merge.outputs.sha }}\`. Web App: ${{ steps.webapp.outputs.url }}."
 
       - name: Release summary
         if: always()
         shell: bash
         run: |
           echo '### Chat-driven DEV release' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Trigger model: code change or explicit PR edit after a chat command; no cron or background polling.' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Trigger model: code change or explicit workflow dispatch; no cron or background polling.' >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- PR: \`#${{ steps.pr.outputs.number }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release head: \`${{ steps.readme.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Web App: ${{ steps.webapp.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Merge: \`${{ steps.merge.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
