@@ -8,6 +8,7 @@
 const PRH_CLASSIFICATION = Object.freeze({
   VERSION: '1.0.0-rc.1',
   OPERATIONS: '01 Операции',
+  PREVIEW: '11 Предпросмотр',
   RULE_PREFIX: 'prh_income_rule:',
   OTHER: 'Другое',
   MIN_EXAMPLES: 2,
@@ -93,6 +94,68 @@ function prhSuggestIncomeCategory(description, amount) {
   };
 }
 
+/**
+ * Связывает интеллектуальную классификацию с существующей очередью качества.
+ * Чтение идёт из «01 Операции», результат возвращается в UI; запись отсутствует.
+ */
+function prhSuggestCategoryForQualityProposal(proposalId) {
+  const context = prhClassificationProposalContext_(proposalId);
+  const suggestion = prhSuggestIncomeCategory(context.description, context.amount);
+  return {
+    proposalId: context.proposalId,
+    operationRow: context.operationRow,
+    issueType: context.issueType,
+    category: suggestion.category,
+    confidence: suggestion.confidence,
+    source: suggestion.source,
+    reason: suggestion.reason,
+    alternatives: suggestion.alternatives || [],
+    operationWrite: false
+  };
+}
+
+/**
+ * После явного клика пользователя помещает предложенную категорию только в
+ * «11 Предпросмотр». Финансовая операция по-прежнему не меняется.
+ */
+function prhStageClassificationSuggestion(proposalId, category, confidence, reason) {
+  category = String(category || '').trim();
+  if (!category) throw new Error('Пустую категорию нельзя поместить в предложение.');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const preview = ss.getSheetByName(PRH_CLASSIFICATION.PREVIEW);
+  if (!preview) throw new Error('Лист «11 Предпросмотр» не найден.');
+  const location = prhClassificationFindProposal_(preview, proposalId);
+  const header = location.header;
+  const proposedColumn = header.indexOf('Предложенное значение');
+  const reasonColumn = header.indexOf('Основание');
+  const confidenceColumn = header.indexOf('Уверенность');
+  const checkedColumn = header.indexOf('Проверено');
+  const commentColumn = header.indexOf('Комментарий');
+  if (Math.min(proposedColumn, reasonColumn, confidenceColumn, checkedColumn, commentColumn) < 0) {
+    throw new Error('Структура очереди качества не поддерживает staging классификации.');
+  }
+
+  preview.getRange(location.row, proposedColumn + 1).setValue(category);
+  preview.getRange(location.row, reasonColumn + 1).setValue(String(reason || 'Интеллектуальное предложение категории'));
+  preview.getRange(location.row, confidenceColumn + 1).setValue(Number(confidence || 0));
+  preview.getRange(location.row, checkedColumn + 1).setValue(new Date());
+  preview.getRange(location.row, commentColumn + 1).setValue('Категория предложена; требуется отдельное подтверждение пользователя.');
+  SpreadsheetApp.flush();
+
+  const readback = String(preview.getRange(location.row, proposedColumn + 1).getDisplayValue() || '').trim();
+  if (readback !== category) throw new Error('Readback предложения категории не совпал.');
+  return { ok: true, proposalId: String(proposalId), category: category, queueOnly: true, operationWrite: false };
+}
+
+/**
+ * Сохраняет правило только по отдельному подтверждению пользователя.
+ */
+function prhConfirmClassificationRuleForProposal(proposalId, category) {
+  const context = prhClassificationProposalContext_(proposalId);
+  if (!context.description) throw new Error('У операции нет описания, из которого можно создать правило.');
+  return prhConfirmIncomeClassificationRule(context.description, category);
+}
+
 function prhConfirmIncomeClassificationRule(pattern, category) {
   const normalized = prhClassificationNormalize_(pattern);
   category = String(category || '').trim();
@@ -117,6 +180,50 @@ function prhListIncomeClassificationRules() {
     .map(function (key) {
       try { return JSON.parse(all[key]); } catch (error) { return null; }
     }).filter(Boolean).sort(function (a, b) { return String(b.confirmedAt).localeCompare(String(a.confirmedAt)); });
+}
+
+function prhClassificationProposalContext_(proposalId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const preview = ss.getSheetByName(PRH_CLASSIFICATION.PREVIEW);
+  const operations = ss.getSheetByName(PRH_CLASSIFICATION.OPERATIONS);
+  if (!preview || !operations) throw new Error('Для классификации нужны существующие «11 Предпросмотр» и «01 Операции».');
+  const location = prhClassificationFindProposal_(preview, proposalId);
+  const header = location.header;
+  const operationRowColumn = header.indexOf('Строка операции');
+  const issueTypeColumn = header.indexOf('Тип проблемы');
+  if (Math.min(operationRowColumn, issueTypeColumn) < 0) throw new Error('Структура очереди качества повреждена.');
+  const queueRow = preview.getRange(location.row, 1, 1, preview.getLastColumn()).getDisplayValues()[0];
+  const operationRow = Number(queueRow[operationRowColumn]);
+  if (!Number.isInteger(operationRow) || operationRow < 2 || operationRow > operations.getLastRow()) {
+    throw new Error('Строка операции в предложении недопустима.');
+  }
+
+  const operationHeader = operations.getRange(1, 1, 1, operations.getLastColumn()).getDisplayValues()[0];
+  const descriptionIndex = prhClassificationHeader_(operationHeader, ['Наименование', 'Описание', 'Комментарий', 'Назначение']);
+  const amountIndex = prhClassificationHeader_(operationHeader, ['Сумма', 'Сумма операции']);
+  if (descriptionIndex < 0 || amountIndex < 0) throw new Error('Не найдены описание или сумма операции.');
+  const operation = operations.getRange(operationRow, 1, 1, operations.getLastColumn()).getDisplayValues()[0];
+  return {
+    proposalId: String(proposalId || '').trim(),
+    operationRow: operationRow,
+    issueType: String(queueRow[issueTypeColumn] || '').trim(),
+    description: String(operation[descriptionIndex] || '').trim(),
+    amount: prhClassificationNumber_(operation[amountIndex])
+  };
+}
+
+function prhClassificationFindProposal_(preview, proposalId) {
+  proposalId = String(proposalId || '').trim();
+  if (!proposalId) throw new Error('Не указан ID предложения.');
+  const header = preview.getRange(1, 1, 1, preview.getLastColumn()).getDisplayValues()[0];
+  const idColumn = header.indexOf('ID предложения');
+  if (idColumn < 0) throw new Error('В очереди отсутствует «ID предложения».');
+  const lastRow = preview.getLastRow();
+  if (lastRow < 2) throw new Error('Очередь качества пуста.');
+  const ids = preview.getRange(2, idColumn + 1, lastRow - 1, 1).getDisplayValues();
+  const offset = ids.findIndex(function (row) { return String(row[0] || '').trim() === proposalId; });
+  if (offset < 0) throw new Error('Предложение не найдено: ' + proposalId);
+  return { row: offset + 2, header: header };
 }
 
 function prhClassificationFindConfirmedRule_(text) {
