@@ -34,15 +34,14 @@ const PRH_WEB_DASHBOARD = Object.freeze({
 });
 
 function doGet(e) {
-  const params = (e && e.parameter) || {};
-  const template = HtmlService.createTemplateFromFile('DashboardWebApp');
-  const data = prhGetWebDashboardData(params.year, params.month, params.view);
-  template.initialData = JSON.stringify(data).replace(/</g, '\\u003c');
+  var params = (e && e.parameter) || {};
+  var template = HtmlService.createTemplateFromFile('DashboardWebApp');
+  var data = prhGetWebDashboardData(params.year, params.month, params.view);
+  template.initialData = JSON.stringify(data).replace(/</g, String.fromCharCode(92) + 'u003c');
 
   return template.evaluate()
-    .setTitle('ПрихРасхOnline — Дашборд доходов')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setTitle('PrihRashOnline Dashboard')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 function prhGetWebDashboardData(requestedYear, requestedMonth, requestedView) {
