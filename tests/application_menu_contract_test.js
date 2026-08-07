@@ -16,11 +16,20 @@ function expect(condition, message) {
 ].forEach((required) => expect(source.includes(required), `Missing menu contract: ${required}`));
 
 [
-  'Открыть Web Dashboard', 'prhOpenWebDashboard', 'Обновить расчёты',
-  'Текущий год', 'Текущий месяц', 'Сбросить фильтры',
-  'Открыть операции периода', 'Проверить качество данных', 'Создать PDF',
-  'Сделать снимок показателей', 'Восстановить диаграммы обзора'
-].forEach((label) => expect(source.includes(label), `Missing required action: ${label}`));
+  ['Открыть Web Dashboard', 'prhOpenWebDashboard'],
+  ['Обновить всё', 'prhRefreshIncomeDashboard'],
+  ['Текущий год', 'prhSetDashboardCurrentYear'],
+  ['Текущий месяц', 'prhSetDashboardCurrentMonth'],
+  ['Сбросить фильтры', 'prhResetDashboardFilters'],
+  ['Открыть операции периода', 'prhOpenDashboardPeriodOperations'],
+  ['Проверить качество данных', 'prhOpenDashboardQuality'],
+  ['PDF за выбранный месяц', 'prhMenuCreatePdf'],
+  ['Сделать снимок KPI', 'prhMenuCreateSnapshot'],
+  ['Восстановить диаграммы обзора', 'prhEnsureCriticalChartSources']
+].forEach(([label, handler]) => {
+  expect(source.includes(label), `Missing required action label: ${label}`);
+  expect(source.includes(handler), `Missing required action handler: ${handler}`);
+});
 
 expect(source.includes('function onOpen(e)'), 'Missing single onOpen entry point');
 expect(source.includes('function onEdit(e)'), 'Missing single onEdit entry point');
