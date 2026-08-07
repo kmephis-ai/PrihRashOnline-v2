@@ -3,8 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const prepareBase = require('../tools/prepare-dashboard-web.js');
-const prepareV13 = require('../tools/prepare-dashboard-web-v13.js');
 
 const VIEWPORTS = [
   { name:'desktop', width:1600, height:1000, maxPageHeight:1650 },
@@ -154,7 +152,8 @@ async function assertDrilldowns(page) {
   const htmlPath = path.join(root,'DashboardWebApp.html');
   const artifactDir = path.join(root,'artifacts');
   fs.mkdirSync(artifactDir,{recursive:true});
-  const preparation = { base:prepareBase(htmlPath), v13:prepareV13(htmlPath) };
+  const html = fs.readFileSync(htmlPath,'utf8');
+  expect(html.includes('id="executive-secondary"') && html.includes('id="action-bar"'), 'Visual test requires the canonical prepared v1 RC bundle');
   const browser = await chromium.launch({headless:true});
   const results = [];
 
@@ -175,7 +174,7 @@ async function assertDrilldowns(page) {
     await page.close();
   }
 
-  fs.writeFileSync(path.join(artifactDir,'dashboard-web-layout.json'),JSON.stringify({preparation,results},null,2));
+  fs.writeFileSync(path.join(artifactDir,'dashboard-web-layout.json'),JSON.stringify({build:'prebuilt-v1rc',results},null,2));
   await browser.close();
-  console.log('dashboard_web_visual_test: OK',{preparation,results});
+  console.log('dashboard_web_visual_test: OK',{build:'prebuilt-v1rc',results});
 })().catch((error) => { console.error(error); process.exit(1); });
