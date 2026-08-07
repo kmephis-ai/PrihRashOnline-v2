@@ -1,0 +1,61 @@
+name: RC3 Runtime Syntax Hotfix
+
+on:
+  push:
+    branches:
+      - 'agent/release/v1.0.0-rc3-runtime-syntax'
+    paths:
+      - '.github/workflows/rc3-runtime-syntax-hotfix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/release/v1.0.0-rc3-runtime-syntax
+          fetch-depth: 0
+
+      - name: Normalize Apps Script doGet entry point
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('DashboardWebDataService.js')
+          text = path.read_text(encoding='utf-8')
+          pattern = re.compile(r"function doGet\(e\) \{.*?\n\}\n\nfunction prhGetWebDashboardData", re.S)
+          replacement = """function doGet(e) {
+            var params = (e && e.parameter) || {};
+            var template = HtmlService.createTemplateFromFile('DashboardWebApp');
+            var data = prhGetWebDashboardData(params.year, params.month, params.view);
+            template.initialData = JSON.stringify(data).replace(/</g, String.fromCharCode(92) + 'u003c');
+
+            return template.evaluate()
+              .setTitle('PrihRashOnline Dashboard')
+              .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+          }
+
+          function prhGetWebDashboardData"""
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one doGet block, replaced {count}')
+          path.write_text(updated, encoding='utf-8', newline='\n')
+          PY
+          node --check DashboardWebDataService.js
+
+      - name: Commit normalized source and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/rc3-runtime-syntax-hotfix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add DashboardWebDataService.js .github/workflows/rc3-runtime-syntax-hotfix.yml
+          git commit -m 'fix: normalize Apps Script doGet syntax'
+          git push origin HEAD:agent/release/v1.0.0-rc3-runtime-syntax
