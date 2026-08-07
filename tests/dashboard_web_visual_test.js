@@ -162,8 +162,12 @@ async function assertDrilldowns(page) {
     const errors = [];
     page.on('pageerror',(error) => errors.push(error.message));
     await page.goto(`file://${htmlPath}`,{waitUntil:'load'});
-    await page.waitForFunction(() => document.querySelectorAll('[data-testid="kpi-card"]').length === 9);
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(1000);
+    const kpiCount = await page.locator('[data-testid="kpi-card"]').count();
+    if (kpiCount !== 9 || errors.length) {
+      const title = await page.title().catch(() => '');
+      throw new Error(`[${viewport.name}] dashboard startup failed: kpiCount=${kpiCount}; title=${title}; JavaScript errors=${errors.join(' | ') || 'none'}`);
+    }
     const result = await inspectOverview(page,viewport);
     assertOverview(result);
     await assertViews(page);
