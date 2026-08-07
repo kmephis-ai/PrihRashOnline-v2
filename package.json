@@ -1,6 +1,6 @@
 {
   "name": "prihrashonline-dashboard-web",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "private": true,
   "description": "ПрихРасхOnline v2 Income Dashboard — reproducible DEV build and release gates",
   "scripts": {
