@@ -1,0 +1,15 @@
+{
+  "name": "prihrashonline-dashboard-web",
+  "version": "1.0.0-rc.1",
+  "private": true,
+  "description": "ПрихРасхOnline v2 Income Dashboard — reproducible DEV build and release gates",
+  "scripts": {
+    "prepare:web": "node tools/prepare-dashboard-web.js && node tools/prepare-dashboard-web-v13.js && node tools/prepare-dashboard-web-v1rc.js",
+    "test:web-contract": "node tests/dashboard_web_contract_test.js",
+    "test:web-visual": "node tests/dashboard_web_visual_test.js",
+    "test:web": "npm run test:web-contract && npm run test:web-visual"
+  },
+  "devDependencies": {
+    "playwright": "1.50.1"
+  }
+}
