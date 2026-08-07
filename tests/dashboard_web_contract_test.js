@@ -2,22 +2,18 @@
 
 const fs = require('fs');
 const path = require('path');
-const prepareBase = require('../tools/prepare-dashboard-web.js');
-const prepareV13 = require('../tools/prepare-dashboard-web-v13.js');
-const prepareV1Rc = require('../tools/prepare-dashboard-web-v1rc.js');
 
 const root = path.join(__dirname, '..');
 const htmlPath = path.join(root, 'DashboardWebApp.html');
-const preparation = {
-  base: prepareBase(htmlPath),
-  v13: prepareV13(htmlPath),
-  v1rc: prepareV1Rc(htmlPath)
-};
 const service = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
 const executive = fs.readFileSync(path.join(root, 'DashboardWebExecutiveService.js'), 'utf8');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
 function expect(condition, message) { if (!condition) throw new Error(message); }
+
+// Build is a separate canonical pipeline phase. Tests must never mutate the bundle.
+expect(html.includes('id="executive-secondary"'), 'Dashboard must be prepared through v1.3 before contract tests');
+expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 RC before contract tests');
 
 [
   'function doGet(e)', 'function prhGetWebDashboardData(', 'function prhOpenWebDashboard()',
@@ -70,4 +66,4 @@ expect((html.match(/data-testid="filter-card"/g) || []).length === 5, 'Dashboard
 expect((html.match(/class="action-button/g) || []).length === 4, 'Dashboard must expose exactly four primary quick actions');
 expect(html.length < 120000, `HTML payload is unexpectedly large: ${html.length}`);
 
-console.log('dashboard_web_contract_test: OK', preparation, { htmlLength: html.length });
+console.log('dashboard_web_contract_test: OK', { htmlLength: html.length });
