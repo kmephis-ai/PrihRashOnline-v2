@@ -49,6 +49,7 @@
 - [Web Dashboard](docs/dashboard.md)
 - [Модель данных и границы записи](docs/data-model.md)
 - [Руководство пользователя](docs/user-guide.md)
+- [Статус блоков v1.0 RC](docs/v1-rc-status.md)
 - [Roadmap](ROADMAP.md)
 - [Changelog](CHANGELOG.md)
 
