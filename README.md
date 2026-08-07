@@ -2,7 +2,7 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с Web Dashboard как основным пользовательским интерфейсом.
 
-> **Статус:** `v1.0.0-rc.1` — Income Dashboard Release Candidate. DEV проходит fail-closed release gate перед merge в `main`.
+> **Статус:** `v1.0.0-rc.1` — Income Dashboard Release Candidate успешно проверен, развёрнут в DEV и объединён в `main`.
 
 ## ▶ Dashboard
 
@@ -12,7 +12,7 @@
 > DEV Web App • стабильная прямая ссылка.
 <!-- DASHBOARD_LINK_END -->
 
-После публикации эта ссылка ведёт напрямую в HTML Web App; открывать GitHub Actions, WSL или редактор Apps Script для обычного использования не требуется.
+Ссылка ведёт напрямую в HTML Web App; открывать GitHub Actions, WSL или редактор Apps Script для обычного использования не требуется.
 
 ## Что умеет Income Dashboard
 
@@ -25,7 +25,7 @@
 - PDF-отчёт за выбранный период;
 - снимки KPI в существующий `10 Контроль`;
 - responsive UI для desktop, laptop и mobile;
-- прямой DEV Web App URL, публикуемый release workflow.
+- стабильный прямой DEV Web App URL, публикуемый release workflow.
 
 ## Быстрые действия Web Dashboard
 
@@ -36,27 +36,17 @@
 
 ## Безопасность
 
-- `01 Операции` рассматривается Web Dashboard как источник **только для чтения**;
-- автоматическое изменение финансовых операций запрещено;
-- новые листы блоками v1.0 RC не создаются;
-- реальные строки финансовых операций не публикуются в GitHub;
-- публичные UI fixtures для drill-down синтетические;
-- интеллектуальная классификация сначала предлагает и объясняет; запись предложения идёт только в очередь, а финансовая операция не меняется;
-- PROD deployment выполняется отдельно от DEV;
-- release/merge — только после contract tests, Playwright и успешного DEV deployment.
+- Web Dashboard не изменяет значения `01 Операции`;
+- Quality Workbench работает через существующую очередь `11 Предпросмотр`;
+- новые листы release-блоками не создаются;
+- PROD выполняется только отдельным явным решением;
+- при несоответствии SHA, тестов или deployment release останавливается fail-closed.
 
-## Архитектура и документация
+## Документация
 
 - [Архитектура](docs/architecture.md)
 - [Web Dashboard](docs/dashboard.md)
-- [Модель данных и границы записи](docs/data-model.md)
+- [Модель данных](docs/data-model.md)
 - [Руководство пользователя](docs/user-guide.md)
-- [Статус блоков v1.0 RC](docs/v1-rc-status.md)
-- [Roadmap](ROADMAP.md)
-- [Changelog](CHANGELOG.md)
-
-## Разработка
-
-Рабочая модель проекта — **chat-driven**: согласованный блок → commit в `agent/**` → GitHub-hosted tests → Apps Script DEV deployment → проверка неизменности head → merge. Фоновых cron-циклов разработки нет.
-
-Девиз проекта: **простота, гибкость, функциональность, модульность, сопровождаемость**.
+- [Release process](docs/RELEASE_PROCESS.md)
+- [CHANGELOG](CHANGELOG.md)
