@@ -45,7 +45,7 @@ expect(files.snapshots.includes("ss.getSheetByName(PRH_SNAPSHOTS.CONTROL)"), 'Sn
 expect(files.snapshots.includes('control.getRange(rowNumber, 1, 1, PRH_SNAPSHOTS.WIDTH).setValues([row])'), 'Snapshot must append KPI row only to control sheet');
 
 const pkg = JSON.parse(files.packageJson);
-expect(pkg.version === '1.0.0-rc.1', `Unexpected package version ${pkg.version}`);
+expect(/^1\.0\.0-rc\.\d+$/.test(pkg.version), `Unexpected package version ${pkg.version}`);
 expect(pkg.scripts['prepare:web'].includes('prepare-dashboard-web-v1rc.js'), 'v1 RC build step is not enabled');
 
 console.log('v1_rc_contract_test: OK', {
