@@ -3,7 +3,7 @@ name: Chat-Driven DEV Release
 on:
   push:
     branches:
-      - 'agent/**'
+      - 'agent/release/**'
     paths:
       - '*.js'
       - '*.html'
@@ -12,13 +12,15 @@ on:
       - '.claspignore'
       - 'tests/**'
       - 'tools/**'
-      - '.github/workflows/chat-driven-dev-release.yml'
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
   workflow_dispatch:
     inputs:
       target_ref:
-        description: Agent branch to validate, deploy and merge
+        description: Fresh release branch to validate, deploy and merge
         required: true
-        default: agent/dashboard-ux-structure
+        default: agent/release/v1.0.0-rc1
 
 permissions:
   contents: write
@@ -27,84 +29,80 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: chat-driven-dev-release-${{ github.event.inputs.target_ref || github.ref_name }}
+  group: dev-release-${{ github.event.inputs.target_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     env:
       TARGET_REF: ${{ github.event.inputs.target_ref || github.ref_name }}
     steps:
-      - name: Resolve open pull request
+      - name: Resolve release pull request
         id: pr
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          PR_JSON="$(gh pr list \
-            --repo "${GITHUB_REPOSITORY}" \
-            --head "${TARGET_REF}" \
-            --base main \
-            --state open \
-            --json number,isDraft,headRefOid \
-            --limit 1 \
-            --jq '.[0]')"
-
-          if [[ -z "${PR_JSON}" || "${PR_JSON}" == 'null' ]]; then
-            echo "::error::No open pull request from ${TARGET_REF} to main."
+          [[ "${TARGET_REF}" == agent/release/* ]] || {
+            echo "::error::Release branch must match agent/release/**, got ${TARGET_REF}"
             exit 1
-          fi
-
+          }
+          PR_JSON="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${TARGET_REF}" --base main --state open --json number,isDraft,headRefOid --limit 1 --jq '.[0]')"
+          [[ -n "${PR_JSON}" && "${PR_JSON}" != null ]] || {
+            echo "::error::No open release PR from ${TARGET_REF} to main"
+            exit 1
+          }
           echo "number=$(jq -r '.number' <<<"${PR_JSON}")" >> "$GITHUB_OUTPUT"
-          echo "initial_sha=$(jq -r '.headRefOid' <<<"${PR_JSON}")" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r '.headRefOid' <<<"${PR_JSON}")" >> "$GITHUB_OUTPUT"
           echo "is_draft=$(jq -r '.isDraft' <<<"${PR_JSON}")" >> "$GITHUB_OUTPUT"
 
-      - name: Announce release run
-        shell: bash
+      - name: Announce run immediately
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment "${{ steps.pr.outputs.number }}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --body "🚦 DEV release started. Run: \`${GITHUB_RUN_ID}\`; event: \`${GITHUB_EVENT_NAME}\`; target: \`${TARGET_REF}\`; candidate: \`${{ steps.pr.outputs.initial_sha }}\`. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" \
+            --body "🚦 DEV release started: run \`${GITHUB_RUN_ID}\`, branch \`${TARGET_REF}\`, candidate \`${{ steps.pr.outputs.sha }}\`. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-      - name: Checkout candidate
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_REF }}
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Resolve source revision
+      - name: Fast release-history preflight
         id: source
         shell: bash
         run: |
           set -euo pipefail
           SOURCE_SHA="$(git rev-parse HEAD)"
-          if [[ "${SOURCE_SHA}" != "${{ steps.pr.outputs.initial_sha }}" ]]; then
-            echo '::error::Checked out SHA does not match the pull request head.'
+          [[ "${SOURCE_SHA}" == "${{ steps.pr.outputs.sha }}" ]] || {
+            echo '::error::Checkout does not match PR head.'
             exit 1
-          fi
+          }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor origin/main HEAD || {
+            echo '::error::Release branch is behind/diverged from current main. Rebuild a clean release snapshot from main; expensive tests were not started.'
+            exit 1
+          }
+          RELEASE_COMMITS="$(git rev-list --count origin/main..HEAD)"
+          [[ "${RELEASE_COMMITS}" -le 10 ]] || {
+            echo "::error::Release branch contains ${RELEASE_COMMITS} commits (>10). Squash/rebuild snapshot before release."
+            exit 1
+          }
           echo "sha=${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "commit_count=${RELEASE_COMMITS}" >> "$GITHUB_OUTPUT"
 
-      - name: Validate GitHub-hosted execution
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${RUNNER_ENVIRONMENT}" != 'github-hosted' ]]; then
-            echo '::error::DEV release must run on a GitHub-hosted runner.'
-            exit 1
-          fi
-
-      - name: Validate deployment secrets
-        shell: bash
+      - name: Validate GitHub-hosted runner and deployment secrets
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        shell: bash
         run: |
           set -euo pipefail
+          [[ "${RUNNER_ENVIRONMENT}" == github-hosted ]] || { echo '::error::GitHub-hosted runner required'; exit 1; }
           [[ -n "${APPS_SCRIPT_ID}" ]] || { echo '::error::Missing APPS_SCRIPT_ID'; exit 1; }
           [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
 
@@ -116,20 +114,16 @@ jobs:
       - name: Prepare dashboard bundle
         run: npm run prepare:web
 
-      - name: Run contract tests
+      - name: Run all contract tests
         shell: bash
         run: |
           set -euo pipefail
           mapfile -t TEST_FILES < <(find tests -maxdepth 1 -type f -name '*contract_test.js' -print | sort -u)
           [[ "${#TEST_FILES[@]}" -gt 0 ]] || { echo '::error::No contract tests found'; exit 1; }
-          for test_file in "${TEST_FILES[@]}"; do
-            node "${test_file}"
-          done
+          for test_file in "${TEST_FILES[@]}"; do node "${test_file}"; done
 
       - name: Install Playwright
-        shell: bash
         run: |
-          set -euo pipefail
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
@@ -145,24 +139,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Install and configure clasp
-        shell: bash
+      - name: Configure clasp
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        shell: bash
         run: |
           set -euo pipefail
           npm install --no-save --no-audit --no-fund @google/clasp@3
           printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
           chmod 600 "${HOME}/.clasprc.json"
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
-          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
           npx clasp status
 
       - name: Push Apps Script DEV
         run: npx clasp push --force
 
-      - name: Create or update DEV Web App
+      - name: Create or update stable DEV Web App deployment
         id: webapp
         shell: bash
         run: |
@@ -170,28 +164,19 @@ jobs:
           DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV'
           DEPLOYMENTS="$(npx clasp deployments || true)"
           DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
-
           if [[ -n "${DEPLOYMENT_ID}" ]]; then
             OUTPUT="$(npx clasp deploy -i "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
           else
             OUTPUT="$(npx clasp deploy -d "${DEPLOYMENT_NAME}")"
             DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
           fi
-
           printf '%s\n' "${OUTPUT}"
-          [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Deployment ID was not returned'; exit 1; }
+          [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Deployment ID not returned'; exit 1; }
           WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
-
           mkdir -p artifacts
-          cat > artifacts/dashboard-web-deployment.json <<JSON
-          {
-            "sourceRef": "${TARGET_REF}",
-            "sourceSha": "${{ steps.source.outputs.sha }}",
-            "webAppUrl": "${WEB_APP_URL}",
-            "runUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          }
-          JSON
+          jq -n --arg sourceRef "${TARGET_REF}" --arg sourceSha "${{ steps.source.outputs.sha }}" --arg webAppUrl "${WEB_APP_URL}" --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{sourceRef:$sourceRef,sourceSha:$sourceSha,webAppUrl:$webAppUrl,runUrl:$runUrl}' > artifacts/dashboard-web-deployment.json
 
       - name: Upload deployment metadata
         uses: actions/upload-artifact@v4
@@ -201,126 +186,93 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish Dashboard link in README
-        id: readme
-        shell: bash
-        env:
-          WEB_APP_URL: ${{ steps.webapp.outputs.url }}
-        run: |
-          set -euo pipefail
-
-          REMOTE_SHA="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          if [[ "${REMOTE_SHA}" != "${{ steps.source.outputs.sha }}" ]]; then
-            echo '::error::PR head moved before README publication; refusing stale link update.'
-            exit 1
-          fi
-
-          git reset --hard "${{ steps.source.outputs.sha }}"
-          git clean -fd
-
-          python - <<'PY'
-          import os
-          from pathlib import Path
-
-          path = Path('README.md')
-          text = path.read_text(encoding='utf-8') if path.exists() else '# ПрихРасхOnline v2\n'
-          start = '<!-- DASHBOARD_LINK_START -->'
-          end = '<!-- DASHBOARD_LINK_END -->'
-          url = os.environ['WEB_APP_URL']
-          block = f'''{start}\n[▶ Открыть Dashboard]({url})\n\n> DEV Web App • ссылка обновляется автоматически успешным release workflow.\n{end}'''
-
-          if start in text and end in text:
-              prefix = text.split(start, 1)[0]
-              suffix = text.split(end, 1)[1]
-              text = prefix + block + suffix
-          else:
-              text += '\n\n## ▶ Dashboard\n\n' + block + '\n'
-
-          path.write_text(text, encoding='utf-8')
-          PY
-
-          if git diff --quiet -- README.md; then
-            RELEASE_SHA="$(git rev-parse HEAD)"
-          else
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add README.md
-            git commit -m 'docs: publish DEV dashboard link'
-            RELEASE_SHA="$(git rev-parse HEAD)"
-            git push origin "HEAD:${TARGET_REF}"
-          fi
-
-          echo "sha=${RELEASE_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify release head
-        shell: bash
+      - name: Verify candidate did not move
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
           CURRENT_SHA="$(gh pr view "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" --json headRefOid --jq '.headRefOid')"
-          if [[ "${CURRENT_SHA}" != "${{ steps.readme.outputs.sha }}" ]]; then
-            echo "::error::PR head moved after validation; refusing stale merge."
+          [[ "${CURRENT_SHA}" == "${{ steps.source.outputs.sha }}" ]] || {
+            echo '::error::PR head moved after validation/deployment; refusing stale merge.'
             exit 1
-          fi
+          }
 
-      - name: Mark pull request ready
+      - name: Mark PR ready if needed
         if: steps.pr.outputs.is_draft == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr ready "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}"
 
-      - name: Merge validated pull request
+      - name: Merge validated release PR
         id: merge
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          PAYLOAD="$(jq -n \
-            --arg sha "${{ steps.readme.outputs.sha }}" \
-            --arg title "Merge PR #${{ steps.pr.outputs.number }} after DEV validation" \
-            --arg message "Contract tests, responsive Playwright gate, Apps Script DEV deployment and README Dashboard link publication passed." \
-            '{sha:$sha,merge_method:"merge",commit_title:$title,commit_message:$message}')"
-          RESPONSE="$(gh api --method PUT \
-            "repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.number }}/merge" \
-            --input - <<<"${PAYLOAD}")"
-          [[ "$(jq -r '.merged' <<<"${RESPONSE}")" == 'true' ]] || {
-            echo "::error::Merge refused: $(jq -r '.message' <<<"${RESPONSE}")"
-            exit 1
-          }
+          RESPONSE="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.number }}/merge" \
+            -f sha='${{ steps.source.outputs.sha }}' -f merge_method=merge \
+            -f commit_title='Merge validated DEV release' \
+            -f commit_message='Contract tests, Playwright and Apps Script DEV deployment passed.')"
+          [[ "$(jq -r '.merged' <<<"${RESPONSE}")" == true ]] || { echo "::error::Merge refused: $(jq -r '.message' <<<"${RESPONSE}")"; exit 1; }
           echo "sha=$(jq -r '.sha' <<<"${RESPONSE}")" >> "$GITHUB_OUTPUT"
 
-      - name: Report release
+      - name: Publish stable Dashboard link on main after merge
+        env:
+          WEB_APP_URL: ${{ steps.webapp.outputs.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git checkout -B main origin/main
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path('README.md')
+          text = path.read_text(encoding='utf-8')
+          start = '<!-- DASHBOARD_LINK_START -->'
+          end = '<!-- DASHBOARD_LINK_END -->'
+          block = f"{start}\n[▶ Открыть Dashboard]({os.environ['WEB_APP_URL']})\n\n> DEV Web App • стабильная прямая ссылка.\n{end}"
+          if start in text and end in text:
+              text = text.split(start,1)[0] + block + text.split(end,1)[1]
+          else:
+              text += '\n\n## ▶ Dashboard\n\n' + block + '\n'
+          path.write_text(text, encoding='utf-8')
+          PY
+          if ! git diff --quiet -- README.md; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add README.md
+            git commit -m 'docs: publish stable DEV dashboard link'
+            git push origin main
+          fi
+
+      - name: Report success
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment "${{ steps.pr.outputs.number }}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --body "✅ Chat-driven block validated, deployed to DEV, Dashboard link published in README and merged. Source: \`${{ steps.source.outputs.sha }}\`. Release head: \`${{ steps.readme.outputs.sha }}\`. Merge: \`${{ steps.merge.outputs.sha }}\`. Web App: ${{ steps.webapp.outputs.url }}."
+          gh pr comment "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" \
+            --body "✅ DEV release passed and merged. Source: \`${{ steps.source.outputs.sha }}\`; merge: \`${{ steps.merge.outputs.sha }}\`; Web App: ${{ steps.webapp.outputs.url }}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-      - name: Report failure
+      - name: Report fail-closed blocker
         if: failure() && steps.pr.outputs.number != ''
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment "${{ steps.pr.outputs.number }}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --body "❌ DEV release failed closed. Run: \`${GITHUB_RUN_ID}\`; target: \`${TARGET_REF}\`; candidate: \`${{ steps.pr.outputs.initial_sha }}\`. No merge is claimed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" \
+            --body "❌ DEV release failed closed. Run \`${GITHUB_RUN_ID}\`, candidate \`${{ steps.pr.outputs.sha }}\`. No merge claimed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Release summary
         if: always()
-        shell: bash
         run: |
-          echo '### Chat-driven DEV release' >> "$GITHUB_STEP_SUMMARY"
-          echo '- Trigger model: code change or explicit workflow dispatch; no cron or background polling.' >> "$GITHUB_STEP_SUMMARY"
+          echo '### DEV release' >> "$GITHUB_STEP_SUMMARY"
           echo "- Run: \`${GITHUB_RUN_ID}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- PR: \`#${{ steps.pr.outputs.number }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Release head: \`${{ steps.readme.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release commits: \`${{ steps.source.outputs.commit_count }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Web App: ${{ steps.webapp.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Merge: \`${{ steps.merge.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
