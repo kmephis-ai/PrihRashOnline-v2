@@ -62,6 +62,15 @@ jobs:
           echo "initial_sha=$(jq -r '.headRefOid' <<<"${PR_JSON}")" >> "$GITHUB_OUTPUT"
           echo "is_draft=$(jq -r '.isDraft' <<<"${PR_JSON}")" >> "$GITHUB_OUTPUT"
 
+      - name: Announce release run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ steps.pr.outputs.number }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --body "🚦 DEV release started. Run: \`${GITHUB_RUN_ID}\`; event: \`${GITHUB_EVENT_NAME}\`; target: \`${TARGET_REF}\`; candidate: \`${{ steps.pr.outputs.initial_sha }}\`. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
       - name: Checkout candidate
         uses: actions/checkout@v4
         with:
@@ -291,12 +300,23 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --body "✅ Chat-driven block validated, deployed to DEV, Dashboard link published in README and merged. Source: \`${{ steps.source.outputs.sha }}\`. Release head: \`${{ steps.readme.outputs.sha }}\`. Merge: \`${{ steps.merge.outputs.sha }}\`. Web App: ${{ steps.webapp.outputs.url }}."
 
+      - name: Report failure
+        if: failure() && steps.pr.outputs.number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ steps.pr.outputs.number }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --body "❌ DEV release failed closed. Run: \`${GITHUB_RUN_ID}\`; target: \`${TARGET_REF}\`; candidate: \`${{ steps.pr.outputs.initial_sha }}\`. No merge is claimed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
       - name: Release summary
         if: always()
         shell: bash
         run: |
           echo '### Chat-driven DEV release' >> "$GITHUB_STEP_SUMMARY"
           echo '- Trigger model: code change or explicit workflow dispatch; no cron or background polling.' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run: \`${GITHUB_RUN_ID}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`${TARGET_REF}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- PR: \`#${{ steps.pr.outputs.number }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Source: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
