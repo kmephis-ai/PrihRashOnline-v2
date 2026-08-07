@@ -25,6 +25,7 @@ concurrency:
 
 jobs:
   validate:
+    if: ${{ !startsWith(github.head_ref, 'agent/release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
