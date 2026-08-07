@@ -7,7 +7,9 @@
 ## ▶ Dashboard
 
 <!-- DASHBOARD_LINK_START -->
-> ⏳ Прямая ссылка на DEV Web Dashboard будет опубликована здесь автоматически сразу после успешного Apps Script deployment.
+[▶ Открыть Dashboard](https://script.google.com/macros/s/AKfycbxTt0YFnMtDtgLxtSao8cFA6Hlx7KOkKy23UHgwPYDXetry_0n-QXq9cVFepBeaY3NG/exec)
+
+> DEV Web App • стабильная прямая ссылка.
 <!-- DASHBOARD_LINK_END -->
 
 После публикации эта ссылка ведёт напрямую в HTML Web App; открывать GitHub Actions, WSL или редактор Apps Script для обычного использования не требуется.
