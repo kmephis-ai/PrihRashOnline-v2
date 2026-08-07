@@ -7,7 +7,7 @@
 ## ▶ Dashboard
 
 <!-- DASHBOARD_LINK_START -->
-[▶ Открыть Dashboard](https://script.google.com/macros/s/AKfycbxTt0YFnMtDtgLxtSao8cFA6Hlx7KOkKy23UHgwPYDXetry_0n-QXq9cVFepBeaY3NG/exec)
+[▶ Открыть Dashboard](https://script.google.com/macros/s/AKfycbzcXDoAsJtp_dDKMWlXADVUWYG3lNdmttIyOifS2zPx27GN1oxzrt7z599TUdvDyByG/exec)
 
 > DEV Web App • стабильная прямая ссылка.
 <!-- DASHBOARD_LINK_END -->
