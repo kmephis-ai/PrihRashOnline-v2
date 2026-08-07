@@ -162,7 +162,7 @@ jobs:
         run: |
           set -euo pipefail
           DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV'
-          DEPLOYMENTS="$(npx clasp deployments || true)"
+          DEPLOYMENTS="$(npx clasp list-deployments || true)"
           DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
           if [[ -n "${DEPLOYMENT_ID}" ]]; then
             OUTPUT="$(npx clasp deploy -i "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
@@ -172,11 +172,40 @@ jobs:
           fi
           printf '%s\n' "${OUTPUT}"
           [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Deployment ID not returned'; exit 1; }
-          WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+
+          npx clasp --json list-deployments > artifacts-deployments.json
+          WEB_APP_URL="$(jq -r --arg id "${DEPLOYMENT_ID}" '
+            [.. | objects
+              | select(.deploymentId? == $id)
+              | .entryPoints[]?
+              | select(.entryPointType? == "WEB_APP")
+              | .webApp.url? // empty][0] // empty
+          ' artifacts-deployments.json)"
+          [[ -n "${WEB_APP_URL}" ]] || {
+            echo '::error::Apps Script deployment has no WEB_APP entry point. Check appsscript.json webapp configuration.'
+            cat artifacts-deployments.json
+            exit 1
+          }
+          [[ "${WEB_APP_URL}" =~ ^https://script\.google\.com/.*/macros/s/.+/exec$ ]] || {
+            echo "::error::Unexpected Web App URL returned by Apps Script API: ${WEB_APP_URL}"
+            exit 1
+          }
+
+          SMOKE_BODY="$(mktemp)"
+          HTTP_CODE="$(curl -L -sS --max-time 30 -o "${SMOKE_BODY}" -w '%{http_code}' "${WEB_APP_URL}" || true)"
+          if [[ "${HTTP_CODE}" == '404' || "${HTTP_CODE}" =~ ^5 ]]; then
+            echo "::error::Web App smoke request failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          if grep -Eqi 'Не удалось открыть файл|Unable to open the file|file you have requested does not exist' "${SMOKE_BODY}"; then
+            echo '::error::Google Drive file-not-found page returned instead of Apps Script Web App.'
+            exit 1
+          fi
+
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
           mkdir -p artifacts
-          jq -n --arg sourceRef "${TARGET_REF}" --arg sourceSha "${{ steps.source.outputs.sha }}" --arg webAppUrl "${WEB_APP_URL}" --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            '{sourceRef:$sourceRef,sourceSha:$sourceSha,webAppUrl:$webAppUrl,runUrl:$runUrl}' > artifacts/dashboard-web-deployment.json
+          jq -n --arg sourceRef "${TARGET_REF}" --arg sourceSha "${{ steps.source.outputs.sha }}" --arg deploymentId "${DEPLOYMENT_ID}" --arg webAppUrl "${WEB_APP_URL}" --arg httpCode "${HTTP_CODE}" --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{sourceRef:$sourceRef,sourceSha:$sourceSha,deploymentId:$deploymentId,webAppUrl:$webAppUrl,smokeHttpCode:$httpCode,runUrl:$runUrl}' > artifacts/dashboard-web-deployment.json
 
       - name: Upload deployment metadata
         uses: actions/upload-artifact@v4
