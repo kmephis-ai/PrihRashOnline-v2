@@ -106,75 +106,50 @@ jobs:
           PARAMS="$(jq -nc --arg candidateSha "${CANDIDATE_SHA}" --arg sourceTreeHash "${SOURCE_TREE_HASH}" '[{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash}]')"
           TOKEN_PATTERN="^PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+$"
           cd "${RUNNER_TEMP}/health-run"
-          STDERR_FILE="${RUNNER_TEMP}/health-clasp-stderr.log"
-          set +e
-          RAW_STDOUT="$(${CLASP} --json run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>"${STDERR_FILE}")"
-          CLASP_STATUS=$?
-          set -e
 
           classify_failure() {
             local safe_error="$1"
-            local reason='AUTHENTICATED_EXECUTION_FAILED'
+            local fallback="$2"
+            local reason="${fallback}"
             local runtime_reason
             runtime_reason="$(grep -oE 'RUNTIME_HEALTH_[A-Z_]+' <<<"${safe_error}" | head -1 || true)"
             if [[ -n "${runtime_reason}" ]]; then reason="${runtime_reason}"; fi
             if grep -Eqi 'standard (Google )?Cloud project|standard GCP project|GCP project ID is not set' <<<"${safe_error}"; then reason='STANDARD_CLOUD_PROJECT_REQUIRED'; fi
-            if grep -Eqi 'API executable|not published|not deployed|deployment' <<<"${safe_error}"; then reason='API_EXECUTABLE_UNAVAILABLE'; fi
+            if grep -Eqi 'API executable|not published|not deployed|deployment|NOT_FOUND' <<<"${safe_error}"; then reason='API_EXECUTABLE_UNAVAILABLE'; fi
             if grep -Eqi 'PERMISSION_DENIED|insufficient.*scope|unauthorized|NOT_AUTHORIZED|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${safe_error}"; then reason='OAUTH_EXECUTION_UNAUTHORIZED'; fi
             printf '%s' "${reason}"
           }
 
-          if [[ "${CLASP_STATUS}" -ne 0 ]]; then
-            SAFE_ERROR="${RAW_STDOUT} $(cat "${STDERR_FILE}" 2>/dev/null || true)"
-            REASON="$(classify_failure "${SAFE_ERROR}")"
+          # Phase 1: prove owner-authenticated Execution API transport independently of Sheets.
+          set +e
+          PING_OUTPUT="$(${CLASP} run-function prhRuntimeTransportPing 2>&1)"
+          PING_STATUS=$?
+          set -e
+          PING_TOKEN="$(grep -Fx 'PRH_TRANSPORT_V1|OK' <<<"${PING_OUTPUT}" | head -1 || true)"
+          if [[ "${PING_STATUS}" -ne 0 || -z "${PING_TOKEN}" ]]; then
+            REASON="$(classify_failure "${PING_OUTPUT}" 'AUTHENTICATED_TRANSPORT_PING_FAILED')"
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Some clasp initialization/auth messages can precede the command payload on stdout.
-          # First accept only an exact technical scalar token; otherwise isolate the pretty-printed
-          # JSON object that run-function emits from its first object-opening line to EOF.
-          PLAIN_TOKEN="$(grep -E "${TOKEN_PATTERN}" <<<"${RAW_STDOUT}" | head -1 || true)"
-          if [[ -n "${PLAIN_TOKEN}" ]]; then
-            LATENCY_MS="${PLAIN_TOKEN##*|}"
-            echo "result=PASS" >> "$GITHUB_OUTPUT"
-            echo "reason=OK" >> "$GITHUB_OUTPUT"
-            echo "latency_ms=${LATENCY_MS}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          JSON_BLOCK="$(awk 'found || /^[[:space:]]*\{/ {found=1; print}' <<<"${RAW_STDOUT}")"
-          if ! jq -e 'type == "object"' <<<"${JSON_BLOCK}" >/dev/null 2>&1; then
-            SAFE_ERROR="${RAW_STDOUT} $(cat "${STDERR_FILE}" 2>/dev/null || true)"
-            REASON="$(classify_failure "${SAFE_ERROR}")"
-            if [[ "${REASON}" == 'AUTHENTICATED_EXECUTION_FAILED' ]]; then REASON='AUTHENTICATED_EXECUTION_UNPARSEABLE'; fi
+          # Phase 2: execute the exact-build/read-only workbook health. Clasp can emit
+          # Apps Script exceptions with CLI exit 0, so token absence always triggers
+          # bounded error classification regardless of the process exit code.
+          set +e
+          HEALTH_OUTPUT="$(${CLASP} run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>&1)"
+          HEALTH_STATUS=$?
+          set -e
+          TOKEN="$(grep -E "${TOKEN_PATTERN}" <<<"${HEALTH_OUTPUT}" | head -1 || true)"
+          if [[ "${HEALTH_STATUS}" -ne 0 || -z "${TOKEN}" ]]; then
+            REASON="$(classify_failure "${HEALTH_OUTPUT}" 'HEALTH_TOKEN_MISSING_OR_MISMATCH')"
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          ERROR_CODE="$(jq -r '.error.code // empty' <<<"${JSON_BLOCK}")"
-          ERROR_MESSAGE="$(jq -r '.error.message // empty' <<<"${JSON_BLOCK}")"
-          ERROR_DETAILS="$(jq -c '.error.details // []' <<<"${JSON_BLOCK}")"
-          if [[ -n "${ERROR_CODE}${ERROR_MESSAGE}" || "${ERROR_DETAILS}" != '[]' ]]; then
-            SAFE_ERROR="${ERROR_CODE} ${ERROR_MESSAGE} ${ERROR_DETAILS}"
-            REASON="$(classify_failure "${SAFE_ERROR}")"
-            echo "result=FAIL" >> "$GITHUB_OUTPUT"
-            echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
-            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          TOKEN="$(jq -r '.response // empty' <<<"${JSON_BLOCK}")"
-          if ! [[ "${TOKEN}" =~ ${TOKEN_PATTERN} ]]; then
-            echo "result=FAIL" >> "$GITHUB_OUTPUT"
-            echo "reason=HEALTH_TOKEN_MISSING_OR_MISMATCH" >> "$GITHUB_OUTPUT"
-            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           LATENCY_MS="${TOKEN##*|}"
           echo "result=PASS" >> "$GITHUB_OUTPUT"
           echo "reason=OK" >> "$GITHUB_OUTPUT"
