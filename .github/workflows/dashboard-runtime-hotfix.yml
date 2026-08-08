@@ -1,0 +1,77 @@
+name: Dashboard Runtime Hotfix
+
+on:
+  push:
+    branches:
+      - 'agent/release/v1.0.0-rc4-apps-script-runtime'
+    paths:
+      - '.github/workflows/dashboard-runtime-hotfix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify parser-safe dashboard bootstrap
+        run: |
+          node tests/apps_script_runtime_release_gate_contract_test.js
+          node tests/dashboard_web_contract_test.js
+
+      - name: Configure clasp
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${APPS_SCRIPT_ID}"
+          test -n "${CLASPRC_JSON}"
+          npm install --no-save --no-audit --no-fund @google/clasp@3
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
+          npx clasp --version
+
+      - name: Push parser-safe Apps Script source
+        run: npx clasp push --force
+
+      - name: Redeploy existing DEV Web App with clasp v3
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
+          DEPLOYMENTS="$(npx clasp list-deployments)"
+          printf '%s\n' "${DEPLOYMENTS}"
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+
+          if [[ -n "${DEPLOYMENT_ID}" ]]; then
+            OUTPUT="$(npx clasp create-deployment --deploymentId "${DEPLOYMENT_ID}" --description "${DEPLOYMENT_NAME}")"
+          else
+            OUTPUT="$(npx clasp create-deployment --description "${DEPLOYMENT_NAME}")"
+            DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+          fi
+
+          printf '%s\n' "${OUTPUT}"
+          test -n "${DEPLOYMENT_ID}"
+          WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
+          echo "WEB_APP_URL=${WEB_APP_URL}"
+
+      - name: Verify deployment metadata
+        run: |
+          echo "Deployment: ${{ steps.deploy.outputs.deployment_id }}"
+          echo "Web App: ${{ steps.deploy.outputs.url }}"
