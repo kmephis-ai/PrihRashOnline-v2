@@ -58,5 +58,14 @@ if (!workflow.includes('anonymous CI smoke did not execute doGet')) {
 if (!workflow.includes("grep -Fqi 'PrihRashOnline'")) {
   throw new Error('Release gate must require a positive Dashboard identity marker');
 }
+if (!workflow.includes('create-deployment --deploymentId')) {
+  throw new Error('Release workflow must redeploy existing Web App with clasp v3 create-deployment --deploymentId');
+}
+if (workflow.includes('clasp update-deployment')) {
+  throw new Error('Release workflow must not use unavailable clasp v3 update-deployment command');
+}
+if (workflow.includes('open-web-app')) {
+  throw new Error('Release workflow must not depend on unavailable clasp v3 open-web-app command');
+}
 
 console.log('apps_script_runtime_release_gate_contract_test: OK');
