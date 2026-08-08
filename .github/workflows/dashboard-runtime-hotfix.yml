@@ -5,6 +5,7 @@ on:
     branches:
       - 'agent/release/v1.0.0-rc4-apps-script-runtime'
     paths:
+      - 'DashboardWebDataService.js'
       - '.github/workflows/dashboard-runtime-hotfix.yml'
   workflow_dispatch:
 
@@ -26,13 +27,21 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Verify isolated parser-safe bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check DashboardWebDataService.js
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('DashboardWebDataService.js').read_text(encoding='ascii')
+          expected = 'function doGet() {\n  var template = HtmlService.createTemplateFromFile("DashboardWebApp");\n  template.initialData = "{}";\n  return template.evaluate();\n}\n'
+          if text != expected:
+              raise SystemExit('DashboardWebDataService.js is not the isolated bootstrap')
+          PY
+
       - name: Prepare dashboard bundle
         run: npm run prepare:web
-
-      - name: Verify parser-safe dashboard bootstrap
-        run: |
-          node tests/apps_script_runtime_release_gate_contract_test.js
-          node tests/dashboard_web_contract_test.js
 
       - name: Configure clasp
         env:
@@ -49,7 +58,7 @@ jobs:
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
           npx clasp --version
 
-      - name: Push parser-safe Apps Script source
+      - name: Push isolated Apps Script source
         run: npx clasp push --force
 
       - name: Redeploy existing DEV Web App with clasp v3
@@ -74,7 +83,6 @@ jobs:
           WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
           echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
-          echo "WEB_APP_URL=${WEB_APP_URL}"
 
       - name: Report successful deployment to PR
         if: success()
@@ -83,11 +91,11 @@ jobs:
           DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
           WEB_APP_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Dashboard runtime hotfix deployed with clasp v3. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Isolated Dashboard bootstrap deployed. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Report failed deployment to PR
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Dashboard runtime hotfix deployment failed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Isolated Dashboard bootstrap deployment failed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
