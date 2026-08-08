@@ -128,16 +128,31 @@ function compareReadyItems(a, b) {
 }
 
 function assertPublicSafe(value) {
-  const serialized = JSON.stringify(value);
   const forbidden = [
     /script\.google\.com\/macros\/s\//i,
     /\bAKfy[A-Za-z0-9_-]{20,}\b/,
     /\bya29\.[A-Za-z0-9._-]+\b/,
     /\b1\/\/[A-Za-z0-9_-]{20,}\b/,
     /-----BEGIN (?:RSA |EC |)PRIVATE KEY-----/,
-    /[A-Z]:\\(?:YandexDisk|PrihRashOnline-Keys|PrihRashOnline\\)/i
+    /[A-Z]:\\(?:YandexDisk|PrihRashOnline-Keys|PrihRashOnline(?:\\|$))/i
   ];
-  if (forbidden.some((pattern) => pattern.test(serialized))) fail('ROADMAP_TASK_PRIVATE_CONTEXT_FORBIDDEN');
+  const stack = [value];
+  while (stack.length) {
+    const current = stack.pop();
+    if (typeof current === 'string') {
+      if (forbidden.some((pattern) => pattern.test(current))) fail('ROADMAP_TASK_PRIVATE_CONTEXT_FORBIDDEN');
+      continue;
+    }
+    if (Array.isArray(current)) {
+      stack.push(...current);
+      continue;
+    }
+    if (current && typeof current === 'object') {
+      for (const [key, nested] of Object.entries(current)) {
+        stack.push(key, nested);
+      }
+    }
+  }
   return true;
 }
 
