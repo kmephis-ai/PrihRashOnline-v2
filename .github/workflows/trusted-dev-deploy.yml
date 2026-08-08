@@ -150,13 +150,22 @@ jobs:
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > "${RUNNER_TEMP}/deploy/.clasp.json"
           node -e "const fs=require('fs'); const auth=JSON.parse(fs.readFileSync(process.env.HOME+'/.clasprc.json','utf8')); if(!auth.tokens || !auth.tokens['prihrash-ci']) throw new Error('named clasp profile missing'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/deploy/.clasp.json','utf8'));"
 
-      - name: Push verified candidate with trusted clasp
-        id: clasp_push
+      - name: Push verified candidate through Apps Script API
+        id: content_push
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          cd "${RUNNER_TEMP}/deploy"
-          "${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp" push --user "${CLASP_USER}" --force >/dev/null
+          PUSH_JSON="$(node "${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-push.js" "${RUNNER_TEMP}/deploy")"
+          PUSH_OK="$(jq -r '.ok // false' <<<"${PUSH_JSON}" 2>/dev/null || printf 'false')"
+          PUSH_REASON="$(jq -r '.reason // "APPS_SCRIPT_CONTENT_PUSH_FAILED"' <<<"${PUSH_JSON}" 2>/dev/null || printf 'APPS_SCRIPT_CONTENT_PUSH_FAILED')"
+          [[ "${PUSH_REASON}" =~ ^[A-Z0-9_]+$ ]] || PUSH_REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'
+          echo "reason=${PUSH_REASON}" >> "$GITHUB_OUTPUT"
+          if [[ "${PUSH_OK}" != 'true' ]]; then
+            exit 1
+          fi
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
 
       - name: Update stable DEV web deployment
         id: web_deploy
@@ -226,7 +235,8 @@ jobs:
           CANDIDATE_CHECKOUT: ${{ steps.candidate_checkout.outcome }}
           CANDIDATE_VERIFY: ${{ steps.candidate_verify.outcome }}
           DEPLOY_PREPARE: ${{ steps.deploy_prepare.outcome }}
-          CLASP_PUSH: ${{ steps.clasp_push.outcome }}
+          CONTENT_PUSH: ${{ steps.content_push.outcome }}
+          CONTENT_PUSH_REASON: ${{ steps.content_push.outputs.reason }}
           WEB_DEPLOY: ${{ steps.web_deploy.outcome }}
           API_DEPLOY: ${{ steps.api_deploy.outcome }}
           DEPLOY_EVIDENCE: ${{ steps.deploy_evidence.outcome }}
@@ -245,7 +255,9 @@ jobs:
           elif [[ "${CANDIDATE_CHECKOUT}" == 'failure' ]]; then REASON='CANDIDATE_CHECKOUT_FAILED';
           elif [[ "${CANDIDATE_VERIFY}" == 'failure' ]]; then REASON='CANDIDATE_VERIFY_FAILED';
           elif [[ "${DEPLOY_PREPARE}" == 'failure' ]]; then REASON='DEPLOY_PREP_FAILED';
-          elif [[ "${CLASP_PUSH}" == 'failure' ]]; then REASON='CLASP_PUSH_FAILED';
+          elif [[ "${CONTENT_PUSH}" == 'failure' ]]; then
+            REASON="${CONTENT_PUSH_REASON:-APPS_SCRIPT_CONTENT_PUSH_FAILED}"
+            [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'
           elif [[ "${WEB_DEPLOY}" == 'failure' ]]; then REASON='WEB_DEPLOY_UPDATE_FAILED';
           elif [[ "${API_DEPLOY}" == 'failure' ]]; then REASON='API_DEPLOY_UPDATE_FAILED';
           elif [[ "${DEPLOY_EVIDENCE}" == 'failure' ]]; then REASON='DEPLOY_EVIDENCE_FAILED';
