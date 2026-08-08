@@ -10,6 +10,8 @@ on:
       - 'package.json'
       - 'appsscript.json'
       - '.claspignore'
+      - '.clasp.json.example'
+      - '.gitignore'
       - 'tests/**'
       - 'tools/**'
       - 'docs/**'
@@ -36,6 +38,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Secret scan
+        run: node tools/secret-scan.js
       - name: Privacy public-data scan
         run: node tools/privacy-public-data-scan.js
       - name: Prepare dashboard bundle
