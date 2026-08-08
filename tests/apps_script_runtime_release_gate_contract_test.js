@@ -65,20 +65,26 @@ if (!html.includes("text.indexOf('<' + '?')")) {
 if (!workflow.includes('Invalid or unexpected token')) {
   throw new Error('Release smoke gate must reject Apps Script syntax-error pages');
 }
-if (!workflow.includes('anonymous CI smoke did not execute doGet')) {
-  throw new Error('Release gate must reject an unauthenticated Google login response');
+if (!workflow.includes('@google/clasp@3.3.0')) {
+  throw new Error('Release workflow must pin clasp 3.3.0');
+}
+if (!workflow.includes('clasp --json open-web-app "${deployment_id}"')) {
+  throw new Error('Release workflow must resolve the real WEB_APP URL from Apps Script deployment entry points');
+}
+if (!workflow.includes('has no WEB_APP entry point; creating a fresh verified Web App deployment')) {
+  throw new Error('Release workflow must replace invalid historical deployments automatically');
+}
+if (workflow.includes('WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"')) {
+  throw new Error('Release workflow must not synthesize /exec from deploymentId');
+}
+if (!workflow.includes('MANUAL_RUNTIME_APPROVED=${{ steps.source.outputs.sha }}')) {
+  throw new Error('Private MYSELF runtime approval must be tied to exact candidate SHA');
+}
+if (!workflow.includes("steps.webapp.outputs.runtime_mode == 'private-auth'")) {
+  throw new Error('Exact-SHA approval must be required when anonymous CI reaches the private authentication boundary');
 }
 if (!workflow.includes("grep -Fqi 'PrihRashOnline'")) {
-  throw new Error('Release gate must require a positive Dashboard identity marker');
-}
-if (!workflow.includes('create-deployment --deploymentId')) {
-  throw new Error('Release workflow must redeploy existing Web App with clasp v3 create-deployment --deploymentId');
-}
-if (workflow.includes('clasp update-deployment')) {
-  throw new Error('Release workflow must not use unavailable clasp v3 update-deployment command');
-}
-if (workflow.includes('open-web-app')) {
-  throw new Error('Release workflow must not depend on unavailable clasp v3 open-web-app command');
+  throw new Error('Release gate must retain positive Dashboard identity verification when runtime is directly reachable');
 }
 
 console.log('apps_script_runtime_release_gate_contract_test: OK');
