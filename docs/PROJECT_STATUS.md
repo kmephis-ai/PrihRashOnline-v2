@@ -4,7 +4,7 @@ This file is a public-safe human summary. The authoritative execution state rema
 
 ## Current platform baseline
 
-The following R0 engineering capabilities are already `DONE` and machine-verified:
+The following R0 engineering capabilities are `DONE` and machine-verified:
 
 - `TEST-001` deterministic synthetic finance fixtures;
 - `SEC-001` synthetic-only public current tree;
@@ -17,9 +17,10 @@ The following R0 engineering capabilities are already `DONE` and machine-verifie
 - `CI-003` autonomous exact-head squash merge + Main Verification Issue close;
 - `DR-001` portable encrypted owner backup + isolated restore drill;
 - `OBS-001` bounded privacy-safe audit/telemetry baseline;
-- `FINOPS-001` executable `FREE_ONLY` runtime/CI guard.
+- `FINOPS-001` executable `FREE_ONLY` runtime/CI guard;
+- `DOC-001` documentation truth reset + machine docs-drift gate.
 
-When this DOC-001 candidate reaches `main`, `DOC-001` is also `DONE` and `MASTER-G0 / Truth` is complete.
+When this AIENG-001 candidate reaches `main`, root `AGENTS.md` + public-safe AI context + machine AI-contract gate are also part of the verified baseline.
 
 ## R0 master gates
 
@@ -27,17 +28,18 @@ When this DOC-001 candidate reaches `main`, `DOC-001` is also `DONE` and `MASTER
 
 Required: `TEST-001 + SEC-001 + FIN-001 + DATA-001 + DOC-001`.
 
-State after DOC-001 merge: **complete**.
+State: **complete**.
 
 ### MASTER-G1 / Autonomous delivery + AI engineering contract
 
-Delivery engine (`SEC-003 + CI-001 + CI-002 + CI-003`) is complete. Remaining R0 work is the AI Engineering contract chain:
+Delivery engine (`SEC-003 + CI-001 + CI-002 + CI-003`) is complete.
 
-1. `AIENG-001` — repository AI contract (`AGENTS.md` + public-safe AI context);
-2. `AIENG-002` — Roadmap-to-agent executable task protocol;
-3. `AIENG-003` — read-only multi-AI review protocol.
+After AIENG-001 merge the repository AI operating contract is complete. Remaining dependency-ordered R0 work:
 
-State: **open until AIENG-001..003 are DONE**.
+1. `AIENG-002` — Roadmap-to-agent executable task protocol;
+2. `AIENG-003` — read-only multi-AI review protocol.
+
+State: **open until AIENG-002 and AIENG-003 are DONE**.
 
 ### MASTER-G2 / Recoverability
 
@@ -66,6 +68,12 @@ After `MASTER-G1`, dependency-ordered R1 starts with:
 - paid-by-usage provider activation: blocked unless a future reviewed provider policy remains inside `FREE_ONLY` safety envelope;
 - billable provider allowlist: empty at the FINOPS-001 baseline.
 
+## Repository AI truth
+
+Root `AGENTS.md` is the public-safe repository AI operating contract. `.ai-context/PROJECT_CONTEXT.md` and `llms.txt` are compact entry points; they must never become private user-memory/credential/finance stores.
+
+AI agents must follow one-writer Roadmap lifecycle, exact machine gates and fail-closed source precedence. `DONE` means Main Verification closed the linked Issue, not merely that code was committed or merged.
+
 ## What is deliberately not claimed
 
 - full-history migration is **not** declared complete;
@@ -73,17 +81,19 @@ After `MASTER-G1`, dependency-ordered R1 starts with:
 - private Dashboard is **not** made public for CI;
 - public Git history remediation rewrite is **not authorized/executed**;
 - paid cloud/AI/OCR provider is **not** enabled;
-- old RC/release snapshot mechanics are **not** current delivery policy.
+- old RC/release snapshot mechanics are **not** current delivery policy;
+- AIENG-002 task protocol and AIENG-003 multi-AI review are **not** complete until their own Roadmap items close.
 
 ## Sources of truth precedence
 
-Until AIENG-001 formalizes the repository AI contract, use this order for conflicts:
+Repository AI source precedence is formalized in `AGENTS.md`. In short:
 
-1. privacy/security/cost/irreversible policy boundaries;
-2. canonical Roadmap Issue + dependencies/acceptance;
-3. executable code/tests/workflows on the relevant exact SHA;
-4. ADR/architecture/operations docs;
-5. README/user docs;
-6. historical changelog/release notes.
+1. security/privacy/cost/irreversible policy boundaries;
+2. canonical Master Audit / Executable Roadmap / AI Development Playbook when supplied;
+3. active Roadmap Issue;
+4. executable exact-SHA code/tests/workflows;
+5. architecture/ADR/operations docs;
+6. README/user docs;
+7. historical changelog/release notes.
 
 A stale lower-priority document never authorizes bypassing a current machine gate.
