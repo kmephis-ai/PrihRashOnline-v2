@@ -3,6 +3,15 @@
 const fs = require('fs');
 const path = require('path');
 
+function boundedHttpReason(statusCode, errorStatus) {
+  const code = Number.isInteger(Number(statusCode)) && Number(statusCode) >= 100 && Number(statusCode) <= 599
+    ? String(Number(statusCode))
+    : '0';
+  const rawStatus = String(errorStatus || '').toUpperCase();
+  const status = /^[A-Z][A-Z0-9_]{0,39}$/.test(rawStatus) ? rawStatus : 'UNKNOWN';
+  return `APPS_SCRIPT_CONTENT_HTTP_${code}_${status}`;
+}
+
 function classifyFailure(statusCode, payloadText, errorStatus) {
   const text = String(payloadText || '');
   const status = String(errorStatus || '').toUpperCase();
@@ -37,7 +46,7 @@ function classifyFailure(statusCode, payloadText, errorStatus) {
   if (statusCode >= 500 || status === 'INTERNAL' || status === 'UNAVAILABLE' || status === 'DEADLINE_EXCEEDED') {
     return 'APPS_SCRIPT_API_SERVER_ERROR';
   }
-  return 'APPS_SCRIPT_CONTENT_PUSH_FAILED';
+  return boundedHttpReason(statusCode, errorStatus);
 }
 
 function toApiFile(fileName, source) {
@@ -171,4 +180,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { classifyFailure, toApiFile, readDeployFiles };
+module.exports = { boundedHttpReason, classifyFailure, toApiFile, readDeployFiles };
