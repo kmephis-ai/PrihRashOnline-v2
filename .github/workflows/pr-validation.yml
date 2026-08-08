@@ -23,7 +23,7 @@ on:
       - 'CHANGELOG.md'
 
 permissions:
-  contents: write # SEC-003 bootstrap only; restored to read before merge.
+  contents: read
 
 concurrency:
   group: pr-validation-${{ github.event.pull_request.number }}
@@ -41,20 +41,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
-      - name: Bootstrap tracked package-lock
-        if: github.head_ref == 'agent/SEC-003-reproducible-supply-chain'
-        run: |
-          set -euo pipefail
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          if [[ -n "$(git status --porcelain -- package-lock.json)" ]]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package-lock.json
-            git commit -m 'build(SEC-003): add generated npm lockfile'
-            git push origin "HEAD:${GITHUB_HEAD_REF}"
-          fi
-          mkdir -p artifacts
-          cp package-lock.json artifacts/generated-package-lock.json
+          cache: 'npm'
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Supply-chain policy
+        run: node tools/supply-chain-scan.js
       - name: Secret scan
         run: node tools/secret-scan.js
       - name: Privacy public-data scan
@@ -72,10 +63,8 @@ jobs:
           mapfile -t TEST_FILES < <(find tests -maxdepth 1 -type f -name '*contract_test.js' -print | sort -u)
           [[ "${#TEST_FILES[@]}" -gt 0 ]] || { echo '::error::No contract tests found'; exit 1; }
           for test_file in "${TEST_FILES[@]}"; do node "${test_file}"; done
-      - name: Install dependencies and Playwright browser
-        run: |
-          npm install --no-audit --no-fund
-          npx --no-install playwright install --with-deps chromium
+      - name: Install Playwright browser
+        run: npx --no-install playwright install --with-deps chromium
       - name: Responsive visual gate
         run: node tests/dashboard_web_visual_test.js
       - name: Upload validation artifacts
