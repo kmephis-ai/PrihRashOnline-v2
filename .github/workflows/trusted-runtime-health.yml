@@ -114,11 +114,39 @@ jobs:
             local runtime_reason
             runtime_reason="$(grep -oE 'RUNTIME_HEALTH_[A-Z_]+' <<<"${safe_error}" | head -1 || true)"
             if [[ -n "${runtime_reason}" ]]; then reason="${runtime_reason}"; fi
-            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project|GCP project ID is not set' <<<"${safe_error}"; then reason='STANDARD_CLOUD_PROJECT_REQUIRED'; fi
-            if grep -Eqi 'API executable|not published|not deployed|deployment|NOT_FOUND' <<<"${safe_error}"; then reason='API_EXECUTABLE_UNAVAILABLE'; fi
-            if grep -Eqi 'PERMISSION_DENIED|insufficient.*scope|unauthorized|NOT_AUTHORIZED|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${safe_error}"; then reason='OAUTH_EXECUTION_UNAUTHORIZED'; fi
+            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project|GCP project ID is not set|same Cloud Platform project|caller does not have permission' <<<"${safe_error}"; then reason='COMMON_STANDARD_CLOUD_PROJECT_REQUIRED'; fi
+            if grep -Eqi 'API executable|not published|not deployed|deployment|NOT_FOUND|Script function not found' <<<"${safe_error}"; then reason='API_EXECUTABLE_UNAVAILABLE'; fi
+            if grep -Eqi 'insufficient.*scope|Request had insufficient authentication scopes' <<<"${safe_error}"; then reason='OAUTH_PROJECT_SCOPES_REQUIRED'; fi
+            if grep -Eqi 'PERMISSION_DENIED|unauthorized|NOT_AUTHORIZED|make sure you have permission to run the script function|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${safe_error}"; then reason='OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED'; fi
             printf '%s' "${reason}"
           }
+
+          # scripts.run requires a caller OAuth client from the same standard Cloud project.
+          # Clasp exposes only the client type; never publish clientId/user identity.
+          set +e
+          AUTH_OUTPUT="$(${CLASP} show-authorized-user --json 2>&1)"
+          AUTH_STATUS=$?
+          set -e
+          AUTH_JSON="$(awk 'found || /^[[:space:]]*\{/ {found=1; print}' <<<"${AUTH_OUTPUT}")"
+          CLIENT_TYPE="$(jq -r '.clientType // empty' <<<"${AUTH_JSON}" 2>/dev/null || true)"
+          if [[ "${AUTH_STATUS}" -ne 0 || -z "${CLIENT_TYPE}" ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=OAUTH_CLIENT_PREFLIGHT_FAILED" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${CLIENT_TYPE}" == 'google-provided' ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=CUSTOM_OAUTH_CLIENT_REQUIRED" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${CLIENT_TYPE}" != 'user-provided' ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=OAUTH_CLIENT_TYPE_UNSUPPORTED" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # Phase 1: prove owner-authenticated Execution API transport independently of Sheets.
           set +e
@@ -134,9 +162,9 @@ jobs:
             exit 0
           fi
 
-          # Phase 2: execute the exact-build/read-only workbook health. Clasp can emit
+          # Phase 2: execute exact-build/read-only workbook health. Clasp can emit
           # Apps Script exceptions with CLI exit 0, so token absence always triggers
-          # bounded error classification regardless of the process exit code.
+          # bounded error classification regardless of process exit code.
           set +e
           HEALTH_OUTPUT="$(${CLASP} run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>&1)"
           HEALTH_STATUS=$?

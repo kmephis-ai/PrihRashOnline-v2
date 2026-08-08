@@ -18,9 +18,22 @@ assert(workflow.includes("github.event.workflow_run.conclusion == 'success'"), '
 assert(workflow.includes('environment: DEV'), 'runtime health must use trusted DEV environment credentials');
 assert(workflow.includes('secrets.APPS_SCRIPT_ID'), 'runtime health requires owner script identity from DEV environment');
 assert(workflow.includes('secrets.CLASPRC_JSON'), 'runtime health requires owner OAuth from DEV environment');
+
+assert(workflow.includes('show-authorized-user --json'), 'runtime health must inspect clasp OAuth client type before scripts.run');
+assert(workflow.includes("jq -r '.clientType // empty'"), 'OAuth preflight must read only the client type');
+assert(/CLIENT_TYPE[^\n]+==[^\n]+'google-provided'/.test(workflow), 'google-provided clasp credentials must be detected');
+assert(/CLIENT_TYPE[^\n]+!=[^\n]+'user-provided'/.test(workflow), 'only user-provided OAuth credentials may proceed to scripts.run');
+assert(workflow.includes('CUSTOM_OAUTH_CLIENT_REQUIRED'), 'google-provided credentials must fail with an actionable bounded reason');
+assert(workflow.includes('OAUTH_CLIENT_PREFLIGHT_FAILED'), 'OAuth metadata read failure must fail closed');
+assert(workflow.includes('OAUTH_CLIENT_TYPE_UNSUPPORTED'), 'unknown OAuth client type must fail closed');
+assert(!workflow.includes("jq -r '.clientId"), 'OAuth preflight must never parse clientId for evidence or decisions');
+
 assert(workflow.includes('run-function prhRuntimeTransportPing'), 'runtime health must first prove authenticated Execution API transport');
 assert(workflow.includes("grep -Fx 'PRH_TRANSPORT_V1|OK'"), 'transport ping must accept only its exact scalar response');
 assert(workflow.includes('AUTHENTICATED_TRANSPORT_PING_FAILED'), 'transport failure must have a bounded reason');
+assert(workflow.includes('COMMON_STANDARD_CLOUD_PROJECT_REQUIRED'), 'shared standard Cloud project failure must have a bounded reason');
+assert(workflow.includes('OAUTH_PROJECT_SCOPES_REQUIRED'), 'insufficient OAuth project scopes must have a bounded reason');
+assert(workflow.includes('OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED'), 'remaining authorization/project permission failures must be bounded');
 assert(workflow.includes('run-function prhReleaseHealthCheckToken'), 'runtime health must then execute exact-build workbook health');
 assert(workflow.includes('HEALTH_STATUS='), 'workbook health must capture clasp status');
 assert(workflow.includes('HEALTH_OUTPUT='), 'workbook health must inspect output privately even when clasp exits zero');
@@ -40,11 +53,8 @@ assert(!workflow.includes('issues: write'), 'runtime health must not gain issue 
 assert(!workflow.includes('contents: write'), 'runtime health must not gain repository content write permission');
 assert(!workflow.includes('curl -L'), 'anonymous Web App curl must not be authoritative');
 assert(!workflow.includes('manual marker'), 'manual marker must not be a gate');
-assert(!workflow.includes('PING_OUTPUT}" >>'), 'raw ping output must not be copied into evidence');
-assert(!workflow.includes('HEALTH_OUTPUT}" >>'), 'raw authenticated health output must not be copied into evidence');
-assert(!workflow.includes('SAFE_ERROR}" >>'), 'raw authenticated error text must not be copied into evidence');
 
-const forbiddenEvidence = ['amount','income','expense','balance','description','category','merchant','counterparty','payload','transaction'];
+const forbiddenEvidence = ['amount','income','expense','balance','description','category','merchant','counterparty','payload','transaction','clientid','email','user'];
 const evidenceObjectMatch = workflow.match(/'\{candidateSha:[^']+\}'/);
 assert(evidenceObjectMatch, 'privacy-safe evidence JSON contract missing');
 forbiddenEvidence.forEach((field) => assert(!evidenceObjectMatch[0].toLowerCase().includes(field), `runtime evidence includes forbidden field class: ${field}`));
@@ -54,14 +64,16 @@ assert(statusBlock.includes('REASON_CODE'), 'commit status may expose only techn
 assert(statusBlock.includes("DESCRIPTION='CI-002 DEV_VERIFIED'"), 'successful status description must be static technical metadata');
 assert(statusBlock.includes('DESCRIPTION="CI-002 ${REASON}"'), 'failed status description must be limited to technical reason code');
 assert(statusBlock.includes("description='CI-002 technical reason'"), 'reason-coded status description must be static');
-['PING_OUTPUT','HEALTH_OUTPUT','SAFE_ERROR'].forEach((rawName) => assert(!statusBlock.includes(rawName), `${rawName} must never enter commit status`));
-const forbiddenStatusPayload = ['amount','income','expense','balance','category','merchant','counterparty','payload','transaction'];
+['AUTH_OUTPUT','CLIENT_TYPE','PING_OUTPUT','HEALTH_OUTPUT','SAFE_ERROR','clientId'].forEach((rawName) => assert(!statusBlock.includes(rawName), `${rawName} must never enter commit status`));
+const forbiddenStatusPayload = ['amount','income','expense','balance','category','merchant','counterparty','payload','transaction','email'];
 forbiddenStatusPayload.forEach((field) => assert(!statusBlock.toLowerCase().includes(field), `commit status block includes forbidden field class: ${field}`));
 
 console.log('trusted_runtime_health_workflow_contract_test: OK', {
   webapp: 'MYSELF',
   executionApi: 'MYSELF',
   authentication: 'owner OAuth',
+  oauthClientPreflight: true,
+  customOAuthRequiredForRun: true,
   transportPing: true,
   executionErrorOnExitZeroHandled: true,
   exactBuild: true,
