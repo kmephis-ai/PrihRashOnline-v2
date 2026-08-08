@@ -1,0 +1,182 @@
+name: Trusted Runtime Health
+
+on:
+  workflow_run:
+    workflows: [Trusted DEV Deploy]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: trusted-runtime-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: DEV
+    env:
+      DEPLOY_RUN_ID: ${{ github.event.workflow_run.id }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Checkout trusted default-branch health policy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Set up trusted Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: trusted/package-lock.json
+
+      - name: Install trusted locked tooling
+        working-directory: trusted
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Resolve immutable deployed candidate evidence
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || {
+            echo '::error::Trusted runtime health must execute from the default branch.'
+            exit 1
+          }
+          rm -rf "${RUNNER_TEMP}/deploy-evidence" "${RUNNER_TEMP}/candidate"
+          mkdir -p "${RUNNER_TEMP}/deploy-evidence" "${RUNNER_TEMP}/candidate"
+          gh run download "${DEPLOY_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --dir "${RUNNER_TEMP}/deploy-evidence"
+          EVIDENCE_FILE="$(find "${RUNNER_TEMP}/deploy-evidence" -type f -name evidence.json -print -quit)"
+          [[ -n "${EVIDENCE_FILE}" ]] || { echo '::error::Trusted deploy evidence.json not found.'; exit 1; }
+          CANDIDATE_SHA="$(jq -r '.candidateSha' "${EVIDENCE_FILE}")"
+          SOURCE_RUN_ID="$(jq -r '.sourceRunId' "${EVIDENCE_FILE}")"
+          DEPLOY_ARTIFACT_HASH="$(jq -r '.artifactHash' "${EVIDENCE_FILE}")"
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::Invalid candidate SHA in trusted deploy evidence.'; exit 1; }
+          [[ "${SOURCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo '::error::Invalid source validation run ID.'; exit 1; }
+          [[ "${DEPLOY_ARTIFACT_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid artifact hash in trusted deploy evidence.'; exit 1; }
+          gh run download "${SOURCE_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name "apps-script-candidate-${CANDIDATE_SHA}" \
+            --dir "${RUNNER_TEMP}/candidate"
+          MANIFEST="${RUNNER_TEMP}/candidate/manifest.json"
+          [[ -f "${MANIFEST}" ]] || { echo '::error::Candidate manifest not found.'; exit 1; }
+          SOURCE_TREE_HASH="$(jq -r '.sourceTreeHash' "${MANIFEST}")"
+          ARTIFACT_HASH="$(jq -r '.artifactHash' "${MANIFEST}")"
+          [[ "${SOURCE_TREE_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid source tree hash.'; exit 1; }
+          [[ "${ARTIFACT_HASH}" == "${DEPLOY_ARTIFACT_HASH}" ]] || { echo '::error::Deploy evidence artifact hash differs from validated candidate.'; exit 1; }
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "source_run_id=${SOURCE_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "source_tree_hash=${SOURCE_TREE_HASH}" >> "$GITHUB_OUTPUT"
+          echo "artifact_hash=${ARTIFACT_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure authenticated Apps Script execution
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${APPS_SCRIPT_ID}" ]] || { echo '::error::Missing APPS_SCRIPT_ID'; exit 1; }
+          [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          mkdir -p "${RUNNER_TEMP}/health-run"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > "${RUNNER_TEMP}/health-run/.clasp.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/health-run/.clasp.json','utf8'));"
+
+      - name: Run authenticated exact-build health
+        id: probe
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
+          PARAMS="$(jq -nc --arg candidateSha "${CANDIDATE_SHA}" --arg sourceTreeHash "${SOURCE_TREE_HASH}" '[{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash}]')"
+          cd "${RUNNER_TEMP}/health-run"
+          set +e
+          HEALTH_OUTPUT="$(${CLASP} run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>&1)"
+          CLASP_STATUS=$?
+          set -e
+          if [[ "${CLASP_STATUS}" -ne 0 ]]; then
+            REASON='AUTHENTICATED_EXECUTION_FAILED'
+            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project' <<<"${HEALTH_OUTPUT}"; then REASON='STANDARD_CLOUD_PROJECT_REQUIRED'; fi
+            if grep -Eqi 'API executable|not deployed|deployment' <<<"${HEALTH_OUTPUT}"; then REASON='API_EXECUTABLE_UNAVAILABLE'; fi
+            if grep -Eqi 'PERMISSION_DENIED|insufficient.*scope|unauthorized|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${HEALTH_OUTPUT}"; then REASON='OAUTH_EXECUTION_UNAUTHORIZED'; fi
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          TOKEN="$(grep -oE "PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+" <<<"${HEALTH_OUTPUT}" | head -1 || true)"
+          if [[ -z "${TOKEN}" ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=HEALTH_TOKEN_MISSING_OR_MISMATCH" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          LATENCY_MS="${TOKEN##*|}"
+          echo "result=PASS" >> "$GITHUB_OUTPUT"
+          echo "reason=OK" >> "$GITHUB_OUTPUT"
+          echo "latency_ms=${LATENCY_MS}" >> "$GITHUB_OUTPUT"
+
+      - name: Record privacy-safe runtime evidence
+        if: always()
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          SOURCE_RUN_ID: ${{ steps.candidate.outputs.source_run_id }}
+          SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
+          ARTIFACT_HASH: ${{ steps.candidate.outputs.artifact_hash }}
+          PROBE_RESULT: ${{ steps.probe.outputs.result }}
+          REASON_CODE: ${{ steps.probe.outputs.reason }}
+          LATENCY_MS: ${{ steps.probe.outputs.latency_ms }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p trusted-runtime-health-evidence
+          STATUS='FAILED'
+          [[ "${PROBE_RESULT}" == 'PASS' ]] && STATUS='DEV_VERIFIED'
+          jq -n \
+            --arg candidateSha "${CANDIDATE_SHA}" \
+            --arg sourceTreeHash "${SOURCE_TREE_HASH}" \
+            --arg artifactHash "${ARTIFACT_HASH}" \
+            --arg sourceRunId "${SOURCE_RUN_ID}" \
+            --arg deployRunId "${DEPLOY_RUN_ID}" \
+            --arg status "${STATUS}" \
+            --arg reasonCode "${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}" \
+            --argjson latencyMs "${LATENCY_MS:-0}" \
+            '{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash,artifactHash:$artifactHash,sourceRunId:$sourceRunId,deployRunId:$deployRunId,status:$status,reasonCode:$reasonCode,latencyMs:$latencyMs}' \
+            > trusted-runtime-health-evidence/evidence.json
+
+      - name: Upload trusted runtime health evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-runtime-health-${{ steps.candidate.outputs.candidate_sha }}
+          path: trusted-runtime-health-evidence/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce authenticated runtime health
+        if: always()
+        env:
+          PROBE_RESULT: ${{ steps.probe.outputs.result }}
+          REASON_CODE: ${{ steps.probe.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${PROBE_RESULT}" != 'PASS' ]]; then
+            echo "::error::trusted-runtime-health failed closed: ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
+            exit 1
+          fi
+          echo 'trusted-runtime-health: PASS'
