@@ -1,7 +1,3 @@
-/**
- * Dashboard Web App bootstrap.
- * Keep this file deliberately small and ES5-compatible for Google Apps Script.
- */
 function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
   var template = HtmlService.createTemplateFromFile('DashboardWebApp');
@@ -15,17 +11,24 @@ function doGet(e) {
 function prhOpenWebDashboard() {
   var url = ScriptApp.getService().getUrl();
   if (!url) {
-    SpreadsheetApp.getUi().alert('Web Dashboard', 'Web App is not deployed.', SpreadsheetApp.getUi().ButtonSet.OK);
-    return { status: 'NOT_DEPLOYED' };
+    prhNotify_('Web App not deployed.');
+    return;
   }
 
-  var safeUrl = String(url).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  var html = '<div style="font-family:Arial,sans-serif;padding:20px">' +
-    '<p><a href="' + safeUrl + '" target="_blank" rel="noopener">Открыть дашборд</a></p>' +
-    '</div>';
-  var output = HtmlService.createHtmlOutput(html);
+  var safeUrl = String(url);
+  safeUrl = safeUrl.split('&').join('&amp;');
+  safeUrl = safeUrl.split('<').join('&lt;');
+  safeUrl = safeUrl.split('>').join('&gt;');
+  safeUrl = safeUrl.split(String.fromCharCode(34)).join('&quot;');
+
+  var quote = String.fromCharCode(34);
+  var body = '<p><a href=' + quote + safeUrl + quote +
+    ' target=' + quote + '_blank' + quote +
+    ' rel=' + quote + 'noopener noreferrer' + quote +
+    '>Open Dashboard</a></p>';
+
+  var output = HtmlService.createHtmlOutput(body);
   output.setWidth(420);
-  output.setHeight(160);
-  SpreadsheetApp.getUi().showModalDialog(output, 'ПрихРасхOnline');
-  return { status: 'OPENING', url: url };
+  output.setHeight(140);
+  SpreadsheetApp.getUi().showModalDialog(output, 'PrihRashOnline Dashboard');
 }
