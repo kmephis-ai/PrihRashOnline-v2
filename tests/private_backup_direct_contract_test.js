@@ -8,6 +8,7 @@ const {
   SOURCE_SCHEMA_VERSION,
   MAX_CHUNK_ROWS,
   safeReason,
+  canonicalDeployBytes,
   localSourceTreeHash,
   validateDescribe
 } = require('../tools/private-backup-direct');
@@ -17,6 +18,20 @@ assert.strictEqual(SOURCE_SCHEMA_VERSION, 1);
 assert.strictEqual(MAX_CHUNK_ROWS, 200);
 assert.strictEqual(safeReason(new Error('BACKUP_SOURCE_METADATA_INVALID'), 'FALLBACK'), 'BACKUP_SOURCE_METADATA_INVALID');
 assert.strictEqual(safeReason(new Error('private value'), 'BACKUP_DIRECT_FAILED'), 'BACKUP_DIRECT_FAILED');
+
+assert.strictEqual(
+  canonicalDeployBytes(Buffer.from('alpha\r\nbeta\r\n', 'utf8')).toString('utf8'),
+  'alpha\nbeta\n'
+);
+assert.strictEqual(
+  canonicalDeployBytes(Buffer.from('alpha\nbeta\n', 'utf8')).toString('utf8'),
+  'alpha\nbeta\n'
+);
+assert.notStrictEqual(
+  canonicalDeployBytes(Buffer.from('alpha\r\nbeta\r\n', 'utf8')).toString('utf8'),
+  canonicalDeployBytes(Buffer.from('alpha\r\ngamma\r\n', 'utf8')).toString('utf8')
+);
+assert.throws(() => canonicalDeployBytes('not-a-buffer'), /BACKUP_LOCAL_SOURCE_BYTES_INVALID/);
 
 const repoRoot = path.join(__dirname, '..');
 const sourceTreeHash = localSourceTreeHash(repoRoot);
@@ -46,6 +61,7 @@ assert(source.includes("'prhBackupReadChunk'"));
 assert(source.includes('devMode: false'));
 assert(source.includes('runtimeSourceTreeBound: true'));
 assert(source.includes('writeEncryptedBackup'));
+assert(source.includes('canonicalDeployBytes(fs.readFileSync(sourcePath))'));
 assert(!source.includes('/deployments'));
 assert(!source.includes('console.log'));
 assert(!/process\.stdout\.write\([^\n]*(clientId|clientSecret|refreshToken|accessToken|deploymentId|sheetName)/.test(source));
@@ -53,6 +69,7 @@ assert(!/process\.stdout\.write\([^\n]*(clientId|clientSecret|refreshToken|acces
 console.log('private_backup_direct_contract_test: OK', {
   managementApiDependency: false,
   runtimeSourceTreeBinding: true,
+  crossPlatformEolBinding: true,
   encryptionBeforeOutput: true,
   credentialOutput: false
 });
