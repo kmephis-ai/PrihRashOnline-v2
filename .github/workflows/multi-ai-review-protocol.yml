@@ -1,0 +1,38 @@
+name: Multi-AI review protocol
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'AGENTS.md'
+      - 'llms.txt'
+      - '.ai-context/**'
+      - 'tools/multi-ai-review-protocol.js'
+      - 'tests/multi_ai_review_protocol_contract_test.js'
+      - 'docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md'
+      - 'docs/PROJECT_STATUS.md'
+      - 'README.md'
+      - '.github/workflows/multi-ai-review-protocol.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multi-ai-review-protocol-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Multi-AI review protocol
+        run: node tests/multi_ai_review_protocol_contract_test.js
