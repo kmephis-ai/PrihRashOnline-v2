@@ -1,5 +1,9 @@
 # AIENG-003 — read-only multi-AI review protocol
 
+`protocol_version: 1`  
+`packet_schema: PRH_MULTI_AI_REVIEW_PACKET_V1`  
+`report_schema: PRH_MULTI_AI_REVIEW_REPORT_V1`
+
 ## Цель
 
 Дать primary Roadmap writer независимую проверку exact candidate по четырём областям риска, не создавая дополнительных writers и не превращая мнение модели в release authority.
