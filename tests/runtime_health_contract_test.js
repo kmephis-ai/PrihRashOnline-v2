@@ -57,6 +57,10 @@ function createContext(options = {}) {
   return { context, readCounter };
 }
 
+const transportOnly = createContext({ noSpreadsheet: true });
+assert.strictEqual(transportOnly.context.prhRuntimeTransportPing(), 'PRH_TRANSPORT_V1|OK');
+assert.strictEqual(transportOnly.readCounter.value, 0, 'transport ping must not touch workbook data');
+
 const healthy = createContext();
 const result = healthy.context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash });
 assert.strictEqual(result.ok, true);
@@ -125,6 +129,7 @@ assert.throws(
 console.log('runtime_health_contract_test: OK', {
   exactSha: true,
   sourceTreeHash: true,
+  transportPing: true,
   privateSchemaRead: true,
   scalarEntrypoint: true,
   financialPayload: false
