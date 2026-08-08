@@ -70,9 +70,27 @@ assert.strictEqual(result.readCheck, true);
 assert(Number.isInteger(result.latencyMs) && result.latencyMs >= 0);
 assert.strictEqual(healthy.readCounter.value, 1, 'health probe must prove read capability exactly once');
 
+const tokenHealthy = createContext();
+const token = tokenHealthy.context.prhReleaseHealthCheckToken({ candidateSha, sourceTreeHash });
+const tokenParts = token.split('|');
+assert.strictEqual(tokenParts.length, 9, 'health token schema must remain fixed');
+assert.deepStrictEqual(tokenParts.slice(0, 8), [
+  'PRH_HEALTH_V1',
+  'OK',
+  candidateSha,
+  sourceTreeHash,
+  '1',
+  'V8',
+  '3',
+  '1'
+]);
+assert(/^\d+$/.test(tokenParts[8]), 'health token latency must be a non-negative integer');
+assert.strictEqual(tokenHealthy.readCounter.value, 1, 'token entrypoint must perform exactly one read proof');
+
 const publicResult = JSON.parse(JSON.stringify(result));
 ['amount','income','expense','balance','description','category','row','value','payload','account'].forEach((forbidden) => {
   assert(!Object.keys(publicResult).some((key) => key.toLowerCase().includes(forbidden)), `health response leaks forbidden field class: ${forbidden}`);
+  assert(!token.toLowerCase().includes(forbidden), `health token leaks forbidden field class: ${forbidden}`);
 });
 
 assert.throws(
@@ -108,5 +126,6 @@ console.log('runtime_health_contract_test: OK', {
   exactSha: true,
   sourceTreeHash: true,
   privateSchemaRead: true,
+  scalarEntrypoint: true,
   financialPayload: false
 });
