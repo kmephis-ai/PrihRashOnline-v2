@@ -31,7 +31,7 @@ assert(!workflow.includes("jq -r '.clientId"), 'OAuth preflight must never parse
 
 assert(workflow.includes('tools/apps-script-api-exec.js'), 'runtime health must use the trusted direct scripts.run executor');
 assert(workflow.includes("prhRuntimeTransportPing '[]'"), 'runtime health must first prove authenticated Execution API transport');
-assert(workflow.includes("PING_TOKEN}" + " != 'PRH_TRANSPORT_V1|OK'"), 'transport ping must accept only its exact scalar response');
+assert(/PING_TOKEN[^\n]+!=[^\n]+'PRH_TRANSPORT_V1\|OK'/.test(workflow), 'transport ping must accept only its exact scalar response');
 assert(workflow.includes('prhReleaseHealthCheckToken "${PARAMS}"'), 'runtime health must then execute exact-build workbook health');
 assert(!workflow.includes('run-function prhRuntimeTransportPing'), 'clasp run-function must not be authoritative for owner-only executionApi');
 assert(!workflow.includes('run-function prhReleaseHealthCheckToken'), 'exact-build health must use direct scripts.run, not clasp run-function');
