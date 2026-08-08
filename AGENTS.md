@@ -13,14 +13,15 @@ PrihRashOnline-v2 — maintainable household-finance system. Текущий runt
 При конфликте источников используйте порядок ниже и **fail closed** вместо усреднения противоречий:
 
 1. security/privacy/cost/irreversible-action policy boundaries;
-2. canonical `Master Audit v2.1`, `Executable GitHub Roadmap v2.2`, `AI Development Playbook v1.0`, когда они предоставлены task context;
-3. единственный active GitHub Roadmap Issue (`roadmap_id`, dependencies, acceptance, rollback, privacy/cost class);
-4. executable code/tests/workflows на exact candidate SHA;
-5. architecture/ADR/operations docs;
-6. README/user docs;
-7. historical CHANGELOG/release notes.
+2. repository `docs/ROADMAP.md` — каноническая `Executable GitHub Roadmap v2.3` для порядка работ и dependencies;
+3. внешние `Master Audit v2.1` и `AI Development Playbook v1.0`, когда они явно предоставлены в task context;
+4. единственный active GitHub Roadmap Issue (`roadmap_id`, live status, dependencies, acceptance, rollback, privacy/cost class);
+5. executable code/tests/workflows на exact candidate SHA;
+6. architecture/ADR/operations docs;
+7. README/user docs;
+8. historical CHANGELOG/release notes.
 
-Stale lower-priority source никогда не разрешает обходить current machine gate. Если canonical external context недоступен, не придумывайте его содержимое: используйте active Issue + tracked repository contracts и сохраняйте uncertainty fail closed.
+Stale lower-priority source никогда не разрешает обходить current machine gate. Chat history/memory не является authority. Live lifecycle берётся из GitHub Issues, а не из плановой `Status` колонки Roadmap.
 
 ## 3. Autonomy Contract v2
 
@@ -174,6 +175,8 @@ UI не владеет financial semantics. Google/Yandex details остаютс
 
 Если меняется contract, trust boundary, data classification, delivery path, financial semantics, migration invariant, provider/cost policy или operator procedure — синхронизируйте tracked docs в том же PR. Long-lived architecture decision оформляется ADR. Historical changelog не является current instruction.
 
+Нормативный human-readable текст подчиняется `LANG-RU` из `docs/ROADMAP.md`: русский — основной язык; English сохраняется для machine-facing identifiers/API/schema/library/protocol names и технических путей, где этого требует tooling.
+
 ## 15. Definition of Done
 
 **Definition of Done** требует:
@@ -212,4 +215,13 @@ Multi-AI PASS — только supplementary evidence. Он никогда не 
 
 ## 18. Repository AI context
 
-Start with `AGENTS.md`, `.ai-context/PROJECT_CONTEXT.md`, `llms.txt`, active Roadmap Issue/task packet, затем relevant architecture/data/operations contracts. AIENG-001 и AIENG-002 — DONE; AIENG-003 завершает `MASTER-G1` только после собственного Main Verification.
+Start with:
+
+- `AGENTS.md`;
+- `docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.3; live lifecycle берётся из GitHub Issues;
+- `.ai-context/PROJECT_CONTEXT.md`;
+- `llms.txt`;
+- active Roadmap Issue/task packet;
+- relevant architecture/data/operations contracts.
+
+AIENG-001 и AIENG-002 — DONE; AIENG-003 завершает `MASTER-G1` только после собственного Main Verification.
