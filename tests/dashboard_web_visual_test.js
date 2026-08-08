@@ -38,8 +38,17 @@ async function inspectOverview(page, viewport) {
     const month = document.getElementById('month-select');
     const filterHeights = Array.from(document.querySelectorAll('[data-testid="filter-card"]'))
       .map((el) => Math.round(el.getBoundingClientRect().height));
-    const kpiHeights = Array.from(document.querySelectorAll('[data-testid="kpi-card"]'))
-      .map((el) => Math.round(el.getBoundingClientRect().height));
+    const kpiRects = Array.from(document.querySelectorAll('[data-testid="kpi-card"]'))
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return { top:Math.round(rect.top), height:Math.round(rect.height) };
+      });
+    const rowMap = {};
+    kpiRects.forEach((rect) => {
+      const rowKey = Object.keys(rowMap).find((key) => Math.abs(Number(key) - rect.top) <= 2) || String(rect.top);
+      if (!rowMap[rowKey]) rowMap[rowKey] = [];
+      rowMap[rowKey].push(rect.height);
+    });
     const clipped = Array.from(document.querySelectorAll('.filter-card,.kpi-card,.secondary-card,.panel-title,.metric-value,.kpi-value,.secondary-value,.tab,.view-context'))
       .filter((el) => el.scrollWidth > el.clientWidth + 3 || el.scrollHeight > el.clientHeight + 3)
       .map((el) => el.textContent.trim().replace(/\s+/g,' ').slice(0,80));
@@ -62,7 +71,7 @@ async function inspectOverview(page, viewport) {
       chartCount:Array.from(document.querySelectorAll('.chart-host')).filter((el) => el.querySelector('svg,.chart-empty')).length,
       scrollbar:mobile ? getComputedStyle(document.getElementById('tabs')).scrollbarWidth : null,
       filterHeights,
-      kpiHeights
+      kpiRows:Object.values(rowMap)
     };
   }, { maxPageHeight:viewport.maxPageHeight, mobile:viewport.width <= 760 });
 }
@@ -81,7 +90,9 @@ function assertOverview(result, fixture, viewport) {
   expect(result.chartCount === 2, `[${label}] charts not rendered`);
   expect(result.structure.includes(fixture.monthStructure[0].label), `[${label}] synthetic structure missing`);
   if (viewport.width > 1250) expect(spread(result.filterHeights) <= 2, `[${label}] filter height mismatch`);
-  expect(spread(result.kpiHeights) <= 4, `[${label}] KPI height mismatch`);
+  result.kpiRows.forEach((row, index) => {
+    expect(spread(row) <= 4, `[${label}] KPI row ${index + 1} height mismatch`);
+  });
   if (result.scrollbar) expect(result.scrollbar === 'none', `[${label}] mobile scrollbar visible`);
 }
 
