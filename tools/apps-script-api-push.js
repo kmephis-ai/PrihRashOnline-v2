@@ -3,13 +3,13 @@
 const fs = require('fs');
 const path = require('path');
 
-function boundedHttpReason(statusCode, errorStatus) {
+function boundedHttpReason(statusCode, errorStatus, prefix = 'APPS_SCRIPT_CONTENT_HTTP') {
   const code = Number.isInteger(Number(statusCode)) && Number(statusCode) >= 100 && Number(statusCode) <= 599
     ? String(Number(statusCode))
     : '0';
   const rawStatus = String(errorStatus || '').toUpperCase();
   const status = /^[A-Z][A-Z0-9_]{0,39}$/.test(rawStatus) ? rawStatus : 'UNKNOWN';
-  return `APPS_SCRIPT_CONTENT_HTTP_${code}_${status}`;
+  return `${prefix}_${code}_${status}`;
 }
 
 function safeFileToken(name) {
@@ -99,6 +99,43 @@ function classifyFailure(statusCode, payloadText, errorStatus, payloadJson, file
     return 'APPS_SCRIPT_API_SERVER_ERROR';
   }
   return boundedHttpReason(statusCode, errorStatus);
+}
+
+function classifyProjectLookupFailure(statusCode, payloadJson) {
+  const error = payloadJson && payloadJson.error;
+  const status = String(error && error.status || '').toUpperCase();
+  if (statusCode === 400 || status === 'INVALID_ARGUMENT') return 'APPS_SCRIPT_ID_OR_PROJECT_LOOKUP_INVALID';
+  if (statusCode === 401 || statusCode === 403 || status === 'PERMISSION_DENIED' || status === 'UNAUTHENTICATED') {
+    return 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED';
+  }
+  if (statusCode === 404 || status === 'NOT_FOUND') return 'APPS_SCRIPT_PROJECT_UNAVAILABLE';
+  return boundedHttpReason(statusCode, status, 'APPS_SCRIPT_PROJECT_LOOKUP_HTTP');
+}
+
+function validateRemoteContent(remoteJson, candidateFiles) {
+  const remoteFiles = remoteJson && remoteJson.files;
+  if (!Array.isArray(remoteFiles) || remoteFiles.length === 0) return 'APPS_SCRIPT_REMOTE_CONTENT_INVALID';
+  const names = new Set();
+  let manifestCount = 0;
+  const remoteByName = new Map();
+  for (const file of remoteFiles) {
+    const name = String(file && file.name || '');
+    const type = String(file && file.type || '');
+    if (!name || !type) return 'APPS_SCRIPT_REMOTE_CONTENT_INVALID';
+    if (names.has(name)) return `APPS_SCRIPT_REMOTE_DUPLICATE_${safeFileToken(name)}`;
+    names.add(name);
+    remoteByName.set(name, type);
+    if (name === 'appsscript' && type === 'JSON') manifestCount += 1;
+  }
+  if (manifestCount !== 1) return 'APPS_SCRIPT_REMOTE_MANIFEST_INVALID';
+
+  for (const file of candidateFiles || []) {
+    if (!remoteByName.has(file.name)) continue;
+    if (remoteByName.get(file.name) !== file.type) {
+      return `DEPLOY_REMOTE_TYPE_MISMATCH_${safeFileToken(file.name)}`;
+    }
+  }
+  return '';
 }
 
 function toApiFile(fileName, source) {
@@ -199,10 +236,36 @@ async function main() {
       return;
     }
 
+    const authHeaders = { authorization: `Bearer ${accessToken}` };
+    const projectResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}`, {
+      method: 'GET',
+      headers: authHeaders
+    });
+    const projectPayload = await readResponse(projectResponse);
+    if (!projectResponse.ok || !projectPayload.json || typeof projectPayload.json !== 'object') {
+      emit({ ok: false, reason: classifyProjectLookupFailure(projectResponse.status, projectPayload.json) });
+      return;
+    }
+
+    const remoteResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/content`, {
+      method: 'GET',
+      headers: authHeaders
+    });
+    const remotePayload = await readResponse(remoteResponse);
+    if (!remoteResponse.ok || !remotePayload.json) {
+      emit({ ok: false, reason: classifyProjectLookupFailure(remoteResponse.status, remotePayload.json) });
+      return;
+    }
+    const remoteProblem = validateRemoteContent(remotePayload.json, files);
+    if (remoteProblem) {
+      emit({ ok: false, reason: remoteProblem });
+      return;
+    }
+
     const pushResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/content`, {
       method: 'PUT',
       headers: {
-        authorization: `Bearer ${accessToken}`,
+        ...authHeaders,
         'content-type': 'application/json'
       },
       body: JSON.stringify({ files })
@@ -237,6 +300,8 @@ module.exports = {
   safeFileToken,
   extractInvalidContentReason,
   classifyFailure,
+  classifyProjectLookupFailure,
+  validateRemoteContent,
   toApiFile,
   readDeployFiles
 };
