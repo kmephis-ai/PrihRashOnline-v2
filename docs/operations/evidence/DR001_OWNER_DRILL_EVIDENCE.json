@@ -1,0 +1,20 @@
+{
+  "schema": "DR-001-EVIDENCE-v1",
+  "status": "PASS",
+  "backupCipherSha256": "6a9bf80fc56a7fa7f4b68c52f8005b0b7458155b4290cee96a1e2484dfdb1dd2",
+  "checksum": "PASS",
+  "reconciliation": "PASS",
+  "unexplainedMismatch": 0,
+  "rpoMs": 63042,
+  "rtoMs": 2924,
+  "temporaryTargetDestroyed": true,
+  "sourceBuildBound": true,
+  "runtimeSourceTreeBound": true,
+  "encryptedBackupCreated": true,
+  "encryptedBackupVerified": true,
+  "authoritativeExecution": "trusted-owner-machine",
+  "financialPayloadPublished": false,
+  "oauthMaterialPublished": false,
+  "backupBytesPublished": false,
+  "encryptionKeyPublished": false
+}
