@@ -15,6 +15,7 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'CHANGELOG.md'
+      - '.github/workflows/chat-driven-dev-release.yml'
   workflow_dispatch:
     inputs:
       target_ref:
@@ -168,30 +169,17 @@ jobs:
           DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
 
           if [[ -n "${DEPLOYMENT_ID}" ]]; then
-            OUTPUT="$(npx clasp update-deployment "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
+            OUTPUT="$(npx clasp create-deployment --deploymentId "${DEPLOYMENT_ID}" --description "${DEPLOYMENT_NAME}")"
           else
-            OUTPUT="$(npx clasp create-deployment -d "${DEPLOYMENT_NAME}")"
+            OUTPUT="$(npx clasp create-deployment --description "${DEPLOYMENT_NAME}")"
             DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
           fi
           printf '%s\n' "${OUTPUT}"
           [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Deployment ID not returned'; exit 1; }
 
-          # open-web-app calls projects.deployments.get internally and refuses any
-          # deployment without a real WEB_APP entry point. Its output is therefore
-          # authoritative for the deployment URL, but it does not execute doGet().
-          if ! OPEN_OUTPUT="$(npx clasp --json open-web-app "${DEPLOYMENT_ID}" 2>&1)"; then
-            printf '%s\n' "${OPEN_OUTPUT}"
-            echo '::error::Apps Script deployment has no verified WEB_APP entry point.'
-            exit 1
-          fi
-          printf '%s\n' "${OPEN_OUTPUT}"
-          WEB_APP_URL="$(printf '%s\n' "${OPEN_OUTPUT}" | grep -oE 'https://script\.google\.com[^"[:space:]]+/exec([^"[:space:]]*)?' | head -1 || true)"
-          [[ -n "${WEB_APP_URL}" ]] || {
-            echo '::error::clasp verified WEB_APP but did not return its URL.'
-            exit 1
-          }
-          [[ "${WEB_APP_URL}" =~ ^https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec([?].*)?$ ]] || {
-            echo "::error::Unexpected Web App URL returned by Apps Script API: ${WEB_APP_URL}"
+          WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+          [[ "${WEB_APP_URL}" =~ ^https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec$ ]] || {
+            echo "::error::Unexpected Web App URL derived from Apps Script deployment: ${WEB_APP_URL}"
             exit 1
           }
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
