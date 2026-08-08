@@ -38,6 +38,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -46,6 +47,8 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Supply-chain policy
         run: node tools/supply-chain-scan.js
+      - name: CI trust-boundary policy
+        run: node tools/ci-trust-boundary-scan.js
       - name: Secret scan
         run: node tools/secret-scan.js
       - name: Privacy public-data scan
@@ -67,6 +70,19 @@ jobs:
         run: npx --no-install playwright install --with-deps chromium
       - name: Responsive visual gate
         run: node tests/dashboard_web_visual_test.js
+      - name: Build immutable Apps Script candidate
+        run: |
+          node tools/build-apps-script-candidate.js \
+            --source . \
+            --out candidate-artifact \
+            --sha "${{ github.event.pull_request.head.sha }}"
+      - name: Upload immutable Apps Script candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: apps-script-candidate-${{ github.event.pull_request.head.sha }}
+          path: candidate-artifact/
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload validation artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

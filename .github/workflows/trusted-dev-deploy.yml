@@ -1,0 +1,172 @@
+name: Trusted DEV Deploy
+
+on:
+  workflow_run:
+    workflows: [PR Validation]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: trusted-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: DEV
+    env:
+      CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Checkout trusted default-branch policy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Set up trusted Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: trusted/package-lock.json
+
+      - name: Validate immutable candidate and source PR
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || {
+            echo '::error::Trusted deploy workflow must execute from the repository default branch.'
+            exit 1
+          }
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo '::error::Candidate SHA must be immutable 40-char lowercase hex.'
+            exit 1
+          }
+          [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]] || {
+            echo '::error::Successful PR Validation run has no source PR.'
+            exit 1
+          }
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          [[ "$(jq -r '.head.sha' <<<"${PR_JSON}")" == "${CANDIDATE_SHA}" ]] || {
+            echo '::error::PR head no longer matches the immutable validated candidate.'
+            exit 1
+          }
+          [[ "$(jq -r '.head.repo.full_name' <<<"${PR_JSON}")" == "${GITHUB_REPOSITORY}" ]] || {
+            echo '::error::Fork/cross-repository candidates cannot receive DEV deployment credentials.'
+            exit 1
+          }
+          [[ "$(jq -r '.base.ref' <<<"${PR_JSON}")" == "${DEFAULT_BRANCH}" ]] || {
+            echo '::error::Candidate PR must target the default branch.'
+            exit 1
+          }
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Install trusted locked tooling
+        working-directory: trusted
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Download verified candidate artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/promoted"
+          gh run download "${SOURCE_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name "apps-script-candidate-${CANDIDATE_SHA}" \
+            --dir "${RUNNER_TEMP}/promoted"
+          test -f "${RUNNER_TEMP}/promoted/manifest.json"
+
+      - name: Checkout exact candidate without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: candidate-source
+          persist-credentials: false
+
+      - name: Verify candidate artifact against trusted reconstruction
+        shell: bash
+        run: |
+          set -euo pipefail
+          node trusted/tools/build-apps-script-candidate.js \
+            --source candidate-source \
+            --out "${RUNNER_TEMP}/expected" \
+            --sha "${CANDIDATE_SHA}"
+          node trusted/tools/build-apps-script-candidate.js \
+            --verify "${RUNNER_TEMP}/promoted" \
+            --expected "${RUNNER_TEMP}/expected" \
+            --sha "${CANDIDATE_SHA}"
+
+      - name: Prepare verified deploy directory
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${APPS_SCRIPT_ID}" ]] || { echo '::error::Missing APPS_SCRIPT_ID'; exit 1; }
+          [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          rm -rf "${RUNNER_TEMP}/deploy"
+          mkdir -p "${RUNNER_TEMP}/deploy"
+          cp -a "${RUNNER_TEMP}/promoted/files/." "${RUNNER_TEMP}/deploy/"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > "${RUNNER_TEMP}/deploy/.clasp.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/deploy/.clasp.json','utf8'));"
+
+      - name: Push verified candidate with trusted clasp
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/deploy"
+          "${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp" push --force >/dev/null
+
+      - name: Update stable DEV deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/deploy"
+          CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
+          DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
+          DEPLOYMENTS="$(${CLASP} list-deployments || true)"
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+          if [[ -n "${DEPLOYMENT_ID}" ]]; then
+            "${CLASP}" update-deployment "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}" >/dev/null
+          else
+            "${CLASP}" create-deployment -d "${DEPLOYMENT_NAME}" >/dev/null
+          fi
+
+      - name: Record privacy-safe deploy evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p trusted-deploy-evidence
+          ARTIFACT_HASH="$(jq -r '.artifactHash' "${RUNNER_TEMP}/promoted/manifest.json")"
+          jq -n \
+            --arg candidateSha "${CANDIDATE_SHA}" \
+            --arg sourceRunId "${SOURCE_RUN_ID}" \
+            --arg artifactHash "${ARTIFACT_HASH}" \
+            --arg status 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' \
+            '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,artifactHash:$artifactHash,status:$status}' \
+            > trusted-deploy-evidence/evidence.json
+
+      - name: Upload trusted deploy evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-dev-deploy-${{ github.event.workflow_run.head_sha }}
+          path: trusted-deploy-evidence/evidence.json
+          if-no-files-found: error
+          retention-days: 30
