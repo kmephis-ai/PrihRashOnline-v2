@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   actions: read
+  statuses: write
 
 concurrency:
   group: trusted-runtime-health
@@ -61,6 +62,7 @@ jobs:
           SOURCE_RUN_ID="$(jq -r '.sourceRunId' "${EVIDENCE_FILE}")"
           DEPLOY_ARTIFACT_HASH="$(jq -r '.artifactHash' "${EVIDENCE_FILE}")"
           [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::Invalid candidate SHA in trusted deploy evidence.'; exit 1; }
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
           [[ "${SOURCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo '::error::Invalid source validation run ID.'; exit 1; }
           [[ "${DEPLOY_ARTIFACT_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid artifact hash in trusted deploy evidence.'; exit 1; }
           gh run download "${SOURCE_RUN_ID}" \
@@ -73,7 +75,6 @@ jobs:
           ARTIFACT_HASH="$(jq -r '.artifactHash' "${MANIFEST}")"
           [[ "${SOURCE_TREE_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid source tree hash.'; exit 1; }
           [[ "${ARTIFACT_HASH}" == "${DEPLOY_ARTIFACT_HASH}" ]] || { echo '::error::Deploy evidence artifact hash differs from validated candidate.'; exit 1; }
-          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
           echo "source_run_id=${SOURCE_RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "source_tree_hash=${SOURCE_TREE_HASH}" >> "$GITHUB_OUTPUT"
           echo "artifact_hash=${ARTIFACT_HASH}" >> "$GITHUB_OUTPUT"
@@ -166,6 +167,27 @@ jobs:
           path: trusted-runtime-health-evidence/evidence.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish machine-visible runtime status
+        if: always() && steps.candidate.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          PROBE_RESULT: ${{ steps.probe.outputs.result }}
+          REASON_CODE: ${{ steps.probe.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          DESCRIPTION="CI-002 ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
+          if [[ "${PROBE_RESULT}" == 'PASS' ]]; then
+            STATE='success'
+            DESCRIPTION='CI-002 DEV_VERIFIED'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='trusted-runtime-health' \
+            -f description="${DESCRIPTION}" >/dev/null
 
       - name: Enforce authenticated runtime health
         if: always()
