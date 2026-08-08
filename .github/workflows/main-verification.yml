@@ -117,19 +117,17 @@ jobs:
             echo 'reason=ISSUE_STATE_TRANSITION_FAILED' >> "$GITHUB_OUTPUT"
             exit 0
           }
-          cat >> "${UPDATED_BODY_FILE}" <<EOF
-
-```yaml
-main_verification:
-  status: PASS
-  pr: ${PR_NUMBER}
-  candidate_sha: ${CANDIDATE_SHA}
-  merge_sha: ${MERGE_SHA}
-  trusted_dev_deploy: PASS
-  trusted_runtime_health: PASS
-  autonomous_merge: PASS
-```
-EOF
+          {
+            printf '\n\nMain verification evidence:\n\n'
+            printf 'main_verification:\n'
+            printf '  status: PASS\n'
+            printf '  pr: %s\n' "${PR_NUMBER}"
+            printf '  candidate_sha: %s\n' "${CANDIDATE_SHA}"
+            printf '  merge_sha: %s\n' "${MERGE_SHA}"
+            printf '  trusted_dev_deploy: PASS\n'
+            printf '  trusted_runtime_health: PASS\n'
+            printf '  autonomous_merge: PASS\n'
+          } >> "${UPDATED_BODY_FILE}"
           PATCH_JSON="$(jq -n --rawfile body "${UPDATED_BODY_FILE}" '{state:"closed",state_reason:"completed",body:$body}')"
           set +e
           CLOSED_JSON="$(printf '%s' "${PATCH_JSON}" | gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --input - 2>/dev/null)"
