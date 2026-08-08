@@ -112,6 +112,20 @@ function classifyProjectLookupFailure(statusCode, payloadJson) {
   return boundedHttpReason(statusCode, status, 'APPS_SCRIPT_PROJECT_LOOKUP_HTTP');
 }
 
+function classifyNoopWriteFailure(statusCode, payloadJson) {
+  const error = payloadJson && payloadJson.error;
+  const status = String(error && error.status || '').toUpperCase();
+  if (statusCode === 400 || status === 'INVALID_ARGUMENT') return 'APPS_SCRIPT_REMOTE_NOOP_INVALID_ARGUMENT';
+  if (statusCode === 401 || statusCode === 403 || status === 'PERMISSION_DENIED' || status === 'UNAUTHENTICATED') {
+    return 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED';
+  }
+  if (statusCode === 404 || status === 'NOT_FOUND') return 'APPS_SCRIPT_PROJECT_UNAVAILABLE';
+  if (statusCode === 409 || statusCode === 412 || status === 'FAILED_PRECONDITION' || status === 'ABORTED') {
+    return 'APPS_SCRIPT_REMOTE_NOOP_PRECONDITION_FAILED';
+  }
+  return boundedHttpReason(statusCode, status, 'APPS_SCRIPT_REMOTE_NOOP_HTTP');
+}
+
 function validateRemoteContent(remoteJson, candidateFiles) {
   const remoteFiles = remoteJson && remoteJson.files;
   if (!Array.isArray(remoteFiles) || remoteFiles.length === 0) return 'APPS_SCRIPT_REMOTE_CONTENT_INVALID';
@@ -122,6 +136,7 @@ function validateRemoteContent(remoteJson, candidateFiles) {
     const name = String(file && file.name || '');
     const type = String(file && file.type || '');
     if (!name || !type) return 'APPS_SCRIPT_REMOTE_CONTENT_INVALID';
+    if (typeof file.source !== 'string') return 'APPS_SCRIPT_REMOTE_SOURCE_MISSING';
     if (names.has(name)) return `APPS_SCRIPT_REMOTE_DUPLICATE_${safeFileToken(name)}`;
     names.add(name);
     remoteByName.set(name, type);
@@ -136,6 +151,18 @@ function validateRemoteContent(remoteJson, candidateFiles) {
     }
   }
   return '';
+}
+
+function remoteFilesForNoop(remoteJson) {
+  const remoteFiles = remoteJson && remoteJson.files;
+  if (!Array.isArray(remoteFiles)) throw new Error('APPS_SCRIPT_REMOTE_CONTENT_INVALID');
+  return remoteFiles.map((file) => {
+    const name = String(file && file.name || '');
+    const type = String(file && file.type || '');
+    const source = file && file.source;
+    if (!name || !type || typeof source !== 'string') throw new Error('APPS_SCRIPT_REMOTE_CONTENT_INVALID');
+    return { name, type, source };
+  });
 }
 
 function toApiFile(fileName, source) {
@@ -236,6 +263,7 @@ async function main() {
       return;
     }
 
+    const contentUrl = `https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/content`;
     const authHeaders = { authorization: `Bearer ${accessToken}` };
     const projectResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}`, {
       method: 'GET',
@@ -247,7 +275,7 @@ async function main() {
       return;
     }
 
-    const remoteResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/content`, {
+    const remoteResponse = await fetch(contentUrl, {
       method: 'GET',
       headers: authHeaders
     });
@@ -262,7 +290,30 @@ async function main() {
       return;
     }
 
-    const pushResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/content`, {
+    // A/B proof: first write back exactly the accepted remote semantic content.
+    // Only name/type/source are sent; output-only metadata from getContent is discarded.
+    // A successful no-op proves project identity, OAuth scope and updateContent transport
+    // independently of the new candidate payload.
+    const noopFiles = remoteFilesForNoop(remotePayload.json);
+    const noopResponse = await fetch(contentUrl, {
+      method: 'PUT',
+      headers: {
+        ...authHeaders,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ files: noopFiles })
+    });
+    const noopPayload = await readResponse(noopResponse);
+    if (!noopResponse.ok) {
+      emit({ ok: false, reason: classifyNoopWriteFailure(noopResponse.status, noopPayload.json) });
+      return;
+    }
+    if (!noopPayload.json || !Array.isArray(noopPayload.json.files) || noopPayload.json.files.length !== noopFiles.length) {
+      emit({ ok: false, reason: 'APPS_SCRIPT_REMOTE_NOOP_RESPONSE_INVALID' });
+      return;
+    }
+
+    const pushResponse = await fetch(contentUrl, {
       method: 'PUT',
       headers: {
         ...authHeaders,
@@ -273,7 +324,11 @@ async function main() {
     const pushPayload = await readResponse(pushResponse);
     if (!pushResponse.ok) {
       const errorStatus = pushPayload.json && pushPayload.json.error && pushPayload.json.error.status;
-      emit({ ok: false, reason: classifyFailure(pushResponse.status, pushPayload.text, errorStatus, pushPayload.json, files) });
+      let reason = classifyFailure(pushResponse.status, pushPayload.text, errorStatus, pushPayload.json, files);
+      if (reason === 'DEPLOY_INVALID_ARGUMENT_UNLOCATED' || reason === 'DEPLOY_CONTENT_INVALID') {
+        reason = 'DEPLOY_CANDIDATE_INVALID_AFTER_REMOTE_NOOP_OK';
+      }
+      emit({ ok: false, reason });
       return;
     }
     if (!pushPayload.json || !Array.isArray(pushPayload.json.files)) {
@@ -301,7 +356,9 @@ module.exports = {
   extractInvalidContentReason,
   classifyFailure,
   classifyProjectLookupFailure,
+  classifyNoopWriteFailure,
   validateRemoteContent,
+  remoteFilesForNoop,
   toApiFile,
   readDeployFiles
 };
