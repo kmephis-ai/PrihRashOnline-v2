@@ -1,0 +1,35 @@
+name: Quality Apply Safety
+
+on:
+  pull_request:
+    paths:
+      - 'QualityApplyService.js'
+      - 'QualityApplyBootstrap.js'
+      - 'tests/quality_apply_static.test.js'
+      - '.github/workflows/quality-apply-safety.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'QualityApplyService.js'
+      - 'QualityApplyBootstrap.js'
+      - 'tests/quality_apply_static.test.js'
+
+permissions:
+  contents: read
+
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check service
+        run: node --check QualityApplyService.js
+      - name: Syntax check bootstrap
+        run: node --check QualityApplyBootstrap.js
+      - name: Run fail-closed regression tests
+        run: node tests/quality_apply_static.test.js
