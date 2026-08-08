@@ -46,7 +46,7 @@ jobs:
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          EVENT_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -58,10 +58,24 @@ jobs:
             echo '::error::Candidate SHA must be immutable 40-char lowercase hex.'
             exit 1
           }
+
+          PR_NUMBER="${EVENT_PR_NUMBER:-}"
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            ASSOCIATED_PRS="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/pulls")"
+            PR_NUMBER="$(jq -r \
+              --arg sha "${CANDIDATE_SHA}" \
+              --arg repo "${GITHUB_REPOSITORY}" \
+              --arg base "${DEFAULT_BRANCH}" \
+              '[.[] | select(.head.sha == $sha and .head.repo.full_name == $repo and .base.ref == $base)] | if length == 1 then .[0].number else empty end' \
+              <<<"${ASSOCIATED_PRS}")"
+          fi
           [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]] || {
-            echo '::error::Successful PR Validation run has no source PR.'
+            echo '::error::Exact validated candidate does not resolve to one same-repository PR targeting the default branch.'
             exit 1
           }
+
           PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
           [[ "$(jq -r '.head.sha' <<<"${PR_JSON}")" == "${CANDIDATE_SHA}" ]] || {
             echo '::error::PR head no longer matches the immutable validated candidate.'
