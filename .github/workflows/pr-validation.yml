@@ -8,6 +8,8 @@ on:
       - '*.js'
       - '*.html'
       - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
       - 'appsscript.json'
       - '.claspignore'
       - '.clasp.json.example'
@@ -33,12 +35,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '24'
+          cache: 'npm'
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Supply-chain policy
+        run: node tools/supply-chain-scan.js
       - name: Secret scan
         run: node tools/secret-scan.js
       - name: Privacy public-data scan
@@ -56,15 +63,13 @@ jobs:
           mapfile -t TEST_FILES < <(find tests -maxdepth 1 -type f -name '*contract_test.js' -print | sort -u)
           [[ "${#TEST_FILES[@]}" -gt 0 ]] || { echo '::error::No contract tests found'; exit 1; }
           for test_file in "${TEST_FILES[@]}"; do node "${test_file}"; done
-      - name: Install Playwright
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+      - name: Install Playwright browser
+        run: npx --no-install playwright install --with-deps chromium
       - name: Responsive visual gate
         run: node tests/dashboard_web_visual_test.js
       - name: Upload validation artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pr-${{ github.event.pull_request.number }}-dashboard-validation
           path: artifacts/

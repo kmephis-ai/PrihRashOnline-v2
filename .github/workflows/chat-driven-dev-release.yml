@@ -8,6 +8,8 @@ on:
       - '*.js'
       - '*.html'
       - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
       - 'appsscript.json'
       - '.claspignore'
       - 'tests/**'
@@ -67,7 +69,7 @@ jobs:
             --body "🚦 DEV release started: run \`${GITHUB_RUN_ID}\`, branch \`${TARGET_REF}\`, candidate \`${{ steps.pr.outputs.sha }}\`. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ env.TARGET_REF }}
           fetch-depth: 0
@@ -107,9 +109,16 @@ jobs:
           [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Supply-chain policy
+        run: node tools/supply-chain-scan.js
 
       - name: Prepare dashboard bundle
         run: npm run prepare:web
@@ -122,17 +131,15 @@ jobs:
           [[ "${#TEST_FILES[@]}" -gt 0 ]] || { echo '::error::No contract tests found'; exit 1; }
           for test_file in "${TEST_FILES[@]}"; do node "${test_file}"; done
 
-      - name: Install Playwright
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
+      - name: Install Playwright browser
+        run: npx --no-install playwright install --with-deps chromium
 
       - name: Run responsive visual gate
         run: node tests/dashboard_web_visual_test.js
 
       - name: Upload visual artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dashboard-web-${{ steps.source.outputs.sha }}
           path: artifacts/
@@ -146,40 +153,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --no-save --no-audit --no-fund @google/clasp@3
           printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
           chmod 600 "${HOME}/.clasprc.json"
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
-          npx clasp status
+          npx --no-install clasp status
 
       - name: Push Apps Script DEV
-        run: npx clasp push --force
+        run: npx --no-install clasp push --force
 
       - name: Create or update verified DEV Web App deployment
         id: webapp
         shell: bash
         run: |
           set -euo pipefail
-          # Do not reuse the historical generic deployment: it was created before
-          # the manifest declared a webapp and produced a Google Drive file-not-found URL.
           DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
-          DEPLOYMENTS="$(npx clasp list-deployments || true)"
+          DEPLOYMENTS="$(npx --no-install clasp list-deployments || true)"
           DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
 
           if [[ -n "${DEPLOYMENT_ID}" ]]; then
-            OUTPUT="$(npx clasp update-deployment "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
+            OUTPUT="$(npx --no-install clasp update-deployment "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
           else
-            OUTPUT="$(npx clasp create-deployment -d "${DEPLOYMENT_NAME}")"
+            OUTPUT="$(npx --no-install clasp create-deployment -d "${DEPLOYMENT_NAME}")"
             DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
           fi
           printf '%s\n' "${OUTPUT}"
           [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Deployment ID not returned'; exit 1; }
 
-          # open-web-app calls projects.deployments.get internally and refuses any
-          # deployment without a real WEB_APP entry point. Its output is therefore
-          # authoritative; we never synthesize /exec from a deployment ID again.
-          if ! OPEN_OUTPUT="$(npx clasp --json open-web-app "${DEPLOYMENT_ID}" 2>&1)"; then
+          if ! OPEN_OUTPUT="$(npx --no-install clasp --json open-web-app "${DEPLOYMENT_ID}" 2>&1)"; then
             printf '%s\n' "${OPEN_OUTPUT}"
             echo '::error::Apps Script deployment has no verified WEB_APP entry point.'
             exit 1
@@ -212,7 +213,7 @@ jobs:
             '{sourceRef:$sourceRef,sourceSha:$sourceSha,deploymentId:$deploymentId,webAppUrl:$webAppUrl,smokeHttpCode:$httpCode,runUrl:$runUrl,entryPoint:"WEB_APP"}' > artifacts/dashboard-web-deployment.json
 
       - name: Upload deployment metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dashboard-web-deployment-${{ steps.source.outputs.sha }}
           path: artifacts/dashboard-web-deployment.json
