@@ -48,7 +48,7 @@ requireMatch('AI_NEVER_COMMIT', agents, /Never commit[\s\S]{0,1000}real transact
 requireMatch('AI_OAUTH_BACKUP_PRIVATE', agents, /OAuth[\s\S]{0,500}backup bytes[\s\S]{0,200}encryption keys/i,
   'credential/backup privacy rules missing');
 
-requireMatch('AI_FREE_ONLY', agents, /FREE_ONLY is an executable invariant/i,
+requireMatch('AI_FREE_ONLY', agents, /`?FREE_ONLY`? is an executable invariant/i,
   'FREE_ONLY invariant missing');
 requireMatch('AI_UNKNOWN_PROVIDER_FAIL_CLOSED', agents, /Unknown\/unconfigured billable provider fails closed/i,
   'unknown billable provider fail-closed rule missing');
@@ -63,9 +63,20 @@ requireMatch('AI_EXACT_SHA', agents, /exact PR head SHA|exact candidate SHA|exac
 requireMatch('AI_DONE_MAIN_VERIFICATION', agents, /claim `DONE` only after Main Verification/i,
   'DONE must require Main Verification');
 
-requireMatch('AI_FINANCIAL_WRITE_POLICY', agents,
-  /Financial-write policy[\s\S]*idempotency[\s\S]*preconditions[\s\S]*readback[\s\S]*reconciliation[\s\S]*rollback/i,
-  'financial write contract is incomplete');
+const financialSectionMatch = agents.match(/## 9\. Financial-write policy([\s\S]*?)(?=\n## 10\.|$)/i);
+const financialSection = financialSectionMatch ? financialSectionMatch[1] : '';
+requireMatch('AI_FINANCIAL_WRITE_SECTION', agents, /## 9\. Financial-write policy/i,
+  'financial write policy section missing');
+requireMatch('AI_FINANCIAL_WRITE_IDEMPOTENCY', financialSection, /idempotency/i,
+  'financial write policy must require idempotency');
+requireMatch('AI_FINANCIAL_WRITE_PRECONDITIONS', financialSection, /preconditions/i,
+  'financial write policy must require preconditions');
+requireMatch('AI_FINANCIAL_WRITE_READBACK', financialSection, /readback/i,
+  'financial write policy must require readback');
+requireMatch('AI_FINANCIAL_WRITE_RECONCILIATION', financialSection, /reconciliation/i,
+  'financial write policy must require reconciliation');
+requireMatch('AI_FINANCIAL_WRITE_ROLLBACK', financialSection, /rollback/i,
+  'financial write policy must require rollback/snapshot planning');
 requireMatch('AI_MIGRATION_POLICY', agents, /Full-history migration is not currently declared complete/i,
   'full-history migration status missing');
 requireMatch('AI_MIGRATION_INVARIANTS', agents, /deterministic, resumable and idempotent[\s\S]*provenance/i,
