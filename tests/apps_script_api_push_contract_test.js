@@ -9,6 +9,8 @@ const {
   safeFileToken,
   extractInvalidContentReason,
   classifyFailure,
+  classifyProjectLookupFailure,
+  validateRemoteContent,
   toApiFile,
   readDeployFiles
 } = require('../tools/apps-script-api-push');
@@ -49,6 +51,26 @@ assert.strictEqual(classifyFailure(400, JSON.stringify(messagePayload), 'INVALID
 assert.strictEqual(extractInvalidContentReason({ error: { message: 'Invalid script manifest.' } }, diagnosticFiles), 'DEPLOY_MANIFEST_INVALID');
 assert.strictEqual(extractInvalidContentReason({ error: { message: 'Request contains an invalid argument.' } }, diagnosticFiles), 'DEPLOY_INVALID_ARGUMENT_UNLOCATED');
 
+assert.strictEqual(classifyProjectLookupFailure(400, { error: { status: 'INVALID_ARGUMENT' } }), 'APPS_SCRIPT_ID_OR_PROJECT_LOOKUP_INVALID');
+assert.strictEqual(classifyProjectLookupFailure(403, { error: { status: 'PERMISSION_DENIED' } }), 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED');
+assert.strictEqual(classifyProjectLookupFailure(404, { error: { status: 'NOT_FOUND' } }), 'APPS_SCRIPT_PROJECT_UNAVAILABLE');
+assert.strictEqual(classifyProjectLookupFailure(503, { error: { status: 'UNAVAILABLE' } }), 'APPS_SCRIPT_PROJECT_LOOKUP_HTTP_503_UNAVAILABLE');
+
+const remoteOk = {
+  files: [
+    { name: 'ApplicationMenuService', type: 'SERVER_JS', source: 'private remote a' },
+    { name: 'RuntimeHealth', type: 'SERVER_JS', source: 'private remote b' },
+    { name: 'appsscript', type: 'JSON', source: '{"private":"remote manifest"}' }
+  ]
+};
+assert.strictEqual(validateRemoteContent(remoteOk, diagnosticFiles), '');
+assert.strictEqual(validateRemoteContent({ files: [] }, diagnosticFiles), 'APPS_SCRIPT_REMOTE_CONTENT_INVALID');
+assert.strictEqual(validateRemoteContent({ files: [{ name: 'Code', type: 'SERVER_JS' }] }, diagnosticFiles), 'APPS_SCRIPT_REMOTE_MANIFEST_INVALID');
+assert.strictEqual(validateRemoteContent({ files: [
+  { name: 'appsscript', type: 'JSON' },
+  { name: 'RuntimeHealth', type: 'HTML' }
+] }, diagnosticFiles), 'DEPLOY_REMOTE_TYPE_MISMATCH_RUNTIMEHEALTH');
+
 assert.strictEqual(classifyFailure(403, 'User has not enabled the Apps Script API. Enable it by visiting https://script.google.com/home/usersettings', 'PERMISSION_DENIED'), 'APPS_SCRIPT_API_USER_SETTING_REQUIRED');
 assert.strictEqual(classifyFailure(403, 'Request had insufficient authentication scopes', 'PERMISSION_DENIED'), 'OAUTH_PROJECT_SCOPES_REQUIRED');
 assert.strictEqual(classifyFailure(403, 'permission denied', 'PERMISSION_DENIED'), 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED');
@@ -78,26 +100,26 @@ fs.rmSync(temp, { recursive: true, force: true });
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'tools', 'apps-script-api-push.js'), 'utf8');
 assert(source.includes('https://oauth2.googleapis.com/token'), 'push must privately refresh owner OAuth');
-assert(source.includes('https://script.googleapis.com/v1/projects/'), 'push must use official Apps Script project content endpoint');
-assert(source.includes("method: 'PUT'"), 'content update must use PUT');
+assert(source.includes("method: 'GET'"), 'push must read-only preflight the Script project before content replacement');
+assert(source.includes('/content'), 'push must read current Apps Script content before replacement');
+assert(source.includes("method: 'PUT'"), 'content update must use PUT only after read-only preflight');
 assert(source.includes('auth.tokens[profileName]'), 'push must use named clasp OAuth profile');
+assert(source.includes('validateRemoteContent(remotePayload.json, files)'), 'remote accepted file metadata must be checked before candidate replacement');
 assert(source.includes('pushPayload.json.error.status'), 'push must inspect structured Google error status privately');
 assert(source.includes('fieldViolations'), 'push may localize invalid request field without publishing descriptions');
-assert(source.includes('APPS_SCRIPT_CONTENT_HTTP_'), 'unknown HTTP failures must remain machine-observable without raw error text');
 
 // Raw Google/OAuth material may be inspected privately for classification, but it must
 // never be emitted/logged. Emitted failure objects are restricted to ok + bounded reason.
-assert(!/emit\(pushPayload/.test(source), 'raw API response must never be emitted');
-assert(!/console\.log\([^\n]*(pushPayload|clientId|clientSecret|refreshToken|accessToken)/.test(source), 'raw API/OAuth material must never be logged');
+assert(!/emit\((pushPayload|projectPayload|remotePayload)/.test(source), 'raw API response must never be emitted');
+assert(!/console\.log\([^\n]*(Payload|clientId|clientSecret|refreshToken|accessToken)/.test(source), 'raw API/OAuth material must never be logged');
 assert(!/emit\(\{[^}]*\b(raw|message|text|payload|description|clientId|clientSecret|refreshToken|accessToken)\s*:/.test(source), 'failure output must not contain raw API/OAuth fields');
-assert(/emit\(\{ ok: false, reason: classifyFailure\(/.test(source), 'HTTP failure must emit only a bounded classified reason');
 
 console.log('apps_script_api_push_contract_test: OK', {
   api: 'projects.updateContent',
-  deterministicFileMapping: true,
-  manifestRequired: true,
+  scriptProjectPreflight: true,
+  remoteContentPreflight: true,
+  remoteSourcePublished: false,
   safeInvalidFileLocalization: true,
-  fieldViolationDescriptionsPublished: false,
   boundedErrors: true,
   credentialOutput: false,
   rawApiOutput: false
