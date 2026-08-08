@@ -147,6 +147,14 @@ function boundedAuditCounter_(value) {
   return Math.min(parsed, 999999999);
 }
 
+function setAuditHealthProperties_(values) {
+  var props = auditHealthProperties_();
+  Object.keys(values).forEach(function (key) {
+    props.setProperty(key, String(values[key]));
+  });
+  return true;
+}
+
 function recordAuditHealthSuccess_(capacity) {
   try {
     var percent = Number(capacity && capacity.capacityPercent || 0);
@@ -154,15 +162,14 @@ function recordAuditHealthSuccess_(capacity) {
     var warnAt = PR_CONFIG.AUDIT_WARN_AT_ROWS;
     var currentRows = Number(capacity && capacity.dataRows || 0);
     var warning = currentRows >= warnAt;
-    var props = auditHealthProperties_();
-    props.setProperties({
+    setAuditHealthProperties_({
       PR_AUDIT_HEALTH_STATUS: warning ? 'WARN' : 'PASS',
       PR_AUDIT_HEALTH_REASON: warning ? 'AUDIT_CAPACITY_WARNING' : 'OK',
       PR_AUDIT_HEALTH_CONSECUTIVE_FAILURES: '0',
       PR_AUDIT_HEALTH_CAPACITY_PERCENT: String(Math.max(0, Math.min(100, Math.round(percent)))),
       PR_AUDIT_HEALTH_LAST_ROTATED_ROWS: String(Math.max(0, Math.round(rotatedRows))),
       PR_AUDIT_HEALTH_LAST_SUCCESS_AT: new Date().toISOString()
-    }, false);
+    });
     return true;
   } catch (_) {
     return false;
@@ -174,13 +181,13 @@ function recordAuditHealthFailure_(reasonCode) {
     var props = auditHealthProperties_();
     var failures = boundedAuditCounter_(props.getProperty(PR_AUDIT_HEALTH_KEYS.FAILURE_COUNT));
     var consecutive = boundedAuditCounter_(props.getProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES));
-    props.setProperties({
+    setAuditHealthProperties_({
       PR_AUDIT_HEALTH_STATUS: 'FAIL',
       PR_AUDIT_HEALTH_REASON: String(reasonCode || 'AUDIT_WRITE_FAILED').slice(0, 64),
       PR_AUDIT_HEALTH_FAILURE_COUNT: String(Math.min(failures + 1, 999999999)),
       PR_AUDIT_HEALTH_CONSECUTIVE_FAILURES: String(Math.min(consecutive + 1, 999999999)),
       PR_AUDIT_HEALTH_LAST_FAILURE_AT: new Date().toISOString()
-    }, false);
+    });
     return true;
   } catch (_) {
     return false;
