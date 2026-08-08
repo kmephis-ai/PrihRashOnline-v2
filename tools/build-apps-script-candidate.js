@@ -82,7 +82,10 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
   const expectedNames = fs.readdirSync(expectedFilesRoot).sort();
   if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) throw new Error('candidate file set differs from trusted reconstruction');
   expected.files.forEach((item) => {
-    const actualBytes = fs.readFileSync(path.join(actualFilesRoot, item.path));
+    const actualPath = path.join(actualFilesRoot, item.path);
+    const actualStat = fs.lstatSync(actualPath);
+    if (!actualStat.isFile() || actualStat.isSymbolicLink()) throw new Error(`promoted candidate file must be a regular file: ${item.path}`);
+    const actualBytes = fs.readFileSync(actualPath);
     const expectedBytes = fs.readFileSync(path.join(expectedFilesRoot, item.path));
     if (!actualBytes.equals(expectedBytes)) throw new Error(`candidate file differs from trusted reconstruction: ${item.path}`);
     if (sha256(actualBytes) !== item.sha256) throw new Error(`candidate file hash mismatch: ${item.path}`);
