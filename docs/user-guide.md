@@ -1,16 +1,17 @@
-# Руководство пользователя — Income Dashboard
+# Руководство пользователя — Web Dashboard
 
 ## 1. Как открыть Dashboard
 
-Основной способ после DEV deployment:
+Web Dashboard является приватным Google Apps Script Web App с доступом `MYSELF`.
 
-1. открыть главную страницу GitHub-репозитория;
-2. в разделе **Dashboard** нажать **▶ Открыть Dashboard**;
-3. Web App откроется в отдельной вкладке.
+Основные owner-controlled способы:
 
-Release workflow сам обновляет эту ссылку после успешного Apps Script deployment. Копировать deployment ID вручную не требуется.
+1. открыть сохранённую приватную закладку DEV Web App; или
+2. открыть связанную Google Sheets книгу и использовать меню `ПрихРасхOnline → Открыть Web Dashboard`, если menu entry доступен в установленной версии.
 
-Резервный способ после установки актуального Apps Script пакета: Google Sheets → `ПрихРасхOnline → Открыть Web Dashboard`.
+Публичный GitHub README **не хранит и не обновляет private deployment URL**. Release pipeline не публикует его отдельным post-merge commit.
+
+Если private bookmark потерян, deployment locator восстанавливается владельцем из Google Apps Script deployment management. Не публикуйте deployment/API Executable IDs в Issue, CI log или общий chat.
 
 ## 2. Выбор периода
 
@@ -19,7 +20,7 @@ Release workflow сам обновляет эту ссылку после усп
 - год;
 - месяц.
 
-URL обновляется вместе с выбранным представлением. Ссылку можно сохранить в закладки.
+UI-state может сохранять выбранное представление/период в private Web App URL. Такую ссылку можно использовать как личную закладку, но не как public repository artifact.
 
 ## 3. Представления
 
@@ -36,9 +37,9 @@ URL обновляется вместе с выбранным представл
 
 ## 4. Drill-down
 
-Нажмите на KPI Executive-панели. Откроется список связанных операций. В Apps Script runtime ссылка `Строка …` ведёт к точной исходной строке Google Sheets.
+Нажмите на поддерживаемую KPI/card action. В private Apps Script runtime может открыться список связанных операций и ссылка на точную исходную строку Google Sheets.
 
-Drill-down ничего не меняет в операции.
+Drill-down — read path и сам по себе не изменяет финансовую операцию.
 
 ## 5. Обновить данные
 
@@ -46,60 +47,74 @@ Drill-down ничего не меняет в операции.
 
 Система:
 
-1. проверит обязательные листы/поля;
-2. дождётся пересчёта формул;
-3. пересоберёт данные Web Dashboard;
-4. выполнит доступные проверки;
-5. зафиксирует технический статус.
+1. проверяет обязательные листы/поля;
+2. дожидается пересчёта формул where applicable;
+3. пересобирает Dashboard payload;
+4. выполняет доступные application checks;
+5. фиксирует privacy-safe technical status.
 
-Обычное обновление не изменяет `01 Операции`.
+Обычный refresh не является разрешением на изменение `01 Операции`.
 
 ## 6. Quality Workbench
 
 Нажмите **✓ Качество**.
 
-Вы увидите:
-
-- число проблем;
-- новые/подтверждённые/отклонённые предложения;
-- группировку по типам;
-- очередь решений.
-
-### Подтвердить / отклонить
-
-Кнопки меняют только состояние строки в `11 Предпросмотр`. Финансовая операция не меняется.
+Queue показывает проблемы и предложения. Подтверждение/отклонение штатного proposal меняет staging/review state в `11 Предпросмотр`; это не эквивалентно изменению canonical financial operation.
 
 ### Предложить категорию
 
-Для проблемы `Без категории` можно запросить объяснимое предложение:
+Для поддерживаемой проблемы можно запросить объяснимое предложение:
 
-1. нажать **Предложить категорию**;
-2. посмотреть категорию, уверенность и основание;
-3. нажать **Внести в предложение** — категория попадёт только в `11 Предпросмотр`;
-4. отдельно подтвердить предложение;
-5. при желании нажать **Запомнить правило**.
+1. получить category/confidence/reason;
+2. внести результат только в proposal/staging;
+3. отдельно подтвердить или отклонить;
+4. при поддерживаемом workflow отдельно сохранить правило.
 
-`Запомнить правило` сохраняет подтверждаемое правило в свойствах документа, но не переписывает историю операций.
+Автоматическое предложение не является финансовой истиной и не получает права молча переписывать историю операций.
 
 ## 7. Снимок KPI
 
-Нажмите **◫ Снимок KPI**.
+**◫ Снимок KPI** создаёт private control snapshot в существующем `10 Контроль` и использует readback verification.
 
-Система добавит контрольную строку с текущими KPI в существующий `10 Контроль` и проверит запись readback'ом.
+Control snapshot содержит реальные агрегаты и поэтому остаётся **только в приватной книге**. Его значения нельзя копировать в public fixtures/tests/docs.
 
 ## 8. PDF отчёт
 
-Нажмите **PDF отчёт**.
-
-Создаётся PDF существующего листа аналитики в Google Drive. Web Dashboard откроет созданный файл.
+**PDF отчёт** создаёт private report из текущей аналитики в Google Drive. Такой файл не является GitHub release artifact и не должен попадать в Issues/CI/public repo.
 
 ## 9. Что делать при ошибке
 
-- если Dashboard показывает ошибку загрузки — повторите **Обновить данные**;
-- если release-кнопки недоступны — вероятно, открыт локальный fixture, а не Apps Script Web App;
-- если меню `ПрихРасхOnline` отсутствует в таблице — перезагрузите книгу после успешного Apps Script deployment;
-- если проблема остаётся, release gate должен рассматриваться как failed/неподтверждённый; финансовые операции не исправляйте вручную только ради прохождения теста.
+### Dashboard не загружается
 
-## 10. Безопасность
+- повторите обычный refresh только если UI доступен;
+- убедитесь, что вы вошли в owner Google account;
+- не делайте Web App public ради диагностики;
+- инженерная доступность DEV доказывается `Trusted Runtime Health` через authenticated Execution API, а не anonymous `curl`.
 
-Web Dashboard v1.0 RC не имеет штатной команды массового автоматического исправления финансовых операций. Для действий, способных изменить `01 Операции`, требуется отдельный контролируемый контур и явное разрешение.
+### После изменения кода runtime выглядит старым
+
+Не редактируйте deployment вручную как первый recovery step. Canonical delivery проверяет exact candidate SHA/source-tree через:
+
+`PR Validation → Trusted DEV Deploy → Trusted Runtime Health`.
+
+Red gate исправляется в том же Roadmap PR новым exact candidate.
+
+### Ошибка financial/migration/reconciliation
+
+Не исправляйте приватные строки только ради прохождения CI. Financial/migration machine gate должен сначала объяснить mismatch; private payload остаётся private.
+
+### FREE_ONLY block
+
+Если optional/provider workload остановлен Cost Guard, это штатная fail-safe деградация. Не включайте billing/paid overage для обхода guard. Provider policy меняется только отдельным Roadmap change с explicit safety envelope.
+
+## 10. Recovery / backup
+
+Portable encrypted backup выполняется только на trusted owner machine. `.prhbackup`, encryption key и OAuth profile хранятся отдельно от GitHub; verify и isolated restore drill являются обязательным доказательством recoverability.
+
+Public evidence может содержать только technical PASS/FAIL, encrypted backup hash, checksum/reconciliation state и RPO/RTO — без финансового payload.
+
+## 11. Безопасность финансовых записей
+
+Web Dashboard не получает универсального права записи в `01 Операции`. Любой canonical financial mutation path должен быть отдельно спроектирован и доказан: bounded scope, explicit policy, idempotency, preconditions, audit, readback и rollback/snapshot.
+
+Merge в `main` или успешный DEV deployment сам по себе не разрешает irreversible PROD/data action.

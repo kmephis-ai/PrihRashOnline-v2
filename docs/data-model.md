@@ -1,103 +1,138 @@
 # Модель данных и границы записи
 
-## Принцип
+## Текущее положение
 
-Google Sheets остаётся приватным backend. Web Dashboard не копирует финансовую историю в GitHub и не создаёт отдельную базу данных.
+Google Sheets остаётся private primary store/current adapter. Web Dashboard не копирует финансовую историю в GitHub и не создаёт public shadow database.
 
-## Основные существующие листы
+R0 уже отделяет **financial truth rules** от legacy spreadsheet totals через reconciliation contracts, но полный canonical schema/domain extraction и full-history migration относятся к следующим Roadmap waves. Поэтому текущую Google layout нельзя считать окончательным portable domain model.
 
-| Лист | Роль в Income Dashboard | Запись RC |
+## Основные private sheets
+
+| Лист | Текущая роль | Типичный write boundary |
 |---|---|---|
-| `01 Операции` | источник транзакций | **нет** |
-| `09 Настройки` | технические статусы/конфигурация | да, технические поля |
-| `10 Контроль` | аудит и snapshots KPI | да, append snapshot |
-| `11 Предпросмотр` | очередь проблем и предложений | да, staging/review |
-| `14 Аналитика` | расчёты и расширенная аналитика | существующие управляющие механизмы |
+| `01 Операции` | transaction surface / source for Dashboard and reconciliation | Dashboard read-only; canonical mutations only via separately proven write policy |
+| `09 Настройки` | technical settings/status | bounded technical values |
+| `10 Контроль` | private KPI/control snapshots | append + readback where supported |
+| `11 Предпросмотр` | quality proposal staging/review | bounded proposal state |
+| `13 Журнал` | privacy-safe technical audit | bounded rotating append |
+| `14 Аналитика` | existing spreadsheet analytics/fallback | existing private spreadsheet mechanisms |
 
-Блоки 6–12 не создают новых листов.
+Наличие листа или старого service не является автоматическим разрешением записи. Write authority определяется отдельным contract/policy.
 
-## `01 Операции`
+## Financial truth
 
-Web Dashboard ожидает как минимум:
+Legacy monthly/summary cells не используются как authoritative golden truth для financial CI.
 
-- `Дата`;
-- `Тип`;
-- `Сумма`;
-- `Категория`.
+Canonical financial reconciliation вычисляет expected semantics из transaction rules и machine-test invariants для:
 
-Дополнительно используются при наличии:
+- income / expense / cash-flow;
+- transfer neutrality;
+- refund/reversal behavior;
+- zero values;
+- integer-minor-unit rounding;
+- category partition rules.
 
-- `ID`;
-- `Наименование` / `Описание` / `Комментарий` / `Назначение`;
-- `Статус`.
+Реальные reconciliation values/deltas остаются private; наружу выходит только technical PASS/FAIL.
 
-Data services используют заголовки, а не жёсткие номера колонок там, где это возможно.
+## Source-to-canonical provenance
 
-## Специальные доходы
+Migration reconciliation требует deterministic source identity/fingerprint и умеет fail-closed обнаруживать:
 
-К специальным относятся доходы, распознаваемые по существующей бизнес-логике, включая шаблоны:
+- missing source row;
+- duplicate source identity;
+- changed source row;
+- core-field mismatch;
+- non-idempotent duplicate import.
 
-- капитализация;
-- квартальная премия;
-- отпускные.
+Stored legacy status не переопределяет computed reconciliation result.
 
-Они отделяются от базового дохода для аналитики стабильности и прогноза.
+Полный history migration **не считается завершённым** до отдельного deterministic migration Roadmap item с backup/restore/private reconciliation evidence.
+
+## Dashboard transaction fields
+
+Текущие services распознают ключевые transaction fields по headers where possible, включая date/type/amount/category и дополнительные ID/description/status columns при наличии.
+
+Эта spreadsheet header compatibility — adapter concern. Будущий `DATA-010` зафиксирует versioned canonical transaction schema независимо от UI/Sheet column layout.
 
 ## Quality queue — `11 Предпросмотр`
 
-Очередь служит единственным staging-слоем для проблем качества и интеллектуальных предложений.
-
-Типовой жизненный цикл:
+Очередь является staging/review surface для quality issues и proposals.
 
 ```text
-НОВОЕ
-→ предложение/объяснение
-→ ПОДТВЕРЖДЕНО или ОТКЛОНЕНО
+detected issue
+→ proposal / explanation
+→ staged review state
+→ confirm or reject
 ```
 
-Изменение статуса очереди не равно изменению финансовой операции.
+Изменение proposal state не равно изменению canonical financial operation. Proposal/classifier/AI output не является финансовой истиной без deterministic validation и отдельного write action.
 
 ## Classification rules
 
-Подтверждённые правила классификации хранятся в `DocumentProperties`, а не в финансовых строках. Правило содержит:
+Поддерживаемые подтверждённые rules хранятся в private Document Properties. Они могут содержать технические/нормализованные признаки, необходимые runtime, но не становятся public fixtures или model-training dataset автоматически.
 
-- нормализованный текстовый паттерн;
-- подтверждённую категорию;
-- дату подтверждения;
-- пользователя;
-- версию сервиса.
+## Control snapshots — `10 Контроль`
 
-## Snapshots — `10 Контроль`
+KPI/control snapshots могут содержать реальные household aggregates. Поэтому:
 
-Snapshot имеет marker `DASHBOARD_SNAPSHOT_V1` и хранит:
+- они остаются в private Google workbook;
+- их реальные значения не копируются в GitHub regression fixtures/docs/issues;
+- public tests используют независимо сгенерированные synthetic equivalents;
+- snapshot/readback не делает snapshot canonical financial truth выше transaction reconciliation rules.
 
-1. marker;
-2. timestamp;
-3. год;
-4. месяц;
-5. доход года;
-6. доход месяца;
-7. прогноз;
-8. индекс стабильности;
-9. индекс качества;
-10. число операций;
-11. число проблем;
-12. версию.
+## Audit — `13 Журнал`
 
-Snapshot добавляется в конец существующего листа и проверяется readback'ом.
+OBS-001 устанавливает отдельную privacy-safe audit schema:
 
-## GitHub privacy boundary
+- technical fields проходят explicit allowlist;
+- correlation/event identity сохраняются;
+- journal bounded и rotates oldest rows;
+- audit storage failure не превращает корректную financial operation в outage;
+- technical health/counters не содержат financial payload.
 
-В публичном репозитории допускаются:
+## Cost usage counters
 
-- код;
-- структура данных;
-- синтетические fixtures;
-- агрегированные технические ожидания, необходимые для regression tests.
+FINOPS-001 хранит только provider/month **normalized technical usage counters** в Script Properties. Это не деньги и не household finance data.
 
-Не допускаются:
+Cost Guard:
 
-- реальные строки операций;
+- не хранит transaction amounts/categories/descriptions;
+- требует explicit provider safety envelope;
+- conservatively reserve'ит usage до потенциального provider call;
+- fail-closed блокирует unknown provider / paid-required workload / projected overage.
+
+## Public GitHub privacy boundary
+
+В публичном repository допустимы:
+
+- source code;
+- architecture/schema/contracts/docs;
+- independently generated synthetic financial fixtures;
+- non-financial technical build/latency/quota/cost-guard/status evidence.
+
+**Не допускаются:**
+
+- реальные transaction rows;
 - реальные operation IDs;
-- приватные описания отдельных доходов/расходов;
-- содержимое OAuth/secrets.
+- реальные или real-derived amounts/totals/aggregates/category distributions/seasonality/control totals;
+- scaled/sampled/transformed fixtures, если они произведены из household finance data;
+- private screenshots/exports/reports;
+- authenticated Dashboard/API responses;
+- OAuth tokens/client secrets/private clasp config;
+- backup bytes, encryption key или decrypted backup payload;
+- private deployment identifiers как public operational state.
+
+Если public test нуждается в финансовой форме/edge case, данные генерируются независимо deterministic synthetic generator'ом.
+
+## Будущий canonical model
+
+R1 будет последовательно вводить:
+
+1. versioned KPI Dictionary (`FIN-010`);
+2. canonical transaction schema (`DATA-010`);
+3. pure domain/application core;
+4. repository contracts;
+5. Google adapter и future YDB adapter;
+6. deterministic full-history migration only after backup/reconciliation gates.
+
+UI не должен знать, какой storage adapter является primary; financial truth живёт в versioned domain rules/contracts.
