@@ -13,12 +13,13 @@ Priorities: financial correctness, recoverability, privacy, simplicity, modulari
 When sources disagree, use this order and fail closed instead of averaging conflicting instructions:
 
 1. explicit security/privacy/cost/irreversible-action policy boundaries;
-2. canonical `Master Audit v2.1`, `Executable GitHub Roadmap v2.1` and `AI Development Playbook v1.0` when supplied in task context;
-3. the single active GitHub Roadmap Issue (`roadmap_id`, dependencies, acceptance, rollback, privacy/cost class);
-4. executable code/tests/workflows on the exact candidate SHA;
-5. architecture/ADR/operations documentation;
-6. README/user guides;
-7. historical CHANGELOG/release notes.
+2. репозиторный `docs/ROADMAP.md` — каноническая `Executable GitHub Roadmap v2.3` для порядка работ и зависимостей;
+3. внешние `Master Audit v2.1` и `AI Development Playbook v1.0`, когда они явно предоставлены в task context;
+4. единственный активный GitHub Roadmap Issue (`roadmap_id`, live status, dependencies, acceptance, rollback, privacy/cost class);
+5. executable code/tests/workflows на exact candidate SHA;
+6. architecture/ADR/operations documentation;
+7. README/user guides;
+8. historical CHANGELOG/release notes.
 
 A stale lower-priority source never authorizes bypassing a current machine gate. If canonical external context is unavailable, do not invent it: use the active Issue plus tracked repository contracts and keep uncertainty fail closed.
 
@@ -220,6 +221,7 @@ When CI is red:
 Start with:
 
 - `AGENTS.md` — this operating contract;
+- `docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.3; live lifecycle берётся из GitHub Issues;
 - `.ai-context/PROJECT_CONTEXT.md` — public-safe project map;
 - `.ai-context/roadmap-task-packet.schema.json` — executable task packet schema;
 - `docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md` — continuation/task lifecycle contract;
