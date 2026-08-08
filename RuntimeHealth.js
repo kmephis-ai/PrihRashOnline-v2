@@ -58,3 +58,23 @@ function prhReleaseHealthCheck(expectedBuild) {
     latencyMs: Math.max(0, Date.now() - startedAt)
   };
 }
+
+/**
+ * Stable scalar entrypoint for clasp/Execution API health verification.
+ * It deliberately serializes only the technical fields already returned by
+ * prhReleaseHealthCheck so CI never needs to inspect spreadsheet payloads.
+ */
+function prhReleaseHealthCheckToken(expectedBuild) {
+  var result = prhReleaseHealthCheck(expectedBuild);
+  return [
+    'PRH_HEALTH_V1',
+    result.status,
+    result.candidateSha,
+    result.sourceTreeHash,
+    result.buildInfoSchemaVersion,
+    result.runtime,
+    result.requiredSheetCount,
+    result.readCheck ? 1 : 0,
+    result.latencyMs
+  ].join('|');
+}
