@@ -10,15 +10,6 @@ const privacySource = fs.readFileSync(path.join(__dirname, '..', 'SecurityPrivac
 
 function makeContext(overrides = {}) {
   const context = {
-    Object,
-    String,
-    Number,
-    Array,
-    JSON,
-    Math,
-    Date,
-    parseInt,
-    isFinite,
     PR_CONFIG: {
       MAX_AUDIT_ROWS: 1000,
       AUDIT_ROTATE_BATCH_ROWS: 250,
@@ -180,7 +171,7 @@ function makeContext(overrides = {}) {
 }
 
 {
-  const context = { Object, String, Number, Array, JSON, isFinite };
+  const context = {};
   vm.createContext(context);
   vm.runInContext(privacySource, context, { filename: 'SecurityPrivacyPolicy.js' });
   const safe = context.sanitizeAuditMetadata_({
