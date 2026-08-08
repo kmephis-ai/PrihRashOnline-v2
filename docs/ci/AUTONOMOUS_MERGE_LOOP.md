@@ -52,3 +52,7 @@ Public evidence is limited to PR/Issue numbers, exact commit hashes, and technic
 ## Live proof
 
 The implementation PR is installed manually because the autonomous workflow cannot govern itself before it exists on `main`. A follow-up canary PR linked with `Closes #<CI-003 Issue>` must then be merged by the new loop and have the Issue closed by Main Verification. CI-003 is not DONE until that live proof succeeds.
+
+### Live canary
+
+This documentation-only change is the CI-003 live canary. Its PR is intentionally eligible for the autonomous loop; GitHub machine state for the exact candidate, autonomous squash merge, main verification, and linked Issue closure is the authoritative proof.
