@@ -42,7 +42,13 @@ assert(source.includes('https://script.googleapis.com/v1/projects/'), 'push must
 assert(source.includes("method: 'PUT'"), 'content update must use PUT');
 assert(source.includes('auth.tokens[profileName]'), 'push must use named clasp OAuth profile');
 assert(source.includes('pushPayload.json.error.status'), 'push must classify only the structured Google error status in addition to private message matching');
-assert(!/emit\([^\n]*(clientId|clientSecret|refreshToken|accessToken|pushPayload\.text)/.test(source), 'credential or raw API material must never be emitted');
+
+// The raw Google response may be inspected privately for classification, but it must
+// never be emitted/logged. Emitted failure objects are restricted to ok + reason.
+assert(!/emit\(pushPayload/.test(source), 'raw API response must never be emitted');
+assert(!/console\.log\([^\n]*(pushPayload|clientId|clientSecret|refreshToken|accessToken)/.test(source), 'raw API/OAuth material must never be logged');
+assert(!/emit\(\{[^}]*\b(raw|message|text|payload|clientId|clientSecret|refreshToken|accessToken)\s*:/.test(source), 'failure output must not contain raw API/OAuth fields');
+assert(/emit\(\{ ok: false, reason: classifyFailure\(/.test(source), 'HTTP failure must emit only a bounded classified reason');
 
 console.log('apps_script_api_push_contract_test: OK', {
   api: 'projects.updateContent',
