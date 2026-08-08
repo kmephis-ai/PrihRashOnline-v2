@@ -1,0 +1,12 @@
+# Local/runtime credentials and deployment-specific configuration
+.env
+.env.*
+!.env.example
+.clasp.json
+.clasprc.json
+credentials/
+service-account*.json
+
+# Ephemeral public-safe test evidence is produced by CI and not committed.
+artifacts/
+node_modules/
