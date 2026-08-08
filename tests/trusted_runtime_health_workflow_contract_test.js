@@ -41,7 +41,11 @@ forbiddenEvidence.forEach((field) => assert(!evidenceObjectMatch[0].toLowerCase(
 
 const statusBlock = workflow.slice(workflow.indexOf('- name: Publish machine-visible runtime status'), workflow.indexOf('- name: Enforce authenticated runtime health'));
 assert(statusBlock.includes('REASON_CODE'), 'commit status may expose only technical reason code');
-forbiddenEvidence.forEach((field) => assert(!statusBlock.toLowerCase().includes(field), `commit status block includes forbidden field class: ${field}`));
+assert(statusBlock.includes("DESCRIPTION='CI-002 DEV_VERIFIED'"), 'successful status description must be static technical metadata');
+assert(statusBlock.includes('DESCRIPTION="CI-002 ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"'), 'failed status description must be limited to technical reason code');
+assert(!statusBlock.includes('HEALTH_OUTPUT'), 'raw authenticated output must never enter commit status');
+const forbiddenStatusPayload = ['amount','income','expense','balance','category','merchant','counterparty','payload','transaction'];
+forbiddenStatusPayload.forEach((field) => assert(!statusBlock.toLowerCase().includes(field), `commit status block includes forbidden field class: ${field}`));
 
 console.log('trusted_runtime_health_workflow_contract_test: OK', {
   webapp: 'MYSELF',
