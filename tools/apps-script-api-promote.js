@@ -5,6 +5,8 @@ const path = require('path');
 
 const WEB_DESCRIPTION = 'PrihRashOnline Web Dashboard DEV WebApp';
 const API_DESCRIPTION = 'CI-002 authenticated runtime verification';
+const VERIFY_ATTEMPTS = 10;
+const VERIFY_DELAY_MS = 1500;
 
 function emit(value) {
   process.stdout.write(`${JSON.stringify(value)}\n`);
@@ -72,6 +74,10 @@ function deploymentConfig(scriptId, versionNumber, description) {
   };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function listAllDeployments(scriptId, headers) {
   const deployments = [];
   let pageToken = '';
@@ -115,6 +121,41 @@ async function getDeployment(scriptId, deploymentId, headers, prefix) {
   const payload = await readResponse(response);
   if (!response.ok || !payload.json) return { ok: false, reason: classifyApiFailure(prefix, response, payload.json) };
   return { ok: true, deployment: payload.json };
+}
+
+async function waitForDeploymentVersion(scriptId, deploymentId, versionNumber, headers, prefix, options = {}) {
+  const attempts = Number.isInteger(options.attempts) && options.attempts > 0 ? options.attempts : VERIFY_ATTEMPTS;
+  const delayMs = Number.isInteger(options.delayMs) && options.delayMs >= 0 ? options.delayMs : VERIFY_DELAY_MS;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const current = await getDeployment(scriptId, deploymentId, headers, prefix);
+    if (!current.ok) return current;
+    if (deploymentVersion(current.deployment) === versionNumber) {
+      return { ok: true, attempts: attempt };
+    }
+    if (attempt < attempts && delayMs > 0) await sleep(delayMs);
+  }
+  return { ok: false, reason: `${prefix}_VERSION_NOT_VISIBLE` };
+}
+
+async function rollbackDeployments(scriptId, apiDeployment, webDeployment, previousApiVersion, previousWebVersion, headers) {
+  await Promise.all([
+    updateDeployment(
+      scriptId,
+      apiDeployment.deploymentId,
+      previousApiVersion,
+      deploymentDescription(apiDeployment) || API_DESCRIPTION,
+      headers,
+      'API_DEPLOYMENT_ROLLBACK'
+    ),
+    updateDeployment(
+      scriptId,
+      webDeployment.deploymentId,
+      previousWebVersion,
+      deploymentDescription(webDeployment) || WEB_DESCRIPTION,
+      headers,
+      'WEB_DEPLOYMENT_ROLLBACK'
+    )
+  ]);
 }
 
 async function main() {
@@ -192,18 +233,20 @@ async function main() {
       return emit({ ok: false, reason: webUpdated.reason });
     }
 
+    // Deployment update responses are authoritative for the requested version, but the
+    // subsequent GET view can lag briefly. Poll a small bounded window; never treat a
+    // stale read as success, and roll both stable deployments back if exact visibility
+    // is not established within the window.
     const [apiVerified, webVerified] = await Promise.all([
-      getDeployment(scriptId, apiDeploymentId, headers, 'API_DEPLOYMENT_VERIFY'),
-      getDeployment(scriptId, webDeployment.deploymentId, headers, 'WEB_DEPLOYMENT_VERIFY')
+      waitForDeploymentVersion(scriptId, apiDeploymentId, versionNumber, headers, 'API_DEPLOYMENT_VERIFY'),
+      waitForDeploymentVersion(scriptId, webDeployment.deploymentId, versionNumber, headers, 'WEB_DEPLOYMENT_VERIFY')
     ]);
-    if (!apiVerified.ok || !webVerified.ok
-      || deploymentVersion(apiVerified.deployment) !== versionNumber
-      || deploymentVersion(webVerified.deployment) !== versionNumber) {
-      await Promise.all([
-        updateDeployment(scriptId, apiDeploymentId, previousApiVersion, deploymentDescription(apiDeployment) || API_DESCRIPTION, headers, 'API_DEPLOYMENT_ROLLBACK'),
-        updateDeployment(scriptId, webDeployment.deploymentId, previousWebVersion, deploymentDescription(webDeployment) || WEB_DESCRIPTION, headers, 'WEB_DEPLOYMENT_ROLLBACK')
-      ]);
-      return emit({ ok: false, reason: 'DEPLOYMENT_EXACT_VERSION_VERIFY_FAILED' });
+    if (!apiVerified.ok || !webVerified.ok) {
+      await rollbackDeployments(scriptId, apiDeployment, webDeployment, previousApiVersion, previousWebVersion, headers);
+      const reason = !apiVerified.ok
+        ? apiVerified.reason
+        : (!webVerified.ok ? webVerified.reason : 'DEPLOYMENT_EXACT_VERSION_VERIFY_FAILED');
+      return emit({ ok: false, reason });
     }
 
     return emit({ ok: true, versionNumber });
@@ -217,11 +260,14 @@ if (require.main === module) main();
 module.exports = {
   WEB_DESCRIPTION,
   API_DESCRIPTION,
+  VERIFY_ATTEMPTS,
+  VERIFY_DELAY_MS,
   safeStatus,
   boundedHttpReason,
   classifyApiFailure,
   hasEntryPoint,
   deploymentVersion,
   deploymentDescription,
-  deploymentConfig
+  deploymentConfig,
+  waitForDeploymentVersion
 };
