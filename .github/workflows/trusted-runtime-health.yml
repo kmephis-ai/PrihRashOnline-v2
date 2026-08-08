@@ -6,8 +6,10 @@ on:
     types: [completed]
 
 permissions:
-  contents: read
+  contents: write
   actions: read
+  issues: read
+  pull-requests: read
   statuses: write
 
 concurrency:
@@ -107,7 +109,6 @@ jobs:
           PARAMS="$(jq -nc --arg candidateSha "${CANDIDATE_SHA}" --arg sourceTreeHash "${SOURCE_TREE_HASH}" '[{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash}]')"
           TOKEN_PATTERN="^PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+$"
 
-          # Privacy-safe credential preflight. Only clientType is used; OAuth ids and user identity stay private.
           set +e
           AUTH_OUTPUT="$(${CLASP} show-authorized-user --user "${CLASP_USER}" --json 2>&1)"
           AUTH_STATUS=$?
@@ -133,7 +134,6 @@ jobs:
             exit 0
           fi
 
-          # Phase 1: direct owner-authenticated scripts.run transport proof. No Sheets access.
           PING_JSON="$(node "${EXECUTOR}" prhRuntimeTransportPing '[]')"
           PING_OK="$(jq -r '.ok // false' <<<"${PING_JSON}" 2>/dev/null || printf 'false')"
           PING_TOKEN="$(jq -r '.result // empty' <<<"${PING_JSON}" 2>/dev/null || true)"
@@ -148,7 +148,6 @@ jobs:
             exit 0
           fi
 
-          # Phase 2: exact deployed SHA/tree + read-only workbook health through the same scripts.run transport.
           HEALTH_JSON="$(node "${EXECUTOR}" prhReleaseHealthCheckToken "${PARAMS}")"
           HEALTH_OK="$(jq -r '.ok // false' <<<"${HEALTH_JSON}" 2>/dev/null || printf 'false')"
           TOKEN="$(jq -r '.result // empty' <<<"${HEALTH_JSON}" 2>/dev/null || true)"
@@ -232,11 +231,224 @@ jobs:
             -f context="trusted-runtime-health-reason:${REASON}" \
             -f description='CI-002 technical reason' >/dev/null
 
-      - name: Enforce authenticated runtime health
+      - name: Resolve autonomous roadmap merge eligibility
+        id: autonomy
+        if: steps.probe.outputs.result == 'PASS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'eligible=false' >> "$GITHUB_OUTPUT"
+          echo 'ready=false' >> "$GITHUB_OUTPUT"
+          echo 'reason=NOT_ROADMAP_PR' >> "$GITHUB_OUTPUT"
+
+          ASSOCIATED_PRS="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/pulls")"
+          PR_NUMBER="$(jq -r \
+            --arg sha "${CANDIDATE_SHA}" \
+            --arg repo "${GITHUB_REPOSITORY}" \
+            --arg base "${DEFAULT_BRANCH}" \
+            '[.[] | select(.head.sha == $sha and .head.repo.full_name == $repo and .base.ref == $base)] | if length == 1 then .[0].number else empty end' \
+            <<<"${ASSOCIATED_PRS}")"
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=SOURCE_PR_NOT_UNIQUE' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.state' <<<"${PR_JSON}")" != 'open' ]]; then
+            echo 'reason=PR_NOT_OPEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(jq -r '.draft // false' <<<"${PR_JSON}")" == 'true' ]]; then
+            echo 'reason=PR_IS_DRAFT' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(jq -r '.head.sha' <<<"${PR_JSON}")" != "${CANDIDATE_SHA}" || \
+                "$(jq -r '.head.repo.full_name' <<<"${PR_JSON}")" != "${GITHUB_REPOSITORY}" || \
+                "$(jq -r '.base.ref' <<<"${PR_JSON}")" != "${DEFAULT_BRANCH}" ]]; then
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=SOURCE_PR_CHANGED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_BODY="$(jq -r '.body // ""' <<<"${PR_JSON}")"
+          mapfile -t ISSUE_REFS < <(printf '%s\n' "${PR_BODY}" | grep -Eio '^[[:space:]]*Closes[[:space:]]+#[0-9]+[[:space:]]*$' | grep -Eo '[0-9]+' || true)
+          if [[ "${#ISSUE_REFS[@]}" -eq 0 ]]; then
+            exit 0
+          fi
+          echo 'eligible=true' >> "$GITHUB_OUTPUT"
+          if [[ "${#ISSUE_REFS[@]}" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_REFERENCE_AMBIGUOUS' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ISSUE_NUMBER="${ISSUE_REFS[0]}"
+          ISSUE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          ISSUE_BODY="$(jq -r '.body // ""' <<<"${ISSUE_JSON}")"
+          if [[ "$(jq -r '.state' <<<"${ISSUE_JSON}")" != 'open' || "$(jq -r 'has("pull_request")' <<<"${ISSUE_JSON}")" == 'true' ]]; then
+            echo 'reason=ROADMAP_ISSUE_NOT_OPEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! grep -Eq '^roadmap_id:[[:space:]]*[A-Z0-9-]+[[:space:]]*$' <<<"${ISSUE_BODY}" || \
+             [[ "$(grep -Ec '^status:[[:space:]]*IN_PROGRESS[[:space:]]*$' <<<"${ISSUE_BODY}" || true)" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_STATE_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+          echo 'reason=READY' >> "$GITHUB_OUTPUT"
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Autonomous exact-head squash merge
+        id: merge
+        if: steps.autonomy.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          PR_NUMBER: ${{ steps.autonomy.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=MERGE_NOT_COMPLETED' >> "$GITHUB_OUTPUT"
+
+          STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+          DEPLOY_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-dev-deploy")][0].state // empty' <<<"${STATUS_JSON}")"
+          HEALTH_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-runtime-health")][0].state // empty' <<<"${STATUS_JSON}")"
+          if [[ "${DEPLOY_STATE}" != 'success' || "${HEALTH_STATE}" != 'success' ]]; then
+            echo 'reason=REQUIRED_GATES_NOT_GREEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.state' <<<"${PR_JSON}")" != 'open' || \
+                "$(jq -r '.head.sha' <<<"${PR_JSON}")" != "${CANDIDATE_SHA}" || \
+                "$(jq -r '.head.repo.full_name' <<<"${PR_JSON}")" != "${GITHUB_REPOSITORY}" || \
+                "$(jq -r '.base.ref' <<<"${PR_JSON}")" != "${DEFAULT_BRANCH}" ]]; then
+            echo 'reason=EXACT_HEAD_CHANGED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          set +e
+          MERGE_JSON="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method='squash' \
+            -f sha="${CANDIDATE_SHA}" 2>/dev/null)"
+          MERGE_STATUS=$?
+          set -e
+          if [[ "${MERGE_STATUS}" -ne 0 || "$(jq -r '.merged // false' <<<"${MERGE_JSON}" 2>/dev/null || true)" != 'true' ]]; then
+            echo 'reason=EXACT_HEAD_SQUASH_MERGE_FAILED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MERGE_SHA="$(jq -r '.sha // empty' <<<"${MERGE_JSON}")"
+          if [[ ! "${MERGE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'reason=MERGE_SHA_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+          echo "merge_sha=${MERGE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish autonomous merge status
+        if: always() && steps.autonomy.outputs.eligible == 'true' && steps.candidate.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          AUTONOMY_READY: ${{ steps.autonomy.outputs.ready }}
+          AUTONOMY_REASON: ${{ steps.autonomy.outputs.reason }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+          MERGE_REASON: ${{ steps.merge.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON="${AUTONOMY_REASON:-AUTONOMY_NOT_RESOLVED}"
+          if [[ "${AUTONOMY_READY}" == 'true' ]]; then
+            REASON="${MERGE_REASON:-MERGE_NOT_COMPLETED}"
+            if [[ "${MERGE_RESULT}" == 'PASS' ]]; then
+              STATE='success'
+              REASON='OK'
+            fi
+          fi
+          [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='AUTONOMOUS_MERGE_FAILED'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='autonomous-merge' \
+            -f description="CI-003 ${REASON}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context="autonomous-merge-reason:${REASON}" \
+            -f description='CI-003 technical reason' >/dev/null
+
+      - name: Dispatch main verification
+        id: dispatch
+        if: steps.merge.outputs.result == 'PASS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+          PR_NUMBER: ${{ steps.autonomy.outputs.pr_number }}
+          ISSUE_NUMBER: ${{ steps.autonomy.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=MAIN_VERIFICATION_DISPATCH_FAILED' >> "$GITHUB_OUTPUT"
+          PAYLOAD="$(jq -nc \
+            --arg merge_sha "${MERGE_SHA}" \
+            --arg candidate_sha "${CANDIDATE_SHA}" \
+            --argjson pr_number "${PR_NUMBER}" \
+            --argjson issue_number "${ISSUE_NUMBER}" \
+            '{event_type:"ci003-main-verification",client_payload:{merge_sha:$merge_sha,candidate_sha:$candidate_sha,pr_number:$pr_number,issue_number:$issue_number}}')"
+          set +e
+          printf '%s' "${PAYLOAD}" | gh api --method POST "repos/${GITHUB_REPOSITORY}/dispatches" --input - >/dev/null 2>&1
+          DISPATCH_STATUS=$?
+          set -e
+          if [[ "${DISPATCH_STATUS}" -ne 0 ]]; then
+            exit 0
+          fi
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+
+      - name: Publish main verification dispatch status
+        if: always() && steps.autonomy.outputs.eligible == 'true' && steps.candidate.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+          DISPATCH_RESULT: ${{ steps.dispatch.outputs.result }}
+          DISPATCH_REASON: ${{ steps.dispatch.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON='MERGE_NOT_COMPLETED'
+          if [[ "${MERGE_RESULT}" == 'PASS' ]]; then
+            REASON="${DISPATCH_REASON:-MAIN_VERIFICATION_DISPATCH_FAILED}"
+            if [[ "${DISPATCH_RESULT}" == 'PASS' ]]; then
+              STATE='success'
+              REASON='OK'
+            fi
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='main-verification-dispatch' \
+            -f description="CI-003 ${REASON}" >/dev/null
+
+      - name: Enforce authenticated runtime health and autonomous merge
         if: always()
         env:
           PROBE_RESULT: ${{ steps.probe.outputs.result }}
           REASON_CODE: ${{ steps.probe.outputs.reason }}
+          AUTONOMY_ELIGIBLE: ${{ steps.autonomy.outputs.eligible }}
+          AUTONOMY_READY: ${{ steps.autonomy.outputs.ready }}
+          AUTONOMY_REASON: ${{ steps.autonomy.outputs.reason }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+          MERGE_REASON: ${{ steps.merge.outputs.reason }}
+          DISPATCH_RESULT: ${{ steps.dispatch.outputs.result }}
+          DISPATCH_REASON: ${{ steps.dispatch.outputs.reason }}
         shell: bash
         run: |
           set -euo pipefail
@@ -244,4 +456,19 @@ jobs:
             echo "::error::trusted-runtime-health failed closed: ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
             exit 1
           fi
+          if [[ "${AUTONOMY_ELIGIBLE}" == 'true' ]]; then
+            if [[ "${AUTONOMY_READY}" != 'true' ]]; then
+              echo "::error::CI-003 roadmap PR blocked: ${AUTONOMY_REASON:-AUTONOMY_NOT_READY}"
+              exit 1
+            fi
+            if [[ "${MERGE_RESULT}" != 'PASS' ]]; then
+              echo "::error::CI-003 autonomous merge failed: ${MERGE_REASON:-MERGE_NOT_COMPLETED}"
+              exit 1
+            fi
+            if [[ "${DISPATCH_RESULT}" != 'PASS' ]]; then
+              echo "::error::CI-003 main verification dispatch failed: ${DISPATCH_REASON:-MAIN_VERIFICATION_DISPATCH_FAILED}"
+              exit 1
+            fi
+          fi
           echo 'trusted-runtime-health: PASS'
+          [[ "${AUTONOMY_ELIGIBLE}" == 'true' ]] && echo 'CI-003 autonomous merge: PASS' || echo 'CI-003 autonomous merge: SKIP non-roadmap PR'
