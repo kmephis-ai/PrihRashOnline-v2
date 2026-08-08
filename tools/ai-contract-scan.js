@@ -9,6 +9,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const agents = read('AGENTS.md');
 const context = read('.ai-context/PROJECT_CONTEXT.md');
 const llms = read('llms.txt');
+const roadmap = read('docs/ROADMAP.md');
 const status = read('docs/PROJECT_STATUS.md');
 const workflow = read('.github/workflows/pr-validation.yml');
 
@@ -24,8 +25,12 @@ requireMatch('AI_PRODUCT_OBJECTIVE', agents, /Product objective[\s\S]{0,700}hous
   'AGENTS.md must define product objective');
 requireMatch('AI_SOURCE_PRECEDENCE', agents, /Sources of truth and precedence[\s\S]{0,1800}fail closed/i,
   'source precedence/fail-closed conflict rule missing');
-requireMatch('AI_CANONICAL_CONTEXT', agents, /Master Audit v2\.1[\s\S]{0,160}Executable GitHub Roadmap v2\.1[\s\S]{0,160}AI Development Playbook v1\.0/,
-  'canonical external context names missing');
+requireMatch('AI_CANONICAL_ROADMAP_REFERENCE', agents, /docs\/ROADMAP\.md[\s\S]{0,200}Executable GitHub Roadmap v2\.3/i,
+  'repository canonical Roadmap v2.3 reference missing');
+requireMatch('AI_CANONICAL_EXTERNAL_CONTEXT', agents, /Master Audit v2\.1[\s\S]{0,200}AI Development Playbook v1\.0/i,
+  'canonical external Master Audit / AI Development Playbook context missing');
+requireMatch('AI_CANONICAL_ROADMAP_FILE', roadmap, /^# PrihRashOnline-v2 — Executable GitHub Roadmap v2\.3$/m,
+  'docs/ROADMAP.md must be the canonical Executable GitHub Roadmap v2.3');
 requireMatch('AI_AUTONOMY_V2', agents, /Autonomy Contract v2/,
   'Autonomy Contract v2 heading missing');
 requireMatch('AI_ONE_WRITER', agents, /one Roadmap ID = one GitHub Issue = one active writer/i,
@@ -115,6 +120,7 @@ requireMatch('AI_CONTEXT_SCOPE_HANDOFF', context, /AIENG-001[\s\S]*AIENG-002[\s\
 for (const required of [
   'AGENTS.md',
   '.ai-context/PROJECT_CONTEXT.md',
+  'docs/ROADMAP.md',
   'docs/PROJECT_STATUS.md',
   'docs/architecture.md',
   'docs/RELEASE_PROCESS.md',
@@ -135,6 +141,8 @@ for (const [name, text] of [
   ['.ai-context/PROJECT_CONTEXT.md', context],
   ['llms.txt', llms]
 ]) {
+  forbidMatch('AI_STALE_ROADMAP_REFERENCE', text, /Executable GitHub Roadmap v2\.1/i,
+    `${name} contains stale Roadmap v2.1 authority`);
   forbidMatch('AI_PUBLIC_RUNTIME_LOCATOR', text, /script\.google\.com\/macros\/s\/|\bAKfy[A-Za-z0-9_-]+\b/,
     `${name} contains a private runtime/deployment locator`);
   forbidMatch('AI_OWNER_PRIVATE_PATH', text, /[A-Z]:\\(?:YandexDisk|PrihRashOnline-Keys|PrihRashOnline\\)/,
