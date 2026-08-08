@@ -61,41 +61,32 @@ jobs:
       - name: Push isolated Apps Script source
         run: npx clasp push --force
 
-      - name: Redeploy existing DEV Web App with clasp v3
+      - name: Create fresh isolated DEV Web App deployment
         id: deploy
         shell: bash
         run: |
           set -euo pipefail
-          DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
-          DEPLOYMENTS="$(npx clasp list-deployments)"
-          printf '%s\n' "${DEPLOYMENTS}"
-          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
-
-          if [[ -n "${DEPLOYMENT_ID}" ]]; then
-            OUTPUT="$(npx clasp create-deployment --deploymentId "${DEPLOYMENT_ID}" --description "${DEPLOYMENT_NAME}")"
-          else
-            OUTPUT="$(npx clasp create-deployment --description "${DEPLOYMENT_NAME}")"
-            DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
-          fi
-
+          DEPLOYMENT_NAME="PrihRashOnline isolated bootstrap ${GITHUB_SHA}"
+          OUTPUT="$(npx clasp create-deployment --description "${DEPLOYMENT_NAME}")"
           printf '%s\n' "${OUTPUT}"
+          DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
           test -n "${DEPLOYMENT_ID}"
           WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
           echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Report successful deployment to PR
+      - name: Report successful fresh deployment to PR
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
           WEB_APP_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Isolated Dashboard bootstrap deployed. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Fresh isolated Dashboard deployment created. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-      - name: Report failed deployment to PR
+      - name: Report failed fresh deployment to PR
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Isolated Dashboard bootstrap deployment failed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Fresh isolated Dashboard deployment failed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
