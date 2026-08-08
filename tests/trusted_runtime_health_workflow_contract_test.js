@@ -41,23 +41,34 @@ assert(workflow.includes('artifactHash'), 'runtime health must preserve immutabl
 assert(workflow.includes('DEV_VERIFIED'), 'successful authenticated health must produce DEV_VERIFIED');
 assert(workflow.includes('trusted-runtime-health failed closed'), 'health failure must block the gate');
 
-assert(workflow.includes('statuses: write'), 'runtime health requires only commit-status write visibility');
+assert(workflow.includes('statuses: write'), 'runtime health requires commit-status visibility');
+assert(workflow.includes('contents: write'), 'CI-003 runtime gate needs repository content write permission solely for exact-head merge and repository dispatch');
+assert(workflow.includes('pull-requests: read'), 'CI-003 must re-read PR identity before merge');
+assert(workflow.includes('issues: read'), 'CI-003 must validate the linked Roadmap Issue without mutating it');
+assert(!workflow.includes('issues: write'), 'secret-bearing runtime workflow must not mutate Issues; Main Verification owns closure');
 assert(workflow.includes('statuses/${CANDIDATE_SHA}'), 'runtime result must target the exact candidate SHA');
 assert(workflow.includes("context='trusted-runtime-health'"), 'runtime status must use stable machine-readable context');
 assert(workflow.includes('trusted-runtime-health-reason:${REASON}'), 'runtime status must expose technical reason code as a second context');
 assert(workflow.includes("STATE='success'"), 'verified runtime must publish success status');
 assert(workflow.includes("STATE='failure'"), 'failed runtime must publish failure status');
-assert(!workflow.includes('issues: write'), 'runtime health must not gain issue mutation permission');
-assert(!workflow.includes('contents: write'), 'runtime health must not gain repository content write permission');
 assert(!workflow.includes('curl -L'), 'anonymous Web App curl must not be authoritative');
 assert(!workflow.includes('manual marker'), 'manual marker must not be a gate');
+
+assert(workflow.includes("steps.probe.outputs.result == 'PASS'"), 'autonomous merge must be gated on authenticated runtime PASS');
+assert(workflow.includes("merge_method='squash'"), 'autonomous merge must be squash');
+assert(workflow.includes('-f sha="${CANDIDATE_SHA}"'), 'merge request must atomically match the exact candidate head');
+assert(workflow.includes('head.repo.full_name') && workflow.includes('base.ref') && workflow.includes('head.sha'), 'same-repository/main/exact-head must be revalidated');
+assert(workflow.includes("context='autonomous-merge'"), 'CI-003 merge result must be machine-visible on the candidate');
+assert(workflow.includes('ci003-main-verification'), 'successful merge must dispatch secret-free main verification');
+assert(!/\bgit\s+push\b/.test(workflow), 'runtime workflow must never directly push post-merge commits');
+assert(!/--admin\b/.test(workflow), 'autonomous merge must not bypass branch policy with admin mode');
 
 const forbiddenEvidence = ['amount','income','expense','balance','description','category','merchant','counterparty','payload','transaction','clientid','email','user'];
 const evidenceObjectMatch = workflow.match(/'\{candidateSha:[^']+\}'/);
 assert(evidenceObjectMatch, 'privacy-safe evidence JSON contract missing');
 forbiddenEvidence.forEach((field) => assert(!evidenceObjectMatch[0].toLowerCase().includes(field), `runtime evidence includes forbidden field class: ${field}`));
 
-const statusBlock = workflow.slice(workflow.indexOf('- name: Publish machine-visible runtime status'), workflow.indexOf('- name: Enforce authenticated runtime health'));
+const statusBlock = workflow.slice(workflow.indexOf('- name: Publish machine-visible runtime status'), workflow.indexOf('- name: Resolve autonomous roadmap merge eligibility'));
 assert(statusBlock.includes('REASON_CODE'), 'commit status may expose only technical reason code');
 assert(statusBlock.includes("DESCRIPTION='CI-002 DEV_VERIFIED'"), 'successful status description must be static technical metadata');
 assert(statusBlock.includes('DESCRIPTION="CI-002 ${REASON}"'), 'failed status description must be limited to technical reason code');
@@ -77,6 +88,8 @@ console.log('trusted_runtime_health_workflow_contract_test: OK', {
   exactBuild: true,
   machineVisibleStatus: true,
   machineVisibleReason: true,
+  autonomousMerge: 'health-gated exact-head squash',
+  issueMutation: 'Main Verification only',
   manualMarker: false,
   anonymousCurl: false
 });
