@@ -1,22 +1,23 @@
-# PrihRashOnline-v2 AI entry points
+# PrihRashOnline-v2 — AI entry points
 
-AGENTS.md — authoritative repository AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD and CI-red recovery.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map for AI agents.
+AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
+docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; порядок/dependencies берутся отсюда, live lifecycle — из GitHub Issues.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task-packet schema.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/READY selection/one-writer/lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
 .ai-context/MULTI_AI_REVIEW_CONTEXT.md — public-safe read-only reviewer context.
 .ai-context/multi-ai-review-packet.schema.json — exact-candidate multi-AI review packet schema.
 .ai-context/multi-ai-review-report.schema.json — bounded specialist reviewer report schema.
-docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — reviewer roles, read-only boundary, severity/arbitration and machine-gate authority.
+docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — reviewer roles, read-only boundary, severity/arbitration и machine-gate authority.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid/external model dependency.
-docs/PROJECT_STATUS.md — R0 master-gate status and next dependency-ordered work.
-docs/architecture.md — current Google runtime/control plane and target domain/repository-adapter architecture.
-docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline and Main Verification close path.
-docs/data-model.md — financial truth, migration, write and public-data boundaries.
+docs/PROJECT_STATUS.md — R0 master-gate summary; live state сверяется с GitHub Issues.
+docs/architecture.md — current Google runtime/control plane и target domain/repository-adapter architecture.
+docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline и Main Verification close path.
+docs/data-model.md — financial truth, migration, write и public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
 docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe bounded observability contract.
 docs/operations/FINOPS001_FREE_ONLY_GUARD.md — executable FREE_ONLY/cost circuit-breaker contract.
-docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md — public-history privacy remediation state; destructive rewrite is not authorized/executed.
+docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md — public-history privacy remediation state; destructive rewrite не authorized/executed.
 
-Canonical external context when explicitly supplied: Master Audit v2.1; Executable GitHub Roadmap v2.2; AI Development Playbook v1.0. Follow source precedence in AGENTS.md. Never place private household finance/runtime/credential/backup context into this file.
+Внешний canonical context, когда явно предоставлен task: `Master Audit v2.1` и `AI Development Playbook v1.0`. Executable GitHub Roadmap берётся только из repository `docs/ROADMAP.md`. Chat history/memory и stale Roadmap copies не authority. Никогда не помещайте сюда private household finance/runtime/credential/backup data.
