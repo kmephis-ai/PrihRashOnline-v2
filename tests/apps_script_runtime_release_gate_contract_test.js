@@ -6,6 +6,10 @@ const service = fs.readFileSync('DashboardWebDataService.js', 'utf8');
 const model = fs.readFileSync('DashboardWebDataModel.js', 'utf8');
 const workflow = fs.readFileSync('.github/workflows/chat-driven-dev-release.yml', 'utf8');
 
+if (/[^\x00-\x7F]/.test(service)) {
+  throw new Error('DashboardWebDataService.js must remain ASCII-only');
+}
+
 const start = service.indexOf('function doGet(e) {');
 const end = service.indexOf('function prhOpenWebDashboard', start);
 if (start < 0 || end < 0) throw new Error('minimal doGet bootstrap not found');
