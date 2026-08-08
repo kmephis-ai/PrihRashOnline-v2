@@ -88,11 +88,11 @@ function validatePacket(packet) {
 }
 
 function normalizeFinding(finding) {
-  const allowed = ['severity', 'code', 'path', 'summary', 'recommendation', 'confidence', 'resolved'];
+  const allowed = ['severity', 'code', 'path', 'summary', 'evidence', 'recommendation', 'confidence', 'resolved'];
   assertKeys(finding, allowed, allowed, 'MULTI_AI_FINDING_SHAPE_INVALID');
   if (!SEVERITIES.has(finding.severity)) fail('MULTI_AI_FINDING_SEVERITY_INVALID');
   if (!CODE_RE.test(String(finding.code || ''))) fail('MULTI_AI_FINDING_CODE_INVALID');
-  for (const [key, max] of [['path', 240], ['summary', 240], ['recommendation', 500]]) {
+  for (const [key, max] of [['path', 240], ['summary', 240], ['evidence', 500], ['recommendation', 500]]) {
     if (typeof finding[key] !== 'string' || finding[key].length < 1 || finding[key].length > max) {
       fail(`MULTI_AI_FINDING_${key.toUpperCase()}_INVALID`);
     }
@@ -106,6 +106,7 @@ function normalizeFinding(finding) {
     code: finding.code,
     path: finding.path,
     summary: finding.summary,
+    evidence: finding.evidence,
     recommendation: finding.recommendation,
     confidence: finding.confidence,
     resolved: finding.resolved
