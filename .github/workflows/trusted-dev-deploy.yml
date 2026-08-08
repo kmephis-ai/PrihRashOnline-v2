@@ -27,6 +27,7 @@ jobs:
       CLASP_USER: prihrash-ci
     steps:
       - name: Checkout trusted default-branch policy
+        id: trusted_checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -34,6 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up trusted Node.js
+        id: node_setup
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -76,10 +78,12 @@ jobs:
           echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Install trusted locked tooling
+        id: tooling
         working-directory: trusted
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Download verified candidate artifact
+        id: artifact_download
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -93,6 +97,7 @@ jobs:
           test -f "${RUNNER_TEMP}/promoted/manifest.json"
 
       - name: Checkout exact candidate without credentials
+        id: candidate_checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
@@ -100,6 +105,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify candidate artifact against trusted reconstruction
+        id: candidate_verify
         shell: bash
         run: |
           set -euo pipefail
@@ -113,6 +119,7 @@ jobs:
             --sha "${CANDIDATE_SHA}"
 
       - name: Prepare verified deploy directory
+        id: deploy_prepare
         env:
           APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
@@ -130,6 +137,7 @@ jobs:
           node -e "const fs=require('fs'); const auth=JSON.parse(fs.readFileSync(process.env.HOME+'/.clasprc.json','utf8')); if(!auth.tokens || !auth.tokens['prihrash-ci']) throw new Error('named clasp profile missing'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/deploy/.clasp.json','utf8'));"
 
       - name: Push verified candidate with trusted clasp
+        id: clasp_push
         shell: bash
         run: |
           set -euo pipefail
@@ -137,6 +145,7 @@ jobs:
           "${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp" push --user "${CLASP_USER}" --force >/dev/null
 
       - name: Update stable DEV web deployment
+        id: web_deploy
         shell: bash
         run: |
           set -euo pipefail
@@ -152,6 +161,7 @@ jobs:
           fi
 
       - name: Update stable API executable deployment
+        id: api_deploy
         env:
           APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
         shell: bash
@@ -166,6 +176,7 @@ jobs:
           "${CLASP}" update-deployment --user "${CLASP_USER}" "${APPS_SCRIPT_API_DEPLOYMENT_ID}" -d 'CI-002 authenticated runtime verification' >/dev/null
 
       - name: Record privacy-safe deploy evidence
+        id: deploy_evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -180,6 +191,7 @@ jobs:
             > trusted-deploy-evidence/evidence.json
 
       - name: Upload trusted deploy evidence
+        id: evidence_upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: trusted-dev-deploy-${{ github.event.workflow_run.head_sha }}
@@ -192,16 +204,48 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
+          TRUSTED_CHECKOUT: ${{ steps.trusted_checkout.outcome }}
+          NODE_SETUP: ${{ steps.node_setup.outcome }}
+          SOURCE_VALIDATION: ${{ steps.source.outcome }}
+          TOOLING_INSTALL: ${{ steps.tooling.outcome }}
+          ARTIFACT_DOWNLOAD: ${{ steps.artifact_download.outcome }}
+          CANDIDATE_CHECKOUT: ${{ steps.candidate_checkout.outcome }}
+          CANDIDATE_VERIFY: ${{ steps.candidate_verify.outcome }}
+          DEPLOY_PREPARE: ${{ steps.deploy_prepare.outcome }}
+          CLASP_PUSH: ${{ steps.clasp_push.outcome }}
+          WEB_DEPLOY: ${{ steps.web_deploy.outcome }}
+          API_DEPLOY: ${{ steps.api_deploy.outcome }}
+          DEPLOY_EVIDENCE: ${{ steps.deploy_evidence.outcome }}
+          EVIDENCE_UPLOAD: ${{ steps.evidence_upload.outcome }}
         shell: bash
         run: |
           set -euo pipefail
           STATE='failure'
+          REASON='DEPLOY_STEP_UNKNOWN'
           DESCRIPTION='CI-002 TRUSTED_DEPLOY_FAILED'
-          if [[ "${JOB_STATUS}" == 'success' ]]; then
+          if [[ "${TRUSTED_CHECKOUT}" == 'failure' ]]; then REASON='TRUSTED_CHECKOUT_FAILED';
+          elif [[ "${NODE_SETUP}" == 'failure' ]]; then REASON='NODE_SETUP_FAILED';
+          elif [[ "${SOURCE_VALIDATION}" == 'failure' ]]; then REASON='SOURCE_VALIDATION_FAILED';
+          elif [[ "${TOOLING_INSTALL}" == 'failure' ]]; then REASON='TOOLING_INSTALL_FAILED';
+          elif [[ "${ARTIFACT_DOWNLOAD}" == 'failure' ]]; then REASON='ARTIFACT_DOWNLOAD_FAILED';
+          elif [[ "${CANDIDATE_CHECKOUT}" == 'failure' ]]; then REASON='CANDIDATE_CHECKOUT_FAILED';
+          elif [[ "${CANDIDATE_VERIFY}" == 'failure' ]]; then REASON='CANDIDATE_VERIFY_FAILED';
+          elif [[ "${DEPLOY_PREPARE}" == 'failure' ]]; then REASON='DEPLOY_PREP_FAILED';
+          elif [[ "${CLASP_PUSH}" == 'failure' ]]; then REASON='CLASP_PUSH_FAILED';
+          elif [[ "${WEB_DEPLOY}" == 'failure' ]]; then REASON='WEB_DEPLOY_UPDATE_FAILED';
+          elif [[ "${API_DEPLOY}" == 'failure' ]]; then REASON='API_DEPLOY_UPDATE_FAILED';
+          elif [[ "${DEPLOY_EVIDENCE}" == 'failure' ]]; then REASON='DEPLOY_EVIDENCE_FAILED';
+          elif [[ "${EVIDENCE_UPLOAD}" == 'failure' ]]; then REASON='DEPLOY_ARTIFACT_UPLOAD_FAILED';
+          elif [[ "${JOB_STATUS}" == 'success' ]]; then
             STATE='success'
+            REASON='OK'
             DESCRIPTION='CI-002 TRUSTED_DEPLOYED'
           fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
             -f state="${STATE}" \
             -f context='trusted-dev-deploy' \
             -f description="${DESCRIPTION}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context="trusted-dev-deploy-reason:${REASON}" \
+            -f description='CI-002 deploy technical reason' >/dev/null
