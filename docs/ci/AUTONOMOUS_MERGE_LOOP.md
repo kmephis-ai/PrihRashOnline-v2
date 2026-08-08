@@ -56,3 +56,7 @@ The implementation PR is installed manually because the autonomous workflow cann
 ### Live canary
 
 This documentation-only change is the CI-003 live canary. Its PR is intentionally eligible for the autonomous loop; GitHub machine state for the exact candidate, autonomous squash merge, main verification, and linked Issue closure is the authoritative proof.
+
+### Final live canary after reliability hardening
+
+This second documentation-only canary validates the complete default-branch implementation after Main Verification YAML registration was repaired and trusted Apps Script promotion was changed to one explicit immutable version shared by the stable Web App and API Executable. No manual merge or manual Issue closure is valid evidence for this canary.
