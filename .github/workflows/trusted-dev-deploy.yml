@@ -24,6 +24,7 @@ jobs:
       CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CLASP_USER: prihrash-ci
     steps:
       - name: Checkout trusted default-branch policy
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -126,29 +127,43 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/deploy"
           cp -a "${RUNNER_TEMP}/promoted/files/." "${RUNNER_TEMP}/deploy/"
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > "${RUNNER_TEMP}/deploy/.clasp.json"
-          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/deploy/.clasp.json','utf8'));"
+          node -e "const fs=require('fs'); const auth=JSON.parse(fs.readFileSync(process.env.HOME+'/.clasprc.json','utf8')); if(!auth.tokens || !auth.tokens['prihrash-ci']) throw new Error('named clasp profile missing'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/deploy/.clasp.json','utf8'));"
 
       - name: Push verified candidate with trusted clasp
         shell: bash
         run: |
           set -euo pipefail
           cd "${RUNNER_TEMP}/deploy"
-          "${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp" push --force >/dev/null
+          "${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp" push --user "${CLASP_USER}" --force >/dev/null
 
-      - name: Update stable DEV deployment
+      - name: Update stable DEV web deployment
         shell: bash
         run: |
           set -euo pipefail
           cd "${RUNNER_TEMP}/deploy"
           CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
           DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
-          DEPLOYMENTS="$(${CLASP} list-deployments || true)"
+          DEPLOYMENTS="$(${CLASP} list-deployments --user "${CLASP_USER}" || true)"
           DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
           if [[ -n "${DEPLOYMENT_ID}" ]]; then
-            "${CLASP}" update-deployment "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}" >/dev/null
+            "${CLASP}" update-deployment --user "${CLASP_USER}" "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}" >/dev/null
           else
-            "${CLASP}" create-deployment -d "${DEPLOYMENT_NAME}" >/dev/null
+            "${CLASP}" create-deployment --user "${CLASP_USER}" -d "${DEPLOYMENT_NAME}" >/dev/null
           fi
+
+      - name: Update stable API executable deployment
+        env:
+          APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${APPS_SCRIPT_API_DEPLOYMENT_ID}" =~ ^AKfy[A-Za-z0-9_-]+$ ]] || {
+            echo '::error::Missing or invalid APPS_SCRIPT_API_DEPLOYMENT_ID'
+            exit 1
+          }
+          cd "${RUNNER_TEMP}/deploy"
+          CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
+          "${CLASP}" update-deployment --user "${CLASP_USER}" "${APPS_SCRIPT_API_DEPLOYMENT_ID}" -d 'CI-002 authenticated runtime verification' >/dev/null
 
       - name: Record privacy-safe deploy evidence
         shell: bash
