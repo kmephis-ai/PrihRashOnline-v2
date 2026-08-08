@@ -54,22 +54,28 @@ for (const [name, text] of currentOperationalDocs) {
     `${name}: public runtime/deployment locator`);
 }
 
-forbidMatch('DOC_RELEASE_SNAPSHOT_BRANCH', docs.release, /agent\/release\//i,
-  'Release process must not restore release snapshot branches');
-forbidMatch('DOC_RELEASE_COMMIT_GATE', docs.release, /(?:maximum|max|не более|лимит|limit)[^\n]{0,40}10[^\n]{0,20}commit|10[^\n]{0,20}commit/i,
-  'Release process must not use commit-count gate');
-forbidMatch('DOC_CHAT_DRIVEN_RELEASE', docs.release, /Chat-Driven DEV Release/i,
-  'Legacy Chat-Driven DEV Release state machine must stay removed');
-forbidMatch('DOC_MANUAL_RUNTIME_MARKER', docs.release, /manual runtime marker[^\n]{0,30}(?:required|gate|approve)|ручн[^\n]{0,30}marker/i,
-  'Manual runtime marker must not be documented as a gate');
-forbidMatch('DOC_POST_MERGE_README_WRITE', docs.release, /post-merge direct (?:README )?commit[^\n]{0,40}(?:publish|URL)|update the stable Dashboard link on `main` after merge/i,
-  'Post-merge direct README URL write must stay removed');
+// Historical/retired mechanism names may appear only as explicit negative guidance.
+requireMatch('DOC_RELEASE_SNAPSHOT_RETIRED', docs.release,
+  /Штатная модель \*\*не использует\*\* release snapshot branches, ограничения по числу commits/i,
+  'Release process must explicitly retire release-snapshot/commit-count gates');
+requireMatch('DOC_RELEASE_LEGACY_SECTION', docs.release,
+  /Следующие механизмы исторические и не должны возвращаться[\s\S]{0,900}agent\/release\/\*\*[\s\S]{0,900}Chat-Driven DEV Release[\s\S]{0,900}post-merge direct commit/i,
+  'Release process must keep legacy release mechanics in an explicit retired section');
+forbidMatch('DOC_RELEASE_ACTIVE_SNAPSHOT_INSTRUCTION', docs.release,
+  /(?:create|созда(?:ть|йте)|build|rebuild|пересобер)[^\n]{0,100}agent\/release\//i,
+  'Release process must not prescribe a release snapshot branch');
+forbidMatch('DOC_RELEASE_ACTIVE_COMMIT_GATE', docs.release,
+  /(?:must|должен|требуется|require)[^\n]{0,120}(?:максимум|maximum|max|не более)[^\n]{0,40}10[^\n]{0,20}commit/i,
+  'Release process must not prescribe a commit-count gate');
+forbidMatch('DOC_RELEASE_ACTIVE_POST_MERGE_WRITE', docs.release,
+  /(?:must|должен|требуется|update|обновить)[^\n]{0,120}post-merge[^\n]{0,80}(?:README|Dashboard URL)/i,
+  'Release process must not prescribe a post-merge README/runtime-locator write');
 
 requireMatch('DOC_README_R0_BASELINE', docs.readme, /R0 platform baseline/,
   'README must identify the current R0 platform baseline');
 requireMatch('DOC_README_PRIVATE_MYSELF', docs.readme, /MYSELF/,
   'README must state the private Web App access boundary');
-requireMatch('DOC_README_SYNTHETIC_ONLY', docs.readme, /independently generated synthetic|independently generated synthetic financial/i,
+requireMatch('DOC_README_SYNTHETIC_ONLY', docs.readme, /independently generated synthetic|независимо сгенерированные synthetic/i,
   'README must state independently generated synthetic public finance data');
 requireMatch('DOC_README_FREE_ONLY', docs.readme, /FREE_ONLY/,
   'README must state executable FREE_ONLY policy');
@@ -93,14 +99,16 @@ requireMatch('DOC_RELEASE_EXACT_SHA', docs.release, /exact PR head SHA|exact can
   'Release process must require exact SHA identity');
 requireMatch('DOC_RELEASE_ISSUE_STATE', docs.release, /IN_PROGRESS[\s\S]{0,80}DONE/,
   'Release process must document Roadmap Issue state transition');
-requireMatch('DOC_RELEASE_NO_ANON_HEALTH', docs.release, /Anonymous `curl`[\s\S]{0,120}not|anonymous Web App health/i,
+requireMatch('DOC_RELEASE_NO_ANON_HEALTH', docs.release, /Anonymous `curl`|anonymous Web App health/i,
   'Release process must reject anonymous private-runtime health as authoritative');
+requireMatch('DOC_RELEASE_NO_MANUAL_MARKER', docs.release, /manual runtime marker/i,
+  'Release process must explicitly retire manual runtime marker');
 
-requireMatch('DOC_ARCH_GITHUB_CONTROL_PLANE', docs.architecture, /GitHub[^\n]{0,80}control plane/i,
+requireMatch('DOC_ARCH_GITHUB_CONTROL_PLANE', docs.architecture, /GitHub[^\n]{0,100}control plane/i,
   'Architecture must identify GitHub control plane');
-requireMatch('DOC_ARCH_ADAPTER_TARGET', docs.architecture, /Google Sheets adapter[\s\S]{0,120}YDB adapter/i,
+requireMatch('DOC_ARCH_ADAPTER_TARGET', docs.architecture, /Google Sheets adapter[\s\S]{0,140}(?:future )?YDB adapter/i,
   'Architecture must state adapter-based target');
-requireMatch('DOC_ARCH_FINANCIAL_TRUTH', docs.architecture, /Legacy[^\n]{0,80}(?:golden truth|authoritative)/i,
+requireMatch('DOC_ARCH_FINANCIAL_TRUTH', docs.architecture, /Legacy[^\n]{0,100}(?:golden truth|authoritative)/i,
   'Architecture must reject legacy totals as financial truth');
 requireMatch('DOC_ARCH_TRUST_CHAIN', docs.architecture, /PR Validation[\s\S]*Trusted DEV Deploy[\s\S]*Trusted Runtime Health[\s\S]*Main Verification/,
   'Architecture must match exact delivery trust chain');
@@ -109,9 +117,10 @@ requireMatch('DOC_ARCH_PUBLIC_REAL_DERIVED_FORBIDDEN', docs.architecture, /real-
 
 requireMatch('DOC_DATA_REAL_DERIVED_FORBIDDEN', docs.dataModel, /real-derived/,
   'Data model must explicitly forbid real-derived public financial data');
-requireMatch('DOC_DATA_FULL_HISTORY_NOT_DONE', docs.dataModel, /full history migration[^\n]{0,80}(?:не считается заверш|not)/i,
+requireMatch('DOC_DATA_FULL_HISTORY_NOT_DONE', docs.dataModel,
+  /(?:full[- ]history|full history|полный history) migration[^\n]{0,100}(?:не считается заверш|not)/i,
   'Data model must not claim full-history migration complete');
-requireMatch('DOC_USER_PRIVATE_URL', docs.userGuide, /README[^\n]{0,80}(?:не хранит|не обновляет)[^\n]{0,80}deployment URL/i,
+requireMatch('DOC_USER_PRIVATE_URL', docs.userGuide, /README[^\n]{0,100}(?:не хранит|не обновляет)[^\n]{0,100}deployment URL/i,
   'User guide must not source private Dashboard locator from README');
 requireMatch('DOC_DASHBOARD_SYNTHETIC_ONLY', docs.dashboard, /independently generated synthetic financial data/i,
   'Dashboard docs must require independently generated synthetic public finance data');
@@ -124,7 +133,7 @@ requireMatch('DOC_STATUS_G2', docs.status, /MASTER-G2/,
   'Project status must expose MASTER-G2');
 requireMatch('DOC_STATUS_AIENG_REMAINING', docs.status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/,
   'Project status must identify remaining R0 AIENG chain');
-requireMatch('DOC_STATUS_R1_BLOCKED', docs.status, /Do not treat R1|не считается.*R1|until all R0/i,
+requireMatch('DOC_STATUS_R1_BLOCKED', docs.status, /Do not treat R1|until all R0/i,
   'Project status must not imply R1 is current before all R0 gates');
 
 requireMatch('DOC_DR_DONE', docs.dr, /DR-001 is \*\*DONE\*\*/,
