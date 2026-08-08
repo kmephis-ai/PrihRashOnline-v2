@@ -23,6 +23,7 @@ jobs:
     env:
       DEPLOY_RUN_ID: ${{ github.event.workflow_run.id }}
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CLASP_USER: prihrash-ci
     steps:
       - name: Checkout trusted default-branch health policy
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -81,50 +82,34 @@ jobs:
 
       - name: Configure authenticated Apps Script execution
         env:
-          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ -n "${APPS_SCRIPT_ID}" ]] || { echo '::error::Missing APPS_SCRIPT_ID'; exit 1; }
           [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
+          [[ "${APPS_SCRIPT_API_DEPLOYMENT_ID}" =~ ^AKfy[A-Za-z0-9_-]+$ ]] || { echo '::error::Missing or invalid APPS_SCRIPT_API_DEPLOYMENT_ID'; exit 1; }
           printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
           chmod 600 "${HOME}/.clasprc.json"
-          mkdir -p "${RUNNER_TEMP}/health-run"
-          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > "${RUNNER_TEMP}/health-run/.clasp.json"
-          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP+'/health-run/.clasp.json','utf8'));"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8'));"
 
       - name: Run authenticated exact-build health
         id: probe
         env:
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
           SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
+          APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
         shell: bash
         run: |
           set -euo pipefail
           CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
+          EXECUTOR="${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-exec.js"
           PARAMS="$(jq -nc --arg candidateSha "${CANDIDATE_SHA}" --arg sourceTreeHash "${SOURCE_TREE_HASH}" '[{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash}]')"
           TOKEN_PATTERN="^PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+$"
-          cd "${RUNNER_TEMP}/health-run"
 
-          classify_failure() {
-            local safe_error="$1"
-            local fallback="$2"
-            local reason="${fallback}"
-            local runtime_reason
-            runtime_reason="$(grep -oE 'RUNTIME_HEALTH_[A-Z_]+' <<<"${safe_error}" | head -1 || true)"
-            if [[ -n "${runtime_reason}" ]]; then reason="${runtime_reason}"; fi
-            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project|GCP project ID is not set|same Cloud Platform project|caller does not have permission' <<<"${safe_error}"; then reason='COMMON_STANDARD_CLOUD_PROJECT_REQUIRED'; fi
-            if grep -Eqi 'API executable|not published|not deployed|deployment|NOT_FOUND|Script function not found' <<<"${safe_error}"; then reason='API_EXECUTABLE_UNAVAILABLE'; fi
-            if grep -Eqi 'insufficient.*scope|Request had insufficient authentication scopes' <<<"${safe_error}"; then reason='OAUTH_PROJECT_SCOPES_REQUIRED'; fi
-            if grep -Eqi 'PERMISSION_DENIED|unauthorized|NOT_AUTHORIZED|make sure you have permission to run the script function|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${safe_error}"; then reason='OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED'; fi
-            printf '%s' "${reason}"
-          }
-
-          # scripts.run requires a caller OAuth client from the same standard Cloud project.
-          # Clasp exposes only the client type; never publish clientId/user identity.
+          # Privacy-safe credential preflight. Only clientType is used; OAuth ids and user identity stay private.
           set +e
-          AUTH_OUTPUT="$(${CLASP} show-authorized-user --json 2>&1)"
+          AUTH_OUTPUT="$(${CLASP} show-authorized-user --user "${CLASP_USER}" --json 2>&1)"
           AUTH_STATUS=$?
           set -e
           AUTH_JSON="$(awk 'found || /^[[:space:]]*\{/ {found=1; print}' <<<"${AUTH_OUTPUT}")"
@@ -148,32 +133,26 @@ jobs:
             exit 0
           fi
 
-          # Phase 1: prove owner-authenticated Execution API transport independently of Sheets.
-          set +e
-          PING_OUTPUT="$(${CLASP} run-function prhRuntimeTransportPing 2>&1)"
-          PING_STATUS=$?
-          set -e
-          PING_TOKEN="$(grep -Fx 'PRH_TRANSPORT_V1|OK' <<<"${PING_OUTPUT}" | head -1 || true)"
-          if [[ "${PING_STATUS}" -ne 0 || -z "${PING_TOKEN}" ]]; then
-            REASON="$(classify_failure "${PING_OUTPUT}" 'AUTHENTICATED_TRANSPORT_PING_FAILED')"
+          # Phase 1: direct owner-authenticated scripts.run transport proof. No Sheets access.
+          PING_JSON="$(node "${EXECUTOR}" prhRuntimeTransportPing '[]')"
+          PING_OK="$(jq -r '.ok // false' <<<"${PING_JSON}" 2>/dev/null || printf 'false')"
+          PING_TOKEN="$(jq -r '.result // empty' <<<"${PING_JSON}" 2>/dev/null || true)"
+          PING_REASON="$(jq -r '.reason // "AUTHENTICATED_TRANSPORT_PING_FAILED"' <<<"${PING_JSON}" 2>/dev/null || printf 'AUTHENTICATED_TRANSPORT_PING_FAILED')"
+          if [[ "${PING_OK}" != 'true' || "${PING_TOKEN}" != 'PRH_TRANSPORT_V1|OK' ]]; then
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
-            echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+            echo "reason=${PING_REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Phase 2: execute exact-build/read-only workbook health. Clasp can emit
-          # Apps Script exceptions with CLI exit 0, so token absence always triggers
-          # bounded error classification regardless of process exit code.
-          set +e
-          HEALTH_OUTPUT="$(${CLASP} run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>&1)"
-          HEALTH_STATUS=$?
-          set -e
-          TOKEN="$(grep -E "${TOKEN_PATTERN}" <<<"${HEALTH_OUTPUT}" | head -1 || true)"
-          if [[ "${HEALTH_STATUS}" -ne 0 || -z "${TOKEN}" ]]; then
-            REASON="$(classify_failure "${HEALTH_OUTPUT}" 'HEALTH_TOKEN_MISSING_OR_MISMATCH')"
+          # Phase 2: exact deployed SHA/tree + read-only workbook health through the same scripts.run transport.
+          HEALTH_JSON="$(node "${EXECUTOR}" prhReleaseHealthCheckToken "${PARAMS}")"
+          HEALTH_OK="$(jq -r '.ok // false' <<<"${HEALTH_JSON}" 2>/dev/null || printf 'false')"
+          TOKEN="$(jq -r '.result // empty' <<<"${HEALTH_JSON}" 2>/dev/null || true)"
+          HEALTH_REASON="$(jq -r '.reason // "HEALTH_TOKEN_MISSING_OR_MISMATCH"' <<<"${HEALTH_JSON}" 2>/dev/null || printf 'HEALTH_TOKEN_MISSING_OR_MISMATCH')"
+          if [[ "${HEALTH_OK}" != 'true' || ! "${TOKEN}" =~ ${TOKEN_PATTERN} ]]; then
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
-            echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+            echo "reason=${HEALTH_REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi

@@ -16,10 +16,11 @@ assert.strictEqual(manifest.executionApi.access, 'MYSELF', 'Execution API must r
 assert(workflow.includes('workflows: [Trusted DEV Deploy]'), 'runtime health must chain from trusted deploy');
 assert(workflow.includes("github.event.workflow_run.conclusion == 'success'"), 'runtime health must require successful trusted deploy');
 assert(workflow.includes('environment: DEV'), 'runtime health must use trusted DEV environment credentials');
-assert(workflow.includes('secrets.APPS_SCRIPT_ID'), 'runtime health requires owner script identity from DEV environment');
 assert(workflow.includes('secrets.CLASPRC_JSON'), 'runtime health requires owner OAuth from DEV environment');
+assert(workflow.includes('secrets.APPS_SCRIPT_API_DEPLOYMENT_ID'), 'runtime health requires the private API executable deployment id');
+assert(workflow.includes('CLASP_USER: prihrash-ci'), 'runtime health must bind to the named owner OAuth profile');
 
-assert(workflow.includes('show-authorized-user --json'), 'runtime health must inspect clasp OAuth client type before scripts.run');
+assert(workflow.includes('show-authorized-user --user "${CLASP_USER}" --json'), 'runtime health must inspect the named clasp OAuth client type before scripts.run');
 assert(workflow.includes("jq -r '.clientType // empty'"), 'OAuth preflight must read only the client type');
 assert(/CLIENT_TYPE[^\n]+==[^\n]+'google-provided'/.test(workflow), 'google-provided clasp credentials must be detected');
 assert(/CLIENT_TYPE[^\n]+!=[^\n]+'user-provided'/.test(workflow), 'only user-provided OAuth credentials may proceed to scripts.run');
@@ -28,21 +29,18 @@ assert(workflow.includes('OAUTH_CLIENT_PREFLIGHT_FAILED'), 'OAuth metadata read 
 assert(workflow.includes('OAUTH_CLIENT_TYPE_UNSUPPORTED'), 'unknown OAuth client type must fail closed');
 assert(!workflow.includes("jq -r '.clientId"), 'OAuth preflight must never parse clientId for evidence or decisions');
 
-assert(workflow.includes('run-function prhRuntimeTransportPing'), 'runtime health must first prove authenticated Execution API transport');
-assert(workflow.includes("grep -Fx 'PRH_TRANSPORT_V1|OK'"), 'transport ping must accept only its exact scalar response');
-assert(workflow.includes('AUTHENTICATED_TRANSPORT_PING_FAILED'), 'transport failure must have a bounded reason');
-assert(workflow.includes('COMMON_STANDARD_CLOUD_PROJECT_REQUIRED'), 'shared standard Cloud project failure must have a bounded reason');
-assert(workflow.includes('OAUTH_PROJECT_SCOPES_REQUIRED'), 'insufficient OAuth project scopes must have a bounded reason');
-assert(workflow.includes('OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED'), 'remaining authorization/project permission failures must be bounded');
-assert(workflow.includes('run-function prhReleaseHealthCheckToken'), 'runtime health must then execute exact-build workbook health');
-assert(workflow.includes('HEALTH_STATUS='), 'workbook health must capture clasp status');
-assert(workflow.includes('HEALTH_OUTPUT='), 'workbook health must inspect output privately even when clasp exits zero');
-assert(workflow.includes("classify_failure \"${HEALTH_OUTPUT}\" 'HEALTH_TOKEN_MISSING_OR_MISMATCH'"), 'token absence must always classify Apps Script error output');
-assert(workflow.includes('RUNTIME_HEALTH_[A-Z_]+'), 'runtime health must preserve bounded internal reason codes');
+assert(workflow.includes('tools/apps-script-api-exec.js'), 'runtime health must use the trusted direct scripts.run executor');
+assert(workflow.includes("prhRuntimeTransportPing '[]'"), 'runtime health must first prove authenticated Execution API transport');
+assert(/PING_TOKEN[^\n]+!=[^\n]+'PRH_TRANSPORT_V1\|OK'/.test(workflow), 'transport ping must accept only its exact scalar response');
+assert(workflow.includes('prhReleaseHealthCheckToken "${PARAMS}"'), 'runtime health must then execute exact-build workbook health');
+assert(!workflow.includes('run-function prhRuntimeTransportPing'), 'clasp run-function must not be authoritative for owner-only executionApi');
+assert(!workflow.includes('run-function prhReleaseHealthCheckToken'), 'exact-build health must use direct scripts.run, not clasp run-function');
+assert(workflow.includes('TOKEN_PATTERN='), 'exact health token format must remain SHA/tree bound');
 assert(workflow.includes('sourceTreeHash'), 'runtime health must verify source tree build identity');
 assert(workflow.includes('artifactHash'), 'runtime health must preserve immutable artifact evidence');
 assert(workflow.includes('DEV_VERIFIED'), 'successful authenticated health must produce DEV_VERIFIED');
 assert(workflow.includes('trusted-runtime-health failed closed'), 'health failure must block the gate');
+
 assert(workflow.includes('statuses: write'), 'runtime health requires only commit-status write visibility');
 assert(workflow.includes('statuses/${CANDIDATE_SHA}'), 'runtime result must target the exact candidate SHA');
 assert(workflow.includes("context='trusted-runtime-health'"), 'runtime status must use stable machine-readable context');
@@ -64,7 +62,9 @@ assert(statusBlock.includes('REASON_CODE'), 'commit status may expose only techn
 assert(statusBlock.includes("DESCRIPTION='CI-002 DEV_VERIFIED'"), 'successful status description must be static technical metadata');
 assert(statusBlock.includes('DESCRIPTION="CI-002 ${REASON}"'), 'failed status description must be limited to technical reason code');
 assert(statusBlock.includes("description='CI-002 technical reason'"), 'reason-coded status description must be static');
-['AUTH_OUTPUT','CLIENT_TYPE','PING_OUTPUT','HEALTH_OUTPUT','SAFE_ERROR','clientId'].forEach((rawName) => assert(!statusBlock.includes(rawName), `${rawName} must never enter commit status`));
+['AUTH_OUTPUT','CLIENT_TYPE','PING_JSON','HEALTH_JSON','clientId','clientSecret','refreshToken','accessToken'].forEach((rawName) => {
+  assert(!statusBlock.includes(rawName), `${rawName} must never enter commit status`);
+});
 const forbiddenStatusPayload = ['amount','income','expense','balance','category','merchant','counterparty','payload','transaction','email'];
 forbiddenStatusPayload.forEach((field) => assert(!statusBlock.toLowerCase().includes(field), `commit status block includes forbidden field class: ${field}`));
 
@@ -73,9 +73,7 @@ console.log('trusted_runtime_health_workflow_contract_test: OK', {
   executionApi: 'MYSELF',
   authentication: 'owner OAuth',
   oauthClientPreflight: true,
-  customOAuthRequiredForRun: true,
-  transportPing: true,
-  executionErrorOnExitZeroHandled: true,
+  directScriptsRun: true,
   exactBuild: true,
   machineVisibleStatus: true,
   machineVisibleReason: true,
