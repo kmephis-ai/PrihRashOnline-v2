@@ -38,7 +38,7 @@ function scanTrustedWorkflow(text) {
   if (!/environment:\s*DEV\b/.test(text)) findings.push('trusted-dev-environment-missing');
   if (!/CANDIDATE_SHA:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/.test(text)) findings.push('trusted-candidate-sha-not-from-trigger');
   if (!/Verify candidate artifact against trusted reconstruction/.test(text)) findings.push('trusted-independent-artifact-verification-missing');
-  if (!/build-apps-script-candidate\.js\s+--verify/.test(text)) findings.push('trusted-packager-verification-command-missing');
+  if (!/build-apps-script-candidate\.js[\\\s]+--verify/.test(text)) findings.push('trusted-packager-verification-command-missing');
   if (/node\s+candidate-source\//.test(text) || /npm\s+(?:run|exec).*candidate-source/.test(text)) findings.push('trusted-executes-candidate-code');
   if (!/head\.repo\.full_name/.test(text)) findings.push('trusted-same-repository-pr-check-missing');
   if (!/base\.ref/.test(text)) findings.push('trusted-main-base-check-missing');
