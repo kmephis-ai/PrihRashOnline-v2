@@ -54,6 +54,8 @@ jobs:
         run: node tools/privacy-public-data-scan.js
       - name: Free-only policy
         run: node tools/free-only-scan.js
+      - name: Documentation truth
+        run: node tools/docs-drift-scan.js
       - name: Financial reconcile synthetic
         run: node tests/financial_reconciliation_contract_test.js
       - name: Migration reconcile synthetic
