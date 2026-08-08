@@ -61,9 +61,7 @@ jobs:
 
           PR_NUMBER="${EVENT_PR_NUMBER:-}"
           if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
-            ASSOCIATED_PRS="$(gh api \
-              -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/pulls")"
+            ASSOCIATED_PRS="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/pulls")"
             PR_NUMBER="$(jq -r \
               --arg sha "${CANDIDATE_SHA}" \
               --arg repo "${GITHUB_REPOSITORY}" \
@@ -162,44 +160,31 @@ jobs:
           PUSH_REASON="$(jq -r '.reason // "APPS_SCRIPT_CONTENT_PUSH_FAILED"' <<<"${PUSH_JSON}" 2>/dev/null || printf 'APPS_SCRIPT_CONTENT_PUSH_FAILED')"
           [[ "${PUSH_REASON}" =~ ^[A-Z0-9_]+$ ]] || PUSH_REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'
           echo "reason=${PUSH_REASON}" >> "$GITHUB_OUTPUT"
-          if [[ "${PUSH_OK}" != 'true' ]]; then
-            exit 1
-          fi
+          if [[ "${PUSH_OK}" != 'true' ]]; then exit 1; fi
           echo 'reason=OK' >> "$GITHUB_OUTPUT"
 
-      - name: Update stable DEV web deployment
-        id: web_deploy
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${RUNNER_TEMP}/deploy"
-          CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
-          DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
-          DEPLOYMENTS="$(${CLASP} list-deployments --user "${CLASP_USER}" || true)"
-          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
-          if [[ -n "${DEPLOYMENT_ID}" ]]; then
-            "${CLASP}" update-deployment --user "${CLASP_USER}" "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}" >/dev/null
-          else
-            "${CLASP}" create-deployment --user "${CLASP_USER}" -d "${DEPLOYMENT_NAME}" >/dev/null
-          fi
-
-      - name: Update stable API executable deployment
-        id: api_deploy
+      - name: Promote exact Apps Script version to stable deployments
+        id: version_promote
         env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
           APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${APPS_SCRIPT_API_DEPLOYMENT_ID}" =~ ^AKfy[A-Za-z0-9_-]+$ ]] || {
-            echo '::error::Missing or invalid APPS_SCRIPT_API_DEPLOYMENT_ID'
-            exit 1
-          }
-          cd "${RUNNER_TEMP}/deploy"
-          CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
-          "${CLASP}" update-deployment --user "${CLASP_USER}" "${APPS_SCRIPT_API_DEPLOYMENT_ID}" -d 'CI-002 authenticated runtime verification' >/dev/null
+          PROMOTE_JSON="$(node "${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-promote.js")"
+          PROMOTE_OK="$(jq -r '.ok // false' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'false')"
+          PROMOTE_REASON="$(jq -r '.reason // "DEPLOYMENT_PROMOTION_FAILED"' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'DEPLOYMENT_PROMOTION_FAILED')"
+          VERSION_NUMBER="$(jq -r '.versionNumber // 0' <<<"${PROMOTE_JSON}" 2>/dev/null || printf '0')"
+          [[ "${PROMOTE_REASON}" =~ ^[A-Z0-9_]+$ ]] || PROMOTE_REASON='DEPLOYMENT_PROMOTION_FAILED'
+          echo "reason=${PROMOTE_REASON}" >> "$GITHUB_OUTPUT"
+          echo "version_number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
+          if [[ "${PROMOTE_OK}" != 'true' || ! "${VERSION_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then exit 1; fi
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
 
       - name: Record privacy-safe deploy evidence
         id: deploy_evidence
+        env:
+          VERSION_NUMBER: ${{ steps.version_promote.outputs.version_number }}
         shell: bash
         run: |
           set -euo pipefail
@@ -209,8 +194,9 @@ jobs:
             --arg candidateSha "${CANDIDATE_SHA}" \
             --arg sourceRunId "${SOURCE_RUN_ID}" \
             --arg artifactHash "${ARTIFACT_HASH}" \
+            --argjson versionNumber "${VERSION_NUMBER}" \
             --arg status 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' \
-            '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,artifactHash:$artifactHash,status:$status}' \
+            '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,artifactHash:$artifactHash,versionNumber:$versionNumber,status:$status}' \
             > trusted-deploy-evidence/evidence.json
 
       - name: Upload trusted deploy evidence
@@ -237,8 +223,8 @@ jobs:
           DEPLOY_PREPARE: ${{ steps.deploy_prepare.outcome }}
           CONTENT_PUSH: ${{ steps.content_push.outcome }}
           CONTENT_PUSH_REASON: ${{ steps.content_push.outputs.reason }}
-          WEB_DEPLOY: ${{ steps.web_deploy.outcome }}
-          API_DEPLOY: ${{ steps.api_deploy.outcome }}
+          VERSION_PROMOTE: ${{ steps.version_promote.outcome }}
+          VERSION_PROMOTE_REASON: ${{ steps.version_promote.outputs.reason }}
           DEPLOY_EVIDENCE: ${{ steps.deploy_evidence.outcome }}
           EVIDENCE_UPLOAD: ${{ steps.evidence_upload.outcome }}
         shell: bash
@@ -258,8 +244,9 @@ jobs:
           elif [[ "${CONTENT_PUSH}" == 'failure' ]]; then
             REASON="${CONTENT_PUSH_REASON:-APPS_SCRIPT_CONTENT_PUSH_FAILED}"
             [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'
-          elif [[ "${WEB_DEPLOY}" == 'failure' ]]; then REASON='WEB_DEPLOY_UPDATE_FAILED';
-          elif [[ "${API_DEPLOY}" == 'failure' ]]; then REASON='API_DEPLOY_UPDATE_FAILED';
+          elif [[ "${VERSION_PROMOTE}" == 'failure' ]]; then
+            REASON="${VERSION_PROMOTE_REASON:-DEPLOYMENT_PROMOTION_FAILED}"
+            [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='DEPLOYMENT_PROMOTION_FAILED'
           elif [[ "${DEPLOY_EVIDENCE}" == 'failure' ]]; then REASON='DEPLOY_EVIDENCE_FAILED';
           elif [[ "${EVIDENCE_UPLOAD}" == 'failure' ]]; then REASON='DEPLOY_ARTIFACT_UPLOAD_FAILED';
           elif [[ "${JOB_STATUS}" == 'success' ]]; then

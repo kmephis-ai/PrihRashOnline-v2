@@ -26,6 +26,9 @@ assert(/merge_base_commit\.sha/.test(main), 'main verification must prove merge 
 assert(/trusted-dev-deploy/.test(main) && /trusted-runtime-health/.test(main) && /autonomous-merge/.test(main), 'main verification must prove source candidate gates');
 assert(/status: DONE/.test(main) && /state:\"closed\"/.test(main) && /state_reason:\"completed\"/.test(main), 'main verification must transition and close the Roadmap Issue');
 assert(!/\$\{\{\s*secrets\./.test(main), 'main verification must not require secrets');
+assert(!/^```/m.test(main), 'workflow source must not contain unindented markdown/heredoc lines that invalidate YAML');
+assert(!/<<EOF/.test(main), 'Main Verification evidence append must avoid fragile unindented heredocs');
+assert(/printf 'main_verification:\\n'/.test(main), 'Main Verification must append bounded technical evidence from an indented shell block');
 
 const autonomousSurface = `${pr}\n${runtime}\n${main}`;
 [
@@ -44,5 +47,6 @@ console.log('autonomous_merge_contract_test: OK', {
   manualMarker: false,
   snapshotGate: false,
   postMergeDirectCommit: false,
+  mainVerificationYamlGuard: true,
   automaticIssueClose: true
 });
