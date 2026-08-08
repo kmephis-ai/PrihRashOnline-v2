@@ -18,6 +18,9 @@ assert(workflow.includes("DESCRIPTION='CI-002 TRUSTED_DEPLOYED'"), 'successful d
 assert(workflow.includes("DESCRIPTION='CI-002 TRUSTED_DEPLOY_FAILED'"), 'failed deploy status must be static technical metadata');
 assert(workflow.includes("description='CI-002 deploy technical reason'"), 'reason status description must be static');
 assert(workflow.includes('JOB_STATUS: ${{ job.status }}'), 'status must reflect fail-closed job outcome');
+assert(workflow.includes('CONTENT_PUSH_REASON: ${{ steps.content_push.outputs.reason }}'), 'direct content push must provide only a bounded reason to status publishing');
+assert(workflow.includes("REASON=\"${CONTENT_PUSH_REASON:-APPS_SCRIPT_CONTENT_PUSH_FAILED}\""), 'content push failure must use bounded executor reason or static fallback');
+assert(workflow.includes("[[ \"${REASON}\" =~ ^[A-Z0-9_]+$ ]] || REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'"), 'dynamic push reason must be constrained before entering commit status');
 
 const reasonCodes = [
   'TRUSTED_CHECKOUT_FAILED',
@@ -28,7 +31,7 @@ const reasonCodes = [
   'CANDIDATE_CHECKOUT_FAILED',
   'CANDIDATE_VERIFY_FAILED',
   'DEPLOY_PREP_FAILED',
-  'CLASP_PUSH_FAILED',
+  'APPS_SCRIPT_CONTENT_PUSH_FAILED',
   'WEB_DEPLOY_UPDATE_FAILED',
   'API_DEPLOY_UPDATE_FAILED',
   'DEPLOY_EVIDENCE_FAILED',
@@ -50,6 +53,7 @@ assert(!/echo[^\n]*(stderr|stdout|output|token|secret)/i.test(statusBlock), 'dep
 console.log('trusted_dev_deploy_observability_contract_test: OK', {
   exactCandidateStatus: true,
   boundedReasonVisible: true,
+  directContentPushReason: true,
   successAndFailureVisible: true,
   financialPayload: false,
   oauthPayload: false
