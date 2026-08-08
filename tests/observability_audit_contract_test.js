@@ -15,8 +15,13 @@ function makePropertiesStore() {
     getProperty(key) {
       return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : null;
     },
+    setProperty(key, value) {
+      values[key] = String(value);
+      return this;
+    },
     setProperties(input) {
       Object.keys(input).forEach((key) => { values[key] = String(input[key]); });
+      return this;
     }
   };
 }
@@ -160,6 +165,11 @@ function makeContext(overrides = {}) {
   assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_REASON, 'AUDIT_STORAGE_FAILED');
   assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_FAILURE_COUNT, '1');
   assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_CONSECUTIVE_FAILURES, '1');
+  const snapshot = context.getAuditHealthSnapshot_();
+  assert.strictEqual(snapshot.status, 'FAIL');
+  assert.strictEqual(snapshot.reasonCode, 'AUDIT_STORAGE_FAILED');
+  assert.strictEqual(snapshot.auditFailureCount, 1);
+  assert.strictEqual(snapshot.auditConsecutiveFailures, 1);
 }
 
 {
@@ -193,6 +203,7 @@ assert(!auditSource.includes('Журнал достиг DEV-лимита'));
 assert(auditSource.includes('sheet.deleteRows(2, plan.rowsToDelete)'));
 assert(auditSource.includes('sheet.insertRowsAfter'));
 assert(auditSource.includes("recordAuditHealthFailure_(classifyAuditFailure_(error))"));
+assert(auditSource.includes('props.setProperty(key, String(values[key]))'));
 assert(auditSource.includes("return '';"), 'audit persistence failure must be isolated from transaction correctness');
 
 console.log('observability_audit_contract_test: OK', {
