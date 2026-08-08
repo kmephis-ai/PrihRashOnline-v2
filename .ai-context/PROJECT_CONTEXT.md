@@ -21,9 +21,10 @@ Machine-proven baseline includes:
 - encrypted owner-local backup + isolated restore drill;
 - bounded privacy-safe audit/telemetry;
 - executable `FREE_ONLY` guard;
-- documentation truth gate.
+- documentation truth gate;
+- root machine-enforced repository AI contract (`AIENG-001`).
 
-R0 is not complete until `MASTER-G1` AI Engineering chain (`AIENG-001..003`) is DONE.
+After AIENG-002 merges, Roadmap continuation/task-packet/lifecycle semantics are also machine-enforced. R0 remains open only for `AIENG-003` read-only multi-AI review before `MASTER-G1` closes.
 
 ## Current runtime and privacy
 
@@ -49,6 +50,24 @@ Roadmap Issue IN_PROGRESS
 
 Never substitute a release snapshot branch, commit-count gate, manual marker, anonymous Web App smoke or manual merge for this chain.
 
+## Executable continuation protocol
+
+Short continuation commands such as `делай далее` are governed by:
+
+- `docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md` — human/operator contract;
+- `.ai-context/roadmap-task-packet.schema.json` — versioned `PRH_ROADMAP_TASK_V1` packet;
+- `tools/roadmap-task-protocol.js` — deterministic resolver/lifecycle reference implementation.
+
+Rules:
+
+1. resume the single `IN_PROGRESS` writer if it exists;
+2. otherwise select one highest-priority explicit `READY` item whose dependencies are all `DONE`;
+3. multiple writers, missing dependencies, incomplete packet or private context fail closed;
+4. selected task always names the concrete Roadmap ID, Issue, canonical branch and `Closes #N` line;
+5. `DONE` requires the full machine evidence through Main Verification.
+
+GitHub Issues remain execution memory; this protocol does not create a second tracker.
+
 ## Financial/data boundaries
 
 - Legacy total cells are not financial golden truth.
@@ -65,13 +84,15 @@ Never substitute a release snapshot branch, commit-count gate, manual marker, an
 
 1. `/AGENTS.md`
 2. `/docs/PROJECT_STATUS.md`
-3. `/docs/architecture.md`
-4. `/docs/RELEASE_PROCESS.md`
-5. `/docs/data-model.md`
-6. `/docs/operations/DR001_DIRECT_OWNER_BACKUP.md`
-7. `/docs/operations/OBS001_AUDIT_TELEMETRY.md`
-8. `/docs/operations/FINOPS001_FREE_ONLY_GUARD.md`
-9. active GitHub Roadmap Issue and exact candidate code/tests/workflows
+3. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
+4. `/.ai-context/roadmap-task-packet.schema.json`
+5. `/docs/architecture.md`
+6. `/docs/RELEASE_PROCESS.md`
+7. `/docs/data-model.md`
+8. `/docs/operations/DR001_DIRECT_OWNER_BACKUP.md`
+9. `/docs/operations/OBS001_AUDIT_TELEMETRY.md`
+10. `/docs/operations/FINOPS001_FREE_ONLY_GUARD.md`
+11. active GitHub Roadmap Issue and exact candidate code/tests/workflows
 
 When the task supplies Master Audit v2.1 / Executable GitHub Roadmap v2.1 / AI Development Playbook v1.0, treat them as canonical according to the precedence in `AGENTS.md`.
 
@@ -85,12 +106,13 @@ Do not infer that:
 - public Git history rewrite is authorized;
 - paid cloud/AI/OCR/provider use is allowed;
 - old RC/release notes are current instructions;
-- a merged PR is DONE before Main Verification closes the linked Issue.
+- a merged PR is DONE before Main Verification closes the linked Issue;
+- a new Roadmap item may start while another writer is `IN_PROGRESS`.
 
 ## Scope handoff
 
-- AIENG-001: root repository AI contract and public-safe context (this item).
-- AIENG-002: executable Roadmap-to-agent task protocol.
-- AIENG-003: read-only multi-AI review protocol.
+- AIENG-001: root repository AI contract and public-safe context — DONE.
+- AIENG-002: executable Roadmap-to-agent task protocol — this item.
+- AIENG-003: read-only multi-AI review protocol — next dependency.
 
 Keep these scopes separate and dependency-ordered.

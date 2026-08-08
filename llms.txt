@@ -2,6 +2,9 @@
 
 AGENTS.md — authoritative repository AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD and CI-red recovery.
 .ai-context/PROJECT_CONTEXT.md — public-safe current project map for AI agents.
+.ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` machine task-packet schema.
+docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/READY selection/one-writer/lifecycle protocol.
+tools/roadmap-task-protocol.js — executable reference resolver used to turn normalized Roadmap state into one concrete task packet.
 docs/PROJECT_STATUS.md — R0 master-gate status and next dependency-ordered work.
 docs/architecture.md — current Google runtime/control plane and target domain/repository-adapter architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline and Main Verification close path.
