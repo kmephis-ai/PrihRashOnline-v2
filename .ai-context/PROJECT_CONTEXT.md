@@ -83,18 +83,19 @@ GitHub Issues remain execution memory; this protocol does not create a second tr
 ## Start-reading order for an AI agent
 
 1. `/AGENTS.md`
-2. `/docs/PROJECT_STATUS.md`
-3. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
-4. `/.ai-context/roadmap-task-packet.schema.json`
-5. `/docs/architecture.md`
-6. `/docs/RELEASE_PROCESS.md`
-7. `/docs/data-model.md`
-8. `/docs/operations/DR001_DIRECT_OWNER_BACKUP.md`
-9. `/docs/operations/OBS001_AUDIT_TELEMETRY.md`
-10. `/docs/operations/FINOPS001_FREE_ONLY_GUARD.md`
-11. active GitHub Roadmap Issue and exact candidate code/tests/workflows
+2. `/docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.3; текущий lifecycle берётся из GitHub Issues
+3. `/docs/PROJECT_STATUS.md`
+4. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
+5. `/.ai-context/roadmap-task-packet.schema.json`
+6. `/docs/architecture.md`
+7. `/docs/RELEASE_PROCESS.md`
+8. `/docs/data-model.md`
+9. `/docs/operations/DR001_DIRECT_OWNER_BACKUP.md`
+10. `/docs/operations/OBS001_AUDIT_TELEMETRY.md`
+11. `/docs/operations/FINOPS001_FREE_ONLY_GUARD.md`
+12. active GitHub Roadmap Issue and exact candidate code/tests/workflows
 
-When the task supplies Master Audit v2.1 / Executable GitHub Roadmap v2.1 / AI Development Playbook v1.0, treat them as canonical according to the precedence in `AGENTS.md`.
+Если task явно предоставляет Master Audit v2.1 или AI Development Playbook v1.0, применяй их по precedence из `AGENTS.md`; Executable GitHub Roadmap берётся из репозитория: `/docs/ROADMAP.md`.
 
 ## What not to infer
 
