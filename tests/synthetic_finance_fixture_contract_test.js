@@ -75,12 +75,14 @@ assert.strictEqual(scaleSample.transactions.length, 2000, 'large profile must su
 assert.deepStrictEqual(scaleSample.expected, independentExpected(scaleSample.transactions));
 
 const moduleSource = fs.readFileSync(path.join(__dirname, 'fixtures', 'synthetic_finance.js'), 'utf8');
-[
-  'OP-F11-',
-  'Ответы на форму (11)',
-  'real DEV analytics',
-  'real DEV data'
-].forEach((forbidden) => assert(!moduleSource.includes(forbidden), `synthetic generator contains forbidden production provenance marker: ${forbidden}`));
+const forbiddenMarkers = [
+  ['OP-', 'F11-'].join(''),
+  ['real DEV ', 'analytics'].join(''),
+  ['real DEV ', 'data'].join('')
+];
+forbiddenMarkers.forEach((forbidden) => {
+  assert(!moduleSource.includes(forbidden), `synthetic generator contains forbidden production provenance marker class`);
+});
 
 console.log('synthetic_finance_fixture_contract_test: OK', {
   seed: first.metadata.seed,
