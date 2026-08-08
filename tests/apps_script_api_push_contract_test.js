@@ -10,7 +10,9 @@ const {
   extractInvalidContentReason,
   classifyFailure,
   classifyProjectLookupFailure,
+  classifyNoopWriteFailure,
   validateRemoteContent,
+  remoteFilesForNoop,
   toApiFile,
   readDeployFiles
 } = require('../tools/apps-script-api-push');
@@ -56,20 +58,33 @@ assert.strictEqual(classifyProjectLookupFailure(403, { error: { status: 'PERMISS
 assert.strictEqual(classifyProjectLookupFailure(404, { error: { status: 'NOT_FOUND' } }), 'APPS_SCRIPT_PROJECT_UNAVAILABLE');
 assert.strictEqual(classifyProjectLookupFailure(503, { error: { status: 'UNAVAILABLE' } }), 'APPS_SCRIPT_PROJECT_LOOKUP_HTTP_503_UNAVAILABLE');
 
+assert.strictEqual(classifyNoopWriteFailure(400, { error: { status: 'INVALID_ARGUMENT' } }), 'APPS_SCRIPT_REMOTE_NOOP_INVALID_ARGUMENT');
+assert.strictEqual(classifyNoopWriteFailure(403, { error: { status: 'PERMISSION_DENIED' } }), 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED');
+assert.strictEqual(classifyNoopWriteFailure(404, { error: { status: 'NOT_FOUND' } }), 'APPS_SCRIPT_PROJECT_UNAVAILABLE');
+assert.strictEqual(classifyNoopWriteFailure(412, { error: { status: 'FAILED_PRECONDITION' } }), 'APPS_SCRIPT_REMOTE_NOOP_PRECONDITION_FAILED');
+assert.strictEqual(classifyNoopWriteFailure(503, { error: { status: 'UNAVAILABLE' } }), 'APPS_SCRIPT_REMOTE_NOOP_HTTP_503_UNAVAILABLE');
+
 const remoteOk = {
   files: [
-    { name: 'ApplicationMenuService', type: 'SERVER_JS', source: 'private remote a' },
-    { name: 'RuntimeHealth', type: 'SERVER_JS', source: 'private remote b' },
-    { name: 'appsscript', type: 'JSON', source: '{"private":"remote manifest"}' }
+    { name: 'ApplicationMenuService', type: 'SERVER_JS', source: 'private remote a', createTime: 'ignored' },
+    { name: 'RuntimeHealth', type: 'SERVER_JS', source: 'private remote b', updateTime: 'ignored' },
+    { name: 'appsscript', type: 'JSON', source: '{"private":"remote manifest"}', lastModifyUser: { name: 'ignored' } }
   ]
 };
 assert.strictEqual(validateRemoteContent(remoteOk, diagnosticFiles), '');
 assert.strictEqual(validateRemoteContent({ files: [] }, diagnosticFiles), 'APPS_SCRIPT_REMOTE_CONTENT_INVALID');
-assert.strictEqual(validateRemoteContent({ files: [{ name: 'Code', type: 'SERVER_JS' }] }, diagnosticFiles), 'APPS_SCRIPT_REMOTE_MANIFEST_INVALID');
+assert.strictEqual(validateRemoteContent({ files: [{ name: 'Code', type: 'SERVER_JS' }] }, diagnosticFiles), 'APPS_SCRIPT_REMOTE_SOURCE_MISSING');
 assert.strictEqual(validateRemoteContent({ files: [
-  { name: 'appsscript', type: 'JSON' },
-  { name: 'RuntimeHealth', type: 'HTML' }
+  { name: 'appsscript', type: 'JSON', source: '{}' },
+  { name: 'RuntimeHealth', type: 'HTML', source: '<p>x</p>' }
 ] }, diagnosticFiles), 'DEPLOY_REMOTE_TYPE_MISMATCH_RUNTIMEHEALTH');
+
+assert.deepStrictEqual(remoteFilesForNoop(remoteOk), [
+  { name: 'ApplicationMenuService', type: 'SERVER_JS', source: 'private remote a' },
+  { name: 'RuntimeHealth', type: 'SERVER_JS', source: 'private remote b' },
+  { name: 'appsscript', type: 'JSON', source: '{"private":"remote manifest"}' }
+]);
+assert.throws(() => remoteFilesForNoop({ files: [{ name: 'Code', type: 'SERVER_JS' }] }), /APPS_SCRIPT_REMOTE_CONTENT_INVALID/);
 
 assert.strictEqual(classifyFailure(403, 'User has not enabled the Apps Script API. Enable it by visiting https://script.google.com/home/usersettings', 'PERMISSION_DENIED'), 'APPS_SCRIPT_API_USER_SETTING_REQUIRED');
 assert.strictEqual(classifyFailure(403, 'Request had insufficient authentication scopes', 'PERMISSION_DENIED'), 'OAUTH_PROJECT_SCOPES_REQUIRED');
@@ -101,25 +116,28 @@ fs.rmSync(temp, { recursive: true, force: true });
 const source = fs.readFileSync(path.join(__dirname, '..', 'tools', 'apps-script-api-push.js'), 'utf8');
 assert(source.includes('https://oauth2.googleapis.com/token'), 'push must privately refresh owner OAuth');
 assert(source.includes("method: 'GET'"), 'push must read-only preflight the Script project before content replacement');
-assert(source.includes('/content'), 'push must read current Apps Script content before replacement');
-assert(source.includes("method: 'PUT'"), 'content update must use PUT only after read-only preflight');
+assert(source.includes('remoteFilesForNoop(remotePayload.json)'), 'trusted write path must construct a semantic no-op from accepted remote files');
+assert(source.includes('const noopResponse = await fetch(contentUrl'), 'remote no-op PUT must run before the candidate PUT');
+assert(source.includes('JSON.stringify({ files: noopFiles })'), 'no-op must send only accepted name/type/source remote content');
+assert(source.includes('APPS_SCRIPT_REMOTE_NOOP_RESPONSE_INVALID'), 'no-op response must be verified fail-closed');
+assert(source.includes('DEPLOY_CANDIDATE_INVALID_AFTER_REMOTE_NOOP_OK'), 'generic candidate invalidity after a successful no-op must become decisive machine evidence');
+assert(source.indexOf('const noopResponse = await fetch(contentUrl') < source.indexOf('const pushResponse = await fetch(contentUrl'), 'no-op A/B proof must precede candidate replacement');
 assert(source.includes('auth.tokens[profileName]'), 'push must use named clasp OAuth profile');
-assert(source.includes('validateRemoteContent(remotePayload.json, files)'), 'remote accepted file metadata must be checked before candidate replacement');
-assert(source.includes('pushPayload.json.error.status'), 'push must inspect structured Google error status privately');
-assert(source.includes('fieldViolations'), 'push may localize invalid request field without publishing descriptions');
+assert(source.includes('validateRemoteContent(remotePayload.json, files)'), 'remote accepted file metadata must be checked before any write');
 
-// Raw Google/OAuth material may be inspected privately for classification, but it must
-// never be emitted/logged. Emitted failure objects are restricted to ok + bounded reason.
-assert(!/emit\((pushPayload|projectPayload|remotePayload)/.test(source), 'raw API response must never be emitted');
-assert(!/console\.log\([^\n]*(Payload|clientId|clientSecret|refreshToken|accessToken)/.test(source), 'raw API/OAuth material must never be logged');
-assert(!/emit\(\{[^}]*\b(raw|message|text|payload|description|clientId|clientSecret|refreshToken|accessToken)\s*:/.test(source), 'failure output must not contain raw API/OAuth fields');
+// Raw Google/OAuth/remote source material may be inspected privately but never emitted/logged.
+assert(!/emit\((pushPayload|projectPayload|remotePayload|noopPayload)/.test(source), 'raw API response must never be emitted');
+assert(!/console\.log\([^\n]*(Payload|clientId|clientSecret|refreshToken|accessToken|noopFiles)/.test(source), 'raw API/OAuth/remote material must never be logged');
+assert(!/emit\(\{[^}]*\b(raw|message|text|payload|description|source|clientId|clientSecret|refreshToken|accessToken)\s*:/.test(source), 'failure output must not contain raw API/OAuth/remote fields');
 
 console.log('apps_script_api_push_contract_test: OK', {
   api: 'projects.updateContent',
   scriptProjectPreflight: true,
   remoteContentPreflight: true,
+  remoteNoopWriteProof: true,
+  outputOnlyRemoteMetadataStripped: true,
+  candidateInvalidAfterNoopObservable: true,
   remoteSourcePublished: false,
-  safeInvalidFileLocalization: true,
   boundedErrors: true,
   credentialOutput: false,
   rawApiOutput: false
