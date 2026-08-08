@@ -66,12 +66,6 @@ function makeContext(overrides = {}) {
           setProperty: function (key, value) {
             __auditHealthValues[key] = String(value);
             return this;
-          },
-          setProperties: function (input) {
-            Object.keys(input).forEach(function (key) {
-              __auditHealthValues[key] = String(input[key]);
-            });
-            return this;
           }
         };
       }
@@ -79,6 +73,17 @@ function makeContext(overrides = {}) {
   `, context, { filename: 'PropertiesServiceStub.js' });
   vm.runInContext(auditSource, context, { filename: 'AuditService.js' });
   return context;
+}
+
+{
+  const context = makeContext();
+  vm.runInContext("PropertiesService.getScriptProperties().setProperty('OBS_PROBE', 'OK')", context);
+  assert.strictEqual(context.__auditHealthValues.OBS_PROBE, 'OK', 'VM ScriptProperties stub must persist');
+  assert.strictEqual(context.setAuditHealthProperties_({ PR_AUDIT_HEALTH_STATUS: 'PASS' }), true);
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS', 'production persistence helper must persist');
+  context.__auditHealthValues = {};
+  assert.strictEqual(context.recordAuditHealthSuccess_({ dataRows: 750, capacityPercent: 75, rotatedRows: 250 }), true);
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS', 'success health recorder must persist');
 }
 
 {
