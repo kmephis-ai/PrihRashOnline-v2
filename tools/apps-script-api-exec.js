@@ -8,21 +8,96 @@ const ALLOWED_FUNCTIONS = new Set([
   'prhReleaseHealthCheckToken'
 ]);
 
-function classifyFailure(statusCode, payloadText) {
+function safeToken(value, maxLength = 28) {
+  const token = String(value || '')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase()
+    .slice(0, maxLength);
+  return token || 'UNKNOWN';
+}
+
+function executionErrorReason(payloadJson) {
+  const operationError = payloadJson && payloadJson.error
+    ? payloadJson.error
+    : payloadJson;
+  if (!operationError || typeof operationError !== 'object') return '';
+
+  const code = Number(operationError.code);
+  const details = Array.isArray(operationError.details) ? operationError.details : [];
+  const detail = details.find((item) => String(item && item['@type'] || '').includes('ExecutionError')) || details[0] || {};
+  const message = String(detail.errorMessage || operationError.message || '');
+  const errorType = String(detail.errorType || '');
+  const stack = Array.isArray(detail.scriptStackTraceElements) ? detail.scriptStackTraceElements : [];
+  const top = stack[0] && typeof stack[0] === 'object' ? stack[0] : {};
+
+  const runtime = message.match(/RUNTIME_HEALTH_[A-Z_]+/);
+  if (runtime) return runtime[0];
+
+  if (/Authorization is required|Missing required authorization|does not have permission to call|You do not have permission to call|requires? (?:one of )?the following scopes?|insufficient authentication scopes?/i.test(message)) {
+    return 'OAUTH_SCRIPT_RUNTIME_SCOPES_REQUIRED';
+  }
+  if (code === 10 || /exceeded maximum execution time|script timeout/i.test(message)) {
+    return 'SCRIPT_EXECUTION_TIMEOUT';
+  }
+  if (code === 1 || /execution.*cancelled|canceled/i.test(message)) {
+    return 'SCRIPT_EXECUTION_CANCELLED';
+  }
+  if (/service invoked too many times|quota|too many simultaneous invocations|rate limit/i.test(message)) {
+    return 'SCRIPT_EXECUTION_QUOTA_EXCEEDED';
+  }
+  if (/Script function not found|function .* not found/i.test(message)) {
+    return 'API_EXECUTABLE_FUNCTION_UNAVAILABLE';
+  }
+
+  if (errorType) {
+    const typeToken = safeToken(errorType, 20);
+    const functionToken = safeToken(top.function, 28);
+    const line = Number.isInteger(Number(top.lineNumber)) && Number(top.lineNumber) > 0
+      ? Math.min(Number(top.lineNumber), 999999)
+      : 0;
+    if (functionToken !== 'UNKNOWN' && line > 0) {
+      return `SCRIPT_EXECUTION_${typeToken}_${functionToken}_L${line}`;
+    }
+    return `SCRIPT_EXECUTION_${typeToken}`;
+  }
+  if (code === 3) return 'SCRIPT_EXECUTION_INVALID_ARGUMENT';
+  return 'SCRIPT_EXECUTION_FAILED';
+}
+
+function classifyFailure(statusCode, payloadText, payloadJson) {
   const text = String(payloadText || '');
   const runtime = text.match(/RUNTIME_HEALTH_[A-Z_]+/);
   if (runtime) return runtime[0];
+
+  if (statusCode === 200 && payloadJson) {
+    const executionReason = executionErrorReason(payloadJson);
+    if (executionReason) return executionReason;
+  }
+
   if (statusCode === 404 || /API executable|not published|not deployed|deployment|NOT_FOUND|Script function not found/i.test(text)) {
     return 'API_EXECUTABLE_UNAVAILABLE';
   }
   if (/standard (Google )?Cloud project|standard GCP project|same Cloud Platform project/i.test(text)) {
     return 'COMMON_STANDARD_CLOUD_PROJECT_REQUIRED';
   }
-  if (/insufficient.*scope|Request had insufficient authentication scopes/i.test(text)) {
+  if (/insufficient.*scope|Request had insufficient authentication scopes|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(text)) {
     return 'OAUTH_PROJECT_SCOPES_REQUIRED';
+  }
+  if (/Authorization is required|Missing required authorization|does not have permission to call|You do not have permission to call/i.test(text)) {
+    return 'OAUTH_SCRIPT_RUNTIME_SCOPES_REQUIRED';
   }
   if (statusCode === 401 || statusCode === 403 || /PERMISSION_DENIED|unauthorized|NOT_AUTHORIZED|caller does not have permission/i.test(text)) {
     return 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED';
+  }
+  if (statusCode === 400 || /INVALID_ARGUMENT/i.test(text)) {
+    return 'AUTHENTICATED_EXECUTION_INVALID_REQUEST';
+  }
+  if (statusCode === 429 || /RESOURCE_EXHAUSTED|rate limit|quota/i.test(text)) {
+    return 'AUTHENTICATED_EXECUTION_RATE_LIMITED';
+  }
+  if (statusCode >= 500 || /INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED/i.test(text)) {
+    return 'AUTHENTICATED_EXECUTION_SERVER_ERROR';
   }
   return 'AUTHENTICATED_EXECUTION_FAILED';
 }
@@ -117,15 +192,19 @@ async function main() {
     });
     const runPayload = await readJsonResponse(runResponse);
     if (!runResponse.ok) {
-      emit({ ok: false, reason: classifyFailure(runResponse.status, runPayload.text) });
+      emit({ ok: false, reason: classifyFailure(runResponse.status, runPayload.text, runPayload.json) });
       return;
     }
     if (!runPayload.json || typeof runPayload.json !== 'object') {
       emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_RESPONSE_INVALID' });
       return;
     }
+    if (runPayload.json.done === false) {
+      emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_NOT_COMPLETED' });
+      return;
+    }
     if (runPayload.json.error) {
-      emit({ ok: false, reason: classifyFailure(200, JSON.stringify(runPayload.json.error)) });
+      emit({ ok: false, reason: classifyFailure(200, JSON.stringify(runPayload.json.error), runPayload.json) });
       return;
     }
     if (!runPayload.json.response || !Object.prototype.hasOwnProperty.call(runPayload.json.response, 'result')) {
@@ -148,4 +227,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { classifyFailure, ALLOWED_FUNCTIONS };
+module.exports = { classifyFailure, executionErrorReason, safeToken, ALLOWED_FUNCTIONS };
