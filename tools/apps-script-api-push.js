@@ -3,22 +3,39 @@
 const fs = require('fs');
 const path = require('path');
 
-function classifyFailure(statusCode, payloadText) {
+function classifyFailure(statusCode, payloadText, errorStatus) {
   const text = String(payloadText || '');
+  const status = String(errorStatus || '').toUpperCase();
+
   if (/User has not enabled the Apps Script API|script\.google\.com\/home\/usersettings/i.test(text)) {
     return 'APPS_SCRIPT_API_USER_SETTING_REQUIRED';
   }
-  if (/insufficient.*scope|Request had insufficient authentication scopes/i.test(text)) {
+  if (/insufficient.*scope|Request had insufficient authentication scopes|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(text)) {
     return 'OAUTH_PROJECT_SCOPES_REQUIRED';
   }
-  if (statusCode === 401 || statusCode === 403 || /PERMISSION_DENIED|unauthorized|NOT_AUTHORIZED|caller does not have permission/i.test(text)) {
+  if (statusCode === 401 || statusCode === 403 || status === 'PERMISSION_DENIED' || status === 'UNAUTHENTICATED' || /PERMISSION_DENIED|unauthorized|NOT_AUTHORIZED|caller does not have permission/i.test(text)) {
     return 'OAUTH_OR_CLOUD_PROJECT_PERMISSION_REQUIRED';
   }
-  if (statusCode === 404 || /NOT_FOUND|script project.*not found|Requested entity was not found/i.test(text)) {
+  if (statusCode === 404 || status === 'NOT_FOUND' || /NOT_FOUND|script project.*not found|Requested entity was not found/i.test(text)) {
     return 'APPS_SCRIPT_PROJECT_UNAVAILABLE';
   }
-  if (/manifest|appsscript|invalid.*file|parse|syntax/i.test(text)) {
+  if (/Syntax error:/i.test(text)) {
+    return 'DEPLOY_SYNTAX_ERROR';
+  }
+  if (statusCode === 413 || status === 'OUT_OF_RANGE' || /request entity too large|payload too large|content.*too large/i.test(text)) {
+    return 'DEPLOY_CONTENT_TOO_LARGE';
+  }
+  if (statusCode === 400 || status === 'INVALID_ARGUMENT' || /manifest|appsscript|invalid.*file|parse/i.test(text)) {
     return 'DEPLOY_CONTENT_INVALID';
+  }
+  if (statusCode === 409 || statusCode === 412 || status === 'FAILED_PRECONDITION' || status === 'ABORTED') {
+    return 'APPS_SCRIPT_CONTENT_PRECONDITION_FAILED';
+  }
+  if (statusCode === 429 || status === 'RESOURCE_EXHAUSTED') {
+    return 'APPS_SCRIPT_API_RATE_LIMITED';
+  }
+  if (statusCode >= 500 || status === 'INTERNAL' || status === 'UNAVAILABLE' || status === 'DEADLINE_EXCEEDED') {
+    return 'APPS_SCRIPT_API_SERVER_ERROR';
   }
   return 'APPS_SCRIPT_CONTENT_PUSH_FAILED';
 }
@@ -131,7 +148,8 @@ async function main() {
     });
     const pushPayload = await readResponse(pushResponse);
     if (!pushResponse.ok) {
-      emit({ ok: false, reason: classifyFailure(pushResponse.status, pushPayload.text) });
+      const errorStatus = pushPayload.json && pushPayload.json.error && pushPayload.json.error.status;
+      emit({ ok: false, reason: classifyFailure(pushResponse.status, pushPayload.text, errorStatus) });
       return;
     }
     if (!pushPayload.json || !Array.isArray(pushPayload.json.files)) {
