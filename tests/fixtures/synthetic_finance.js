@@ -1,6 +1,6 @@
 'use strict';
 
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '1.1.0';
 const DEFAULT_SEED = 0x5eed2026;
 const PROFILE_SIZES = Object.freeze({
   golden: 12,
@@ -50,6 +50,8 @@ function tx(overrides) {
     source: 'synthetic-generator',
     source_external_id: null,
     status: 'posted',
+    reverses_transaction_id: null,
+    adjustment_semantics: null,
     case_kind: 'ordinary',
     schema_version: 1
   }, overrides || {});
@@ -60,7 +62,7 @@ function goldenTransactions() {
     tx({ transaction_id: 'SYN-G-001', occurred_at: '2024-01-31T23:59:59Z', type: 'income', amount_minor: 123456, category_id: 'SYN-INCOME-A', source_external_id: 'SYN-SRC-001', case_kind: 'income' }),
     tx({ transaction_id: 'SYN-G-002', occurred_at: '2024-02-01T00:00:00Z', type: 'expense', amount_minor: 23456, category_id: 'SYN-EXPENSE-A', source_external_id: 'SYN-SRC-002', case_kind: 'expense' }),
     tx({ transaction_id: 'SYN-G-003', occurred_at: '2024-02-29T08:15:00Z', type: 'expense', amount_minor: 101, category_id: 'SYN-ROUNDING', source_external_id: 'SYN-SRC-003', case_kind: 'rounding' }),
-    tx({ transaction_id: 'SYN-G-004', occurred_at: '2024-02-29T08:16:00Z', type: 'refund', amount_minor: 51, category_id: 'SYN-ROUNDING', source_external_id: 'SYN-SRC-004', case_kind: 'refund' }),
+    tx({ transaction_id: 'SYN-G-004', occurred_at: '2024-02-29T08:16:00Z', type: 'refund', amount_minor: 51, category_id: 'SYN-ROUNDING', reverses_transaction_id: 'SYN-G-003', source_external_id: 'SYN-SRC-004', case_kind: 'refund' }),
     tx({ transaction_id: 'SYN-G-005', occurred_at: '2024-03-01T00:00:00Z', type: 'transfer', amount_minor: 50000, category_id: 'SYN-TRANSFER', destination_account_id: 'SYN-ACCOUNT-B', source_external_id: 'SYN-SRC-005', case_kind: 'transfer' }),
     tx({ transaction_id: 'SYN-G-006', occurred_at: '2024-06-30T12:00:00Z', type: 'adjustment', amount_minor: 0, category_id: 'SYN-ZERO', source_external_id: 'SYN-SRC-006', case_kind: 'zero' }),
     tx({ transaction_id: 'SYN-G-007', occurred_at: '2024-12-31T23:59:59Z', type: 'expense', amount_minor: 999, category_id: 'SYN-BOUNDARY', source_external_id: 'SYN-SRC-007', case_kind: 'year-boundary' }),
@@ -92,6 +94,7 @@ function generatedTransaction(index, rng) {
     tags: rng() < 0.7 ? [] : [`syn-tag-${1 + Math.floor(rng() * 6)}`],
     description: `Synthetic generated transaction ${index + 1}`,
     source_external_id: `SYN-RSRC-${pad(index + 1, 6)}`,
+    adjustment_semantics: type === 'refund' ? 'expense_reduction' : null,
     case_kind: 'generated'
   });
 }
