@@ -83,7 +83,10 @@ function main() {
   const findings=scanTree(ROOT,files);
   if (findings.length) {
     console.error(`privacy-public-data: FAIL (${findings.length} finding(s))`);
-    findings.forEach((finding) => console.error(`::error file=${finding.file}::privacy rule ${finding.rule}`));
+    findings.forEach((finding) => {
+      console.error(`privacy finding: ${finding.file} -> ${finding.rule}`);
+      console.error(`::error file=${finding.file}::privacy rule ${finding.rule}`);
+    });
     process.exitCode=1;
     return;
   }
