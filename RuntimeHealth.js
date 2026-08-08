@@ -60,6 +60,15 @@ function prhReleaseHealthCheck(expectedBuild) {
 }
 
 /**
+ * Constant authenticated transport proof. It deliberately touches no spreadsheet,
+ * service, property, or financial payload. If this scalar is returned, OAuth +
+ * Apps Script API executable transport is working independently of workbook health.
+ */
+function prhRuntimeTransportPing() {
+  return 'PRH_TRANSPORT_V1|OK';
+}
+
+/**
  * Stable scalar entrypoint for clasp/Execution API health verification.
  * It deliberately serializes only the technical fields already returned by
  * prhReleaseHealthCheck so CI never needs to inspect spreadsheet payloads.
