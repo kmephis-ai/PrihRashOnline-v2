@@ -6,6 +6,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const htmlPath = path.join(root, 'DashboardWebApp.html');
 const service = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
+const model = fs.readFileSync(path.join(root, 'DashboardWebDataModel.js'), 'utf8');
 const executive = fs.readFileSync(path.join(root, 'DashboardWebExecutiveService.js'), 'utf8');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
@@ -16,10 +17,14 @@ expect(html.includes('id="executive-secondary"'), 'Dashboard must be prepared th
 expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 RC before contract tests');
 
 [
-  'function doGet(e)', 'function prhGetWebDashboardData(', 'function prhOpenWebDashboard()',
-  "OPERATIONS_SHEET: '01 Операции'", "QUALITY_CELL: 'E396'", "VERSION: '1.2.0'",
+  'function doGet(e)', 'function prhOpenWebDashboard()',
   'HtmlService.createTemplateFromFile', 'ScriptApp.getService().getUrl()'
-].forEach((required) => expect(service.includes(required), `Missing base service contract: ${required}`));
+].forEach((required) => expect(service.includes(required), `Missing bootstrap service contract: ${required}`));
+
+[
+  'function prhGetWebDashboardData(', "OPERATIONS_SHEET: '01 Операции'",
+  "QUALITY_CELL: 'E396'", "VERSION: '1.2.1'"
+].forEach((required) => expect(model.includes(required), `Missing data model contract: ${required}`));
 
 [
   "VERSION: '1.3.0'", 'function prhGetWebDashboardDataV13(', 'function prhWebExecutiveStabilityIndex_(',
@@ -32,7 +37,8 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
   '.setValue(', '.setValues(', '.clearContent(', '.appendRow(', '.deleteRow(', '.deleteRows(',
   '.insertSheet(', '.deleteSheet(', '.hideRows(', '.showRows(', '.setColumnWidth(', '.setRowHeight('
 ].forEach((forbidden) => {
-  expect(!service.includes(forbidden), `Base web service must be read-only: ${forbidden}`);
+  expect(!service.includes(forbidden), `Web bootstrap must be read-only: ${forbidden}`);
+  expect(!model.includes(forbidden), `Base web data model must be read-only: ${forbidden}`);
   expect(!executive.includes(forbidden), `Executive/drill-down service must be read-only: ${forbidden}`);
 });
 
@@ -54,7 +60,7 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
   'v1.0 RC'
 ].forEach((required) => expect(html.includes(required), `Missing v1 RC dashboard contract: ${required}`));
 
-expect(!service.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use stale E397');
+expect(!model.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use stale E397');
 expect(!html.includes('scrollbar-width: thin'), 'Mobile tab scrollbar must remain hidden');
 expect(!html.includes('charts.google.com'), 'Dashboard must not depend on Google Charts runtime');
 expect(!html.includes('cdn.jsdelivr.net'), 'Dashboard must not depend on a public CDN');

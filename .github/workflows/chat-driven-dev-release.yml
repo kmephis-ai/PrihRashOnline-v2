@@ -15,6 +15,7 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'CHANGELOG.md'
+      - '.github/workflows/chat-driven-dev-release.yml'
   workflow_dispatch:
     inputs:
       target_ref:
@@ -146,11 +147,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --no-save --no-audit --no-fund @google/clasp@3
+          npm install --no-save --no-audit --no-fund @google/clasp@3.3.0
           printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
           chmod 600 "${HOME}/.clasprc.json"
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8')); JSON.parse(require('fs').readFileSync('.clasp.json','utf8'));"
+          npx clasp --version
           npx clasp status
 
       - name: Push Apps Script DEV
@@ -161,33 +163,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Do not reuse the historical generic deployment: it was created before
-          # the manifest declared a webapp and produced a Google Drive file-not-found URL.
           DEPLOYMENT_NAME='PrihRashOnline Web Dashboard DEV WebApp'
           DEPLOYMENTS="$(npx clasp list-deployments || true)"
-          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+          printf '%s\n' "${DEPLOYMENTS}"
+          # Prefer the newest deployment with the canonical description. Historical
+          # deployments may predate the webapp manifest and have no WEB_APP entry point.
+          DEPLOYMENT_ID="$(printf '%s\n' "${DEPLOYMENTS}" | grep -F "${DEPLOYMENT_NAME}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | tail -1 || true)"
+          WEB_APP_URL=''
+
+          resolve_webapp_url() {
+            local deployment_id="$1"
+            local open_output
+            if ! open_output="$(npx clasp --json open-web-app "${deployment_id}" 2>&1)"; then
+              printf '%s\n' "${open_output}" >&2
+              return 1
+            fi
+            printf '%s\n' "${open_output}" >&2
+            printf '%s\n' "${open_output}" | grep -oE 'https://script\.google\.com[^"[:space:]]+/exec([^"[:space:]]*)?' | head -1
+          }
 
           if [[ -n "${DEPLOYMENT_ID}" ]]; then
-            OUTPUT="$(npx clasp update-deployment "${DEPLOYMENT_ID}" -d "${DEPLOYMENT_NAME}")"
-          else
-            OUTPUT="$(npx clasp create-deployment -d "${DEPLOYMENT_NAME}")"
-            DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+            OUTPUT="$(npx clasp create-deployment --deploymentId "${DEPLOYMENT_ID}" --description "${DEPLOYMENT_NAME}")"
+            printf '%s\n' "${OUTPUT}"
+            WEB_APP_URL="$(resolve_webapp_url "${DEPLOYMENT_ID}" || true)"
+            if [[ -z "${WEB_APP_URL}" ]]; then
+              echo "::notice::Deployment ${DEPLOYMENT_ID} has no WEB_APP entry point; creating a fresh verified Web App deployment."
+              DEPLOYMENT_ID=''
+            fi
           fi
-          printf '%s\n' "${OUTPUT}"
-          [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Deployment ID not returned'; exit 1; }
 
-          # open-web-app calls projects.deployments.get internally and refuses any
-          # deployment without a real WEB_APP entry point. Its output is therefore
-          # authoritative; we never synthesize /exec from a deployment ID again.
-          if ! OPEN_OUTPUT="$(npx clasp --json open-web-app "${DEPLOYMENT_ID}" 2>&1)"; then
-            printf '%s\n' "${OPEN_OUTPUT}"
-            echo '::error::Apps Script deployment has no verified WEB_APP entry point.'
-            exit 1
+          if [[ -z "${DEPLOYMENT_ID}" ]]; then
+            OUTPUT="$(npx clasp create-deployment --description "${DEPLOYMENT_NAME}")"
+            printf '%s\n' "${OUTPUT}"
+            DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
+            [[ -n "${DEPLOYMENT_ID}" ]] || { echo '::error::Fresh deployment ID not returned'; exit 1; }
+            WEB_APP_URL="$(resolve_webapp_url "${DEPLOYMENT_ID}" || true)"
           fi
-          printf '%s\n' "${OPEN_OUTPUT}"
-          WEB_APP_URL="$(printf '%s\n' "${OPEN_OUTPUT}" | grep -oE 'https://script\.google\.com[^"[:space:]]+/exec([^"[:space:]]*)?' | head -1 || true)"
+
           [[ -n "${WEB_APP_URL}" ]] || {
-            echo '::error::clasp verified WEB_APP but did not return its URL.'
+            echo "::error::Apps Script deployment ${DEPLOYMENT_ID} has no verified WEB_APP entry point."
             exit 1
           }
           [[ "${WEB_APP_URL}" =~ ^https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec([?].*)?$ ]] || {
@@ -201,15 +215,50 @@ jobs:
             echo "::error::Web App smoke request failed with HTTP ${HTTP_CODE}"
             exit 1
           fi
-          if grep -Eqi 'Не удалось открыть файл|Unable to open the file|file you have requested does not exist' "${SMOKE_BODY}"; then
-            echo '::error::Google Drive file-not-found page returned instead of Apps Script Web App.'
+          if grep -Eqi 'Не удалось открыть файл|Unable to open the file|file you have requested does not exist|Page Not Found' "${SMOKE_BODY}"; then
+            echo '::error::Google Drive file-not-found page returned despite a WEB_APP entry point.'
+            exit 1
+          fi
+          if grep -Eqi 'SyntaxError|Invalid or unexpected token|ReferenceError|TypeError|Exception:|Script function not found|Синтаксическая ошибка|Ошибка синтаксиса' "${SMOKE_BODY}"; then
+            echo '::error::Apps Script runtime error page returned instead of the Dashboard.'
+            sed -n '1,160p' "${SMOKE_BODY}" || true
             exit 1
           fi
 
+          RUNTIME_MODE=''
+          if grep -Eqi 'accounts\.google\.com|Sign in - Google Accounts|Войдите в аккаунт Google|Войти в аккаунт Google|ServiceLogin' "${SMOKE_BODY}"; then
+            RUNTIME_MODE='private-auth'
+            echo '::notice::Verified private MYSELF Web App entry point. Anonymous CI cannot execute doGet; exact-SHA manual runtime approval is required before merge.'
+          elif grep -Fqi 'PrihRashOnline' "${SMOKE_BODY}"; then
+            RUNTIME_MODE='dashboard-marker'
+          else
+            echo '::error::Smoke response is neither the Dashboard nor the expected private Google authentication boundary.'
+            sed -n '1,100p' "${SMOKE_BODY}" || true
+            exit 1
+          fi
+
+          echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
+          echo "runtime_mode=${RUNTIME_MODE}" >> "$GITHUB_OUTPUT"
+
           mkdir -p artifacts
-          jq -n --arg sourceRef "${TARGET_REF}" --arg sourceSha "${{ steps.source.outputs.sha }}" --arg deploymentId "${DEPLOYMENT_ID}" --arg webAppUrl "${WEB_APP_URL}" --arg httpCode "${HTTP_CODE}" --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            '{sourceRef:$sourceRef,sourceSha:$sourceSha,deploymentId:$deploymentId,webAppUrl:$webAppUrl,smokeHttpCode:$httpCode,runUrl:$runUrl,entryPoint:"WEB_APP"}' > artifacts/dashboard-web-deployment.json
+          jq -n --arg sourceRef "${TARGET_REF}" --arg sourceSha "${{ steps.source.outputs.sha }}" --arg deploymentId "${DEPLOYMENT_ID}" --arg webAppUrl "${WEB_APP_URL}" --arg httpCode "${HTTP_CODE}" --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --arg runtimeMode "${RUNTIME_MODE}" \
+            '{sourceRef:$sourceRef,sourceSha:$sourceSha,deploymentId:$deploymentId,webAppUrl:$webAppUrl,smokeHttpCode:$httpCode,runUrl:$runUrl,entryPoint:"WEB_APP",runtimeMode:$runtimeMode}' > artifacts/dashboard-web-deployment.json
+
+      - name: Verify exact-SHA manual runtime approval for private Web App
+        if: steps.webapp.outputs.runtime_mode == 'private-auth'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MARKER="MANUAL_RUNTIME_APPROVED=${{ steps.source.outputs.sha }}"
+          COMMENTS="$(gh pr view "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" --json comments --jq '[.comments[].body] | join("\n")')"
+          if ! grep -Fq "${MARKER}" <<<"${COMMENTS}"; then
+            echo "::error::Private MYSELF Web App requires exact candidate approval marker: ${MARKER}"
+            exit 1
+          fi
+          echo "Manual runtime approval found for exact candidate ${{ steps.source.outputs.sha }}."
 
       - name: Upload deployment metadata
         uses: actions/upload-artifact@v4
@@ -247,7 +296,7 @@ jobs:
           RESPONSE="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.number }}/merge" \
             -f sha='${{ steps.source.outputs.sha }}' -f merge_method=merge \
             -f commit_title='Merge validated DEV Web App hotfix' \
-            -f commit_message='Contracts, Playwright, clasp push, verified WEB_APP entry point and smoke check passed.')"
+            -f commit_message='Contracts, Playwright, clasp push, verified WEB_APP entry point and privacy-safe runtime gate passed.')"
           [[ "$(jq -r '.merged' <<<"${RESPONSE}")" == true ]] || { echo "::error::Merge refused: $(jq -r '.message' <<<"${RESPONSE}")"; exit 1; }
           echo "sha=$(jq -r '.sha' <<<"${RESPONSE}")" >> "$GITHUB_OUTPUT"
 
@@ -287,7 +336,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr comment "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" \
-            --body "✅ DEV Web App hotfix passed and merged. Source: \`${{ steps.source.outputs.sha }}\`; merge: \`${{ steps.merge.outputs.sha }}\`; verified Web App: ${{ steps.webapp.outputs.url }}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            --body "✅ DEV Web App hotfix passed and merged. Source: \`${{ steps.source.outputs.sha }}\`; merge: \`${{ steps.merge.outputs.sha }}\`; verified Web App: ${{ steps.webapp.outputs.url }}; runtime gate: \`${{ steps.webapp.outputs.runtime_mode }}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Report fail-closed blocker
         if: failure() && steps.pr.outputs.number != ''
@@ -295,7 +344,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr comment "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" \
-            --body "❌ DEV Web App hotfix failed closed. Run \`${GITHUB_RUN_ID}\`, candidate \`${{ steps.pr.outputs.sha }}\`. No merge claimed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            --body "❌ DEV Web App hotfix failed closed. Run \`${GITHUB_RUN_ID}\`, candidate \`${{ steps.pr.outputs.sha }}\`. DEV deployment may have completed, but no merge is claimed without a verified WEB_APP entry point and privacy-safe runtime gate. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Release summary
         if: always()
@@ -307,5 +356,6 @@ jobs:
           echo "- Source: \`${{ steps.source.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Release commits: \`${{ steps.source.outputs.commit_count }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Verified Web App: ${{ steps.webapp.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Runtime gate: \`${{ steps.webapp.outputs.runtime_mode }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Merge: \`${{ steps.merge.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
