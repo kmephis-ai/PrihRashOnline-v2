@@ -70,10 +70,16 @@ function makeContext(overrides = {}) {
   const context = makeContext();
   vm.runInContext("PropertiesService.getScriptProperties().setProperty('OBS_PROBE', 'OK')", context);
   assert.strictEqual(context.__auditHealthValues.OBS_PROBE, 'OK', 'VM ScriptProperties stub must persist');
-  assert.strictEqual(context.setAuditHealthProperties_({ PR_AUDIT_HEALTH_STATUS: 'PASS' }), true);
+  assert.strictEqual(
+    vm.runInContext("setAuditHealthProperties_({PR_AUDIT_HEALTH_STATUS:'PASS'})", context),
+    true
+  );
   assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS', 'production persistence helper must persist');
-  context.__auditHealthValues = {};
-  assert.strictEqual(context.recordAuditHealthSuccess_({ dataRows: 750, capacityPercent: 75, rotatedRows: 250 }), true);
+  vm.runInContext('__auditHealthValues = {}', context);
+  assert.strictEqual(
+    vm.runInContext('recordAuditHealthSuccess_({dataRows:750,capacityPercent:75,rotatedRows:250})', context),
+    true
+  );
   assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS', 'success health recorder must persist');
 }
 
@@ -133,7 +139,7 @@ function makeContext(overrides = {}) {
   const context = makeContext({
     getSheetRequired_() { return sheet; }
   });
-  const eventId = context.appendAudit_({ type: 'SYNTHETIC_TEST' });
+  const eventId = vm.runInContext("appendAudit_({type:'SYNTHETIC_TEST'})", context);
   assert.strictEqual(eventId, 'EVT-1001');
   assert.strictEqual(deletedRows, 250);
   assert.strictEqual(insertedRows, 250);
@@ -147,7 +153,10 @@ function makeContext(overrides = {}) {
 
 {
   const context = makeContext();
-  assert.strictEqual(context.recordAuditHealthSuccess_({ dataRows: 850, capacityPercent: 85, rotatedRows: 0 }), true);
+  assert.strictEqual(
+    vm.runInContext('recordAuditHealthSuccess_({dataRows:850,capacityPercent:85,rotatedRows:0})', context),
+    true
+  );
   assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'WARN');
   assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'AUDIT_CAPACITY_WARNING');
 }
@@ -157,7 +166,7 @@ function makeContext(overrides = {}) {
     getSheetRequired_() { throw new Error('sheet unavailable'); }
   });
   assert.doesNotThrow(() => {
-    assert.strictEqual(context.appendAudit_({ type: 'SYNTHETIC_FAILURE' }), '');
+    assert.strictEqual(vm.runInContext("appendAudit_({type:'SYNTHETIC_FAILURE'})", context), '');
   });
   assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'FAIL');
   assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'AUDIT_STORAGE_FAILED');
@@ -174,18 +183,18 @@ function makeContext(overrides = {}) {
   const context = {};
   vm.createContext(context);
   vm.runInContext(privacySource, context, { filename: 'SecurityPrivacyPolicy.js' });
-  const safe = context.sanitizeAuditMetadata_({
-    latencyMs: 42,
-    errorClass: 'NONE',
-    quotaClass: 'apps-script',
-    auditCapacityPercent: 80,
-    auditRotatedRows: 250,
-    auditFailureCount: 2,
-    auditConsecutiveFailures: 1,
-    amountMinor: 12345,
-    description: 'private',
-    rawPayload: 'private'
-  });
+  const safe = vm.runInContext(`sanitizeAuditMetadata_({
+    latencyMs:42,
+    errorClass:'NONE',
+    quotaClass:'apps-script',
+    auditCapacityPercent:80,
+    auditRotatedRows:250,
+    auditFailureCount:2,
+    auditConsecutiveFailures:1,
+    amountMinor:12345,
+    description:'private',
+    rawPayload:'private'
+  })`, context);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(safe)), {
     latencyMs: 42,
     errorClass: 'NONE',
