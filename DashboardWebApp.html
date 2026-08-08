@@ -3,1034 +3,199 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
   <style>
-    :root {
-      --navy-950: #061d37;
-      --navy-900: #082f55;
-      --teal-700: #087f82;
-      --teal-600: #0d9b99;
-      --teal-100: #e4f7f4;
-      --blue-600: #1967d2;
-      --blue-100: #eaf2ff;
-      --green-700: #168447;
-      --green-100: #e7f6ec;
-      --orange-600: #c45e00;
-      --orange-100: #fff1df;
-      --ink: #10233f;
-      --muted: #61728a;
-      --line: #dfe6ef;
-      --surface: #fff;
-      --canvas: #f3f6fa;
-      --shadow: 0 10px 30px rgba(24,45,78,.08);
-      --radius: 16px;
-      --gap: 16px;
+    :root { --ink:#10233f; --muted:#61728a; --line:#dfe6ef; --surface:#fff; --canvas:#f3f6fa; --blue:#1967d2; --teal:#087f82; --shadow:0 10px 30px rgba(24,45,78,.08); --radius:16px; --gap:16px; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; background:var(--canvas); color:var(--ink); font:14px/1.45 Arial,Roboto,sans-serif; }
+    button,select { font:inherit; }
+    button { cursor:pointer; }
+    [hidden] { display:none !important; }
+    .topbar { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:12px clamp(18px,3vw,44px); color:#fff; background:linear-gradient(120deg,#061d37,#00152c 72%); }
+    .brand-title { margin:0; font-size:clamp(21px,2vw,31px); }
+    .brand-subtitle { margin:5px 0 0; color:rgba(255,255,255,.78); }
+    .release-badge { display:inline-flex; margin-left:8px; padding:4px 8px; border:1px solid rgba(255,255,255,.22); border-radius:999px; font-size:11px; font-weight:800; }
+    .headline-stat { font-size:clamp(17px,1.8vw,26px); font-weight:800; white-space:nowrap; }
+    .nav-wrap { padding:8px clamp(14px,2vw,28px); background:#fff; border-bottom:1px solid var(--line); }
+    .tabs { max-width:1720px; margin:auto; display:grid; grid-template-columns:repeat(10,minmax(92px,1fr)); border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+    .tab { min-height:46px; padding:9px 7px; border:0; border-right:1px solid var(--line); background:#fff; color:#173357; font-weight:700; white-space:nowrap; }
+    .tab.active { color:#fff; background:linear-gradient(145deg,#0ea5a1,#087d89); }
+    .page { max-width:1720px; margin:auto; padding:14px clamp(14px,2vw,28px) 28px; }
+    .filters { display:grid; grid-template-columns:1fr 1fr 1.15fr .9fr 1.15fr; grid-auto-rows:1fr; gap:var(--gap); margin-bottom:var(--gap); }
+    .filter-card,.panel,.kpi-card,.secondary-card { min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+    .filter-card { min-height:84px; padding:12px 15px; display:flex; flex-direction:column; justify-content:center; }
+    .filter-label { margin-bottom:7px; color:#314d72; font-size:12px; font-weight:700; }
+    .filter-select { width:100%; min-height:38px; border:0; background:transparent; color:var(--ink); font-size:18px; font-weight:800; }
+    .metric-value { font-size:20px; font-weight:800; overflow-wrap:anywhere; }
+    .metric-note { margin-top:4px; color:var(--muted); font-size:12px; }
+    .view-context { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:var(--gap); padding:10px 14px; border:1px solid #cfe0f7; border-radius:13px; background:#f4f8ff; }
+    .action-bar { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:var(--gap); padding:10px; border:1px solid var(--line); border-radius:14px; background:#fff; }
+    .action-button { min-height:44px; border:1px solid #bfd3eb; border-radius:11px; background:#fff; color:#173d68; font-weight:800; }
+    .action-button.primary { color:#fff; background:linear-gradient(135deg,#0d9b99,#087d89); }
+    .action-button.warn { background:#fff8ec; color:#825000; }
+    .dashboard-grid { display:grid; grid-template-columns:1.06fr 1fr; gap:var(--gap); align-items:stretch; }
+    .dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis { grid-column:1 / -1; }
+    .panel { padding:18px; overflow:hidden; }
+    .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .panel-title { margin:0; font-size:19px; }
+    .panel-note { color:var(--muted); font-size:12px; }
+    .overview-kpis,.chart-panel { min-height:340px; }
+    .kpi-layout { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .kpi-card { min-height:94px; padding:13px; display:grid; grid-template-columns:36px minmax(0,1fr); gap:10px; align-items:center; box-shadow:none; }
+    .kpi-icon { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; background:#087f82; color:#fff; font-weight:800; }
+    .kpi-label,.secondary-label { color:#3a5272; font-size:12px; }
+    .kpi-value,.secondary-value { margin-top:4px; font-size:17px; font-weight:800; overflow-wrap:anywhere; }
+    .executive-secondary { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:12px; }
+    .secondary-card { min-height:78px; padding:11px; box-shadow:none; }
+    .insight { margin-top:13px; min-height:62px; padding:12px 14px; border:1px solid #c8dcfb; border-radius:13px; background:#f3f8ff; }
+    .insight-title { color:var(--blue); font-weight:800; }
+    .insight-text { margin-top:3px; color:#34506f; }
+    .chart-host { width:100%; height:280px; overflow:hidden; }
+    .chart-host svg { display:block; width:100%; height:100%; }
+    .chart-empty { min-height:220px; display:grid; place-items:center; padding:20px; border:1px dashed #cfd9e6; border-radius:12px; color:var(--muted); text-align:center; }
+    .bottom-grid { grid-column:1 / -1; display:grid; grid-template-columns:1.08fr .92fr; gap:var(--gap); }
+    .structure-layout { min-height:270px; display:grid; grid-template-columns:minmax(210px,.8fr) minmax(240px,1.2fr); gap:18px; align-items:center; }
+    .donut-wrap { position:relative; display:grid; place-items:center; }
+    .donut { width:min(220px,100%); aspect-ratio:1; border-radius:50%; background:#e8edf3; position:relative; }
+    .donut:after { content:""; position:absolute; inset:25%; border-radius:50%; background:#fff; }
+    .donut-center { position:absolute; z-index:2; inset:0; display:grid; place-content:center; text-align:center; pointer-events:none; }
+    .donut-total { font-size:19px; font-weight:800; }
+    .legend { display:grid; gap:10px; }
+    .legend-row { display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:8px; align-items:center; }
+    .legend-dot { width:10px; height:10px; border-radius:50%; }
+    .view-detail { grid-column:1 / -1; }
+    .detail-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+    .detail-stat { padding:12px; border:1px solid var(--line); border-radius:10px; background:#f9fbfd; }
+    .detail-stat-label { color:var(--muted); font-size:12px; }
+    .detail-stat-value { margin-top:4px; font-size:18px; font-weight:800; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+    .data-table { width:100%; min-width:560px; border-collapse:collapse; }
+    .data-table th,.data-table td { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; }
+    .data-table th { background:#f5f8fb; color:#314d72; font-size:12px; }
+    .quality-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin-bottom:10px; }
+    .quality-mini-button { min-height:30px; margin:2px; border:1px solid #c7d8eb; border-radius:8px; background:#fff; color:#28527f; }
+    .loading-layer { position:fixed; inset:0; z-index:50; display:none; place-items:center; background:rgba(243,246,250,.78); }
+    .loading-layer.visible { display:grid; }
+    .loader-card { padding:18px 22px; border-radius:14px; background:#fff; box-shadow:var(--shadow); font-weight:800; }
+    .status-toast { position:fixed; left:50%; bottom:22px; transform:translate(-50%,130%); z-index:40; padding:10px 16px; border-radius:10px; background:#082f55; color:#fff; transition:.2s; }
+    .status-toast.visible { transform:translate(-50%,0); }
+    @media (max-width:1250px) {
+      .tabs { display:flex; overflow-x:auto; scrollbar-width: none; }
+      .tabs::-webkit-scrollbar { display:none; }
+      .tab { min-width:118px; flex:0 0 118px; }
+      .filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .dashboard-grid,.bottom-grid { grid-template-columns:1fr; }
+      .kpi-layout { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .executive-secondary { grid-template-columns:repeat(3,minmax(0,1fr)); }
     }
-
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: var(--canvas); color: var(--ink); }
-    body {
-      font-family: Arial, Roboto, sans-serif; font-size: 14px; line-height: 1.45;
-      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
-    }
-    button, select { font: inherit; }
-    button { cursor: pointer; }
-    [hidden] { display: none !important; }
-
-    .app-shell { min-width: 320px; min-height: 100vh; }
-    .topbar {
-      min-height: 72px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 12px clamp(18px,3vw,44px);
-      color: #fff;
-      background: linear-gradient(120deg,var(--navy-950),#00152c 72%);
-    }
-    .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
-    .brand-mark {
-      width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px;
-      display: grid; place-items: center; font-size: 22px; font-weight: 800;
-      background: linear-gradient(150deg,#12b8a5,#087b8d);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
-    }
-    .brand-copy { min-width: 0; }
-    .brand-title { margin: 0; font-size: clamp(21px,2vw,31px); line-height: 1.05; font-weight: 800; }
-    .brand-subtitle { margin: 5px 0 0; color: rgba(255,255,255,.78); font-size: 13px; }
-    .headline-stat { flex: 0 0 auto; font-size: clamp(18px,1.8vw,27px); font-weight: 800; white-space: nowrap; }
-
-    .nav-wrap { padding: 8px clamp(14px,2vw,28px); background: var(--surface); border-bottom: 1px solid var(--line); }
-    .tabs {
-      max-width: 1720px; margin: 0 auto;
-      display: grid; grid-template-columns: repeat(10,minmax(92px,1fr));
-      border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: #fff;
-    }
-    .tab {
-      min-height: 46px; padding: 10px 8px; border: 0; border-right: 1px solid var(--line);
-      color: #173357; background: #fff; font-weight: 700; white-space: nowrap;
-    }
-    .tab:last-child { border-right: 0; }
-    .tab:hover { background: #f5f9fd; }
-    .tab:focus-visible { outline: 3px solid rgba(25,103,210,.35); outline-offset: -3px; }
-    .tab.active { color: #fff; background: linear-gradient(145deg,#0ea5a1,#087d89); }
-
-    .page { max-width: 1720px; margin: 0 auto; padding: 14px clamp(14px,2vw,28px) 28px; }
-    .filters {
-      display: grid; grid-template-columns: 1.05fr 1.05fr 1.2fr .9fr 1.2fr;
-      grid-auto-rows: 1fr; align-items: stretch;
-      gap: var(--gap); margin-bottom: var(--gap);
-    }
-    .filter-card, .panel, .kpi-card {
-      min-width: 0; background: var(--surface); border: 1px solid var(--line);
-      border-radius: var(--radius); box-shadow: var(--shadow);
-    }
-    .filter-card {
-      min-height: 86px; padding: 13px 16px;
-      display: flex; flex-direction: column; justify-content: center;
-    }
-    .filter-label { margin-bottom: 8px; color: #314d72; font-weight: 700; font-size: 12px; }
-    .filter-select {
-      width: 100%; min-height: 40px; border: 0; outline: none; background: transparent;
-      color: var(--ink); font-size: 18px; font-weight: 800;
-    }
-    .filter-select:focus-visible { box-shadow: 0 0 0 3px rgba(25,103,210,.18); border-radius: 8px; }
-    .filter-card.period { background: linear-gradient(135deg,#edfafa,#e8f6f4); border-color: #bee5df; }
-    .filter-card.operations { background: linear-gradient(135deg,#f2f7ff,#ebf2ff); border-color: #cbdcf8; }
-    .filter-card.quality { background: linear-gradient(135deg,#f0f9f1,#eaf6ec); border-color: #cce7d1; }
-    .metric-value { font-size: 21px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
-    .metric-note { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.35; }
-    .period .metric-value { color: var(--teal-700); }
-    .operations .metric-value { color: var(--blue-600); }
-    .quality .metric-value { color: var(--green-700); }
-
-    .view-context {
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      margin: 0 0 var(--gap); padding: 10px 14px; border: 1px solid #cfe0f7;
-      border-radius: 13px; background: linear-gradient(135deg,#f7faff,#edf4ff);
-    }
-    .view-context strong { color: var(--blue-600); }
-    .view-context span { color: #405675; line-height: 1.4; }
-
-    .dashboard-grid { display: grid; grid-template-columns: 1.06fr 1fr; gap: var(--gap); align-items: stretch; }
-    .dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis { grid-column: 1 / -1; }
-    .bottom-grid:has(.monthly-panel[hidden]),
-    .bottom-grid:has(.structure-panel[hidden]) { grid-template-columns: 1fr; }
-    .panel { padding: 18px; overflow: hidden; }
-    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-    .panel-title { margin: 0; font-size: 19px; line-height: 1.25; }
-    .panel-note { color: var(--muted); font-size: 12px; text-align: right; }
-    .overview-kpis { min-height: 340px; }
-    .kpi-layout {
-      display: grid; grid-template-columns: repeat(3,minmax(0,1fr));
-      grid-auto-rows: 1fr; gap: 12px; align-items: stretch;
-    }
-    .kpi-card {
-      min-height: 96px; height: 100%; padding: 14px;
-      display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 11px; align-items: center;
-      box-shadow: none;
-    }
-    .kpi-icon {
-      width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
-      color: #fff; background: linear-gradient(145deg,#0ba6a0,#087789); font-weight: 800;
-    }
-    .kpi-label { color: #3a5272; font-size: 12px; line-height: 1.28; }
-    .kpi-value { margin-top: 4px; font-size: 17px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
-
-    .insight {
-      margin-top: 13px; min-height: 68px; padding: 12px 14px;
-      display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center;
-      border: 1px solid #c8dcfb; border-radius: 13px; background: linear-gradient(135deg,#f3f8ff,#eef5ff);
-    }
-    .insight.warning { border-color: #f1d4b7; background: linear-gradient(135deg,#fff9ef,#fff4e7); }
-    .insight-icon {
-      width: 42px; height: 42px; display: grid; place-items: center;
-      border-radius: 50%; color: var(--blue-600); background: var(--blue-100); font-size: 22px;
-    }
-    .insight.warning .insight-icon { color: var(--orange-600); background: var(--orange-100); }
-    .insight-title { color: var(--blue-600); font-weight: 800; }
-    .insight.warning .insight-title { color: #9a5500; }
-    .insight-text { margin-top: 3px; color: #34506f; line-height: 1.4; }
-
-    .chart-panel { min-height: 340px; }
-    .chart-host { width: 100%; height: 280px; min-width: 0; overflow: hidden; }
-    .chart-host svg { display: block; width: 100%; height: 100%; overflow: visible; }
-    .chart-empty {
-      height: 100%; min-height: 220px; padding: 22px;
-      display: grid; place-items: center; text-align: center;
-      color: var(--muted); border: 1px dashed #cfd9e6; border-radius: 12px; background: #fafcff;
-    }
-    .chart-empty strong { display: block; margin-bottom: 5px; color: #38516f; }
-
-    .bottom-grid {
-      grid-column: 1 / -1; display: grid; grid-template-columns: 1.08fr .92fr; gap: var(--gap);
-    }
-    .monthly-panel, .structure-panel { min-height: 330px; }
-    .structure-layout {
-      min-height: 270px; display: grid;
-      grid-template-columns: minmax(220px,.9fr) minmax(250px,1.1fr);
-      gap: 18px; align-items: center;
-    }
-    .donut-wrap { min-width: 0; display: grid; place-items: center; }
-    .donut {
-      width: min(230px,100%); aspect-ratio: 1; border-radius: 50%; position: relative;
-      background: conic-gradient(var(--teal-700) 0 45%,var(--teal-600) 45% 68%,#75a5ed 68% 91%,#bed0e8 91% 100%);
-    }
-    .donut::after { content: ""; position: absolute; inset: 25%; border-radius: 50%; background: #fff; }
-    .donut-center { position: absolute; z-index: 2; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
-    .donut-total { font-size: 20px; font-weight: 800; }
-    .donut-caption { margin-top: 4px; color: var(--muted); font-size: 12px; }
-    .legend { display: grid; gap: 12px; }
-    .legend-row {
-      min-width: 0; display: grid; grid-template-columns: 12px minmax(0,1fr) auto auto;
-      gap: 9px; align-items: center;
-    }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .legend-label { min-width: 0; overflow-wrap: anywhere; }
-    .legend-percent, .legend-value { white-space: nowrap; font-weight: 700; }
-    .legend-value { min-width: 92px; text-align: right; }
-
-    .view-detail { grid-column: 1 / -1; }
-    .detail-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-bottom: 14px; }
-    .detail-stat { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #f9fbfd; }
-    .detail-stat-label { color: var(--muted); font-size: 12px; }
-    .detail-stat-value { margin-top: 5px; font-size: 19px; font-weight: 800; overflow-wrap: anywhere; }
-    .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
-    .data-table { width: 100%; border-collapse: collapse; min-width: 560px; }
-    .data-table th, .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
-    .data-table th { color: #314d72; background: #f5f8fb; font-size: 12px; }
-    .data-table td:last-child, .data-table th:last-child { text-align: right; }
-    .data-table tr:last-child td { border-bottom: 0; }
-
-    .actions { display: flex; justify-content: flex-end; margin-top: 14px; }
-    .primary-button {
-      border: 0; border-radius: 11px; padding: 11px 17px;
-      color: #fff; background: linear-gradient(135deg,#1769e0,#0b5cc7);
-      box-shadow: 0 7px 18px rgba(25,103,210,.2); font-weight: 800;
-    }
-    .primary-button:hover { filter: brightness(1.04); }
-
-    .status-toast {
-      position: fixed; z-index: 30; left: 50%; bottom: 22px; transform: translate(-50%,130%);
-      max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 12px;
-      color: #fff; background: var(--navy-900); box-shadow: 0 12px 30px rgba(0,0,0,.22);
-      transition: transform .2s ease;
-    }
-    .status-toast.visible { transform: translate(-50%,0); }
-    .loading-layer {
-      position: fixed; inset: 0; z-index: 50; display: none; place-items: center;
-      background: rgba(243,246,250,.75); backdrop-filter: blur(3px);
-    }
-    .loading-layer.visible { display: grid; }
-    .loader-card {
-      width: min(420px,calc(100vw - 36px)); padding: 20px 22px;
-      border-radius: 16px; background: #fff; box-shadow: var(--shadow); font-weight: 800;
-    }
-    .loader-title { margin-bottom: 14px; color: #173357; }
-    .skeleton-stack { display: grid; gap: 9px; }
-    .skeleton-line {
-      height: 11px; border-radius: 999px;
-      background: linear-gradient(90deg,#edf1f6 25%,#f8fafc 45%,#edf1f6 65%);
-      background-size: 220% 100%; animation: skeleton-shimmer 1.15s ease-in-out infinite;
-    }
-    .skeleton-line.short { width: 62%; }
-    @keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-    @media (prefers-reduced-motion: reduce) { .skeleton-line { animation: none; } }
-
-    @media (max-width: 1250px) {
-      .tabs {
-        display: flex; overflow-x: auto; scroll-snap-type: x proximity;
-        border-radius: 12px; scrollbar-width: none;
-        -ms-overflow-style: none;
-        overscroll-behavior-x: contain;
-        -webkit-overflow-scrolling: touch;
-        scroll-padding-inline: 12px;
-      }
-      .tabs::-webkit-scrollbar { display: none; }
-      .tab { min-width: 120px; flex: 0 0 120px; scroll-snap-align: center; border-bottom: 0; }
-      .filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
-      .filter-card.period { grid-column: span 2; }
-      .dashboard-grid { grid-template-columns: 1fr; }
-      .bottom-grid { grid-column: auto; grid-template-columns: 1fr; }
-      .kpi-layout { grid-template-columns: repeat(2,minmax(0,1fr)); }
-      .structure-layout { grid-template-columns: minmax(200px,.8fr) minmax(230px,1.2fr); }
-    }
-
-    @media (max-width: 760px) {
-      .topbar { align-items: flex-start; flex-direction: column; gap: 9px; padding: 14px 16px; }
-      .brand-mark { width: 40px; height: 40px; flex-basis: 40px; }
-      .brand-title { font-size: 23px; }
-      .brand-subtitle { font-size: 12px; }
-      .headline-stat { font-size: 17px; }
-      .nav-wrap { padding: 7px 10px; }
-      .page { padding: 12px 10px 24px; }
-      .filters { grid-template-columns: 1fr; gap: 10px; }
-      .filter-card.period { grid-column: auto; }
-      .filter-card { min-height: 78px; }
-      .view-context { align-items: flex-start; flex-direction: column; gap: 4px; }
-      .panel { padding: 14px; }
-      .panel-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
-      .panel-note { text-align: left; }
-      .kpi-layout { grid-template-columns: 1fr; }
-      .overview-kpis, .chart-panel { min-height: auto; }
-      .chart-host { height: 250px; }
-      .structure-layout { grid-template-columns: 1fr; }
-      .donut { width: 210px; }
-      .legend-row { grid-template-columns: 12px minmax(0,1fr) auto; }
-      .legend-percent { display: none; }
-      .legend-value { min-width: 84px; }
-      .detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-      .actions { justify-content: stretch; }
-      .primary-button { width: 100%; min-height: 46px; }
+    @media (max-width:760px) {
+      .topbar { flex-direction:column; align-items:flex-start; }
+      .page { padding:12px 10px 24px; }
+      .filters,.kpi-layout,.executive-secondary,.action-bar,.quality-summary { grid-template-columns:1fr; }
+      .view-context,.panel-heading { flex-direction:column; align-items:flex-start; }
+      .overview-kpis,.chart-panel { min-height:auto; }
+      .chart-host { height:250px; }
+      .structure-layout { grid-template-columns:1fr; }
+      .detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
   </style>
 </head>
 <body>
   <script id="initial-data" type="application/json"><?!= initialData ?></script>
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">₽</div>
-        <div class="brand-copy">
-          <h1 class="brand-title">Дашборд доходов</h1>
-          <p class="brand-subtitle">Годы, месяцы, структура, устойчивость, прогноз и качество данных</p>
-        </div>
+  <header class="topbar">
+    <div><h1 class="brand-title">Дашборд доходов</h1><p class="brand-subtitle">Семейная аналитика <span class="release-badge">v1.0 RC</span></p></div>
+    <div class="headline-stat" id="headline-stat">Доходы • — операций</div>
+  </header>
+  <div class="nav-wrap"><nav class="tabs" id="tabs" role="tablist" aria-label="Разделы дашборда"></nav></div>
+  <main class="page">
+    <section class="filters" aria-label="Фильтры и контекст">
+      <article class="filter-card" data-testid="filter-card"><label class="filter-label" for="year-select">Выбранный год</label><select class="filter-select" id="year-select"></select></article>
+      <article class="filter-card" data-testid="filter-card"><label class="filter-label" for="month-select">Выбранный месяц</label><select class="filter-select" id="month-select"></select></article>
+      <article class="filter-card" data-testid="filter-card"><div class="filter-label">Текущий период</div><div class="metric-value" id="current-period">—</div><div class="metric-note" id="period-note">Данные загружаются</div></article>
+      <article class="filter-card" data-testid="filter-card"><div class="filter-label">Доходных операций</div><div class="metric-value" id="operations-value">—</div><div class="metric-note" id="operations-note">—</div></article>
+      <article class="filter-card" data-testid="filter-card"><div class="filter-label">Качество данных</div><div class="metric-value" id="quality-value">—</div><div class="metric-note" id="quality-note">—</div></article>
+    </section>
+    <section class="view-context"><strong id="view-title">Обзор</strong><span id="view-description">Ключевые показатели и визуализации.</span></section>
+    <section class="action-bar" id="action-bar" aria-label="Быстрые действия">
+      <button type="button" class="action-button primary" id="action-refresh">↻ Обновить данные</button>
+      <button type="button" class="action-button" id="action-quality">✓ Качество</button>
+      <button type="button" class="action-button" id="action-snapshot">◫ Снимок KPI</button>
+      <button type="button" class="action-button warn" id="action-pdf">PDF отчёт</button>
+    </section>
+    <section class="dashboard-grid">
+      <article class="panel overview-kpis" id="kpi-panel"><div class="panel-heading"><h2 class="panel-title" id="kpi-title">Executive-панель</h2><span class="panel-note" id="kpi-note">Выбранный период</span></div><div class="kpi-layout" id="kpi-layout"></div><div class="executive-secondary" id="executive-secondary"></div><div class="insight" id="insight"><div class="insight-title" id="insight-title">Главный вывод</div><div class="insight-text" id="insight-text">—</div></div></article>
+      <article class="panel chart-panel" id="yearly-panel"><div class="panel-heading"><h2 class="panel-title">Доходы по годам</h2><span class="panel-note">История</span></div><div class="chart-host" id="yearly-chart"></div></article>
+      <div class="bottom-grid" id="bottom-grid">
+        <article class="panel" id="monthly-panel"><div class="panel-heading"><h2 class="panel-title" id="monthly-title">Доходы по месяцам</h2><span class="panel-note">Выбранный год</span></div><div class="chart-host" id="monthly-chart"></div></article>
+        <article class="panel" id="structure-panel"><div class="panel-heading"><h2 class="panel-title" id="structure-title">Структура доходов</h2><span class="panel-note">Выбранный месяц</span></div><div class="structure-layout"><div class="donut-wrap"><div class="donut" id="donut"></div><div class="donut-center"><div class="donut-total" id="donut-total">0 ₽</div><div>Итого</div></div></div><div class="legend" id="structure-legend"></div></div></article>
       </div>
-      <div class="headline-stat" id="headline-stat">Доходы • — операций</div>
-    </header>
-
-    <div class="nav-wrap">
-      <nav class="tabs" id="tabs" aria-label="Разделы дашборда" role="tablist"></nav>
-    </div>
-
-    <main class="page">
-      <section class="filters" aria-label="Фильтры и контекст анализа">
-        <article class="filter-card" data-testid="filter-card">
-          <label class="filter-label" for="year-select">Выбранный год</label>
-          <select class="filter-select" id="year-select"></select>
-        </article>
-        <article class="filter-card" data-testid="filter-card">
-          <label class="filter-label" for="month-select">Выбранный месяц</label>
-          <select class="filter-select" id="month-select"></select>
-        </article>
-        <article class="filter-card period" data-testid="filter-card">
-          <div class="filter-label">Текущий период</div>
-          <div class="metric-value" id="current-period">—</div>
-          <div class="metric-note" id="period-note">Данные загружаются</div>
-        </article>
-        <article class="filter-card operations" data-testid="filter-card">
-          <div class="filter-label">Доходных операций</div>
-          <div class="metric-value" id="operations-value">—</div>
-          <div class="metric-note" id="operations-note">Вся доступная история</div>
-        </article>
-        <article class="filter-card quality" data-testid="filter-card">
-          <div class="filter-label">Качество данных</div>
-          <div class="metric-value" id="quality-value">—</div>
-          <div class="metric-note" id="quality-note">Проверяем полноту</div>
-        </article>
-      </section>
-
-      <section class="view-context" aria-live="polite">
-        <strong id="view-title">Обзор</strong>
-        <span id="view-description">Ключевые показатели и три главные визуализации.</span>
-      </section>
-
-      <section class="dashboard-grid">
-        <article class="panel overview-kpis" data-testid="overview-kpis" id="kpi-panel">
-          <div class="panel-heading">
-            <h2 class="panel-title" id="kpi-title">Ключевые показатели</h2>
-            <span class="panel-note" id="kpi-note">Выбранный период</span>
-          </div>
-          <div class="kpi-layout" id="kpi-layout"></div>
-          <div class="insight" id="insight">
-            <div class="insight-icon" aria-hidden="true">↗</div>
-            <div><div class="insight-title" id="insight-title">Главный вывод</div><div class="insight-text" id="insight-text">—</div></div>
-          </div>
-        </article>
-
-        <article class="panel chart-panel" id="yearly-panel" data-testid="yearly-panel">
-          <div class="panel-heading">
-            <h2 class="panel-title">Доходы по годам</h2>
-            <span class="panel-note">История доходов</span>
-          </div>
-          <div class="chart-host" id="yearly-chart" aria-label="График доходов по годам"></div>
-        </article>
-
-        <div class="bottom-grid" id="bottom-grid">
-          <article class="panel monthly-panel" id="monthly-panel" data-testid="monthly-panel">
-            <div class="panel-heading">
-              <h2 class="panel-title" id="monthly-title">Доходы по месяцам</h2>
-              <span class="panel-note">Выбранный год</span>
-            </div>
-            <div class="chart-host" id="monthly-chart" aria-label="График доходов по месяцам"></div>
-          </article>
-
-          <article class="panel structure-panel" id="structure-panel" data-testid="structure-panel">
-            <div class="panel-heading">
-              <h2 class="panel-title" id="structure-title">Структура доходов за выбранный месяц</h2>
-              <span class="panel-note">Категории</span>
-            </div>
-            <div class="structure-layout">
-              <div class="donut-wrap">
-                <div class="donut" id="donut">
-                  <div class="donut-center"><div class="donut-total" id="donut-total">0 ₽</div><div class="donut-caption">Итого</div></div>
-                </div>
-              </div>
-              <div class="legend" id="structure-legend"></div>
-            </div>
-          </article>
-        </div>
-
-        <article class="panel view-detail" id="view-detail" hidden>
-          <div class="panel-heading">
-            <h2 class="panel-title" id="detail-title">Детали</h2>
-            <span class="panel-note" id="detail-note">Расчёт на основе доступных данных</span>
-          </div>
-          <div id="detail-content"></div>
-        </article>
-      </section>
-
-      <div class="actions"><button class="primary-button" id="open-sheet" type="button">Открыть расширенную аналитику ↓</button></div>
-    </main>
-  </div>
-
-  <div class="status-toast" id="status-toast" role="status" aria-live="polite"></div>
-  <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loader-card"><div class="loader-title">Обновляем дашборд…</div><div class="skeleton-stack" aria-hidden="true"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div></div></div></div>
-
-  <script>
-    (function () {
-      'use strict';
-
-      const COLORS = ['#075985','#0d9b99','#74a3ea','#ff6b2c','#9db2ca','#36b37e'];
-      const VIEW_COPY = {
-        overview: ['Обзор','Ключевые показатели и три главные визуализации.'],
-        years: ['Годы','Динамика доходов по годам и место выбранного года в истории.'],
-        months: ['Месяцы','Помесячная динамика выбранного года.'],
-        month: ['Месяц','Доходы и структура выбранного месяца.'],
-        seasonality: ['Сезонность','Сравнение сильных и слабых месяцев выбранного года.'],
-        structure: ['Структура','Распределение доходов по категориям выбранного месяца.'],
-        operations: ['Операции','Количество операций и средний размер доходной операции.'],
-        forecast: ['Прогноз','Оценочный итог года по текущему темпу активных месяцев.'],
-        quality: ['Качество','Полнота дат и итоговая оценка качества данных.'],
-        details: ['Детали','Табличное представление годовой и месячной динамики.']
-      };
-
-      const FIXTURE = {
-        schemaVersion: 1,
-        appVersion: 'fixture',
-        spreadsheetUrl: '#',
-        period: {
-          year: 2026, month: 'Июль', monthIndex: 6,
-          years: [2018,2019,2020,2021,2022,2023,2024,2025,2026],
-          months: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
-          latestDate: '28.07.2026'
-        },
-        summary: {
-          incomeOperations: 1010, datedOperations: 1009, qualityScore: 86, qualityLabel: 'высокое',
-          selectedYearIncome: 3322811, selectedMonthIncome: 151360, monthOperations: 9, averageOperation: 16818
-        },
-        kpis: {
-          averageYearIncome: 2099711, maximumYear: { year: 2025, value: 3869563 },
-          activeMonths: 7, averageActiveMonth: 474687, peakMonth: { month: 'Май', value: 864039 },
-          minimumActiveMonth: { month: 'Июль', value: 151360 }, specialShare: .144, yearChange: -.141, historyShare: .176
-        },
-        yearlyIncome: [
-          {year:2018,value:228236},{year:2019,value:1019745},{year:2020,value:1416997},
-          {year:2021,value:1901776},{year:2022,value:2334790},{year:2023,value:2129741},
-          {year:2024,value:2598662},{year:2025,value:3869563},{year:2026,value:3322811}
-        ],
-        monthlyIncome: [222068,511651,739836,346552,864039,487305,151360,0,0,0,0,0]
-          .map(function (value,index) {
-            const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-            return { month: months[index], short: months[index].slice(0,3), value: value, operations: value ? 10 : 0 };
-          }),
-        monthStructure: [
-          {label:'Зарплата',value:66712},{label:'Другое',value:58775},{label:'Аванс',value:16320},{label:'ЕДВ',value:9553}
-        ],
-        insight: {
-          title: 'Главный вывод',
-          text: 'В 2026 году доход выбранного года снизился на 14%. Доля года в общей истории: 17,6%.',
-          tone: 'warning'
-        },
-        navigation: {
-          active: 'overview',
-          tabs: [
-            ['overview','Обзор'],['years','Годы'],['months','Месяцы'],['month','Месяц'],
-            ['seasonality','Сезонность'],['structure','Структура'],['operations','Операции'],
-            ['forecast','Прогноз'],['quality','Качество'],['details','Детали']
-          ]
-        }
-      };
-
-      let state = parseInitialData() || clone(FIXTURE);
-      const elements = {};
-      let activeView = validView((state.navigation || {}).active) ? state.navigation.active : 'overview';
-
-      document.addEventListener('DOMContentLoaded', function () {
-        cacheElements();
-        applyUrlToLocalFixture();
-        bindEvents();
-        render(state);
-      });
-
-      function cacheElements() {
-        [
-          'headline-stat','tabs','year-select','month-select','current-period','period-note',
-          'operations-value','operations-note','quality-value','quality-note',
-          'view-title','view-description','kpi-panel','kpi-title','kpi-note','kpi-layout',
-          'insight','insight-title','insight-text','yearly-panel','yearly-chart',
-          'bottom-grid','monthly-panel','monthly-title','monthly-chart',
-          'structure-panel','structure-title','donut','donut-total','structure-legend',
-          'view-detail','detail-title','detail-note','detail-content',
-          'open-sheet','status-toast','loading-layer'
-        ].forEach(function (id) { elements[id] = document.getElementById(id); });
-      }
-
-      function bindEvents() {
-        elements['year-select'].addEventListener('change', refreshFromFilters);
-        elements['month-select'].addEventListener('change', refreshFromFilters);
-        elements['open-sheet'].addEventListener('click', function () {
-          if (state.spreadsheetUrl && state.spreadsheetUrl !== '#') {
-            window.open(state.spreadsheetUrl, '_blank', 'noopener');
-          } else {
-            showToast('В локальном прототипе ссылка на таблицу недоступна.');
-          }
-        });
-        window.addEventListener('resize', debounce(function () { renderCharts(state); }, 100));
-        window.addEventListener('popstate', function () {
-          const params = readUrlState();
-          activeView = validView(params.view) ? params.view : 'overview';
-          if (isAppsScriptRuntime()) {
-            requestData(params.year || state.period.year, params.month == null ? state.period.monthIndex : params.month, false);
-          } else {
-            updateLocalPeriod(params.year, params.month);
-            render(state);
-          }
-        });
-      }
-
-      function parseInitialData() {
-        try {
-          const text = document.getElementById('initial-data').textContent.trim();
-          if (!text || text.indexOf('<?') === 0) return null;
-          return JSON.parse(text);
-        } catch (error) {
-          return null;
-        }
-      }
-
-      function applyUrlToLocalFixture() {
-        if (isAppsScriptRuntime()) return;
-        const params = readUrlState();
-        updateLocalPeriod(params.year, params.month);
-        if (validView(params.view)) activeView = params.view;
-      }
-
-      function refreshFromFilters() {
-        const year = Number(elements['year-select'].value);
-        const month = Number(elements['month-select'].value);
-        if (isAppsScriptRuntime()) {
-          requestData(year, month, true);
-        } else {
-          updateLocalPeriod(year, month);
-          syncUrl('replace');
-          render(state);
-          showToast('Локальный режим: интерфейс обновлён на fixture-данных.');
-        }
-      }
-
-      function requestData(year, month, updateUrl) {
-        setLoading(true);
-        google.script.run
-          .withSuccessHandler(function (data) {
-            state = data;
-            activeView = validView((data.navigation || {}).active) ? data.navigation.active : activeView;
-            if (updateUrl) syncUrl('replace');
-            render(state);
-            setLoading(false);
-          })
-          .withFailureHandler(function (error) {
-            setLoading(false);
-            showToast('Не удалось обновить данные: ' + (error && error.message ? error.message : error));
-          })
-          .prhGetWebDashboardData(year, month, activeView);
-      }
-
-      function render(data) {
-        if (!data.navigation) data.navigation = clone(FIXTURE.navigation);
-        data.navigation.active = activeView;
-        renderTabs(data.navigation);
-        fillSelect(elements['year-select'], data.period.years, data.period.year, function (value) { return value; });
-        fillSelect(
-          elements['month-select'],
-          data.period.months.map(function (month,index) { return { value:index, label:month }; }),
-          data.period.monthIndex,
-          function (item) { return item.label; }
-        );
-        elements['headline-stat'].textContent = 'Доходы • ' + formatInt(data.summary.incomeOperations) + ' операций';
-        elements['current-period'].textContent = data.period.year + ' • ' + data.period.month.toLowerCase();
-        elements['period-note'].textContent = 'Данные по ' + data.period.latestDate;
-        elements['operations-value'].textContent = formatInt(data.summary.incomeOperations);
-        elements['operations-note'].textContent = 'В выбранном месяце: ' + formatInt(data.summary.monthOperations);
-        elements['quality-value'].textContent = data.summary.qualityScore + '/100 • ' + data.summary.qualityLabel;
-        elements['quality-note'].textContent = formatInt(data.summary.datedOperations) + ' операций с датой';
-        elements['monthly-title'].textContent = 'Доходы по месяцам (' + data.period.year + ')';
-        elements['structure-title'].textContent = 'Структура доходов (' + data.period.month + ' ' + data.period.year + ')';
-        renderKpis(data);
-        renderInsight(viewInsight(data, activeView));
-        renderCharts(data);
-        applyView(data, activeView);
-      }
-
-      function renderTabs(navigation) {
-        elements.tabs.innerHTML = '';
-        navigation.tabs.forEach(function (tab) {
-          const button = document.createElement('button');
-          const selected = tab[0] === activeView;
-          button.className = 'tab' + (selected ? ' active' : '');
-          button.type = 'button';
-          button.textContent = tab[1];
-          button.dataset.view = tab[0];
-          button.setAttribute('role', 'tab');
-          button.setAttribute('aria-selected', selected ? 'true' : 'false');
-          button.addEventListener('click', function () { selectView(tab[0], true); });
-          elements.tabs.appendChild(button);
-        });
-        const active = elements.tabs.querySelector('.tab.active');
-        if (active && active.scrollIntoView && window.innerWidth <= 1250) {
-          active.scrollIntoView({ block: 'nearest', inline: 'center' });
-        }
-      }
-
-      function selectView(view, pushHistory) {
-        if (!validView(view)) return;
-        activeView = view;
-        state.navigation.active = view;
-        syncUrl(pushHistory ? 'push' : 'replace');
-        render(state);
-      }
-
-      function applyView(data, view) {
-        const copy = VIEW_COPY[view] || VIEW_COPY.overview;
-        elements['view-title'].textContent = copy[0];
-        elements['view-description'].textContent = copy[1];
-
-        const showYear = view === 'overview' || view === 'years';
-        const showMonth = ['overview','months','seasonality','forecast'].indexOf(view) >= 0;
-        const showStructure = ['overview','month','structure'].indexOf(view) >= 0;
-        const showDetail = view !== 'overview';
-
-        elements['yearly-panel'].hidden = !showYear;
-        elements['monthly-panel'].hidden = !showMonth;
-        elements['structure-panel'].hidden = !showStructure;
-        elements['bottom-grid'].hidden = !showMonth && !showStructure;
-        elements['view-detail'].hidden = !showDetail;
-
-        if (showDetail) renderDetail(data, view);
-      }
-
-      function fillSelect(select, items, selected, labeler) {
-        select.innerHTML = '';
-        items.forEach(function (item) {
-          const value = typeof item === 'object' ? item.value : item;
-          const option = document.createElement('option');
-          option.value = value;
-          option.textContent = labeler(item);
-          option.selected = String(value) === String(selected);
-          select.appendChild(option);
-        });
-      }
-
-      function renderKpis(data) {
-        const k = data.kpis;
-        const cards = [
-          ['₽','Средний доход за год',money(k.averageYearIncome)],
-          ['★','Максимальный год в истории',k.maximumYear ? k.maximumYear.year + ' • ' + money(k.maximumYear.value) : '—'],
-          ['◉','Доход за год (' + data.period.year + ')',money(data.summary.selectedYearIncome)],
-          ['▦','Активных месяцев',String(k.activeMonths)],
-          ['↗','Средний активный месяц',money(k.averageActiveMonth)],
-          ['◆','Пиковый месяц',k.peakMonth ? k.peakMonth.month + ' • ' + money(k.peakMonth.value) : '—'],
-          ['↘','Минимальный активный',k.minimumActiveMonth ? k.minimumActiveMonth.month + ' • ' + money(k.minimumActiveMonth.value) : '—'],
-          ['%','Доля спецдоходов (' + data.period.year + ')',percent(k.specialShare)]
-        ];
-        elements['kpi-layout'].innerHTML = cards.map(function (card) {
-          return '<article class="kpi-card" data-testid="kpi-card"><div class="kpi-icon">' +
-            escapeHtml(card[0]) + '</div><div><div class="kpi-label">' + escapeHtml(card[1]) +
-            '</div><div class="kpi-value">' + escapeHtml(card[2]) + '</div></div></article>';
-        }).join('');
-      }
-
-      function viewInsight(data, view) {
-        if (view === 'operations') {
-          return {
-            title: 'Операционная нагрузка',
-            text: 'В выбранном месяце ' + formatInt(data.summary.monthOperations) +
-              ' доходных операций, средняя сумма — ' + money(data.summary.averageOperation) + '.',
-            tone: 'info'
-          };
-        }
-        if (view === 'quality') {
-          return {
-            title: 'Качество данных',
-            text: formatInt(data.summary.datedOperations) + ' из ' + formatInt(data.summary.incomeOperations) +
-              ' доходных операций имеют корректную дату. Итоговая оценка: ' + data.summary.qualityScore + '/100.',
-            tone: data.summary.qualityScore >= 80 ? 'info' : 'warning'
-          };
-        }
-        if (view === 'forecast') {
-          const forecast = forecastYear(data);
-          return {
-            title: 'Оценочный прогноз',
-            text: 'При сохранении среднего темпа активных месяцев итог года может составить около ' +
-              money(forecast.value) + '. Это ориентир, а не финансовое обязательство.',
-            tone: 'info'
-          };
-        }
-        if (view === 'seasonality') {
-          return {
-            title: 'Сезонность',
-            text: 'Пиковый месяц: ' + valueOrDash(data.kpis.peakMonth, 'month', 'value') +
-              '. Минимальный активный: ' + valueOrDash(data.kpis.minimumActiveMonth, 'month', 'value') + '.',
-            tone: 'info'
-          };
-        }
-        return data.insight;
-      }
-
-      function renderInsight(insight) {
-        elements.insight.className = 'insight' + (insight.tone === 'warning' ? ' warning' : '');
-        elements['insight-title'].textContent = insight.title;
-        elements['insight-text'].textContent = insight.text;
-      }
-
-      function renderCharts(data) {
-        renderBarChart(
-          elements['yearly-chart'],
-          data.yearlyIncome.map(function (item) { return String(item.year); }),
-          data.yearlyIncome.map(function (item) { return item.value; }),
-          data.period.year
-        );
-        renderMonthlyChart(elements['monthly-chart'], data.monthlyIncome, data.period.monthIndex);
-        renderDonut(data.monthStructure, data.summary.selectedMonthIncome);
-      }
-
-      function renderBarChart(host, labels, values, selectedLabel) {
-        if (!values.some(function (value) { return value > 0; })) {
-          host.innerHTML = emptyState('Нет годовых данных','Добавьте доходные операции с корректной датой.');
-          return;
-        }
-        const size = chartSize(host,620,270);
-        const margin = { top:24, right:18, bottom:42, left:70 };
-        const plotW = size.width - margin.left - margin.right;
-        const plotH = size.height - margin.top - margin.bottom;
-        const max = niceMax(Math.max.apply(null,values));
-        const step = plotW / labels.length;
-        const barW = Math.max(18,step * .55);
-        let svg = svgStart(size) + gridLines(margin,plotW,plotH,max,4);
-        values.forEach(function (value,index) {
-          const height = max ? (value / max) * plotH : 0;
-          const x = margin.left + index * step + (step - barW) / 2;
-          const y = margin.top + plotH - height;
-          const fill = String(labels[index]) === String(selectedLabel) ? '#0d9b99' : '#123c70';
-          svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' +
-            barW.toFixed(1) + '" height="' + height.toFixed(1) + '" rx="3" fill="' + fill + '"></rect>';
-          svg += text(x + barW / 2,margin.top + plotH + 22,labels[index],'middle',11,'#405675');
-          svg += text(x + barW / 2,Math.max(14,y - 7),compactMoney(value),'middle',10,'#172b4d','600');
-        });
-        svg += '</svg>';
-        host.innerHTML = svg;
-      }
-
-      function renderMonthlyChart(host, rows, selectedMonthIndex) {
-        const values = rows.map(function (row) { return row.value; });
-        if (!values.some(function (value) { return value > 0; })) {
-          host.innerHTML = emptyState('Нет данных за выбранный год','Выберите другой год или добавьте доходные операции.');
-          return;
-        }
-        const labels = rows.map(function (row) { return row.short; });
-        const size = chartSize(host,700,270);
-        const margin = { top:24, right:18, bottom:44, left:70 };
-        const plotW = size.width - margin.left - margin.right;
-        const plotH = size.height - margin.top - margin.bottom;
-        const max = niceMax(Math.max.apply(null,values));
-        const step = plotW / labels.length;
-        const barW = Math.max(12,step * .46);
-        const points = [];
-        let svg = svgStart(size) + gridLines(margin,plotW,plotH,max,4);
-        values.forEach(function (value,index) {
-          const height = max ? (value / max) * plotH : 0;
-          const x = margin.left + index * step + (step - barW) / 2;
-          const y = margin.top + plotH - height;
-          const centerX = x + barW / 2;
-          points.push(centerX.toFixed(1) + ',' + y.toFixed(1));
-          svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' +
-            barW.toFixed(1) + '" height="' + height.toFixed(1) + '" rx="3" fill="' +
-            (index === selectedMonthIndex ? '#075985' : '#0d9b99') + '" opacity=".9"></rect>';
-          svg += text(centerX,margin.top + plotH + 22,labels[index],'middle',10,'#405675');
-        });
-        svg += '<polyline points="' + points.join(' ') +
-          '" fill="none" stroke="#087f82" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>';
-        points.forEach(function (point,index) {
-          const parts = point.split(',');
-          svg += '<circle cx="' + parts[0] + '" cy="' + parts[1] + '" r="' +
-            (index === selectedMonthIndex ? 5 : 3.5) +
-            '" fill="#fff" stroke="#087f82" stroke-width="2"></circle>';
-        });
-        svg += '</svg>';
-        host.innerHTML = svg;
-      }
-
-      function renderDonut(rows, explicitTotal) {
-        const safeRows = rows.filter(function (row) { return row.value > 0; });
-        const total = explicitTotal || safeRows.reduce(function (sum,row) { return sum + row.value; },0);
-        elements['donut-total'].textContent = money(total);
-        if (!safeRows.length || !total) {
-          elements.donut.style.background = '#e8edf3';
-          elements['structure-legend'].innerHTML = emptyState(
-            'В выбранном месяце нет доходов',
-            'Выберите другой месяц или добавьте доходные операции.'
-          );
-          return;
-        }
-        let cursor = 0;
-        const stops = safeRows.map(function (row,index) {
-          const start = cursor;
-          cursor += (row.value / total) * 100;
-          return COLORS[index % COLORS.length] + ' ' + start.toFixed(2) + '% ' + cursor.toFixed(2) + '%';
-        });
-        elements.donut.style.background = 'conic-gradient(' + stops.join(',') + ')';
-        elements['structure-legend'].innerHTML = safeRows.map(function (row,index) {
-          return '<div class="legend-row"><span class="legend-dot" style="background:' +
-            COLORS[index % COLORS.length] + '"></span><span class="legend-label">' +
-            escapeHtml(row.label) + '</span><span class="legend-percent">' +
-            percent(row.value / total) + '</span><span class="legend-value">' +
-            money(row.value) + '</span></div>';
-        }).join('');
-      }
-
-      function renderDetail(data, view) {
-        const monthlyTotal = data.monthlyIncome.reduce(function (sum,row) { return sum + row.value; },0);
-        const forecast = forecastYear(data);
-        const coverage = data.summary.incomeOperations
-          ? data.summary.datedOperations / data.summary.incomeOperations
-          : 0;
-
-        elements['detail-title'].textContent = (VIEW_COPY[view] || VIEW_COPY.details)[0];
-        elements['detail-note'].textContent = 'Период: ' + data.period.month + ' ' + data.period.year;
-
-        if (view === 'years') {
-          elements['detail-content'].innerHTML =
-            detailStats([
-              ['Средний год',money(data.kpis.averageYearIncome)],
-              ['Выбранный год',money(data.summary.selectedYearIncome)],
-              ['Изменение к прошлому',data.kpis.yearChange == null ? '—' : percent(data.kpis.yearChange)],
-              ['Доля в истории',percent(data.kpis.historyShare)]
-            ]) + table(
-              ['Год','Доход'],
-              data.yearlyIncome.map(function (row) { return [row.year,money(row.value)]; })
-            );
-          return;
-        }
-
-        if (view === 'months' || view === 'seasonality') {
-          elements['detail-content'].innerHTML =
-            detailStats([
-              ['Итого за год',money(monthlyTotal)],
-              ['Активных месяцев',data.kpis.activeMonths],
-              ['Пиковый месяц',data.kpis.peakMonth ? data.kpis.peakMonth.month : '—'],
-              ['Средний активный',money(data.kpis.averageActiveMonth)]
-            ]) + table(
-              ['Месяц','Операций','Доход'],
-              data.monthlyIncome.map(function (row) { return [row.month,row.operations,money(row.value)]; })
-            );
-          return;
-        }
-
-        if (view === 'month' || view === 'structure') {
-          elements['detail-content'].innerHTML =
-            detailStats([
-              ['Доход за месяц',money(data.summary.selectedMonthIncome)],
-              ['Операций',data.summary.monthOperations],
-              ['Средняя операция',money(data.summary.averageOperation)],
-              ['Доля в году',data.summary.selectedYearIncome ? percent(data.summary.selectedMonthIncome / data.summary.selectedYearIncome) : '0,0%']
-            ]) + table(
-              ['Категория','Доход'],
-              data.monthStructure.map(function (row) { return [row.label,money(row.value)]; })
-            );
-          return;
-        }
-
-        if (view === 'operations') {
-          elements['detail-content'].innerHTML = detailStats([
-            ['Доходных операций',formatInt(data.summary.incomeOperations)],
-            ['В выбранном месяце',formatInt(data.summary.monthOperations)],
-            ['Средняя операция',money(data.summary.averageOperation)],
-            ['С датой',formatInt(data.summary.datedOperations)]
-          ]);
-          return;
-        }
-
-        if (view === 'forecast') {
-          elements['detail-content'].innerHTML = detailStats([
-            ['Факт',money(data.summary.selectedYearIncome)],
-            ['Оценка года',money(forecast.value)],
-            ['Активных месяцев',data.kpis.activeMonths],
-            ['Средний активный',money(data.kpis.averageActiveMonth)]
-          ]) + '<div class="chart-empty"><div><strong>Ориентировочная экстраполяция</strong><span>Прогноз = средний доход активного месяца × 12. Он не заменяет финансовое планирование.</span></div></div>';
-          return;
-        }
-
-        if (view === 'quality') {
-          elements['detail-content'].innerHTML = detailStats([
-            ['Оценка',data.summary.qualityScore + '/100'],
-            ['Уровень',data.summary.qualityLabel],
-            ['С корректной датой',percent(coverage)],
-            ['Без даты',formatInt(Math.max(0,data.summary.incomeOperations - data.summary.datedOperations))]
-          ]);
-          return;
-        }
-
-        elements['detail-content'].innerHTML =
-          detailStats([
-            ['Доход года',money(data.summary.selectedYearIncome)],
-            ['Доход месяца',money(data.summary.selectedMonthIncome)],
-            ['Операций месяца',data.summary.monthOperations],
-            ['Качество',data.summary.qualityScore + '/100']
-          ]) + table(
-            ['Год','Доход'],
-            data.yearlyIncome.map(function (row) { return [row.year,money(row.value)]; })
-          );
-      }
-
-      function detailStats(rows) {
-        return '<div class="detail-grid">' + rows.map(function (row) {
-          return '<div class="detail-stat"><div class="detail-stat-label">' + escapeHtml(row[0]) +
-            '</div><div class="detail-stat-value">' + escapeHtml(row[1]) + '</div></div>';
-        }).join('') + '</div>';
-      }
-
-      function table(headers, rows) {
-        return '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-          headers.map(function (header) { return '<th>' + escapeHtml(header) + '</th>'; }).join('') +
-          '</tr></thead><tbody>' + rows.map(function (row) {
-            return '<tr>' + row.map(function (value) { return '<td>' + escapeHtml(value) + '</td>'; }).join('') + '</tr>';
-          }).join('') + '</tbody></table></div>';
-      }
-
-      function forecastYear(data) {
-        const active = Math.max(1,Number(data.kpis.activeMonths) || 0);
-        const actual = Number(data.summary.selectedYearIncome) || 0;
-        return { value: Math.round((actual / active) * 12) };
-      }
-
-      function readUrlState() {
-        try {
-          const params = new URL(window.location.href).searchParams;
-          const yearRaw = params.get('year');
-          const monthRaw = params.get('month');
-          const year = yearRaw === null || yearRaw === '' ? null : Number(yearRaw);
-          const month = monthRaw === null || monthRaw === '' ? null : Number(monthRaw);
-          return {
-            year: Number.isFinite(year) && year > 0 ? year : null,
-            month: Number.isInteger(month) && month >= 0 && month <= 11 ? month : null,
-            view: params.get('view') || null
-          };
-        } catch (error) {
-          return { year:null, month:null, view:null };
-        }
-      }
-
-      function syncUrl(mode) {
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set('year',String(state.period.year));
-          url.searchParams.set('month',String(state.period.monthIndex));
-          url.searchParams.set('view',activeView);
-          const method = mode === 'push' ? 'pushState' : 'replaceState';
-          window.history[method]({ year:state.period.year, month:state.period.monthIndex, view:activeView },'',url.toString());
-        } catch (error) {
-          /* URL state is an enhancement; rendering must continue without it. */
-        }
-      }
-
-      function updateLocalPeriod(year,month) {
-        if (year && state.period.years.indexOf(Number(year)) >= 0) state.period.year = Number(year);
-        if (month !== null && month !== '' && Number.isInteger(Number(month)) && Number(month) >= 0 && Number(month) <= 11) {
-          state.period.monthIndex = Number(month);
-          state.period.month = state.period.months[Number(month)];
-        }
-        state.navigation.active = activeView;
-      }
-
-      function validView(view) { return Object.prototype.hasOwnProperty.call(VIEW_COPY,String(view || '')); }
-      function isAppsScriptRuntime() { return Boolean(window.google && google.script && google.script.run); }
-      function emptyState(title,note) {
-        return '<div class="chart-empty"><div><strong>' + escapeHtml(title) + '</strong><span>' +
-          escapeHtml(note) + '</span></div></div>';
-      }
-      function valueOrDash(item,labelKey,valueKey) {
-        return item ? item[labelKey] + ' • ' + money(item[valueKey]) : '—';
-      }
-      function clone(value) { return JSON.parse(JSON.stringify(value)); }
-      function chartSize(host,fallbackWidth,height) { return { width:Math.max(320,host.clientWidth || fallbackWidth), height:height }; }
-      function svgStart(size) { return '<svg viewBox="0 0 ' + size.width + ' ' + size.height + '" role="img" aria-hidden="true">'; }
-      function gridLines(margin,plotW,plotH,max,count) {
-        let output = '';
-        for (let i = 0; i <= count; i += 1) {
-          const y = margin.top + (plotH / count) * i;
-          const value = max - (max / count) * i;
-          output += '<line x1="' + margin.left + '" y1="' + y + '" x2="' +
-            (margin.left + plotW) + '" y2="' + y +
-            '" stroke="#dfe6ef" stroke-dasharray="3 4"></line>';
-          output += text(margin.left - 10,y + 4,compactMoney(value),'end',10,'#60728b');
-        }
-        return output;
-      }
-      function text(x,y,value,anchor,size,fill,weight) {
-        return '<text x="' + x + '" y="' + y + '" text-anchor="' + anchor +
-          '" font-family="Arial, sans-serif" font-size="' + size + '" font-weight="' +
-          (weight || '400') + '" fill="' + fill + '">' + escapeHtml(value) + '</text>';
-      }
-      function niceMax(value) {
-        if (!value) return 1;
-        const magnitude = Math.pow(10,Math.floor(Math.log10(value)));
-        return Math.ceil(value / magnitude) * magnitude;
-      }
-      function money(value) {
-        return new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:0 }).format(Number(value) || 0) + ' ₽';
-      }
-      function compactMoney(value) {
-        const number = Number(value) || 0;
-        if (Math.abs(number) >= 1000000) {
-          return (number / 1000000).toFixed(number >= 10000000 ? 0 : 1).replace('.',',') + ' млн';
-        }
-        if (Math.abs(number) >= 1000) return Math.round(number / 1000) + ' тыс';
-        return Math.round(number) + ' ₽';
-      }
-      function formatInt(value) {
-        return new Intl.NumberFormat('ru-RU',{ maximumFractionDigits:0 }).format(Number(value) || 0);
-      }
-      function percent(value) { return ((Number(value) || 0) * 100).toFixed(1).replace('.',',') + '%'; }
-      function escapeHtml(value) {
-        return String(value == null ? '' : value).replace(/[&<>'"]/g,function (char) {
-          return ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[char];
-        });
-      }
-      function setLoading(visible) {
-        elements['loading-layer'].classList.toggle('visible',Boolean(visible));
-        elements['loading-layer'].setAttribute('aria-hidden',visible ? 'false' : 'true');
-      }
-      function showToast(message) {
-        elements['status-toast'].textContent = message;
-        elements['status-toast'].classList.add('visible');
-        clearTimeout(showToast.timer);
-        showToast.timer = setTimeout(function () { elements['status-toast'].classList.remove('visible'); },3000);
-      }
-      function debounce(fn,wait) {
-        let timer;
-        return function () { clearTimeout(timer); timer = setTimeout(fn,wait); };
-      }
-    }());
-  </script>
+      <article class="panel view-detail" id="view-detail" hidden><div class="panel-heading"><h2 class="panel-title" id="detail-title">Детали</h2><button type="button" data-close-drilldown>Закрыть</button></div><div class="panel-note" id="detail-note"></div><div id="detail-content"></div></article>
+    </section>
+  </main>
+  <div class="status-toast" id="status-toast" role="status"></div>
+  <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loader-card">Обновляем дашборд…</div></div>
+<script>
+(function () {
+  'use strict';
+  const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const VIEWS={overview:['Обзор','Ключевые показатели и визуализации.'],years:['Годы','Динамика по годам.'],months:['Месяцы','Помесячная динамика.'],month:['Месяц','Выбранный месяц.'],seasonality:['Сезонность','Сильные и слабые месяцы.'],structure:['Структура','Категории выбранного месяца.'],operations:['Операции','Операционные показатели.'],forecast:['Прогноз','Оценка темпа.'],quality:['Качество','Очередь качества данных.'],details:['Детали','Табличные детали.']};
+  const COLORS=['#087f82','#1967d2','#74a3ea','#ff8a4c','#9db2ca','#36b37e'];
+  const FIXTURE={
+    synthetic:true, privacyClass:'PUBLIC_SYNTHETIC', schemaVersion:1, appVersion:'synthetic-public-preview', spreadsheetUrl:'#',
+    period:{year:2026,month:'Июль',monthIndex:6,years:[2024,2025,2026],months:MONTHS.slice(),latestDate:'31.07.2026'},
+    summary:{incomeOperations:48,datedOperations:48,qualityScore:100,qualityLabel:'synthetic',selectedYearIncome:240000,selectedMonthIncome:32000,monthOperations:6,averageOperation:5333},
+    kpis:{averageYearIncome:180000,maximumYear:{year:2026,value:240000},activeMonths:7,averageActiveMonth:34286,peakMonth:{month:'Март',value:44000},minimumActiveMonth:{month:'Июль',value:32000},specialShare:0,yearChange:.2,historyShare:.44},
+    yearlyIncome:[{year:2024,value:120000},{year:2025,value:180000},{year:2026,value:240000}],
+    monthlyIncome:[28000,30000,44000,36000,35000,35000,32000,0,0,0,0,0].map(function(value,index){return {month:MONTHS[index],short:MONTHS[index].slice(0,3),value:value,operations:value?6:0};}),
+    monthStructure:[{label:'SYN-ALPHA',value:14000},{label:'SYN-BETA',value:10000},{label:'SYN-GAMMA',value:8000}],
+    insight:{title:'Synthetic preview',text:'Публичный локальный preview использует только независимо вымышленные данные.',tone:'neutral'},
+    executive:{selectedYearIncome:240000,selectedMonthIncome:32000,monthChange:.05,yearChange:.2,baseIncome:240000,specialIncome:0,forecast:288000,stabilityIndex:92,qualityScore:100,activeMonths:7,averageOperation:5333,largestSource:{label:'SYN-ALPHA',value:14000},otherShare:0,largeOperationCount:0,possibleDuplicateCount:0,yearOperationCount:42,monthOperationCount:6,reasons:{month:'Synthetic comparison.',year:'Synthetic comparison.',special:'Synthetic preview has no special classification.'}},
+    drilldowns:{year:group('Synthetic selected year',42),month:group('Synthetic selected month',6),previousMonth:group('Synthetic previous month',5),previousYear:group('Synthetic previous year',36),base:group('Synthetic base income',42),special:group('Synthetic special income',0),largestSource:group('Synthetic largest source',3),other:group('Synthetic other',0),large:group('Synthetic large operations',0),duplicates:Object.assign(group('Возможные точные дубли',0),{groupCount:0}),quality:group('Synthetic quality review',0)},
+    navigation:{active:'overview',tabs:Object.keys(VIEWS).map(function(key){return [key,VIEWS[key][0]];})}
+  };
+  function group(title,count){const rows=[];for(let i=0;i<count;i+=1){rows.push({row:i+2,id:'SYN-ROW-'+String(i+1).padStart(3,'0'),date:'15.07.2026',amount:1000+i*10,category:'SYN-ALPHA',description:'Synthetic fixture transaction',status:'SYNTHETIC',flags:[],openUrl:'#'});}return {title:title,count:count,total:rows.reduce(function(s,r){return s+r.amount;},0),rows:rows,openFirstUrl:'#'};}
+  let state=parseInitialData()||clone(FIXTURE); let activeView=validView((state.navigation||{}).active)?state.navigation.active:'overview'; const el={};
+  document.addEventListener('DOMContentLoaded',function(){cache();bind();render(state);});
+  function cache(){['tabs','year-select','month-select','current-period','period-note','operations-value','operations-note','quality-value','quality-note','view-title','view-description','kpi-title','kpi-note','kpi-layout','executive-secondary','insight-title','insight-text','yearly-panel','yearly-chart','bottom-grid','monthly-panel','monthly-title','monthly-chart','structure-panel','structure-title','donut','donut-total','structure-legend','view-detail','detail-title','detail-note','detail-content','action-refresh','action-quality','action-snapshot','action-pdf','status-toast','loading-layer','headline-stat'].forEach(function(id){el[id]=document.getElementById(id);});}
+  function bind(){el['year-select'].addEventListener('change',refreshFromFilters);el['month-select'].addEventListener('change',refreshFromFilters);el['action-refresh'].addEventListener('click',runUnifiedRefresh);el['action-quality'].addEventListener('click',function(){selectView('quality',true);loadQualityWorkbench();});el['action-snapshot'].addEventListener('click',createSnapshot);el['action-pdf'].addEventListener('click',createPdfReport);document.querySelector('[data-close-drilldown]').addEventListener('click',function(){el['view-detail'].hidden=true;});el['detail-content'].addEventListener('click',handleWorkbenchClick);}
+  function parseInitialData(){try{const text=document.getElementById('initial-data').textContent.trim();if(!text||text.indexOf('<?')===0)return null;return JSON.parse(text);}catch(e){return null;}}
+  function render(data){if(!data.navigation)data.navigation=clone(FIXTURE.navigation);renderTabs(data.navigation);fillSelect(el['year-select'],data.period.years,data.period.year);fillSelect(el['month-select'],data.period.months.map(function(m,i){return {value:i,label:m};}),data.period.monthIndex);el['headline-stat'].textContent='Доходы • '+formatInt(data.summary.incomeOperations)+' операций';el['current-period'].textContent=data.period.year+' • '+String(data.period.month).toLowerCase();el['period-note'].textContent='Данные по '+data.period.latestDate;el['operations-value'].textContent=formatInt(data.summary.incomeOperations);el['operations-note'].textContent='В выбранном месяце: '+formatInt(data.summary.monthOperations);el['quality-value'].textContent=data.summary.qualityScore+'/100 • '+data.summary.qualityLabel;el['quality-note'].textContent=formatInt(data.summary.datedOperations)+' операций с датой';renderKpis(data);renderExecutiveSecondary(data);renderInsight(data.insight||FIXTURE.insight);renderCharts(data);applyView(data,activeView);}
+  function renderTabs(nav){el.tabs.innerHTML='';nav.tabs.forEach(function(tab){const b=document.createElement('button');b.type='button';b.className='tab'+(tab[0]===activeView?' active':'');b.dataset.view=tab[0];b.setAttribute('aria-selected',tab[0]===activeView?'true':'false');b.textContent=tab[1];b.addEventListener('click',function(){selectView(tab[0],true);});el.tabs.appendChild(b);});}
+  function fillSelect(select,items,selected){select.innerHTML='';items.forEach(function(item){const value=typeof item==='object'?item.value:item;const label=typeof item==='object'?item.label:item;const o=document.createElement('option');o.value=value;o.textContent=label;o.selected=String(value)===String(selected);select.appendChild(o);});}
+  function renderKpis(data){const e=data.executive||{};const cards=[['₽','Доход за год',money(data.summary.selectedYearIncome),'year'],['◉','Доход за месяц',money(data.summary.selectedMonthIncome),'month'],['↗','Средний активный месяц',money(data.kpis.averageActiveMonth),'year'],['★','Максимальный год',data.kpis.maximumYear?data.kpis.maximumYear.year+' • '+money(data.kpis.maximumYear.value):'—','year'],['◆','Пиковый месяц',data.kpis.peakMonth?data.kpis.peakMonth.month+' • '+money(data.kpis.peakMonth.value):'—','month'],['▦','Активных месяцев',String(data.kpis.activeMonths),'year'],['≈','Прогноз',money(e.forecast||0),'year'],['✓','Качество',String(data.summary.qualityScore)+'/100','quality'],['#','Операций месяца',formatInt(data.summary.monthOperations),'month']];el['kpi-layout'].innerHTML=cards.map(function(c){return '<article class="kpi-card" data-testid="kpi-card" data-drilldown="'+c[3]+'"><div class="kpi-icon">'+escapeHtml(c[0])+'</div><div><div class="kpi-label">'+escapeHtml(c[1])+'</div><div class="kpi-value">'+escapeHtml(c[2])+'</div></div></article>';}).join('');Array.from(el['kpi-layout'].querySelectorAll('[data-drilldown]')).forEach(function(node){node.addEventListener('click',function(){openDrilldown(node.dataset.drilldown);});});}
+  function renderExecutiveSecondary(data){const e=data.executive||{};const cards=[['Стабильность',formatInt(e.stabilityIndex||0)+'/100','year'],['Средняя операция',money(e.averageOperation||data.summary.averageOperation),'month'],['Базовый доход',money(e.baseIncome||0),'base'],['Спецдоход',money(e.specialIncome||0),'special'],['Крупные операции',formatInt(e.largeOperationCount||0),'large'],['Возможные дубли',formatInt(e.possibleDuplicateCount||0),'duplicates']];el['executive-secondary'].innerHTML=cards.map(function(c){return '<article class="secondary-card" data-testid="secondary-kpi" data-drilldown="'+c[2]+'"><div class="secondary-label">'+escapeHtml(c[0])+'</div><div class="secondary-value">'+escapeHtml(c[1])+'</div></article>';}).join('');Array.from(el['executive-secondary'].querySelectorAll('[data-drilldown]')).forEach(function(node){node.addEventListener('click',function(){openDrilldown(node.dataset.drilldown);});});}
+  function renderInsight(insight){el['insight-title'].textContent=insight.title||'Главный вывод';el['insight-text'].textContent=insight.text||'—';}
+  function renderCharts(data){barChart(el['yearly-chart'],data.yearlyIncome.map(function(r){return String(r.year);}),data.yearlyIncome.map(function(r){return r.value;}));barChart(el['monthly-chart'],data.monthlyIncome.map(function(r){return r.short;}),data.monthlyIncome.map(function(r){return r.value;}));renderDonut(data.monthStructure,data.summary.selectedMonthIncome);}
+  function barChart(host,labels,values){const w=Math.max(320,host.clientWidth||620),h=270,p=38,max=Math.max.apply(null,values.concat([1])),step=(w-p*2)/Math.max(1,values.length),bw=Math.max(8,step*.55);let svg='<svg viewBox="0 0 '+w+' '+h+'">';values.forEach(function(v,i){const bh=(v/max)*(h-70),x=p+i*step+(step-bw)/2,y=h-35-bh;svg+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+bh+'" rx="3" fill="'+(i%2?COLORS[1]:COLORS[0])+'"></rect><text x="'+(x+bw/2)+'" y="'+(h-14)+'" text-anchor="middle" font-size="10" fill="#405675">'+escapeHtml(labels[i])+'</text>';});host.innerHTML=svg+'</svg>';}
+  function renderDonut(rows,total){const positive=(rows||[]).filter(function(r){return Number(r.value)>0;});const sum=Number(total)||positive.reduce(function(s,r){return s+Number(r.value||0);},0);el['donut-total'].textContent=money(sum);if(!sum){el.donut.style.background='#e8edf3';el['structure-legend'].innerHTML='';return;}let cursor=0;const stops=[];positive.forEach(function(r,i){const start=cursor;cursor+=Number(r.value)/sum*100;stops.push(COLORS[i%COLORS.length]+' '+start.toFixed(2)+'% '+cursor.toFixed(2)+'%');});el.donut.style.background='conic-gradient('+stops.join(',')+')';el['structure-legend'].innerHTML=positive.map(function(r,i){return '<div class="legend-row"><span class="legend-dot" style="background:'+COLORS[i%COLORS.length]+'"></span><span>'+escapeHtml(r.label)+'</span><strong>'+money(r.value)+'</strong></div>';}).join('');}
+  function selectView(view,push){if(!validView(view))return;activeView=view;state.navigation.active=view;render(state);if(push)syncUrl();}
+  function applyView(data,view){const copy=VIEWS[view]||VIEWS.overview;el['view-title'].textContent=copy[0];el['view-description'].textContent=copy[1];const showYear=view==='overview'||view==='years';const showMonth=['overview','months','seasonality','forecast'].indexOf(view)>=0;const showStructure=['overview','month','structure'].indexOf(view)>=0;el['yearly-panel'].hidden=!showYear;el['monthly-panel'].hidden=!showMonth;el['structure-panel'].hidden=!showStructure;el['bottom-grid'].hidden=!showMonth&&!showStructure;if(view==='overview'){el['view-detail'].hidden=true;}else if(view==='quality'&&isAppsScriptRuntime()){loadQualityWorkbench();}else{renderViewDetail(data,view);}}
+  function renderViewDetail(data,view){el['view-detail'].hidden=false;el['detail-title'].textContent=(VIEWS[view]||VIEWS.details)[0];el['detail-note'].textContent='Период: '+data.period.month+' '+data.period.year;if(view==='months'||view==='seasonality'){el['detail-content'].innerHTML=table(['Месяц','Операций','Доход'],data.monthlyIncome.map(function(r){return [r.month,r.operations,money(r.value)];}));return;}if(view==='years'){el['detail-content'].innerHTML=table(['Год','Доход'],data.yearlyIncome.map(function(r){return [r.year,money(r.value)];}));return;}if(view==='forecast'){const e=data.executive||{};el['detail-content'].innerHTML=detailStats([['Факт',money(data.summary.selectedYearIncome)],['Оценка года',money(e.forecast||0)],['Базовый доход',money(e.baseIncome||0)],['Активных месяцев',data.kpis.activeMonths]]);return;}el['detail-content'].innerHTML=detailStats([['Доход года',money(data.summary.selectedYearIncome)],['Доход месяца',money(data.summary.selectedMonthIncome)],['Операций месяца',formatInt(data.summary.monthOperations)],['Качество',data.summary.qualityScore+'/100']]);}
+  function openDrilldown(key){const groupData=(state.drilldowns||{})[key];if(!groupData){showToast('Для показателя нет детализации.');return;}el['view-detail'].hidden=false;el['detail-title'].textContent='Связанные операции — '+groupData.title;el['detail-note'].textContent='Read-only';el['detail-content'].innerHTML=drilldownTable(groupData.rows||[]);}
+  function drilldownTable(rows){if(!rows.length)return '<div class="chart-empty"><div><strong>Нет операций</strong><div>Для выбранного synthetic/runtime-среза строки отсутствуют.</div></div></div>';return '<div class="table-wrap"><table class="data-table"><thead><tr><th>Дата</th><th>Категория</th><th>Описание</th><th>Сумма</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+escapeHtml(r.date||'')+'</td><td>'+escapeHtml(r.category||'')+'</td><td>'+escapeHtml(r.description||'')+'</td><td>'+money(r.amount||0)+'</td></tr>';}).join('')+'</tbody></table></div>';}
+  function refreshFromFilters(){const year=Number(el['year-select'].value),month=Number(el['month-select'].value);if(isAppsScriptRuntime()){requestData(year,month);}else{state.period.year=year;state.period.monthIndex=month;state.period.month=state.period.months[month];render(state);showToast('PUBLIC_SYNTHETIC preview.');}}
+  function requestData(year,month){setLoading(true);google.script.run.withSuccessHandler(function(data){state=data;activeView=validView((data.navigation||{}).active)?data.navigation.active:activeView;render(state);setLoading(false);}).withFailureHandler(actionFailure).prhGetWebDashboardDataV13(year, month, activeView);}
+  function runUnifiedRefresh(){if(!isAppsScriptRuntime()){render(state);showToast('PUBLIC_SYNTHETIC preview: server refresh доступен в DEV runtime.');return;}setLoading(true);google.script.run.withSuccessHandler(function(){requestData(Number(el['year-select'].value),Number(el['month-select'].value));showToast('Обновление завершено.');}).withFailureHandler(actionFailure).prhRunUnifiedIncomeRefresh({year:Number(el['year-select'].value),month:Number(el['month-select'].value),view:activeView});}
+  function createSnapshot(){if(!isAppsScriptRuntime()){showToast('Снимок доступен в DEV runtime.');return;}setLoading(true);google.script.run.withSuccessHandler(function(){setLoading(false);showToast('Снимок KPI сохранён.');}).withFailureHandler(actionFailure).prhCreateIncomeDashboardSnapshot(Number(el['year-select'].value),Number(el['month-select'].value));}
+  function createPdfReport(){if(!isAppsScriptRuntime()){showToast('PDF доступен в DEV runtime.');return;}setLoading(true);google.script.run.withSuccessHandler(function(result){setLoading(false);showToast('PDF создан: '+(result.fileName||'готово'));}).withFailureHandler(actionFailure).prhCreateIncomePdfReport('MONTH');}
+  function loadQualityWorkbench(){if(!isAppsScriptRuntime()){renderViewDetail(state,'quality');return;}el['view-detail'].hidden=false;el['detail-title'].textContent='Quality Workbench';el['detail-content'].innerHTML='<div class="chart-empty">Загружаем очередь качества…</div>';google.script.run.withSuccessHandler(renderQualityWorkbench).withFailureHandler(actionFailure).prhGetQualityWorkbench();}
+  function renderQualityWorkbench(workbench){const rows=(workbench.rows||[]).map(function(item){return '<tr><td>'+escapeHtml(item.issueLabel||'')+'</td><td>'+escapeHtml(item.field||'')+'</td><td>'+escapeHtml(item.reason||'')+'</td><td><button class="quality-mini-button" data-classify-proposal="'+escapeHtml(item.proposalId||'')+'">Предложить категорию</button></td></tr>';}).join('');el['detail-content'].innerHTML='<div class="quality-summary">'+detailStats([['В очереди',workbench.queueCount||0],['Новые',workbench.newCount||0],['Подтверждены',workbench.approvedCount||0],['Отклонены',workbench.rejectedCount||0]])+'</div>'+(rows?'<div class="table-wrap"><table class="data-table"><tbody>'+rows+'</tbody></table></div>':'<div class="chart-empty">Очередь пуста</div>');}
+  function handleWorkbenchClick(event){const node=event.target.closest('[data-classify-proposal]');if(node)suggestClassification(node.dataset.classifyProposal);}
+  function suggestClassification(proposalId){if(!isAppsScriptRuntime()){showToast('Классификация доступна в DEV runtime.');return;}google.script.run.withSuccessHandler(function(s){showToast(s&&s.category?'Предложение: '+s.category:'Уверенного предложения нет.');}).withFailureHandler(actionFailure).prhSuggestCategoryForQualityProposal(proposalId);}
+  function actionFailure(error){setLoading(false);showToast('Действие не выполнено: '+(error&&error.message?error.message:String(error)));}
+  function detailStats(rows){return '<div class="detail-grid">'+rows.map(function(r){return '<div class="detail-stat"><div class="detail-stat-label">'+escapeHtml(r[0])+'</div><div class="detail-stat-value">'+escapeHtml(r[1])+'</div></div>';}).join('')+'</div>';}
+  function table(headers,rows){return '<div class="table-wrap"><table class="data-table"><thead><tr>'+headers.map(function(h){return '<th>'+escapeHtml(h)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(r){return '<tr>'+r.map(function(v){return '<td>'+escapeHtml(v)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';}
+  function syncUrl(){try{const u=new URL(location.href);u.searchParams.set('year',state.period.year);u.searchParams.set('month',state.period.monthIndex);u.searchParams.set('view',activeView);history.replaceState({},'',u.toString());}catch(e){}}
+  function validView(v){return Object.prototype.hasOwnProperty.call(VIEWS,String(v||''));}
+  function isAppsScriptRuntime(){return Boolean(window.google&&google.script&&google.script.run);}
+  function money(v){return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v)||0)+' ₽';}
+  function formatInt(v){return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v)||0);}
+  function clone(v){return JSON.parse(JSON.stringify(v));}
+  function escapeHtml(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c];});}
+  function setLoading(show){el['loading-layer'].classList.toggle('visible',Boolean(show));el['loading-layer'].setAttribute('aria-hidden',show?'false':'true');}
+  function showToast(message){el['status-toast'].textContent=message;el['status-toast'].classList.add('visible');clearTimeout(showToast.timer);showToast.timer=setTimeout(function(){el['status-toast'].classList.remove('visible');},2500);}
+}());
+</script>
 </body>
 </html>
