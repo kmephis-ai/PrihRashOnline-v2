@@ -7,6 +7,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8'));
 const trusted = fs.readFileSync(path.join(root, '.github', 'workflows', 'trusted-dev-deploy.yml'), 'utf8');
+const promoter = fs.readFileSync(path.join(root, 'tools', 'apps-script-api-promote.js'), 'utf8');
 const prValidation = fs.readFileSync(path.join(root, '.github', 'workflows', 'pr-validation.yml'), 'utf8');
 const legacy = fs.readFileSync(path.join(root, '.github', 'workflows', 'chat-driven-dev-release.yml'), 'utf8');
 const webService = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
@@ -18,9 +19,18 @@ assert(/function\s+doGet\s*\(/.test(webService), 'DashboardWebDataService.js mus
 
 assert(trusted.includes('workflow_run:'), 'Trusted deploy must be triggered from successful PR Validation completion');
 assert(trusted.includes('workflows: [PR Validation]'), 'Trusted deploy must consume PR Validation as its source gate');
-assert(trusted.includes('PrihRashOnline Web Dashboard DEV WebApp'), 'Trusted deploy must keep a stable DEV Web App deployment identity');
-assert(trusted.includes('update-deployment'), 'Trusted deploy must update an existing stable DEV deployment when present');
-assert(trusted.includes('create-deployment'), 'Trusted deploy must create the stable DEV deployment when absent');
+assert(trusted.includes('tools/apps-script-api-promote.js'), 'Trusted deploy must use the direct exact-version promotion helper');
+assert(trusted.includes('steps.version_promote.outputs.version_number'), 'Trusted evidence must bind promotion to the explicit immutable version number');
+assert(!trusted.includes('update-deployment'), 'Trusted mutation path must not depend on clasp deployment updates');
+assert(!trusted.includes('create-deployment'), 'Trusted mutation path must not silently create replacement deployment identities');
+
+assert(promoter.includes("WEB_DESCRIPTION = 'PrihRashOnline Web Dashboard DEV WebApp'"), 'Stable DEV Web App description must remain canonical');
+assert(promoter.includes("entryPointType === type"), 'Stable deployment identity must be entry-point typed');
+assert(promoter.includes("'WEB_APP'"), 'Promoter must require the Web App entry point');
+assert(promoter.includes('WEB_DEPLOYMENT_IDENTITY_INVALID'), 'Missing/ambiguous stable Web App must fail closed');
+assert(promoter.includes('/versions`'), 'Promoter must create an immutable Apps Script version');
+assert(promoter.includes("method: 'PUT'"), 'Promoter must explicitly update stable deployments to that version');
+assert(promoter.includes('DEPLOYMENT_EXACT_VERSION_VERIFY_FAILED'), 'Promoter must re-read and verify the exact version after update');
 assert(trusted.includes('DEPLOYED_AWAITING_AUTHENTICATED_HEALTH'), 'CI-001 must explicitly defer authoritative runtime health to CI-002');
 assert(!trusted.includes('curl -L'), 'Trusted deploy must not use anonymous curl as authoritative private Web App health');
 assert(!trusted.includes('open-web-app'), 'CI-001 must not treat a public URL as runtime proof');
@@ -33,6 +43,7 @@ assert(!/\bclasp\s+push\b/.test(legacy), 'Legacy release workflow must not retai
 console.log('apps_script_webapp_manifest_contract_test: OK', {
   access: manifest.webapp.access,
   executeAs: manifest.webapp.executeAs,
-  trustedPromotion: 'workflow_run',
+  trustedPromotion: 'workflow_run+exact-rest-version',
+  stableWebIdentity: 'description+WEB_APP',
   runtimeHealthOwner: 'CI-002'
 });
