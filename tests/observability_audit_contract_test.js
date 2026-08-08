@@ -71,16 +71,12 @@ function makeContext(overrides = {}) {
   vm.runInContext("PropertiesService.getScriptProperties().setProperty('OBS_PROBE', 'OK')", context);
   assert.strictEqual(context.__auditHealthValues.OBS_PROBE, 'OK', 'VM ScriptProperties stub must persist');
   assert.strictEqual(
-    vm.runInContext("setAuditHealthProperties_({PR_AUDIT_HEALTH_STATUS:'PASS'})", context),
-    true
-  );
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS', 'production persistence helper must persist');
-  vm.runInContext('__auditHealthValues = {}', context);
-  assert.strictEqual(
     vm.runInContext('recordAuditHealthSuccess_({dataRows:750,capacityPercent:75,rotatedRows:250})', context),
     true
   );
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS', 'success health recorder must persist');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'OK');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '250');
 }
 
 {
@@ -210,7 +206,8 @@ assert(!auditSource.includes('Журнал достиг DEV-лимита'));
 assert(auditSource.includes('sheet.deleteRows(2, plan.rowsToDelete)'));
 assert(auditSource.includes('sheet.insertRowsAfter'));
 assert(auditSource.includes("recordAuditHealthFailure_(classifyAuditFailure_(error))"));
-assert(auditSource.includes('props.setProperty(key, String(values[key]))'));
+assert(auditSource.includes("props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS"));
+assert(!auditSource.includes('Object.keys(values)'));
 assert(auditSource.includes("return '';"), 'audit persistence failure must be isolated from transaction correctness');
 
 console.log('observability_audit_contract_test: OK', {
@@ -218,6 +215,7 @@ console.log('observability_audit_contract_test: OK', {
   warningRecovery: true,
   gridCapacityRestored: true,
   failureIsolation: true,
+  explicitHealthKeys: true,
   healthSignal: true,
   privacySafeMetrics: true
 });
