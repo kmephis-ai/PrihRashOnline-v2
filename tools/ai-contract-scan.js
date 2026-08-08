@@ -8,6 +8,7 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const agents = read('AGENTS.md');
 const context = read('.ai-context/PROJECT_CONTEXT.md');
 const llms = read('llms.txt');
+const roadmap = read('docs/ROADMAP.md');
 const status = read('docs/PROJECT_STATUS.md');
 const workflow = read('.github/workflows/pr-validation.yml');
 const reviewContext = read('.ai-context/MULTI_AI_REVIEW_CONTEXT.md');
@@ -23,9 +24,9 @@ function forbidMatch(id, text, pattern, message) {
 
 requireMatch('AI_PRODUCT_OBJECTIVE', agents, /Product objective[\s\S]{0,800}household-finance/i, 'product objective missing');
 requireMatch('AI_SOURCE_PRECEDENCE', agents, /Sources of truth and precedence[\s\S]{0,1800}fail closed/i, 'source precedence/fail-closed rule missing');
-requireMatch('AI_CANONICAL_CONTEXT', agents,
-  /Master Audit v2\.1[\s\S]{0,180}Executable GitHub Roadmap v2\.2[\s\S]{0,180}AI Development Playbook v1\.0/,
-  'canonical external context versions missing');
+requireMatch('AI_CANONICAL_ROADMAP_REFERENCE', agents, /docs\/ROADMAP\.md[\s\S]{0,220}Executable GitHub Roadmap v2\.3/i, 'repository Roadmap v2.3 authority missing');
+requireMatch('AI_CANONICAL_EXTERNAL_CONTEXT', agents, /Master Audit v2\.1[\s\S]{0,220}AI Development Playbook v1\.0/i, 'external canonical context missing');
+requireMatch('AI_CANONICAL_ROADMAP_FILE', roadmap, /^# PrihRashOnline-v2 — Executable GitHub Roadmap v2\.3$/m, 'docs/ROADMAP.md is not v2.3');
 requireMatch('AI_AUTONOMY_V2', agents, /Autonomy Contract v2/, 'Autonomy Contract v2 missing');
 requireMatch('AI_ONE_WRITER', agents, /one Roadmap ID = one GitHub Issue = one active writer/i, 'one-writer rule missing');
 requireMatch('AI_BRANCH_RULE', agents, /agent\/<ROADMAP-ID>-<slug>/, 'branch convention missing');
@@ -70,10 +71,11 @@ requireMatch('AI_CI_RED_RECOVERY', agents, /CI-red recovery[\s\S]*same active Ro
 
 requireMatch('AI_MULTI_REVIEW_SECTION', agents, /Multi-AI review[\s\S]*READ_ONLY[\s\S]*writer_authority=false/i, 'multi-AI read-only contract missing');
 requireMatch('AI_MULTI_REVIEW_ROLES', agents, /ARCHITECTURE[\s\S]*SECURITY_PRIVACY[\s\S]*FINANCIAL_DATA[\s\S]*TEST_OPERATIONS/, 'required review roles missing');
-requireMatch('AI_MULTI_REVIEW_SEVERITY', agents, /P0\/P1[\s\S]{0,120}BLOCKED[\s\S]{0,160}P2\/P3[\s\S]{0,80}advisory/i, 'review severity policy missing');
+requireMatch('AI_MULTI_REVIEW_SEVERITY', agents, /P0\/P1[\s\S]{0,140}BLOCKED[\s\S]{0,180}P2\/P3[\s\S]{0,100}advisory/i, 'review severity policy missing');
 requireMatch('AI_MULTI_REVIEW_ARBITRATION', agents, /не голосование моделей|not model voting/i, 'review arbitration rule missing');
-requireMatch('AI_MULTI_REVIEW_SUPPLEMENTARY', agents, /supplementary evidence[\s\S]{0,300}(?:не отменяет|never override|никогда не отменяет)/i, 'review must remain supplementary');
+requireMatch('AI_MULTI_REVIEW_SUPPLEMENTARY', agents, /supplementary evidence[\s\S]{0,320}(?:не отменяет|never override|никогда не отменяет)/i, 'review must remain supplementary');
 
+requireMatch('AI_CONTEXT_ROADMAP', context, /docs\/ROADMAP\.md[\s\S]{0,160}Executable GitHub Roadmap v2\.3/i, 'AI context Roadmap v2.3 authority missing');
 requireMatch('AI_CONTEXT_CURRENT_R0', context, /Current R0 truth/, 'AI context current R0 section missing');
 requireMatch('AI_CONTEXT_PRIVATE_BOUNDARY', context, /Real or real-derived household finance data[\s\S]{0,220}stay private/i, 'AI context private boundary missing');
 requireMatch('AI_CONTEXT_GATE_CHAIN', context, gateOrder, 'AI context machine chain drifted');
@@ -84,7 +86,7 @@ requireMatch('AI_REVIEW_CONTEXT_READ_ONLY', reviewContext, /READ_ONLY[\s\S]*writ
 requireMatch('AI_REVIEW_DOC_MACHINE_AUTHORITY', reviewDoc, /supplementary evidence[\s\S]*Main Verification/i, 'review doc machine authority missing');
 
 for (const required of [
-  'AGENTS.md', '.ai-context/PROJECT_CONTEXT.md', '.ai-context/roadmap-task-packet.schema.json',
+  'AGENTS.md', 'docs/ROADMAP.md', '.ai-context/PROJECT_CONTEXT.md', '.ai-context/roadmap-task-packet.schema.json',
   '.ai-context/MULTI_AI_REVIEW_CONTEXT.md', '.ai-context/multi-ai-review-packet.schema.json',
   '.ai-context/multi-ai-review-report.schema.json', 'docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md',
   'docs/PROJECT_STATUS.md', 'docs/architecture.md', 'docs/RELEASE_PROCESS.md', 'docs/data-model.md'
@@ -104,6 +106,7 @@ for (const [name, text] of [
   ['AGENTS.md', agents], ['.ai-context/PROJECT_CONTEXT.md', context], ['llms.txt', llms],
   ['.ai-context/MULTI_AI_REVIEW_CONTEXT.md', reviewContext]
 ]) {
+  forbidMatch('AI_STALE_ROADMAP_REFERENCE', text, /Executable GitHub Roadmap v2\.(?:1|2)\b/i, `${name} contains stale Roadmap authority`);
   forbidMatch('AI_PUBLIC_RUNTIME_LOCATOR', text, /script\.google\.com\/macros\/s\/|\bAKfy[A-Za-z0-9_-]+\b/, `${name} contains runtime locator`);
   forbidMatch('AI_OWNER_PRIVATE_PATH', text, /[A-Z]:\\(?:YandexDisk|PrihRashOnline-Keys|PrihRashOnline(?:\\|$))/i, `${name} contains owner-private path`);
 }
@@ -113,7 +116,7 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log('ai-contract: PASS', {
-    roadmap: 'v2.2', autonomyContract: 'v2', privacySafeContext: true,
+    roadmap: 'repository-v2.3', autonomyContract: 'v2', privacySafeContext: true,
     freeOnly: true, exactMachineGates: true, roadmapTaskProtocol: true,
     multiAiReview: 'READ_ONLY_EXACT_CANDIDATE', reviewerWriterAuthority: false
   });
