@@ -139,6 +139,9 @@ jobs:
           PING_TOKEN="$(jq -r '.result // empty' <<<"${PING_JSON}" 2>/dev/null || true)"
           PING_REASON="$(jq -r '.reason // "AUTHENTICATED_TRANSPORT_PING_FAILED"' <<<"${PING_JSON}" 2>/dev/null || printf 'AUTHENTICATED_TRANSPORT_PING_FAILED')"
           if [[ "${PING_OK}" != 'true' || "${PING_TOKEN}" != 'PRH_TRANSPORT_V1|OK' ]]; then
+            if [[ "${PING_REASON}" == 'AUTHENTICATED_EXECUTION_FAILED' || "${PING_REASON}" == 'SCRIPT_EXECUTION_FAILED' ]]; then
+              PING_REASON="TRANSPORT_${PING_REASON}"
+            fi
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "reason=${PING_REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
@@ -151,6 +154,9 @@ jobs:
           TOKEN="$(jq -r '.result // empty' <<<"${HEALTH_JSON}" 2>/dev/null || true)"
           HEALTH_REASON="$(jq -r '.reason // "HEALTH_TOKEN_MISSING_OR_MISMATCH"' <<<"${HEALTH_JSON}" 2>/dev/null || printf 'HEALTH_TOKEN_MISSING_OR_MISMATCH')"
           if [[ "${HEALTH_OK}" != 'true' || ! "${TOKEN}" =~ ${TOKEN_PATTERN} ]]; then
+            if [[ "${HEALTH_REASON}" == 'AUTHENTICATED_EXECUTION_FAILED' || "${HEALTH_REASON}" == 'SCRIPT_EXECUTION_FAILED' ]]; then
+              HEALTH_REASON="HEALTH_${HEALTH_REASON}"
+            fi
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "reason=${HEALTH_REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
