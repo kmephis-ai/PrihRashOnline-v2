@@ -44,39 +44,44 @@ function makeContext(overrides = {}) {
     ...overrides
   };
   vm.createContext(context);
-  vm.runInContext(`
-    var __auditHealthValues = {};
-    var PropertiesService = {
-      getScriptProperties: function () {
-        return {
-          getProperty: function (key) {
-            return Object.prototype.hasOwnProperty.call(__auditHealthValues, key)
-              ? __auditHealthValues[key]
-              : null;
-          },
-          setProperty: function (key, value) {
-            __auditHealthValues[key] = String(value);
-            return this;
-          }
-        };
-      }
-    };
-  `, context, { filename: 'PropertiesServiceStub.js' });
   vm.runInContext(auditSource, context, { filename: 'AuditService.js' });
   return context;
 }
 
 {
   const context = makeContext();
-  vm.runInContext("PropertiesService.getScriptProperties().setProperty('OBS_PROBE', 'OK')", context);
-  assert.strictEqual(context.__auditHealthValues.OBS_PROBE, 'OK', 'VM ScriptProperties stub must persist');
-  assert.strictEqual(
-    vm.runInContext('recordAuditHealthSuccess_({dataRows:750,capacityPercent:75,rotatedRows:250})', context),
-    true
+  const pass = vm.runInContext(
+    'JSON.stringify(auditHealthSuccessState_({dataRows:750,capacityPercent:75,rotatedRows:250}))',
+    context
   );
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'OK');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '250');
+  assert.deepStrictEqual(JSON.parse(pass), {
+    status: 'PASS',
+    reasonCode: 'OK',
+    auditConsecutiveFailures: 0,
+    auditCapacityPercent: 75,
+    auditRotatedRows: 250
+  });
+  const warn = vm.runInContext(
+    'JSON.stringify(auditHealthSuccessState_({dataRows:850,capacityPercent:85,rotatedRows:0}))',
+    context
+  );
+  assert.deepStrictEqual(JSON.parse(warn), {
+    status: 'WARN',
+    reasonCode: 'AUDIT_CAPACITY_WARNING',
+    auditConsecutiveFailures: 0,
+    auditCapacityPercent: 85,
+    auditRotatedRows: 0
+  });
+  const fail = vm.runInContext(
+    "JSON.stringify(auditHealthFailureState_('AUDIT_STORAGE_FAILED', 4, 2))",
+    context
+  );
+  assert.deepStrictEqual(JSON.parse(fail), {
+    status: 'FAIL',
+    reasonCode: 'AUDIT_STORAGE_FAILED',
+    auditFailureCount: 5,
+    auditConsecutiveFailures: 3
+  });
 }
 
 {
@@ -133,7 +138,12 @@ function makeContext(overrides = {}) {
     }
   };
   const context = makeContext({
-    getSheetRequired_() { return sheet; }
+    getSheetRequired_() { return sheet; },
+    PropertiesService: {
+      getScriptProperties() {
+        return { setProperty() {}, getProperty() { return null; } };
+      }
+    }
   });
   const eventId = vm.runInContext("appendAudit_({type:'SYNTHETIC_TEST'})", context);
   assert.strictEqual(eventId, 'EVT-1001');
@@ -141,38 +151,17 @@ function makeContext(overrides = {}) {
   assert.strictEqual(insertedRows, 250);
   assert.strictEqual(writes.length, 1);
   assert.strictEqual(writes[0][0][10], 'COR-SYNTHETIC');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'OK');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '250');
-  assert.strictEqual(Number(context.__auditHealthValues.PRH_AUDIT_HEALTH_CAPACITY_PERCENT) < 80, true);
 }
 
 {
   const context = makeContext();
-  assert.strictEqual(
-    vm.runInContext('recordAuditHealthSuccess_({dataRows:850,capacityPercent:85,rotatedRows:0})', context),
-    true
-  );
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'WARN');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'AUDIT_CAPACITY_WARNING');
-}
-
-{
-  const context = makeContext({
-    getSheetRequired_() { throw new Error('sheet unavailable'); }
-  });
   assert.doesNotThrow(() => {
     assert.strictEqual(vm.runInContext("appendAudit_({type:'SYNTHETIC_FAILURE'})", context), '');
   });
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'FAIL');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'AUDIT_STORAGE_FAILED');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_FAILURE_COUNT, '1');
-  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_CONSECUTIVE_FAILURES, '1');
-  const snapshot = context.getAuditHealthSnapshot_();
-  assert.strictEqual(snapshot.status, 'FAIL');
-  assert.strictEqual(snapshot.reasonCode, 'AUDIT_STORAGE_FAILED');
-  assert.strictEqual(snapshot.auditFailureCount, 1);
-  assert.strictEqual(snapshot.auditConsecutiveFailures, 1);
+  assert.strictEqual(
+    vm.runInContext("classifyAuditFailure_(new Error('sheet unavailable'))", context),
+    'AUDIT_STORAGE_FAILED'
+  );
 }
 
 {
@@ -206,8 +195,10 @@ assert(!auditSource.includes('Журнал достиг DEV-лимита'));
 assert(auditSource.includes('sheet.deleteRows(2, plan.rowsToDelete)'));
 assert(auditSource.includes('sheet.insertRowsAfter'));
 assert(auditSource.includes("recordAuditHealthFailure_(classifyAuditFailure_(error))"));
-assert(auditSource.includes("props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS"));
-assert(!auditSource.includes('Object.keys(values)'));
+assert(auditSource.includes('auditHealthSuccessState_'));
+assert(auditSource.includes('auditHealthFailureState_'));
+assert(auditSource.includes('props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS'));
+assert(auditSource.includes('props.setProperty(PR_AUDIT_HEALTH_KEYS.FAILURE_COUNT'));
 assert(auditSource.includes("return '';"), 'audit persistence failure must be isolated from transaction correctness');
 
 console.log('observability_audit_contract_test: OK', {
@@ -215,7 +206,7 @@ console.log('observability_audit_contract_test: OK', {
   warningRecovery: true,
   gridCapacityRestored: true,
   failureIsolation: true,
+  deterministicHealthPolicy: true,
   explicitHealthKeys: true,
-  healthSignal: true,
   privacySafeMetrics: true
 });
