@@ -15,13 +15,14 @@ const {
 } = require('../tools/multi-ai-review-protocol');
 
 const SHA = 'a'.repeat(40);
+const SYNTHETIC_PR = 4242;
 
 function packet(overrides = {}) {
   return {
     schema: PACKET_SCHEMA,
     roadmap_id: 'AIENG-003',
     issue: 72,
-    pr: 82,
+    pr: SYNTHETIC_PR,
     candidate_sha: SHA,
     review_mode: 'READ_ONLY',
     writer_authority: false,
@@ -51,7 +52,7 @@ function report(role, reviewerId, findings = [], overrides = {}) {
     schema: REPORT_SCHEMA,
     roadmap_id: 'AIENG-003',
     issue: 72,
-    pr: 82,
+    pr: SYNTHETIC_PR,
     candidate_sha: SHA,
     reviewer_id: reviewerId,
     role,
