@@ -21,7 +21,7 @@ function packet(overrides = {}) {
     schema: PACKET_SCHEMA,
     roadmap_id: 'AIENG-003',
     issue: 72,
-    pr: 75,
+    pr: 82,
     candidate_sha: SHA,
     review_mode: 'READ_ONLY',
     writer_authority: false,
@@ -38,6 +38,7 @@ function finding(severity, code, resolved = false, overrides = {}) {
     code,
     path: 'tools/multi-ai-review-protocol.js',
     summary: `${severity} synthetic review finding`,
+    evidence: 'Synthetic contract evidence: deterministic assertion on exact candidate.',
     recommendation: 'Исправить на той же writer-ветке и повторить review exact candidate.',
     confidence: 0.9,
     resolved,
@@ -50,7 +51,7 @@ function report(role, reviewerId, findings = [], overrides = {}) {
     schema: REPORT_SCHEMA,
     roadmap_id: 'AIENG-003',
     issue: 72,
-    pr: 75,
+    pr: 82,
     candidate_sha: SHA,
     reviewer_id: reviewerId,
     role,
@@ -93,6 +94,7 @@ assert.strictEqual(validateReport(report('ARCHITECTURE', 'arch-reviewer'), packe
   }));
   assert.strictEqual(result.status, 'PASS');
   assert.strictEqual(result.advisoryFindings, 2);
+  assert.strictEqual(result.findings[0].evidence.includes('Synthetic contract evidence'), true);
 }
 
 for (const severity of ['P0', 'P1']) {
@@ -151,6 +153,10 @@ assert.strictEqual(
   aggregateReviewReports(packet(), cleanReports({ ARCHITECTURE: [finding('P2', 'RAW_PAYLOAD', false, { rawPayload: 'private' })] })).reasonCode,
   'MULTI_AI_FINDING_SHAPE_INVALID'
 );
+assert.strictEqual(
+  aggregateReviewReports(packet(), cleanReports({ ARCHITECTURE: [finding('P2', 'NO_EVIDENCE', false, { evidence: '' })] })).reasonCode,
+  'MULTI_AI_FINDING_EVIDENCE_INVALID'
+);
 
 for (const unsafe of [
   { url: 'https://script.google.com/macros/s/PRIVATE/exec' },
@@ -190,6 +196,7 @@ assert.deepStrictEqual(packetSchema.properties.required_roles.const, REQUIRED_RO
 assert.strictEqual(reportSchema.properties.schema.const, REPORT_SCHEMA);
 assert.strictEqual(reportSchema.properties.writer_authority.const, false);
 assert.strictEqual(reportSchema.properties.findings.items.additionalProperties, false);
+assert(Object.prototype.hasOwnProperty.call(reportSchema.properties.findings.items.properties, 'evidence'));
 assert(Object.prototype.hasOwnProperty.call(reportSchema.properties.findings.items.properties, 'confidence'));
 assert(!Object.prototype.hasOwnProperty.call(reportSchema.properties.findings.items.properties, 'rawPayload'));
 
@@ -202,6 +209,7 @@ assert(!/OpenAI|Anthropic|Gemini|YandexGPT|paid model/i.test(source));
 console.log('multi_ai_review_protocol_contract_test: OK', {
   exactCandidateBinding: true,
   requiredRoles: REQUIRED_ROLES,
+  findingContract: ['severity', 'evidence', 'recommendation', 'confidence'],
   readOnly: true,
   blockingSeverity: ['P0', 'P1'],
   advisorySeverity: ['P2', 'P3'],
