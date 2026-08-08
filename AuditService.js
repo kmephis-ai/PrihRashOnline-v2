@@ -1,8 +1,11 @@
 /**
- * Добавляет одно событие в «13 Журнал».
+ * Добавляет одно privacy-safe событие в «13 Журнал».
  * Журналирование разрешено в DRY_RUN, потому что не изменяет финансовые данные.
+ * Перед записью применяется SecurityPrivacyPolicy: свободные financial/user
+ * payloads не сериализуются, а before/after/details ограничены technical allowlist.
  */
 function appendAudit_(event) {
+  var safeEvent = sanitizeAuditEvent_(event);
   var lock = LockService.getDocumentLock();
   lock.waitLock(10000);
   try {
@@ -20,18 +23,18 @@ function appendAudit_(event) {
     sheet.getRange(nextRow, 1, 1, 14).setValues([[
       eventId,
       new Date(),
-      event.level || 'INFO',
-      event.type || 'SYSTEM',
-      event.commandId || '',
-      event.module || '',
-      event.target || '',
-      event.result || 'DEV',
-      event.message || '',
-      event.initiator || getInitiator_(),
-      event.correlationId || makeCorrelationId_(),
-      stringifySafe_(event.before),
-      stringifySafe_(event.after),
-      stringifySafe_(event.details)
+      safeEvent.level || 'INFO',
+      safeEvent.type || 'SYSTEM',
+      safeEvent.commandId || '',
+      safeEvent.module || '',
+      safeEvent.target || '',
+      safeEvent.result || 'DEV',
+      safeEvent.message || safeEvent.type || 'SYSTEM',
+      safeEvent.initiator || getInitiator_(),
+      safeEvent.correlationId || makeCorrelationId_(),
+      stringifySafe_(safeEvent.before),
+      stringifySafe_(safeEvent.after),
+      stringifySafe_(safeEvent.details)
     ]]);
     return eventId;
   } finally {
@@ -49,6 +52,6 @@ function stringifySafe_(value) {
   try {
     return JSON.stringify(value);
   } catch (error) {
-    return String(value);
+    return '';
   }
 }
