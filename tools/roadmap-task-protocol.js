@@ -26,8 +26,9 @@ function boundedReason(error, fallback) {
   return /^[A-Z][A-Z0-9_]{2,79}$/.test(raw) ? raw : fallback;
 }
 
-function normalizeStringArray(value, field) {
+function normalizeStringArray(value, field, allowEmpty) {
   if (!Array.isArray(value)) fail(`ROADMAP_${field}_INVALID`);
+  if (!allowEmpty && value.length === 0) fail(`ROADMAP_${field}_INVALID`);
   return value.map((entry) => {
     const text = String(entry || '').trim();
     if (!text) fail(`ROADMAP_${field}_INVALID`);
@@ -71,13 +72,13 @@ function normalizeRoadmapItem(input) {
     order,
     branch_slug: branchSlug,
     goal,
-    non_goals: normalizeStringArray(item.non_goals || [], 'NON_GOALS'),
-    depends_on: normalizeStringArray(item.depends_on || [], 'DEPENDENCIES'),
+    non_goals: normalizeStringArray(item.non_goals, 'NON_GOALS', false),
+    depends_on: normalizeStringArray(item.depends_on || [], 'DEPENDENCIES', true),
     data_touched: dataTouched,
     privacy_class: privacyClass,
     cost_class: costClass,
-    acceptance: normalizeStringArray(item.acceptance, 'ACCEPTANCE'),
-    evidence_required: normalizeStringArray(item.evidence_required, 'EVIDENCE'),
+    acceptance: normalizeStringArray(item.acceptance, 'ACCEPTANCE', false),
+    evidence_required: normalizeStringArray(item.evidence_required, 'EVIDENCE', false),
     rollback
   };
 }
@@ -175,6 +176,7 @@ function assertTaskPacket(packet) {
   if (!['START_READY', 'CONTINUE_ACTIVE'].includes(packet.action)) fail('ROADMAP_TASK_ACTION_INVALID');
   if (!ROADMAP_ID_RE.test(String(packet.roadmap_id || ''))) fail('ROADMAP_TASK_ID_INVALID');
   if (!Number.isInteger(packet.issue) || packet.issue < 1) fail('ROADMAP_TASK_ISSUE_INVALID');
+  if (!Array.isArray(packet.non_goals) || packet.non_goals.length === 0) fail('ROADMAP_TASK_NON_GOALS_INVALID');
   if (String(packet.cost_class || '') !== 'FREE_ONLY') fail('ROADMAP_TASK_COST_CLASS_INVALID');
   if (!Array.isArray(packet.acceptance) || packet.acceptance.length === 0) fail('ROADMAP_TASK_ACCEPTANCE_INVALID');
   if (!Array.isArray(packet.evidence_required) || packet.evidence_required.length === 0) fail('ROADMAP_TASK_EVIDENCE_INVALID');
@@ -183,10 +185,8 @@ function assertTaskPacket(packet) {
     fail('ROADMAP_TASK_GATES_INVALID');
   }
   if (packet.one_active_writer !== true) fail('ROADMAP_TASK_WRITER_POLICY_INVALID');
-  if (packet.branch !== `agent/${packet.roadmap_id}-${packet.branch.split('-').slice(2).join('-')}`
-      || !packet.branch.startsWith(`agent/${packet.roadmap_id}-`)) {
-    fail('ROADMAP_TASK_BRANCH_INVALID');
-  }
+  const branchPattern = new RegExp(`^agent/${packet.roadmap_id}-[a-z0-9][a-z0-9-]{1,63}$`);
+  if (!branchPattern.test(String(packet.branch || ''))) fail('ROADMAP_TASK_BRANCH_INVALID');
   if (packet.pr_close_line !== `Closes #${packet.issue}`) fail('ROADMAP_TASK_PR_CLOSE_INVALID');
   assertPublicSafe(packet);
   return true;
