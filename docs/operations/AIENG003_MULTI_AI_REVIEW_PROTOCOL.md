@@ -8,6 +8,8 @@
 
 Дать primary Roadmap writer независимую проверку exact candidate по четырём областям риска, не создавая дополнительных writers и не превращая мнение модели в release authority.
 
+Канонический порядок/dependencies задаёт repository `docs/ROADMAP.md` (`Executable GitHub Roadmap v2.3`), а live lifecycle конкретного item — GitHub Issue.
+
 ## Immutable review packet
 
 Review начинается только с packet schema `PRH_MULTI_AI_REVIEW_PACKET_V1` (`.ai-context/multi-ai-review-packet.schema.json`). Packet содержит:
@@ -30,9 +32,9 @@ Private runtime/credential/owner-path признаки отклоняются fa
 3. `FINANCIAL_DATA`;
 4. `TEST_OPERATIONS`.
 
-Один `reviewer_id` не может закрыть две роли. Повтор роли также не считается дополнительным quorum.
+Один `reviewer_id` не может закрыть две роли. Повтор роли также не считается дополнительным required-role evidence.
 
-Finding ограничен полями `severity`, `code`, `path`, `summary`, `recommendation`, `confidence`, `resolved`. Raw response/payload/body в schema отсутствует.
+Finding ограничен полями `severity`, `code`, `path`, `summary`, `evidence`, `recommendation`, `confidence`, `resolved`. Поле `evidence` содержит только короткий public-safe проверяемый факт/ссылку. Raw model response, runtime body, financial payload и произвольное `rawPayload`-поле schema не допускает.
 
 ## Arbitration
 
