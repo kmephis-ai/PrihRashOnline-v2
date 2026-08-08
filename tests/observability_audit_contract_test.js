@@ -8,26 +8,7 @@ const vm = require('vm');
 const auditSource = fs.readFileSync(path.join(__dirname, '..', 'AuditService.js'), 'utf8');
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'SecurityPrivacyPolicy.js'), 'utf8');
 
-function makePropertiesStore() {
-  const values = {};
-  return {
-    values,
-    getProperty(key) {
-      return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : null;
-    },
-    setProperty(key, value) {
-      values[key] = String(value);
-      return this;
-    },
-    setProperties(input) {
-      Object.keys(input).forEach((key) => { values[key] = String(input[key]); });
-      return this;
-    }
-  };
-}
-
 function makeContext(overrides = {}) {
-  const properties = makePropertiesStore();
   const context = {
     Object,
     String,
@@ -38,9 +19,6 @@ function makeContext(overrides = {}) {
     Date,
     parseInt,
     isFinite,
-    PropertiesService: {
-      getScriptProperties() { return properties; }
-    },
     PR_CONFIG: {
       MAX_AUDIT_ROWS: 1000,
       AUDIT_ROTATE_BATCH_ROWS: 250,
@@ -75,12 +53,36 @@ function makeContext(overrides = {}) {
     ...overrides
   };
   vm.createContext(context);
+  vm.runInContext(`
+    var __auditHealthValues = {};
+    var PropertiesService = {
+      getScriptProperties: function () {
+        return {
+          getProperty: function (key) {
+            return Object.prototype.hasOwnProperty.call(__auditHealthValues, key)
+              ? __auditHealthValues[key]
+              : null;
+          },
+          setProperty: function (key, value) {
+            __auditHealthValues[key] = String(value);
+            return this;
+          },
+          setProperties: function (input) {
+            Object.keys(input).forEach(function (key) {
+              __auditHealthValues[key] = String(input[key]);
+            });
+            return this;
+          }
+        };
+      }
+    };
+  `, context, { filename: 'PropertiesServiceStub.js' });
   vm.runInContext(auditSource, context, { filename: 'AuditService.js' });
-  return { context, properties };
+  return context;
 }
 
 {
-  const { context } = makeContext();
+  const context = makeContext();
   assert.deepStrictEqual(
     JSON.parse(JSON.stringify(context.auditRetentionPlan_(799, 1000, 250))),
     { dataRows: 799, rowsToDelete: 0, retainedRows: 799, capacityPercent: 80 }
@@ -132,7 +134,7 @@ function makeContext(overrides = {}) {
       };
     }
   };
-  const { context, properties } = makeContext({
+  const context = makeContext({
     getSheetRequired_() { return sheet; }
   });
   const eventId = context.appendAudit_({ type: 'SYNTHETIC_TEST' });
@@ -141,30 +143,30 @@ function makeContext(overrides = {}) {
   assert.strictEqual(insertedRows, 250);
   assert.strictEqual(writes.length, 1);
   assert.strictEqual(writes[0][0][10], 'COR-SYNTHETIC');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_STATUS, 'PASS');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_REASON, 'OK');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '250');
-  assert.strictEqual(Number(properties.values.PRH_AUDIT_HEALTH_CAPACITY_PERCENT) < 80, true);
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'PASS');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'OK');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '250');
+  assert.strictEqual(Number(context.__auditHealthValues.PRH_AUDIT_HEALTH_CAPACITY_PERCENT) < 80, true);
 }
 
 {
-  const { context, properties } = makeContext();
+  const context = makeContext();
   assert.strictEqual(context.recordAuditHealthSuccess_({ dataRows: 850, capacityPercent: 85, rotatedRows: 0 }), true);
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_STATUS, 'WARN');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_REASON, 'AUDIT_CAPACITY_WARNING');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'WARN');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'AUDIT_CAPACITY_WARNING');
 }
 
 {
-  const { context, properties } = makeContext({
+  const context = makeContext({
     getSheetRequired_() { throw new Error('sheet unavailable'); }
   });
   assert.doesNotThrow(() => {
     assert.strictEqual(context.appendAudit_({ type: 'SYNTHETIC_FAILURE' }), '');
   });
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_STATUS, 'FAIL');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_REASON, 'AUDIT_STORAGE_FAILED');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_FAILURE_COUNT, '1');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_CONSECUTIVE_FAILURES, '1');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_STATUS, 'FAIL');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_REASON, 'AUDIT_STORAGE_FAILED');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_FAILURE_COUNT, '1');
+  assert.strictEqual(context.__auditHealthValues.PRH_AUDIT_HEALTH_CONSECUTIVE_FAILURES, '1');
   const snapshot = context.getAuditHealthSnapshot_();
   assert.strictEqual(snapshot.status, 'FAIL');
   assert.strictEqual(snapshot.reasonCode, 'AUDIT_STORAGE_FAILED');
