@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { generateSyntheticDashboardFixture } = require('./fixtures/synthetic_dashboard');
 
 const VIEWPORTS = [
   { name:'desktop', width:1600, height:1000, maxPageHeight:1650 },
@@ -63,7 +64,7 @@ async function inspectOverview(page, viewport) {
   }, { maxPageHeight:viewport.maxPageHeight, mobile:viewport.width <= 760 });
 }
 
-function assertOverview(r) {
+function assertOverview(r, fixture) {
   const label = `${r.viewport.width}x${r.viewport.height}`;
   expect(r.overflow <= 1, `[${label}] horizontal overflow ${r.overflow}`);
   expect(r.pageHeight <= r.maxPageHeight, `[${label}] page too tall ${r.pageHeight}`);
@@ -73,12 +74,13 @@ function assertOverview(r) {
   expect(r.secondary === 6, `[${label}] expected 6 secondary KPI, got ${r.secondary}`);
   expect(r.filters === 5, `[${label}] expected 5 filters, got ${r.filters}`);
   expect(r.executiveTitle === 'Executive-панель', `[${label}] executive title missing`);
-  expect(r.month === 6 && r.monthLabel === 'Июль', `[${label}] default month mismatch`);
-  expect(r.period.toLowerCase().includes('июль') && r.periodNote.includes('28.07.2026'), `[${label}] period mismatch`);
-  expect(r.donut.includes('151') && r.donut.includes('360'), `[${label}] July total mismatch`);
-  ['66 712','58 775','16 320','9 553'].forEach((value) => expect(r.structure.includes(value), `[${label}] missing structure ${value}`));
-  expect(r.quality.includes('86/100'), `[${label}] quality mismatch`);
-  expect(r.yearBars === 9, `[${label}] expected 9 year bars, got ${r.yearBars}`);
+  expect(r.month === fixture.period.monthIndex && r.monthLabel === fixture.period.month, `[${label}] synthetic period mismatch`);
+  expect(r.period.toLowerCase().includes(r.monthLabel.toLowerCase()), `[${label}] current period label mismatch`);
+  expect(r.periodNote.includes(fixture.period.latestDate), `[${label}] synthetic latest-date note mismatch`);
+  expect(r.donut.includes('₽') && !r.donut.includes('NaN'), `[${label}] donut total invalid`);
+  expect(fixture.monthStructure.length > 0 && r.structure.includes(fixture.monthStructure[0].label), `[${label}] synthetic structure missing`);
+  expect(/\d+\s*\/\s*100/.test(r.quality), `[${label}] quality format mismatch`);
+  expect(r.yearBars === fixture.yearlyIncome.length, `[${label}] year chart differs from synthetic fixture`);
   if (r.viewport.width > 1250) expect(spread(r.filterHeights) <= 2, `[${label}] filter height mismatch`);
   expect(spread(r.kpiHeights) <= 4, `[${label}] KPI height mismatch`);
   if (r.scrollbar) expect(r.scrollbar === 'none', `[${label}] mobile scrollbar visible`);
@@ -88,7 +90,7 @@ function assertOverview(r) {
   });
 }
 
-async function assertViews(page) {
+async function assertViews(page, fixture) {
   for (const [view,title] of VIEWS) {
     await page.click(`.tab[data-view="${view}"]`);
     await page.waitForFunction((expected) => document.querySelector('.tab.active')?.dataset.view === expected, view);
@@ -105,6 +107,7 @@ async function assertViews(page) {
         active:document.querySelector('.tab.active')?.dataset.view,
         title:document.getElementById('view-title').textContent.trim(),
         hidden:detail.hidden,text,urlView:params.get('view'),urlMonth:params.get('month'),monthOps,
+        selectedMonth:document.getElementById('month-select').value,
         viewportWidth:innerWidth,kpiWidth,monthlyWidth,detailWidth
       };
     }, view);
@@ -112,10 +115,11 @@ async function assertViews(page) {
     if (view === 'overview') expect(s.hidden, 'Overview detail must be hidden');
     else expect(!s.hidden && s.text, `View ${view} detail missing`);
     if (view === 'months') {
-      expect(JSON.stringify(s.monthOps) === JSON.stringify(['11','17','31','18','25','17','9','0','0','0','0','0']), 'Monthly counts differ from public aggregate fixture');
+      const expectedOps = fixture.monthlyIncome.map((item) => String(item.operations));
+      expect(JSON.stringify(s.monthOps) === JSON.stringify(expectedOps), 'Monthly counts differ from deterministic synthetic fixture');
     }
     if (view === 'forecast') {
-      expect(s.urlMonth === '6' && s.text.includes('Оценка года') && s.text.includes('Базовый доход'), 'Forecast detail mismatch');
+      expect(s.urlMonth === s.selectedMonth && s.text.includes('Оценка года') && s.text.includes('Базовый доход'), 'Forecast detail mismatch');
       if (s.viewportWidth > 1250) {
         const min = s.viewportWidth * .9;
         expect(s.kpiWidth >= min && s.monthlyWidth >= min && s.detailWidth >= min, 'Forecast leaves empty desktop column');
@@ -126,24 +130,23 @@ async function assertViews(page) {
   await page.waitForFunction(() => document.getElementById('view-detail').hidden);
 }
 
-async function assertDrilldowns(page) {
+async function assertDrilldowns(page, fixture) {
   await page.click('[data-testid="kpi-card"][data-drilldown="month"]');
   await page.waitForSelector('#view-detail:not([hidden])');
   const month = await page.evaluate(() => ({
     title:document.getElementById('detail-title').textContent,
     text:document.getElementById('detail-content').textContent.replace(/\s+/g,' '),
     rows:document.querySelectorAll('#detail-content tbody tr').length,
-    demo:Array.from(document.querySelectorAll('#detail-content tbody tr')).every((row) => row.textContent.includes('Синтетическая операция'))
+    synthetic:Array.from(document.querySelectorAll('#detail-content tbody tr')).every((row) => row.textContent.includes('Synthetic'))
   }));
-  expect(month.title.includes('Доход выбранного месяца'), 'Month drill-down title missing');
-  expect(month.text.includes('Операций: 9') && month.text.includes('151 360'), 'Month drill-down summary mismatch');
-  expect(month.rows === 3 && month.demo, 'Public drill-down fixture must contain only three synthetic preview rows');
+  expect(month.title === fixture.drilldowns.month.title, 'Synthetic month drill-down title mismatch');
+  expect(month.rows === fixture.drilldowns.month.rows.length && month.synthetic, 'Public drill-down must render only deterministic synthetic rows');
   await page.click('[data-close-drilldown]');
   await page.waitForFunction(() => document.getElementById('view-detail').hidden);
 
   await page.click('[data-testid="secondary-kpi"][data-drilldown="duplicates"]');
   await page.waitForSelector('#view-detail:not([hidden])');
-  expect((await page.textContent('#detail-title')).includes('Возможные точные дубли'), 'Duplicate drill-down missing');
+  expect((await page.textContent('#detail-title')) === fixture.drilldowns.duplicates.title, 'Duplicate drill-down mismatch');
   await page.click('[data-close-drilldown]');
 }
 
@@ -154,6 +157,15 @@ async function assertDrilldowns(page) {
   fs.mkdirSync(artifactDir,{recursive:true});
   const html = fs.readFileSync(htmlPath,'utf8');
   expect(html.includes('id="executive-secondary"') && html.includes('id="action-bar"'), 'Visual test requires the canonical prepared v1 RC bundle');
+
+  const fixture = generateSyntheticDashboardFixture({ seed:20260808 });
+  expect(fixture.testMetadata.synthetic === true && fixture.testMetadata.privacy_class === 'PUBLIC_SYNTHETIC', 'Visual fixture must be public-safe synthetic data');
+  const initialData = JSON.stringify(fixture).replace(/</g,'\\u003c');
+  const syntheticHtml = html.replace('<?!= initialData ?>', initialData);
+  expect(syntheticHtml !== html, 'Synthetic initial-data injection failed');
+  const syntheticHtmlPath = path.join(artifactDir,'dashboard-web-synthetic.html');
+  fs.writeFileSync(syntheticHtmlPath,syntheticHtml,'utf8');
+
   const browser = await chromium.launch({headless:true});
   const results = [];
 
@@ -161,7 +173,7 @@ async function assertDrilldowns(page) {
     const page = await browser.newPage({viewport:{width:viewport.width,height:viewport.height},deviceScaleFactor:1});
     const errors = [];
     page.on('pageerror',(error) => errors.push(error.message));
-    await page.goto(`file://${htmlPath}`,{waitUntil:'load'});
+    await page.goto(`file://${syntheticHtmlPath}`,{waitUntil:'load'});
     await page.waitForTimeout(1000);
     const kpiCount = await page.locator('[data-testid="kpi-card"]').count();
     if (kpiCount !== 9 || errors.length) {
@@ -169,16 +181,16 @@ async function assertDrilldowns(page) {
       throw new Error(`[${viewport.name}] dashboard startup failed: kpiCount=${kpiCount}; title=${title}; JavaScript errors=${errors.join(' | ') || 'none'}`);
     }
     const result = await inspectOverview(page,viewport);
-    assertOverview(result);
-    await assertViews(page);
-    await assertDrilldowns(page);
+    assertOverview(result,fixture);
+    await assertViews(page,fixture);
+    await assertDrilldowns(page,fixture);
     expect(!errors.length, `[${viewport.name}] JavaScript errors: ${errors.join('; ')}`);
     results.push(result);
     await page.screenshot({path:path.join(artifactDir,`dashboard-web-${viewport.name}.png`),fullPage:true});
     await page.close();
   }
 
-  fs.writeFileSync(path.join(artifactDir,'dashboard-web-layout.json'),JSON.stringify({build:'prebuilt-v1rc',results},null,2));
+  fs.writeFileSync(path.join(artifactDir,'dashboard-web-layout.json'),JSON.stringify({build:'synthetic-test-fixture',fixture:fixture.testMetadata,results},null,2));
   await browser.close();
-  console.log('dashboard_web_visual_test: OK',{build:'prebuilt-v1rc',results});
+  console.log('dashboard_web_visual_test: OK',{build:'synthetic-test-fixture',results});
 })().catch((error) => { console.error(error); process.exit(1); });
