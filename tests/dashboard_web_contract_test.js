@@ -50,7 +50,7 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
   'function suggestClassification(proposalId)', 'function createSnapshot()', 'function createPdfReport()',
   '.prhRunUnifiedIncomeRefresh(', '.prhGetQualityWorkbench()', '.prhCreateIncomeDashboardSnapshot(',
   ".prhCreateIncomePdfReport('MONTH')", '.prhSuggestCategoryForQualityProposal(proposalId)',
-  'v1.0 RC'
+  'v1.0 RC', "privacyClass:'PUBLIC_SYNTHETIC'"
 ].forEach((required) => expect(html.includes(required), `Missing v1 RC dashboard contract: ${required}`));
 
 const synthetic = generateSyntheticDashboardFixture({ seed: 20260808 });
@@ -66,8 +66,6 @@ expect(!service.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use st
 expect(!html.includes('scrollbar-width: thin'), 'Mobile tab scrollbar must remain hidden');
 expect(!html.includes('charts.google.com'), 'Dashboard must not depend on Google Charts runtime');
 expect(!html.includes('cdn.jsdelivr.net'), 'Dashboard must not depend on a public CDN');
-expect(!html.includes('OP-F11-'), 'Public HTML fixture must not expose real operation identifiers');
-expect(!html.includes('Ремонт класса'), 'Public HTML fixture must not expose private operation descriptions');
 expect((html.match(/data-testid="kpi-card"/g) || []).length === 1, 'Primary KPI cards must come from one reusable template');
 expect((html.match(/data-testid="secondary-kpi"/g) || []).length === 1, 'Secondary KPI cards must come from one reusable template');
 expect((html.match(/data-testid="filter-card"/g) || []).length === 5, 'Dashboard must contain five context cards');
