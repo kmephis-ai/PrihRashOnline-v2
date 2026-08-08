@@ -1,6 +1,7 @@
 {
   "schema": "DR-001-EVIDENCE-v1",
   "status": "PASS",
+  "roadmapIssueState": "READY",
   "backupCipherSha256": "6a9bf80fc56a7fa7f4b68c52f8005b0b7458155b4290cee96a1e2484dfdb1dd2",
   "checksum": "PASS",
   "reconciliation": "PASS",
