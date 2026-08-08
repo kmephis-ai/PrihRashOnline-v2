@@ -1,4 +1,4 @@
-name: Dashboard Runtime Identity Probe
+name: Dashboard Runtime Template Fix
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - 'DashboardWebEntry.js'
       - 'DashboardWebDataService.js'
+      - 'tools/normalize-dashboard-web-runtime.js'
       - '.github/workflows/dashboard-runtime-hotfix.yml'
   workflow_dispatch:
 
@@ -28,19 +29,26 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Verify renamed one-line entry
+      - name: Prepare and verify Apps Script template
         shell: bash
         run: |
           set -euo pipefail
+          npm run prepare:web
           test ! -e DashboardWebDataService.js
           node --check DashboardWebEntry.js
           python - <<'PY'
           from pathlib import Path
-          p = Path('DashboardWebEntry.js')
-          text = p.read_text(encoding='ascii')
-          expected = "function doGet(){return HtmlService.createHtmlOutput('PRIHRASH_RUNTIME_OK');}\n"
-          if text != expected:
-              raise SystemExit('DashboardWebEntry.js differs from identity probe')
+          entry = Path('DashboardWebEntry.js').read_text(encoding='ascii')
+          html = Path('DashboardWebApp.html').read_text(encoding='utf-8')
+          if "return template.evaluate();" not in entry:
+              raise SystemExit('DashboardWebEntry.js does not evaluate the Dashboard template')
+          if "text.indexOf('<?')" in html:
+              raise SystemExit('Unsafe client-side <? sentinel remains in DashboardWebApp.html')
+          if html.count('<?') != 1:
+              raise SystemExit(f'Expected exactly one template opener, found {html.count("<?")}')
+          if '<?!= initialData ?>' not in html:
+              raise SystemExit('Real initialData scriptlet is missing')
+          print('Template scriptlet gate: OK; exactly one real Apps Script opener remains')
           PY
 
       - name: Configure clasp
@@ -58,36 +66,37 @@ jobs:
           printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > .clasp.json
           npx clasp --version
 
-      - name: Push renamed entry to Apps Script
+      - name: Push repaired Dashboard to Apps Script
         run: npx clasp push --force
 
-      - name: Pull back and verify remote identity
+      - name: Pull back and verify repaired remote source
         shell: bash
         run: |
           set -euo pipefail
-          EXPECTED_SHA="$(sha256sum DashboardWebEntry.js | awk '{print $1}')"
-          rm DashboardWebEntry.js
+          ENTRY_SHA="$(sha256sum DashboardWebEntry.js | awk '{print $1}')"
+          HTML_SHA="$(sha256sum DashboardWebApp.html | awk '{print $1}')"
+          rm DashboardWebEntry.js DashboardWebApp.html
           test ! -e DashboardWebDataService.js
           npx clasp pull
           test -f DashboardWebEntry.js
+          test -f DashboardWebApp.html
           test ! -e DashboardWebDataService.js
-          REMOTE_SHA="$(sha256sum DashboardWebEntry.js | awk '{print $1}')"
-          test "${EXPECTED_SHA}" = "${REMOTE_SHA}"
+          test "${ENTRY_SHA}" = "$(sha256sum DashboardWebEntry.js | awk '{print $1}')"
+          test "${HTML_SHA}" = "$(sha256sum DashboardWebApp.html | awk '{print $1}')"
           python - <<'PY'
           from pathlib import Path
-          text = Path('DashboardWebEntry.js').read_text(encoding='ascii')
-          expected = "function doGet(){return HtmlService.createHtmlOutput('PRIHRASH_RUNTIME_OK');}\n"
-          if text != expected:
-              raise SystemExit('Pulled Apps Script entry differs from pushed probe')
+          html = Path('DashboardWebApp.html').read_text(encoding='utf-8')
+          if "text.indexOf('<?')" in html or html.count('<?') != 1 or '<?!= initialData ?>' not in html:
+              raise SystemExit('Pulled remote Dashboard template failed scriptlet gate')
+          print('Remote push->pull template verification: OK')
           PY
-          echo "Remote Apps Script project contains DashboardWebEntry.js and no DashboardWebDataService.js"
 
-      - name: Create fresh identity-probe Web App deployment
+      - name: Create fresh repaired Dashboard deployment
         id: deploy
         shell: bash
         run: |
           set -euo pipefail
-          DEPLOYMENT_NAME="PrihRashOnline identity probe ${GITHUB_SHA}"
+          DEPLOYMENT_NAME="PrihRashOnline repaired template ${GITHUB_SHA}"
           OUTPUT="$(npx clasp create-deployment --description "${DEPLOYMENT_NAME}")"
           printf '%s\n' "${OUTPUT}"
           DEPLOYMENT_ID="$(printf '%s\n' "${OUTPUT}" | grep -oE 'AKfy[A-Za-z0-9_-]+' | head -1 || true)"
@@ -96,18 +105,18 @@ jobs:
           echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Report successful identity probe
+      - name: Report successful repaired deployment
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
           WEB_APP_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Apps Script identity probe passed push→pull verification. Remote project has \`DashboardWebEntry.js\` and no \`DashboardWebDataService.js\`. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Dashboard template root cause repaired and push→pull verified. Only the real \`<?!= initialData ?>\` Apps Script opener remains; the client-side \`<?\` sentinel is gone. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-      - name: Report failed identity probe
+      - name: Report failed repaired deployment
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Apps Script identity probe failed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Dashboard template repair deployment failed closed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
