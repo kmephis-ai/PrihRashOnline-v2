@@ -5,13 +5,15 @@
  * запрещена на двух независимых уровнях: конфигурацией и явным guard.
  */
 var PR_CONFIG = Object.freeze({
-  VERSION: '0.1.0',
+  VERSION: '0.1.1',
   MODE: 'DRY_RUN',
   REQUIRE_CONFIRMATION: true,
   ALLOW_ID_WRITES: false,
   ALLOW_OPERATION_WRITES: false,
   MAX_COMMAND_ROWS: 500,
   MAX_AUDIT_ROWS: 1000,
+  AUDIT_ROTATE_BATCH_ROWS: 250,
+  AUDIT_WARN_AT_ROWS: 800,
   SHEETS: Object.freeze({
     SETTINGS: '09 Настройки',
     CONTROL: '10 Контроль',
