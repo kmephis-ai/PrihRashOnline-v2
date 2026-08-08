@@ -178,7 +178,7 @@ jobs:
 
           # open-web-app calls projects.deployments.get internally and refuses any
           # deployment without a real WEB_APP entry point. Its output is therefore
-          # authoritative; we never synthesize /exec from a deployment ID again.
+          # authoritative for the deployment URL, but it does not execute doGet().
           if ! OPEN_OUTPUT="$(npx clasp --json open-web-app "${DEPLOYMENT_ID}" 2>&1)"; then
             printf '%s\n' "${OPEN_OUTPUT}"
             echo '::error::Apps Script deployment has no verified WEB_APP entry point.'
@@ -194,6 +194,7 @@ jobs:
             echo "::error::Unexpected Web App URL returned by Apps Script API: ${WEB_APP_URL}"
             exit 1
           }
+          echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
 
           SMOKE_BODY="$(mktemp)"
           HTTP_CODE="$(curl -L -sS --max-time 30 -o "${SMOKE_BODY}" -w '%{http_code}' "${WEB_APP_URL}" || true)"
@@ -205,11 +206,24 @@ jobs:
             echo '::error::Google Drive file-not-found page returned instead of Apps Script Web App.'
             exit 1
           fi
+          if grep -Eqi 'SyntaxError|Invalid or unexpected token|ReferenceError|TypeError|Exception:|Script function not found|Синтаксическая ошибка|Ошибка синтаксиса' "${SMOKE_BODY}"; then
+            echo '::error::Apps Script runtime error page returned instead of the Dashboard.'
+            sed -n '1,160p' "${SMOKE_BODY}" || true
+            exit 1
+          fi
+          if grep -Eqi 'accounts\.google\.com|Sign in - Google Accounts|Войдите в аккаунт Google|Войти в аккаунт Google|ServiceLogin' "${SMOKE_BODY}"; then
+            echo '::error::Web App requires Google authentication; anonymous CI smoke did not execute doGet(). DEV was deployed, but runtime verification is not authoritative, so merge is blocked.'
+            exit 1
+          fi
+          if ! grep -Fqi 'PrihRashOnline' "${SMOKE_BODY}"; then
+            echo '::error::Smoke response does not contain the Dashboard identity marker; refusing to treat HTTP success as runtime success.'
+            sed -n '1,80p' "${SMOKE_BODY}" || true
+            exit 1
+          fi
 
-          echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
           mkdir -p artifacts
           jq -n --arg sourceRef "${TARGET_REF}" --arg sourceSha "${{ steps.source.outputs.sha }}" --arg deploymentId "${DEPLOYMENT_ID}" --arg webAppUrl "${WEB_APP_URL}" --arg httpCode "${HTTP_CODE}" --arg runUrl "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            '{sourceRef:$sourceRef,sourceSha:$sourceSha,deploymentId:$deploymentId,webAppUrl:$webAppUrl,smokeHttpCode:$httpCode,runUrl:$runUrl,entryPoint:"WEB_APP"}' > artifacts/dashboard-web-deployment.json
+            '{sourceRef:$sourceRef,sourceSha:$sourceSha,deploymentId:$deploymentId,webAppUrl:$webAppUrl,smokeHttpCode:$httpCode,runUrl:$runUrl,entryPoint:"WEB_APP",runtimeSmoke:"dashboard-marker"}' > artifacts/dashboard-web-deployment.json
 
       - name: Upload deployment metadata
         uses: actions/upload-artifact@v4
@@ -247,7 +261,7 @@ jobs:
           RESPONSE="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.number }}/merge" \
             -f sha='${{ steps.source.outputs.sha }}' -f merge_method=merge \
             -f commit_title='Merge validated DEV Web App hotfix' \
-            -f commit_message='Contracts, Playwright, clasp push, verified WEB_APP entry point and smoke check passed.')"
+            -f commit_message='Contracts, Playwright, clasp push, verified WEB_APP entry point and authoritative dashboard smoke check passed.')"
           [[ "$(jq -r '.merged' <<<"${RESPONSE}")" == true ]] || { echo "::error::Merge refused: $(jq -r '.message' <<<"${RESPONSE}")"; exit 1; }
           echo "sha=$(jq -r '.sha' <<<"${RESPONSE}")" >> "$GITHUB_OUTPUT"
 
@@ -295,7 +309,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr comment "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" \
-            --body "❌ DEV Web App hotfix failed closed. Run \`${GITHUB_RUN_ID}\`, candidate \`${{ steps.pr.outputs.sha }}\`. No merge claimed. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            --body "❌ DEV Web App hotfix failed closed. Run \`${GITHUB_RUN_ID}\`, candidate \`${{ steps.pr.outputs.sha }}\`. DEV deployment may have completed, but no merge is claimed without an authoritative runtime response. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Release summary
         if: always()
