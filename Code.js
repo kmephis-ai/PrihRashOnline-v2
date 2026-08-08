@@ -62,7 +62,7 @@ var PRH = Object.freeze({
   ])
 });
 
-function onOpen() {
+function prhBuildFoundationMenu_() {
   SpreadsheetApp.getUi()
     .createMenu(PRH.MENU)
     .addItem('1. Проверить установку', 'prhAttachFoundation')

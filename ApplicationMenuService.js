@@ -19,6 +19,7 @@ const PRH_APPLICATION_MENU = Object.freeze({
 
 function onOpen(e) {
   prhBuildApplicationMenu();
+  if (typeof prhBuildFoundationMenu_ === 'function') prhBuildFoundationMenu_();
   try {
     if (typeof prhRestoreDashboardShell === 'function') prhRestoreDashboardShell();
     if (typeof prhEnsureCriticalChartSources === 'function') prhEnsureCriticalChartSources();
