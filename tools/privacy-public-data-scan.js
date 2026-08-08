@@ -11,7 +11,7 @@ const CONDITIONAL_EXPORT_EXTENSIONS = new Set(['.csv','.tsv']);
 const FORBIDDEN_CONTENT = [
   { id:'real-dev-provenance', regex:/\breal\s+DEV\s+(?:data|analytics)\b/i },
   { id:'real-derived-fixture-provenance', regex:/\b(?:fixture|test data)\b[^\n]{0,80}\bderived\s+from\s+(?:DEV|production)\b/i },
-  { id:'operation-source-id', regex:/\bOP-F11-/i },
+  { id:'operation-source-id', regex:new RegExp('\\bOP-' + 'F11-', 'i') },
   { id:'embedded-sheet-export', regex:/"(?:spreadsheet|sheet)_export"\s*:/i }
 ];
 
