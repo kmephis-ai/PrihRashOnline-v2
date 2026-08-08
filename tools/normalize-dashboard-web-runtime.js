@@ -33,8 +33,23 @@ function normalizeRuntime(filePath = DASHBOARD_PATH) {
     throw new Error('Runtime normalization failed: cssEscape reference remains');
   }
 
+  // Apps Script HtmlTemplate scans the raw HTML for "<?" scriptlet openers.
+  // A client-side JS string containing the same two characters is therefore unsafe:
+  // text.indexOf('<?') can be parsed as a second server-side scriptlet during evaluate().
+  const unsafeTemplateProbe = "text.indexOf('<?')";
+  const safeTemplateProbe = "text.indexOf('<' + '?')";
+  if (html.includes(unsafeTemplateProbe)) {
+    html = html.split(unsafeTemplateProbe).join(safeTemplateProbe);
+    changed = true;
+  }
+
+  const scriptletOpeners = html.match(/<\?/g) || [];
+  if (scriptletOpeners.length !== 1 || !html.includes('<?!= initialData ?>')) {
+    throw new Error(`Runtime normalization failed: expected exactly one Apps Script template opener, found ${scriptletOpeners.length}`);
+  }
+
   if (changed) fs.writeFileSync(filePath, html, 'utf8');
-  return { changed, filePath, normalized: ['quality-selector', 'cssEscape-removal'] };
+  return { changed, filePath, normalized: ['quality-selector', 'cssEscape-removal', 'template-scriptlet-sentinel'] };
 }
 
 if (require.main === module) console.log('normalize-dashboard-web-runtime:', normalizeRuntime());
