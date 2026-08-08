@@ -7,6 +7,9 @@ on:
     paths:
       - '*.js'
       - '*.html'
+      - 'AGENTS.md'
+      - 'llms.txt'
+      - '.ai-context/**'
       - 'package.json'
       - 'package-lock.json'
       - '.nvmrc'
