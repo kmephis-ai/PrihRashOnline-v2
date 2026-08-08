@@ -45,6 +45,8 @@ jobs:
         run: node tools/privacy-public-data-scan.js
       - name: Financial reconcile synthetic
         run: node tests/financial_reconciliation_contract_test.js
+      - name: Migration reconcile synthetic
+        run: node tests/migration_reconciliation_contract_test.js
       - name: Prepare dashboard bundle
         run: npm run prepare:web
       - name: Run all contract tests
