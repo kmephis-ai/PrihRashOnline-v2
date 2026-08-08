@@ -12,7 +12,57 @@ function boundedHttpReason(statusCode, errorStatus) {
   return `APPS_SCRIPT_CONTENT_HTTP_${code}_${status}`;
 }
 
-function classifyFailure(statusCode, payloadText, errorStatus) {
+function safeFileToken(name) {
+  const token = String(name || '')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase()
+    .slice(0, 48);
+  return token || 'UNKNOWN_FILE';
+}
+
+function extractInvalidContentReason(payloadJson, files) {
+  const error = payloadJson && payloadJson.error;
+  if (!error || !Array.isArray(files)) return '';
+
+  const details = Array.isArray(error.details) ? error.details : [];
+  for (const detail of details) {
+    const violations = Array.isArray(detail && detail.fieldViolations)
+      ? detail.fieldViolations
+      : (Array.isArray(detail && detail.field_violations) ? detail.field_violations : []);
+    for (const violation of violations) {
+      const field = String(violation && violation.field || '');
+      const match = field.match(/^files(?:\[(\d+)\]|\.(\d+))\.(name|type|source)$/i);
+      if (!match) continue;
+      const index = Number(match[1] !== undefined ? match[1] : match[2]);
+      const file = files[index];
+      if (!file) return `DEPLOY_INVALID_FILE_INDEX_${index}`;
+      return `DEPLOY_INVALID_${safeFileToken(file.name)}_${match[3].toUpperCase()}`;
+    }
+  }
+
+  const message = String(error.message || '');
+  const fileCandidates = files
+    .map((file) => String(file && file.name || ''))
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  for (const fileName of fileCandidates) {
+    const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!new RegExp(`(?:^|[^A-Za-z0-9_])${escaped}(?:\\.(?:js|gs|html|json))?(?:[^A-Za-z0-9_]|$)`, 'i').test(message)) continue;
+    const lineMatch = message.match(/(?:line\s*[:#]?\s*|lineNumber\s*[:=]\s*)(\d{1,6})/i);
+    const line = lineMatch ? Number(lineMatch[1]) : 0;
+    return line > 0
+      ? `DEPLOY_INVALID_${safeFileToken(fileName)}_L${line}`
+      : `DEPLOY_INVALID_${safeFileToken(fileName)}`;
+  }
+
+  if (/manifest|appsscript/i.test(message)) return 'DEPLOY_MANIFEST_INVALID';
+  if (/duplicate/i.test(message)) return 'DEPLOY_DUPLICATE_DECLARATION';
+  if (/invalid argument|request contains an invalid argument/i.test(message)) return 'DEPLOY_INVALID_ARGUMENT_UNLOCATED';
+  return '';
+}
+
+function classifyFailure(statusCode, payloadText, errorStatus, payloadJson, files) {
   const text = String(payloadText || '');
   const status = String(errorStatus || '').toUpperCase();
 
@@ -29,13 +79,15 @@ function classifyFailure(statusCode, payloadText, errorStatus) {
     return 'APPS_SCRIPT_PROJECT_UNAVAILABLE';
   }
   if (/Syntax error:/i.test(text)) {
-    return 'DEPLOY_SYNTAX_ERROR';
+    const localized = extractInvalidContentReason(payloadJson, files);
+    return localized || 'DEPLOY_SYNTAX_ERROR';
   }
   if (statusCode === 413 || status === 'OUT_OF_RANGE' || /request entity too large|payload too large|content.*too large/i.test(text)) {
     return 'DEPLOY_CONTENT_TOO_LARGE';
   }
   if (statusCode === 400 || status === 'INVALID_ARGUMENT' || /manifest|appsscript|invalid.*file|parse/i.test(text)) {
-    return 'DEPLOY_CONTENT_INVALID';
+    const localized = extractInvalidContentReason(payloadJson, files);
+    return localized || 'DEPLOY_CONTENT_INVALID';
   }
   if (statusCode === 409 || statusCode === 412 || status === 'FAILED_PRECONDITION' || status === 'ABORTED') {
     return 'APPS_SCRIPT_CONTENT_PRECONDITION_FAILED';
@@ -158,7 +210,7 @@ async function main() {
     const pushPayload = await readResponse(pushResponse);
     if (!pushResponse.ok) {
       const errorStatus = pushPayload.json && pushPayload.json.error && pushPayload.json.error.status;
-      emit({ ok: false, reason: classifyFailure(pushResponse.status, pushPayload.text, errorStatus) });
+      emit({ ok: false, reason: classifyFailure(pushResponse.status, pushPayload.text, errorStatus, pushPayload.json, files) });
       return;
     }
     if (!pushPayload.json || !Array.isArray(pushPayload.json.files)) {
@@ -180,4 +232,11 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { boundedHttpReason, classifyFailure, toApiFile, readDeployFiles };
+module.exports = {
+  boundedHttpReason,
+  safeFileToken,
+  extractInvalidContentReason,
+  classifyFailure,
+  toApiFile,
+  readDeployFiles
+};
