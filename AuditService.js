@@ -147,22 +147,38 @@ function boundedAuditCounter_(value) {
   return Math.min(parsed, 999999999);
 }
 
+function auditHealthSuccessState_(capacity) {
+  var percent = Number(capacity && capacity.capacityPercent || 0);
+  var rotatedRows = Number(capacity && capacity.rotatedRows || 0);
+  var currentRows = Number(capacity && capacity.dataRows || 0);
+  var warning = currentRows >= PR_CONFIG.AUDIT_WARN_AT_ROWS;
+  return {
+    status: warning ? 'WARN' : 'PASS',
+    reasonCode: warning ? 'AUDIT_CAPACITY_WARNING' : 'OK',
+    auditConsecutiveFailures: 0,
+    auditCapacityPercent: Math.max(0, Math.min(100, Math.round(percent))),
+    auditRotatedRows: Math.max(0, Math.round(rotatedRows))
+  };
+}
+
+function auditHealthFailureState_(reasonCode, failureCount, consecutiveFailures) {
+  return {
+    status: 'FAIL',
+    reasonCode: String(reasonCode || 'AUDIT_WRITE_FAILED').slice(0, 64),
+    auditFailureCount: Math.min(boundedAuditCounter_(failureCount) + 1, 999999999),
+    auditConsecutiveFailures: Math.min(boundedAuditCounter_(consecutiveFailures) + 1, 999999999)
+  };
+}
+
 function recordAuditHealthSuccess_(capacity) {
   try {
-    var percent = Number(capacity && capacity.capacityPercent || 0);
-    var rotatedRows = Number(capacity && capacity.rotatedRows || 0);
-    var warnAt = PR_CONFIG.AUDIT_WARN_AT_ROWS;
-    var currentRows = Number(capacity && capacity.dataRows || 0);
-    var warning = currentRows >= warnAt;
+    var state = auditHealthSuccessState_(capacity);
     var props = auditHealthProperties_();
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS, warning ? 'WARN' : 'PASS');
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.REASON, warning ? 'AUDIT_CAPACITY_WARNING' : 'OK');
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES, '0');
-    props.setProperty(
-      PR_AUDIT_HEALTH_KEYS.CAPACITY_PERCENT,
-      String(Math.max(0, Math.min(100, Math.round(percent))))
-    );
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.LAST_ROTATED_ROWS, String(Math.max(0, Math.round(rotatedRows))));
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS, state.status);
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.REASON, state.reasonCode);
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES, String(state.auditConsecutiveFailures));
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.CAPACITY_PERCENT, String(state.auditCapacityPercent));
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.LAST_ROTATED_ROWS, String(state.auditRotatedRows));
     props.setProperty(PR_AUDIT_HEALTH_KEYS.LAST_SUCCESS_AT, new Date().toISOString());
     return true;
   } catch (_) {
@@ -173,12 +189,15 @@ function recordAuditHealthSuccess_(capacity) {
 function recordAuditHealthFailure_(reasonCode) {
   try {
     var props = auditHealthProperties_();
-    var failures = boundedAuditCounter_(props.getProperty(PR_AUDIT_HEALTH_KEYS.FAILURE_COUNT));
-    var consecutive = boundedAuditCounter_(props.getProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES));
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS, 'FAIL');
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.REASON, String(reasonCode || 'AUDIT_WRITE_FAILED').slice(0, 64));
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.FAILURE_COUNT, String(Math.min(failures + 1, 999999999)));
-    props.setProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES, String(Math.min(consecutive + 1, 999999999)));
+    var state = auditHealthFailureState_(
+      reasonCode,
+      props.getProperty(PR_AUDIT_HEALTH_KEYS.FAILURE_COUNT),
+      props.getProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES)
+    );
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.STATUS, state.status);
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.REASON, state.reasonCode);
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.FAILURE_COUNT, String(state.auditFailureCount));
+    props.setProperty(PR_AUDIT_HEALTH_KEYS.CONSECUTIVE_FAILURES, String(state.auditConsecutiveFailures));
     props.setProperty(PR_AUDIT_HEALTH_KEYS.LAST_FAILURE_AT, new Date().toISOString());
     return true;
   } catch (_) {
