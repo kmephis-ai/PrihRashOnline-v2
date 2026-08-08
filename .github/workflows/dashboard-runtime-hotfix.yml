@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Prepare dashboard bundle
+        run: npm run prepare:web
+
       - name: Verify parser-safe dashboard bootstrap
         run: |
           node tests/apps_script_runtime_release_gate_contract_test.js
