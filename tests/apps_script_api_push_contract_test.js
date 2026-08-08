@@ -4,7 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { classifyFailure, toApiFile, readDeployFiles } = require('../tools/apps-script-api-push');
+const { boundedHttpReason, classifyFailure, toApiFile, readDeployFiles } = require('../tools/apps-script-api-push');
 
 assert.deepStrictEqual(toApiFile('appsscript.json', '{}'), { name: 'appsscript', type: 'JSON', source: '{}' });
 assert.deepStrictEqual(toApiFile('RuntimeHealth.js', 'function x(){}'), { name: 'RuntimeHealth', type: 'SERVER_JS', source: 'function x(){}' });
@@ -21,7 +21,10 @@ assert.strictEqual(classifyFailure(413, '', ''), 'DEPLOY_CONTENT_TOO_LARGE');
 assert.strictEqual(classifyFailure(409, '', 'FAILED_PRECONDITION'), 'APPS_SCRIPT_CONTENT_PRECONDITION_FAILED');
 assert.strictEqual(classifyFailure(429, '', 'RESOURCE_EXHAUSTED'), 'APPS_SCRIPT_API_RATE_LIMITED');
 assert.strictEqual(classifyFailure(503, '', 'UNAVAILABLE'), 'APPS_SCRIPT_API_SERVER_ERROR');
-assert.strictEqual(classifyFailure(418, 'opaque', 'UNKNOWN'), 'APPS_SCRIPT_CONTENT_PUSH_FAILED');
+assert.strictEqual(classifyFailure(405, 'opaque', 'METHOD_NOT_ALLOWED'), 'APPS_SCRIPT_CONTENT_HTTP_405_METHOD_NOT_ALLOWED');
+assert.strictEqual(classifyFailure(418, 'opaque', 'unknown value with spaces'), 'APPS_SCRIPT_CONTENT_HTTP_418_UNKNOWN');
+assert.strictEqual(boundedHttpReason('not-a-code', 'UNKNOWN'), 'APPS_SCRIPT_CONTENT_HTTP_0_UNKNOWN');
+assert.strictEqual(boundedHttpReason(422, 'UNPROCESSABLE_ENTITY'), 'APPS_SCRIPT_CONTENT_HTTP_422_UNPROCESSABLE_ENTITY');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'prh-api-push-'));
 fs.writeFileSync(path.join(temp, 'appsscript.json'), '{}');
@@ -42,6 +45,7 @@ assert(source.includes('https://script.googleapis.com/v1/projects/'), 'push must
 assert(source.includes("method: 'PUT'"), 'content update must use PUT');
 assert(source.includes('auth.tokens[profileName]'), 'push must use named clasp OAuth profile');
 assert(source.includes('pushPayload.json.error.status'), 'push must classify only the structured Google error status in addition to private message matching');
+assert(source.includes('APPS_SCRIPT_CONTENT_HTTP_'), 'unknown HTTP failures must remain machine-observable without raw error text');
 
 // The raw Google response may be inspected privately for classification, but it must
 // never be emitted/logged. Emitted failure objects are restricted to ok + reason.
@@ -55,6 +59,7 @@ console.log('apps_script_api_push_contract_test: OK', {
   deterministicFileMapping: true,
   manifestRequired: true,
   structuredErrors: true,
+  boundedHttpFallback: true,
   boundedErrors: true,
   credentialOutput: false,
   rawApiOutput: false
