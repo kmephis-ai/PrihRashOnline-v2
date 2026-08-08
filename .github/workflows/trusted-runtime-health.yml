@@ -105,22 +105,51 @@ jobs:
           CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
           PARAMS="$(jq -nc --arg candidateSha "${CANDIDATE_SHA}" --arg sourceTreeHash "${SOURCE_TREE_HASH}" '[{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash}]')"
           cd "${RUNNER_TEMP}/health-run"
+          STDERR_FILE="${RUNNER_TEMP}/health-clasp-stderr.log"
           set +e
-          HEALTH_OUTPUT="$(${CLASP} run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>&1)"
+          HEALTH_JSON="$(${CLASP} --json run-function prhReleaseHealthCheckToken --params "${PARAMS}" 2>"${STDERR_FILE}")"
           CLASP_STATUS=$?
           set -e
+
           if [[ "${CLASP_STATUS}" -ne 0 ]]; then
+            SAFE_ERROR="$(cat "${STDERR_FILE}" 2>/dev/null || true)"
             REASON='AUTHENTICATED_EXECUTION_FAILED'
-            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project' <<<"${HEALTH_OUTPUT}"; then REASON='STANDARD_CLOUD_PROJECT_REQUIRED'; fi
-            if grep -Eqi 'API executable|not deployed|deployment' <<<"${HEALTH_OUTPUT}"; then REASON='API_EXECUTABLE_UNAVAILABLE'; fi
-            if grep -Eqi 'PERMISSION_DENIED|insufficient.*scope|unauthorized|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${HEALTH_OUTPUT}"; then REASON='OAUTH_EXECUTION_UNAUTHORIZED'; fi
+            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project' <<<"${SAFE_ERROR}"; then REASON='STANDARD_CLOUD_PROJECT_REQUIRED'; fi
+            if grep -Eqi 'API executable|not deployed|deployment' <<<"${SAFE_ERROR}"; then REASON='API_EXECUTABLE_UNAVAILABLE'; fi
+            if grep -Eqi 'PERMISSION_DENIED|insufficient.*scope|unauthorized|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${SAFE_ERROR}"; then REASON='OAUTH_EXECUTION_UNAUTHORIZED'; fi
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          TOKEN="$(grep -oE "PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+" <<<"${HEALTH_OUTPUT}" | head -1 || true)"
-          if [[ -z "${TOKEN}" ]]; then
+
+          if ! jq -e 'type == "object"' <<<"${HEALTH_JSON}" >/dev/null 2>&1; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=AUTHENTICATED_EXECUTION_INVALID_JSON" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ERROR_CODE="$(jq -r '.error.code // empty' <<<"${HEALTH_JSON}")"
+          ERROR_MESSAGE="$(jq -r '.error.message // empty' <<<"${HEALTH_JSON}")"
+          ERROR_DETAILS="$(jq -c '.error.details // []' <<<"${HEALTH_JSON}")"
+          if [[ -n "${ERROR_CODE}${ERROR_MESSAGE}" || "${ERROR_DETAILS}" != '[]' ]]; then
+            SAFE_ERROR="${ERROR_CODE} ${ERROR_MESSAGE} ${ERROR_DETAILS}"
+            REASON='AUTHENTICATED_EXECUTION_FAILED'
+            RUNTIME_REASON="$(grep -oE 'RUNTIME_HEALTH_[A-Z_]+' <<<"${SAFE_ERROR}" | head -1 || true)"
+            if [[ -n "${RUNTIME_REASON}" ]]; then REASON="${RUNTIME_REASON}"; fi
+            if grep -Eqi 'standard (Google )?Cloud project|standard GCP project' <<<"${SAFE_ERROR}"; then REASON='STANDARD_CLOUD_PROJECT_REQUIRED'; fi
+            if grep -Eqi 'API executable|not deployed|deployment' <<<"${SAFE_ERROR}"; then REASON='API_EXECUTABLE_UNAVAILABLE'; fi
+            if grep -Eqi 'PERMISSION_DENIED|insufficient.*scope|unauthorized|(^|[^0-9])(401|403)([^0-9]|$)' <<<"${SAFE_ERROR}"; then REASON='OAUTH_EXECUTION_UNAUTHORIZED'; fi
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TOKEN="$(jq -r '.response // empty' <<<"${HEALTH_JSON}")"
+          TOKEN_PATTERN="^PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+$"
+          if ! [[ "${TOKEN}" =~ ${TOKEN_PATTERN} ]]; then
             echo "result=FAIL" >> "$GITHUB_OUTPUT"
             echo "reason=HEALTH_TOKEN_MISSING_OR_MISMATCH" >> "$GITHUB_OUTPUT"
             echo "latency_ms=0" >> "$GITHUB_OUTPUT"
