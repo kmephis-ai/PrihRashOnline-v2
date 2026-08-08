@@ -12,6 +12,7 @@ on:
       - '.claspignore'
       - '.clasp.json.example'
       - '.gitignore'
+      - 'lib/**'
       - 'tests/**'
       - 'tools/**'
       - 'docs/**'
@@ -42,6 +43,8 @@ jobs:
         run: node tools/secret-scan.js
       - name: Privacy public-data scan
         run: node tools/privacy-public-data-scan.js
+      - name: Financial reconcile synthetic
+        run: node tests/financial_reconciliation_contract_test.js
       - name: Prepare dashboard bundle
         run: npm run prepare:web
       - name: Run all contract tests
