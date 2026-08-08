@@ -82,6 +82,11 @@ async function refreshOAuth(authPath, profileName) {
   return accessToken;
 }
 
+function canonicalDeployBytes(bytes) {
+  if (!Buffer.isBuffer(bytes)) throw new Error('BACKUP_LOCAL_SOURCE_BYTES_INVALID');
+  return Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
+}
+
 function localSourceTreeHash(sourceRoot) {
   const root = path.resolve(sourceRoot);
   const names = listDeployFiles(root);
@@ -89,7 +94,7 @@ function localSourceTreeHash(sourceRoot) {
     const sourcePath = path.join(root, name);
     const stat = fs.lstatSync(sourcePath);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('BACKUP_LOCAL_SOURCE_FILE_INVALID');
-    const bytes = fs.readFileSync(sourcePath);
+    const bytes = canonicalDeployBytes(fs.readFileSync(sourcePath));
     return { path: name, sha256: sha256(bytes), size: bytes.length };
   });
   return stableFileSetHash(descriptors);
@@ -216,6 +221,7 @@ module.exports = {
   MAX_CHUNK_ROWS,
   parseArgs,
   safeReason,
+  canonicalDeployBytes,
   localSourceTreeHash,
   validateDescribe,
   fetchWorkbookSourceDirect
