@@ -5,7 +5,7 @@
  * запрещена на двух независимых уровнях: конфигурацией и явным guard.
  */
 var PR_CONFIG = Object.freeze({
-  VERSION: '0.1.1',
+  VERSION: '0.1.2',
   MODE: 'DRY_RUN',
   REQUIRE_CONFIRMATION: true,
   ALLOW_ID_WRITES: false,
@@ -14,6 +14,21 @@ var PR_CONFIG = Object.freeze({
   MAX_AUDIT_ROWS: 1000,
   AUDIT_ROTATE_BATCH_ROWS: 250,
   AUDIT_WARN_AT_ROWS: 800,
+  FINOPS: Object.freeze({
+    MODE: 'FREE_ONLY',
+    PAID_OVERAGE_ALLOWED: false,
+    THRESHOLDS: Object.freeze({
+      NOTICE: 50,
+      INCIDENT: 70,
+      DEGRADE_OPTIONAL: 85,
+      STOP_OPTIONAL_WRITES: 95,
+      HARD_STOP: 100
+    }),
+    // Billable-by-usage providers are intentionally absent by default. A future
+    // provider PR must add an explicit conservative monthlySafetyUnits envelope
+    // and keep paidOverageAllowed=false before CostGuardService can authorize it.
+    PROVIDERS: Object.freeze({})
+  }),
   SHEETS: Object.freeze({
     SETTINGS: '09 Настройки',
     CONTROL: '10 Контроль',
