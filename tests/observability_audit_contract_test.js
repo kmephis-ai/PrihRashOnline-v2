@@ -38,7 +38,7 @@ function makeContext(overrides = {}) {
     },
     PR_CONFIG: {
       MAX_AUDIT_ROWS: 1000,
-      AUDIT_ROTATE_BATCH_ROWS: 100,
+      AUDIT_ROTATE_BATCH_ROWS: 250,
       AUDIT_WARN_AT_ROWS: 800,
       SHEETS: { AUDIT: '13 Журнал' }
     },
@@ -77,16 +77,20 @@ function makeContext(overrides = {}) {
 {
   const { context } = makeContext();
   assert.deepStrictEqual(
-    JSON.parse(JSON.stringify(context.auditRetentionPlan_(999, 1000, 100))),
+    JSON.parse(JSON.stringify(context.auditRetentionPlan_(799, 1000, 250))),
+    { dataRows: 799, rowsToDelete: 0, retainedRows: 799, capacityPercent: 80 }
+  );
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(context.auditRetentionPlan_(999, 1000, 250))),
     { dataRows: 999, rowsToDelete: 0, retainedRows: 999, capacityPercent: 100 }
   );
   assert.deepStrictEqual(
-    JSON.parse(JSON.stringify(context.auditRetentionPlan_(1000, 1000, 100))),
-    { dataRows: 1000, rowsToDelete: 100, retainedRows: 900, capacityPercent: 100 }
+    JSON.parse(JSON.stringify(context.auditRetentionPlan_(1000, 1000, 250))),
+    { dataRows: 1000, rowsToDelete: 250, retainedRows: 750, capacityPercent: 100 }
   );
   assert.deepStrictEqual(
-    JSON.parse(JSON.stringify(context.auditRetentionPlan_(1105, 1000, 100))),
-    { dataRows: 1105, rowsToDelete: 205, retainedRows: 900, capacityPercent: 100 }
+    JSON.parse(JSON.stringify(context.auditRetentionPlan_(1105, 1000, 250))),
+    { dataRows: 1105, rowsToDelete: 355, retainedRows: 750, capacityPercent: 100 }
   );
   assert.throws(() => context.auditRetentionPlan_(1000, 1000, 1000), /AUDIT_RETENTION_POLICY_INVALID/);
 }
@@ -128,13 +132,21 @@ function makeContext(overrides = {}) {
   });
   const eventId = context.appendAudit_({ type: 'SYNTHETIC_TEST' });
   assert.strictEqual(eventId, 'EVT-1001');
-  assert.strictEqual(deletedRows, 100);
-  assert.strictEqual(insertedRows, 100);
+  assert.strictEqual(deletedRows, 250);
+  assert.strictEqual(insertedRows, 250);
   assert.strictEqual(writes.length, 1);
   assert.strictEqual(writes[0][0][10], 'COR-SYNTHETIC');
+  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_STATUS, 'PASS');
+  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_REASON, 'OK');
+  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '250');
+  assert.strictEqual(Number(properties.values.PRH_AUDIT_HEALTH_CAPACITY_PERCENT) < 80, true);
+}
+
+{
+  const { context, properties } = makeContext();
+  assert.strictEqual(context.recordAuditHealthSuccess_({ dataRows: 850, capacityPercent: 85, rotatedRows: 0 }), true);
   assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_STATUS, 'WARN');
   assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_REASON, 'AUDIT_CAPACITY_WARNING');
-  assert.strictEqual(properties.values.PRH_AUDIT_HEALTH_LAST_ROTATED_ROWS, '100');
 }
 
 {
@@ -159,7 +171,7 @@ function makeContext(overrides = {}) {
     errorClass: 'NONE',
     quotaClass: 'apps-script',
     auditCapacityPercent: 80,
-    auditRotatedRows: 100,
+    auditRotatedRows: 250,
     auditFailureCount: 2,
     auditConsecutiveFailures: 1,
     amountMinor: 12345,
@@ -171,7 +183,7 @@ function makeContext(overrides = {}) {
     errorClass: 'NONE',
     quotaClass: 'apps-script',
     auditCapacityPercent: 80,
-    auditRotatedRows: 100,
+    auditRotatedRows: 250,
     auditFailureCount: 2,
     auditConsecutiveFailures: 1
   });
@@ -185,6 +197,7 @@ assert(auditSource.includes("return '';"), 'audit persistence failure must be is
 
 console.log('observability_audit_contract_test: OK', {
   boundedRotation: true,
+  warningRecovery: true,
   gridCapacityRestored: true,
   failureIsolation: true,
   healthSignal: true,
