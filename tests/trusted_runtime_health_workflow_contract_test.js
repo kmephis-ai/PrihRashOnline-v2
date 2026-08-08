@@ -26,6 +26,7 @@ assert(workflow.includes('trusted-runtime-health failed closed'), 'health failur
 assert(workflow.includes('statuses: write'), 'runtime health requires only commit-status write visibility');
 assert(workflow.includes('statuses/${CANDIDATE_SHA}'), 'runtime result must target the exact candidate SHA');
 assert(workflow.includes("context='trusted-runtime-health'"), 'runtime status must use stable machine-readable context');
+assert(workflow.includes('trusted-runtime-health-reason:${REASON}'), 'runtime status must expose technical reason code as a second context');
 assert(workflow.includes("STATE='success'"), 'verified runtime must publish success status');
 assert(workflow.includes("STATE='failure'"), 'failed runtime must publish failure status');
 assert(!workflow.includes('issues: write'), 'runtime health must not gain issue mutation permission');
@@ -42,7 +43,8 @@ forbiddenEvidence.forEach((field) => assert(!evidenceObjectMatch[0].toLowerCase(
 const statusBlock = workflow.slice(workflow.indexOf('- name: Publish machine-visible runtime status'), workflow.indexOf('- name: Enforce authenticated runtime health'));
 assert(statusBlock.includes('REASON_CODE'), 'commit status may expose only technical reason code');
 assert(statusBlock.includes("DESCRIPTION='CI-002 DEV_VERIFIED'"), 'successful status description must be static technical metadata');
-assert(statusBlock.includes('DESCRIPTION="CI-002 ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"'), 'failed status description must be limited to technical reason code');
+assert(statusBlock.includes('DESCRIPTION="CI-002 ${REASON}"'), 'failed status description must be limited to technical reason code');
+assert(statusBlock.includes("description='CI-002 technical reason'"), 'reason-coded status description must be static');
 assert(!statusBlock.includes('HEALTH_OUTPUT'), 'raw authenticated output must never enter commit status');
 const forbiddenStatusPayload = ['amount','income','expense','balance','category','merchant','counterparty','payload','transaction'];
 forbiddenStatusPayload.forEach((field) => assert(!statusBlock.toLowerCase().includes(field), `commit status block includes forbidden field class: ${field}`));
@@ -53,6 +55,7 @@ console.log('trusted_runtime_health_workflow_contract_test: OK', {
   authentication: 'owner OAuth',
   exactBuild: true,
   machineVisibleStatus: true,
+  machineVisibleReason: true,
   manualMarker: false,
   anonymousCurl: false
 });
