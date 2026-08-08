@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   deploy:
@@ -71,7 +73,18 @@ jobs:
           echo "url=${WEB_APP_URL}" >> "$GITHUB_OUTPUT"
           echo "WEB_APP_URL=${WEB_APP_URL}"
 
-      - name: Verify deployment metadata
+      - name: Report successful deployment to PR
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+          WEB_APP_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          echo "Deployment: ${{ steps.deploy.outputs.deployment_id }}"
-          echo "Web App: ${{ steps.deploy.outputs.url }}"
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "✅ Dashboard runtime hotfix deployed with clasp v3. Candidate: \`${GITHUB_SHA}\`; deployment: \`${DEPLOYMENT_ID}\`; Web App: ${WEB_APP_URL}; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Report failed deployment to PR
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment 11 --repo "${GITHUB_REPOSITORY}" --body "❌ Dashboard runtime hotfix deployment failed. Candidate: \`${GITHUB_SHA}\`; run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
