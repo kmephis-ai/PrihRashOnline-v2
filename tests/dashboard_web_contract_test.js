@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { generateSyntheticDashboardFixture } = require('./fixtures/synthetic_dashboard');
 
 const root = path.join(__dirname, '..');
 const htmlPath = path.join(root, 'DashboardWebApp.html');
@@ -42,9 +43,7 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
   'id="view-detail"', 'id="detail-content"', 'data-drilldown', 'data-close-drilldown',
   'function renderExecutiveSecondary(data)', 'function openDrilldown(key)', 'function drilldownTable(rows)',
   '.prhGetWebDashboardDataV13(year, month, activeView)', 'Executive-панель',
-  'const operations = [11,17,31,18,25,17,9,0,0,0,0,0]',
-  "{label:'Зарплата',value:66712}", "{label:'Другое',value:58775}",
-  'selectedYearIncome:3322811', 'selectedMonthIncome:151360',
+  'monthlyIncome:', 'monthStructure:', 'summary:', 'executive:', 'drilldowns:',
   'scrollbar-width: none', '.dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis',
   'id="action-bar"', 'id="action-refresh"', 'id="action-quality"', 'id="action-snapshot"', 'id="action-pdf"',
   'function runUnifiedRefresh()', 'function loadQualityWorkbench()', 'function renderQualityWorkbench(workbench)',
@@ -53,6 +52,15 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
   ".prhCreateIncomePdfReport('MONTH')", '.prhSuggestCategoryForQualityProposal(proposalId)',
   'v1.0 RC'
 ].forEach((required) => expect(html.includes(required), `Missing v1 RC dashboard contract: ${required}`));
+
+const synthetic = generateSyntheticDashboardFixture({ seed: 20260808 });
+expect(synthetic.testMetadata.synthetic === true, 'Public dashboard test input must be explicitly synthetic');
+expect(synthetic.testMetadata.privacy_class === 'PUBLIC_SYNTHETIC', 'Synthetic dashboard privacy marker missing');
+expect(synthetic.period.months.length === 12, 'Synthetic dashboard must expose twelve months');
+expect(synthetic.monthlyIncome.length === 12, 'Synthetic dashboard must expose twelve monthly buckets');
+expect(synthetic.yearlyIncome.length > 0, 'Synthetic dashboard needs at least one year for chart contracts');
+expect(synthetic.drilldowns.month.rows.every((row) => row.id.startsWith('SYN-')), 'Synthetic drill-down ids must use SYN- prefix');
+expect(synthetic.drilldowns.month.rows.every((row) => /Synthetic/i.test(row.description)), 'Synthetic drill-down descriptions must remain fictional');
 
 expect(!service.includes("QUALITY_CELL: 'E397'"), 'Quality score must not use stale E397');
 expect(!html.includes('scrollbar-width: thin'), 'Mobile tab scrollbar must remain hidden');
@@ -66,4 +74,8 @@ expect((html.match(/data-testid="filter-card"/g) || []).length === 5, 'Dashboard
 expect((html.match(/class="action-button/g) || []).length === 4, 'Dashboard must expose exactly four primary quick actions');
 expect(html.length < 120000, `HTML payload is unexpectedly large: ${html.length}`);
 
-console.log('dashboard_web_contract_test: OK', { htmlLength: html.length });
+console.log('dashboard_web_contract_test: OK', {
+  htmlLength: html.length,
+  syntheticYears: synthetic.yearlyIncome.length,
+  syntheticMonthRows: synthetic.drilldowns.month.rows.length
+});
