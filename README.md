@@ -2,7 +2,7 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с приватным Web Dashboard и GitHub как инженерным control plane.
 
-> **Текущий статус:** R0 platform baseline. Финансовая сверка, migration reconciliation, synthetic-only public boundary, reproducible supply chain, exact-SHA trusted DEV delivery, portable encrypted restore, privacy-safe observability и `FREE_ONLY` guard уже машинно доказаны. После DOC-001 `MASTER-G0` и `MASTER-G2` закрыты; до выхода из R0 остаётся AI Engineering contract chain (`AIENG-001..003`) для `MASTER-G1`.
+> **Текущий статус:** R0 platform baseline. `MASTER-G0` и `MASTER-G2` закрыты. После AIENG-001 repository AI contract становится machine-enforced; до полного выхода из R0 остаются `AIENG-002` (Roadmap-to-agent task protocol) и `AIENG-003` (read-only multi-AI review) для `MASTER-G1`.
 
 ## Принципы
 
@@ -12,6 +12,17 @@
 - приватная книга Google остаётся текущим primary data store/adapter; полный history cutover не считается завершённым до отдельного migration gate;
 - обычная инженерная доставка автоматизирована, но privacy, paid-service activation и irreversible production-data actions остаются policy boundaries;
 - `FREE_ONLY` — исполняемый invariant: неизвестный billable provider fail-closed, paid overage автоматически не включается.
+
+## AI agents
+
+Root [`AGENTS.md`](AGENTS.md) — обязательный repository AI operating contract. Он фиксирует source precedence, Autonomy Contract v2, one-writer lifecycle, public/private data classification, `FREE_ONLY`, exact machine gates, financial-write/migration policy, reproducibility, Google↔future-YDB adapter boundary, Definition of Done и CI-red recovery.
+
+Короткие public-safe entry points:
+
+- [`.ai-context/PROJECT_CONTEXT.md`](.ai-context/PROJECT_CONTEXT.md)
+- [`llms.txt`](llms.txt)
+
+Private household/runtime/credential/backup context в эти файлы не добавляется.
 
 ## Dashboard
 
@@ -49,7 +60,7 @@ agent/<ID>-<slug> + PR to main
         ↓
 PR Validation
   zero deploy secrets
-  policy/security/privacy/FREE_ONLY/contracts/UI
+  policy/security/privacy/FREE_ONLY/docs/AI-contract/contracts/UI
   immutable Apps Script candidate bound to exact PR SHA
         ↓
 Trusted DEV Deploy
@@ -76,6 +87,8 @@ Main Verification
 
 ## Документация
 
+- [Repository AI contract](AGENTS.md)
+- [Public-safe AI project context](.ai-context/PROJECT_CONTEXT.md)
 - [Текущий статус и gates](docs/PROJECT_STATUS.md)
 - [Архитектура](docs/architecture.md)
 - [Release / autonomous delivery](docs/RELEASE_PROCESS.md)
@@ -90,4 +103,4 @@ Main Verification
 
 ## Что дальше
 
-R0 не считается полностью закрытым до `MASTER-G1`: repository AI contract, executable Roadmap-to-agent protocol и read-only multi-AI review protocol (`AIENG-001..003`). Только после закрытия всех R0 master gates приоритет переходит к R1 canonical financial platform (`FIN-010`, затем `DATA-010` и domain/adapters).
+После merge AIENG-001 остаются dependency-ordered `AIENG-002 -> AIENG-003`. Только после их `DONE` закрывается `MASTER-G1`, R0 полностью завершается и highest-priority work переходит к R1 canonical financial platform (`FIN-010`, затем `DATA-010` и domain/adapters).
