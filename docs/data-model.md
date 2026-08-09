@@ -4,7 +4,7 @@
 
 Google Sheets остаётся private primary store/current adapter. Web Dashboard не копирует финансовую историю в GitHub и не создаёт public shadow database.
 
-R0 уже отделяет **financial truth rules** от legacy spreadsheet totals через reconciliation contracts, но полный canonical schema/domain extraction и full-history migration относятся к следующим Roadmap waves. Поэтому текущую Google layout нельзя считать окончательным portable domain model.
+R0 отделил **financial truth rules** от legacy spreadsheet totals. FIN-010 зафиксировал versioned KPI Dictionary v1. DATA-010 вводит portable canonical transaction schema v1 независимо от Google Sheet headers/UI. Full-history migration и repository adapter остаются отдельными последующими Roadmap items.
 
 ## Основные private sheets
 
@@ -23,16 +23,42 @@ R0 уже отделяет **financial truth rules** от legacy spreadsheet tot
 
 Legacy monthly/summary cells не используются как authoritative golden truth для financial CI.
 
-Canonical financial reconciliation вычисляет expected semantics из transaction rules и machine-test invariants для:
+Canonical financial reconciliation + KPI Dictionary v1 задают semantics для:
 
-- income / expense / cash-flow;
+- Income / Expense / Cash Flow / Savings / Budget variance;
 - transfer neutrality;
 - refund/reversal behavior;
 - zero values;
-- integer-minor-unit rounding;
+- integer-minor-unit money/rounding;
+- explicit period/currency policy;
 - category partition rules.
 
+Machine source: `lib/finance/kpi_dictionary.v1.json`; human contract: `docs/finance/KPI_DICTIONARY.md`.
+
 Реальные reconciliation values/deltas остаются private; наружу выходит только technical PASS/FAIL.
+
+## Canonical Transaction v1
+
+Portable domain record определён в:
+
+- `lib/domain/canonical_transaction.v1.schema.json` — `PRH_CANONICAL_TRANSACTION_V1`;
+- `lib/domain/canonical_transaction.js` — strict validator + compatibility helpers;
+- `docs/data/CANONICAL_TRANSACTION_SCHEMA.md` — normative human contract.
+
+Schema v1 содержит explicit:
+
+- stable `transaction_id`;
+- RFC3339 `occurred_at`;
+- type/status;
+- non-negative integer `amount_minor` + 3-letter uppercase `currency`;
+- account/destination/category/member/project/tags;
+- counterparty/description;
+- reversal semantics;
+- structured provenance.
+
+Unknown canonical fields, duplicate transaction identity, invalid money/currency, invalid transfer/refund semantics и duplicate logical source identity отклоняются fail-closed.
+
+Canonical schema не разрешает writes сама по себе. Она задаёт portable record contract, который будущие application/repository adapters обязаны соблюдать.
 
 ## Source-to-canonical provenance
 
@@ -44,15 +70,23 @@ Migration reconciliation требует deterministic source identity/fingerprin
 - core-field mismatch;
 - non-idempotent duplicate import.
 
+DATA-010 разделяет:
+
+- immutable logical source identity: `source_system + identity_strategy + source_record_id + transform_version`;
+- imported source snapshot fingerprint: `source_fingerprint`;
+- mutable physical locator: `source_position`.
+
+`source_position` не является logical identity. Изменение row position не должно менять logical source identity. Для DATA-001 legacy shape используется `CONTENT_FINGERPRINT_V1`, поскольку DATA-001 fingerprint не зависит от row movement. Для providers со stable external ID предусмотрен `EXTERNAL_ID`.
+
 Stored legacy status не переопределяет computed reconciliation result.
 
-Полный history migration **не считается завершённым** до отдельного deterministic migration Roadmap item с backup/restore/private reconciliation evidence.
+Full-history migration **не считается завершённым** до отдельного deterministic migration Roadmap item с backup/restore/private reconciliation evidence.
 
 ## Dashboard transaction fields
 
-Текущие services распознают ключевые transaction fields по headers where possible, включая date/type/amount/category и дополнительные ID/description/status columns при наличии.
+Текущие services распознают transaction fields по Sheet headers where possible. Эта compatibility — adapter concern, не canonical domain contract.
 
-Эта spreadsheet header compatibility — adapter concern. Будущий `DATA-010` зафиксирует versioned canonical transaction schema независимо от UI/Sheet column layout.
+DATA-010 canonical fields не определяются порядком/названием Google columns. Будущий Google repository adapter (`ARCH-011`) обязан преобразовывать Sheet representation в portable schema, а не протаскивать Spreadsheet layout в domain layer.
 
 ## Quality queue — `11 Предпросмотр`
 
@@ -78,7 +112,7 @@ KPI/control snapshots могут содержать реальные household a
 - они остаются в private Google workbook;
 - их реальные значения не копируются в GitHub regression fixtures/docs/issues;
 - public tests используют независимо сгенерированные synthetic equivalents;
-- snapshot/readback не делает snapshot canonical financial truth выше transaction reconciliation rules.
+- snapshot/readback не делает snapshot canonical financial truth выше transaction reconciliation/KPI rules.
 
 ## Audit — `13 Журнал`
 
@@ -124,15 +158,15 @@ Cost Guard:
 
 Если public test нуждается в финансовой форме/edge case, данные генерируются независимо deterministic synthetic generator'ом.
 
-## Будущий canonical model
+## R1 canonical model
 
-R1 будет последовательно вводить:
+Dependency order:
 
-1. versioned KPI Dictionary (`FIN-010`);
-2. canonical transaction schema (`DATA-010`);
-3. pure domain/application core;
-4. repository contracts;
-5. Google adapter и future YDB adapter;
-6. deterministic full-history migration only after backup/reconciliation gates.
+1. versioned KPI Dictionary (`FIN-010`) — DONE;
+2. canonical transaction schema (`DATA-010`) — current item;
+3. pure domain/application core (`ARCH-010`);
+4. repository contracts + Google adapter (`ARCH-011`);
+5. analytics contract (`ANL-010`);
+6. deterministic full-history migration only after backup/reconciliation dependencies (`MIG-010`).
 
 UI не должен знать, какой storage adapter является primary; financial truth живёт в versioned domain rules/contracts.

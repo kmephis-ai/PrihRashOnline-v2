@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kmephis-ai/PrihRashOnline-v2/lib/domain/canonical_transaction.v1.schema.json",
+  "title": "PrihRashOnline Canonical Transaction v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schema_version", "transaction_id", "occurred_at", "type", "status",
+    "amount_minor", "currency", "account_id", "destination_account_id", "category_id",
+    "member_id", "project_id", "tags", "counterparty", "description",
+    "reverses_transaction_id", "adjustment_semantics", "provenance"
+  ],
+  "properties": {
+    "schema": { "const": "PRH_CANONICAL_TRANSACTION_V1" },
+    "schema_version": { "const": 1 },
+    "transaction_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "type": { "enum": ["income", "expense", "transfer", "refund", "adjustment"] },
+    "status": { "enum": ["posted", "pending", "void"] },
+    "amount_minor": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "account_id": { "$ref": "#/$defs/id" },
+    "destination_account_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "category_id": { "$ref": "#/$defs/id" },
+    "member_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "project_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "tags": {
+      "type": "array", "maxItems": 64, "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+    },
+    "counterparty": { "type": ["string", "null"], "maxLength": 240 },
+    "description": { "type": ["string", "null"], "maxLength": 1000 },
+    "reverses_transaction_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "adjustment_semantics": { "enum": [null, "expense_reduction"] },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_system", "source_container", "source_record_id", "source_fingerprint",
+        "identity_strategy", "transform_version", "source_position"
+      ],
+      "properties": {
+        "source_system": { "$ref": "#/$defs/id" },
+        "source_container": { "type": ["string", "null"], "maxLength": 240 },
+        "source_record_id": { "type": "string", "minLength": 3, "maxLength": 192 },
+        "source_fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "identity_strategy": { "enum": ["EXTERNAL_ID", "CONTENT_FINGERPRINT_V1"] },
+        "transform_version": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "source_position": { "type": ["string", "null"], "maxLength": 128 }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "transfer" } } },
+      "then": { "properties": { "destination_account_id": { "$ref": "#/$defs/id" } } },
+      "else": { "properties": { "destination_account_id": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "refund" } } },
+      "then": {
+        "anyOf": [
+          { "properties": { "reverses_transaction_id": { "$ref": "#/$defs/id" } } },
+          { "properties": { "adjustment_semantics": { "const": "expense_reduction" } } }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "adjustment" } } },
+      "then": { "properties": { "amount_minor": { "const": 0 } } }
+    }
+  ]
+}

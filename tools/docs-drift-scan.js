@@ -18,6 +18,7 @@ const docs = {
   userGuide: read('docs/user-guide.md'),
   status: read('docs/PROJECT_STATUS.md'),
   kpiDictionary: read('docs/finance/KPI_DICTIONARY.md'),
+  canonicalSchema: read('docs/data/CANONICAL_TRANSACTION_SCHEMA.md'),
   dr: read('docs/operations/DR001_DIRECT_OWNER_BACKUP.md'),
   observability: read('docs/operations/OBS001_AUDIT_TELEMETRY.md'),
   finops: read('docs/operations/FINOPS001_FREE_ONLY_GUARD.md'),
@@ -46,7 +47,8 @@ const currentOperationalDocs = [
   ['docs/data-model.md', docs.dataModel],
   ['docs/user-guide.md', docs.userGuide],
   ['docs/PROJECT_STATUS.md', docs.status],
-  ['docs/finance/KPI_DICTIONARY.md', docs.kpiDictionary]
+  ['docs/finance/KPI_DICTIONARY.md', docs.kpiDictionary],
+  ['docs/data/CANONICAL_TRANSACTION_SCHEMA.md', docs.canonicalSchema]
 ];
 
 for (const [name, text] of currentOperationalDocs) {
@@ -120,8 +122,14 @@ requireMatch('DOC_ARCH_PUBLIC_REAL_DERIVED_FORBIDDEN', docs.architecture, /real-
 requireMatch('DOC_DATA_REAL_DERIVED_FORBIDDEN', docs.dataModel, /real-derived/,
   'Data model must explicitly forbid real-derived public financial data');
 requireMatch('DOC_DATA_FULL_HISTORY_NOT_DONE', docs.dataModel,
-  /(?:full[- ]history|full history|полный history) migration[^\n]{0,100}(?:не считается заверш|not)/i,
+  /(?:full[- ]history|full history|полный history) migration[^\n]{0,120}(?:не считается заверш|not)/i,
   'Data model must not claim full-history migration complete');
+requireMatch('DOC_DATA_CANONICAL_V1', docs.dataModel,
+  /PRH_CANONICAL_TRANSACTION_V1|Canonical Transaction v1/i,
+  'Data model must reference Canonical Transaction v1');
+requireMatch('DOC_DATA_SOURCE_POSITION_NOT_IDENTITY', docs.dataModel,
+  /source_position[\s\S]{0,260}(?:не является|not)[^\n]{0,80}(?:identity|logical)/i,
+  'Data model must separate source position from logical identity');
 requireMatch('DOC_USER_PRIVATE_URL', docs.userGuide, /README[^\n]{0,100}(?:не хранит|не обновляет)[^\n]{0,100}deployment URL/i,
   'User guide must not source private Dashboard locator from README');
 requireMatch('DOC_DASHBOARD_SYNTHETIC_ONLY', docs.dashboard, /independently generated synthetic financial data/i,
@@ -137,8 +145,10 @@ requireMatch('DOC_STATUS_R0_COMPLETE', docs.status, /R0[^\n]{0,100}(?:завер
   'Project status must state proven R0 completion');
 requireMatch('DOC_STATUS_AIENG_CHAIN', docs.status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/,
   'Project status must preserve the completed AIENG chain');
-requireMatch('DOC_STATUS_R1_FIN010', docs.status, /R1 \/ Canonical Financial Platform[\s\S]{0,1200}FIN-010[\s\S]{0,300}IN_PROGRESS/i,
-  'Project status must identify FIN-010 as the current R1 item');
+requireMatch('DOC_STATUS_FIN010_DONE', docs.status, /FIN-010[^\n]{0,160}(?:DONE|заверш)/i,
+  'Project status must identify FIN-010 as DONE');
+requireMatch('DOC_STATUS_DATA010_CURRENT', docs.status, /DATA-010[^\n]{0,180}IN_PROGRESS/i,
+  'Project status must identify DATA-010 as current R1 item');
 requireMatch('DOC_STATUS_G3_OPEN', docs.status, /MASTER-G3[\s\S]{0,120}open/i,
   'Project status must expose open MASTER-G3');
 
@@ -154,6 +164,21 @@ requireMatch('DOC_KPI_MIXED_CURRENCY_FAIL_CLOSED', docs.kpiDictionary, /Mixed-cu
   'KPI Dictionary doc must fail closed on mixed currency in v1');
 requireMatch('DOC_KPI_NO_LEGACY_TRUTH', docs.kpiDictionary, /Legacy total cells[^\n]{0,120}(?:не являются|not)/i,
   'KPI Dictionary doc must reject legacy totals as truth');
+
+requireMatch('DOC_CANONICAL_SCHEMA_ID', docs.canonicalSchema, /PRH_CANONICAL_TRANSACTION_V1/,
+  'Canonical transaction doc must identify machine schema');
+requireMatch('DOC_CANONICAL_EXACT_MONEY', docs.canonicalSchema, /amount_minor[\s\S]{0,120}(?:integer minor units|minor units)/i,
+  'Canonical transaction doc must require exact minor-unit money');
+requireMatch('DOC_CANONICAL_SOURCE_POSITION', docs.canonicalSchema,
+  /source position[^\n]{0,100}(?:не является|not)[^\n]{0,80}(?:logical identity|identity)/i,
+  'Canonical transaction doc must separate source position from logical identity');
+requireMatch('DOC_CANONICAL_FINGERPRINT_STRATEGY', docs.canonicalSchema, /CONTENT_FINGERPRINT_V1/,
+  'Canonical transaction doc must document DATA-001 fingerprint identity strategy');
+requireMatch('DOC_CANONICAL_NO_MIGRATION_CLAIM', docs.canonicalSchema,
+  /не выполняет migration\/cutover|не выполняет[^\n]{0,100}migration/i,
+  'Canonical transaction doc must not claim migration/cutover');
+requireMatch('DOC_CANONICAL_PRIVACY', docs.canonicalSchema, /independently generated synthetic/i,
+  'Canonical transaction doc must preserve synthetic-only public-data boundary');
 
 requireMatch('DOC_DR_DONE', docs.dr, /DR-001 is \*\*DONE\*\*/,
   'DR runbook must state the proven DR-001 status');
@@ -180,6 +205,9 @@ requireMatch('WORKFLOW_DOC_TRUTH_GATE', docs.prValidation, /- name: Documentatio
   'PR Validation must run named Documentation truth gate');
 requireMatch('WORKFLOW_KPI_DICTIONARY_GATE', docs.prValidation, /- name: KPI Dictionary\s+run: node tests\/kpi_dictionary_contract_test\.js/m,
   'PR Validation must run named KPI Dictionary gate');
+requireMatch('WORKFLOW_CANONICAL_SCHEMA_GATE', docs.prValidation,
+  /- name: Canonical transaction schema\s+run: node tests\/canonical_transaction_schema_contract_test\.js/m,
+  'PR Validation must run named Canonical transaction schema gate');
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -191,7 +219,7 @@ if (failures.length > 0) {
     operationalDocs: currentOperationalDocs.length,
     currentReleaseModel: 'EXACT_SHA_AUTONOMOUS',
     currentRoadmapWave: 'R1',
-    currentRoadmapItem: 'FIN-010',
+    currentRoadmapItem: 'DATA-010',
     publicRuntimeLocator: false,
     r0MasterGatesComplete: true,
     historicalChangelogExcludedFromInstructionScan: true
