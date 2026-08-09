@@ -58,9 +58,13 @@ assert.strictEqual(assertContract(), true);
 assert.strictEqual(CONTRACT.schema, 'PRH_REVISION_AWARE_READ_CACHE_V1');
 assert.strictEqual(CONTRACT.version, '1.0.0');
 assert.strictEqual(CONTRACT.roadmap_id, 'PERF-011');
+assert.strictEqual(CONTRACT.key.projection_identity_required_when_projection_capability, true);
+assert(CONTRACT.key.components.includes('repository_adapter_namespace'));
+assert(CONTRACT.key.components.includes('projection_identity'));
 assert.strictEqual(CONTRACT.freshness.revision_required_before_hit, true);
 assert.strictEqual(CONTRACT.freshness.unknown_revision, 'FAIL_CLOSED');
 assert.strictEqual(CONTRACT.freshness.revision_change, 'INVALIDATE_ALL');
+assert.strictEqual(CONTRACT.freshness.projection_change, 'MISS');
 assert.strictEqual(CONTRACT.telemetry.financial_payload_allowed, false);
 assert.strictEqual(CONTRACT.authority.financial_write, false);
 assert.strictEqual(CONTRACT.authority.network, false);
@@ -76,6 +80,16 @@ assert.notStrictEqual(
   cacheKeyHash('PRH_TRANSACTION_REPOSITORY_V1', revisionA, 'READ_ALL', null),
   cacheKeyHash('PRH_TRANSACTION_REPOSITORY_V1', revisionB, 'READ_ALL', null),
   'revision must participate in cache key'
+);
+const namespaceA = {
+  repository_adapter_namespace: 'PRH_GOOGLE_SHEETS_TRANSACTION_ADAPTER_V1@1.0.0|mapping:1.0.0',
+  projection_identity: 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0'
+};
+const namespaceB = { ...namespaceA, projection_identity: 'PRH_GOOGLE_QUERY_PROJECTION_V1@2.0.0' };
+assert.notStrictEqual(
+  cacheKeyHash('PRH_TRANSACTION_REPOSITORY_V1', revisionA, 'QUERY', { types: ['expense'] }, namespaceA),
+  cacheKeyHash('PRH_TRANSACTION_REPOSITORY_V1', revisionA, 'QUERY', { types: ['expense'] }, namespaceB),
+  'projection/schema namespace change must invalidate cache key even when revision/query match'
 );
 
 const seed = [
@@ -102,6 +116,7 @@ const cache = createRevisionAwareReadCache(counted, {
 assert.strictEqual(cache.schema, 'PRH_TRANSACTION_REPOSITORY_READ_CACHE_V1');
 assert.strictEqual(cache.capabilities.write, false);
 assert.strictEqual(cache.capabilities.cache, true);
+assert.strictEqual(cache.cache_namespace.projection_identity, 'NO_PROJECTION');
 
 // First read is MISS, exact same revision/key becomes HIT. Revision probe is mandatory on both calls.
 const firstAll = cache.readAll();
@@ -117,7 +132,7 @@ assert.strictEqual(cache.getTelemetry().cache_status, 'HIT');
 assert.strictEqual(cache.getTelemetry().reason_code, 'EXACT_REVISION_KEY_MATCH');
 assert.strictEqual(cache.getTelemetry().age_ms, 100);
 
-// Query object key order/list order normalization does not create a second semantic cache key.
+// Query object key/list order normalization does not create a second semantic cache key.
 now += 10;
 const q1 = cache.query({ types: ['expense', 'income'], statuses: ['posted'], limit: 10 });
 assert.strictEqual(q1.total_count, 2);
@@ -145,7 +160,7 @@ assert.strictEqual(calls.getById, getCallsBeforeExpiry + 1);
 assert.strictEqual(cache.getTelemetry().cache_status, 'MISS');
 assert.strictEqual(cache.getTelemetry().reason_code, 'TTL_EXPIRED');
 
-// External/synthetic underlying mutation changes revision; old cache is invalidated before any HIT.
+// Underlying mutation changes revision; old cache is invalidated before any HIT.
 const beforeMutationRevision = base.getRevision();
 const writeReceipt = base.writeBatch({
   idempotency_key: 'PERF011-SYNTHETIC-WRITE-0001',
@@ -187,12 +202,41 @@ assert.throws(() => failClosed.readAll(), /REVISION_CACHE_REVISION_UNKNOWN/);
 assert.strictEqual(badReadCount, 0, 'loader must not run without exact revision');
 assert.strictEqual(failClosed.getTelemetry().reason_code, 'REVISION_UNKNOWN');
 
-// Telemetry contains only technical bounded metadata and never raw identity/query/finance payload.
+// Projection-aware repository requires explicit versioned projection identity in namespace.
+const projectionAware = {
+  schema: base.schema,
+  adapter_schema: 'PRH_GOOGLE_SHEETS_TRANSACTION_ADAPTER_V1',
+  adapter_version: '1.0.0',
+  mapping_version: '1.0.0',
+  capabilities: { ...base.capabilities, projection: true },
+  getRevision: () => base.getRevision(),
+  readAll: () => base.readAll(),
+  getById: (id) => base.getById(id),
+  query: (query) => base.query(query)
+};
+assert.throws(
+  () => createRevisionAwareReadCache(projectionAware, { now_ms: () => now }),
+  /REVISION_CACHE_PROJECTION_IDENTITY_REQUIRED/
+);
+const projectionCache = createRevisionAwareReadCache(projectionAware, {
+  now_ms: () => now,
+  projection_identity: 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0'
+});
+assert.strictEqual(projectionCache.cache_namespace.projection_identity, 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0');
+assert.strictEqual(
+  projectionCache.cache_namespace.repository_adapter_namespace,
+  'PRH_GOOGLE_SHEETS_TRANSACTION_ADAPTER_V1@1.0.0|mapping:1.0.0'
+);
+
+// Telemetry contains only technical bounded metadata and never raw namespace/query/identity/finance payload.
 now += 1;
 cache.readAll();
 const telemetryJson = JSON.stringify(cache.getTelemetry());
-for (const forbidden of ['SYN-CACHE-', 'amount_minor', 'CAT-', 'ACC-', 'Synthetic cache fixture', 'transaction_id', 'tags']) {
-  assert(!telemetryJson.includes(forbidden), `cache telemetry leaked payload/identity: ${forbidden}`);
+for (const forbidden of [
+  'SYN-CACHE-', 'amount_minor', 'CAT-', 'ACC-', 'Synthetic cache fixture', 'transaction_id', 'tags',
+  'PRH_GOOGLE_QUERY_PROJECTION_V1', 'PRH_GOOGLE_SHEETS_TRANSACTION_ADAPTER_V1'
+]) {
+  assert(!telemetryJson.includes(forbidden), `cache telemetry leaked payload/namespace/identity: ${forbidden}`);
 }
 assert(/^[0-9a-f]{64}$/.test(cache.getTelemetry().cache_key_hash));
 assert(/^[0-9a-f]{12}$/.test(cache.getTelemetry().revision_token_hash_prefix));
@@ -201,11 +245,14 @@ console.log('repository_cache_adapter_contract_test: OK', {
   contract: 'PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0',
   revisionProbeBeforeHit: true,
   normalizedQueryIdentity: true,
+  projectionNamespaceInKey: true,
+  projectionCapabilityRequiresIdentity: true,
   revisionChangeInvalidation: true,
   ttlMiss: true,
   boundedLru: true,
   cacheWriteAuthority: false,
   telemetryFinancialPayload: false,
+  telemetryRawNamespace: false,
   externalProviderRequired: false,
   freeOnly: true
 });
