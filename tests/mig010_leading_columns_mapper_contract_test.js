@@ -20,7 +20,7 @@ function cv(value) { return value.t === 'n' ? Number(value.v) : String(value.v =
 const row = (values) => values.map(cell);
 
 const sourceRows = [
-  row(['', 'Дата', 'Тип операции', 'Счет', 'Категория', 'Наименование', 'Сумма', 'Счет', 'Источник', 'Сумма']),
+  row(['', 'Отметка времени', 'Тип операции', 'Счет', 'Категория', 'Наименование', 'Сумма', 'Счет', 'Источник', 'Сумма']),
   row(['', '2025-01-02T10:00:00.000Z', 'Расход', 'Основной', 'Дом', 'Synthetic', 25.5, '', '', ''])
 ];
 const targetHeaders = ['ID','Дата и время','Дата','Месяц','Тип','Сумма','Счёт','Счёт назначения','Категория','Подкатегория','Наименование','Член семьи','Проект','Теги','Регулярная','Комментарий','Источник','Строка источника','Статус','Исходный тип'];
@@ -53,14 +53,25 @@ try {
   assert.strictEqual(snapshot.source_records[0].amount_minor, 2550);
   assert.strictEqual(snapshot.canonical_records[0].provenance.source_position, 'row:2');
 
+  const dateAlias = JSON.parse(JSON.stringify(pkg));
+  dateAlias.content.sheets[0].rows[0][1] = cell('Дата');
+  const dateSnapshot = mapper.buildSnapshot({ backupPackage: dateAlias, cellValue: cv });
+  assert.strictEqual(dateSnapshot.source_records.length, 1);
+
   const bad = JSON.parse(JSON.stringify(pkg));
   bad.content.sheets[0].rows[0][0] = cell('NOT-EMPTY');
   assert.throws(() => mapper.buildSnapshot({ backupPackage: bad, cellValue: cv }), /MIG010_PRIVATE_SOURCE_HEADER_BLOCK_NOT_FOUND/);
 
+  const unknownTimestampHeader = JSON.parse(JSON.stringify(pkg));
+  unknownTimestampHeader.content.sheets[0].rows[0][1] = cell('Время');
+  assert.throws(() => mapper.buildSnapshot({ backupPackage: unknownTimestampHeader, cellValue: cv }), /MIG010_PRIVATE_SOURCE_HEADER_BLOCK_NOT_FOUND/);
+
   console.log('mig010_leading_columns_mapper_contract_test: OK', {
     oneEmptyLeadingColumnAccepted: true,
+    timestampAliases: ['Дата', 'Отметка времени'],
     sourceRowPreserved: true,
     nonEmptyPrefixRejected: true,
+    unknownTimestampHeaderRejected: true,
     fuzzyMapping: false
   });
 } finally {
