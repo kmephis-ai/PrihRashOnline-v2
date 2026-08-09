@@ -28,11 +28,13 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 `PRH_FULL_HISTORY_MIGRATION_V1` — current MIG-010 protocol: deterministic dry-run, <=100 batches, idempotency, expected target revision, HMAC resume, DR-001 backup binding, private reconciliation and separate irreversible-action authorization.
 
-`MIG010_REPAIR_POLICY_V1` — owner-private blocked-dry-run repair layer. Strategy `REBUILD_LEGACY_SLICE_V1`: scoped old legacy-derived target anomalies are rebuilt from source, invalid source is explained quarantine, duplicate semantics require owner decision. `PRESERVE_ALL` remains fail-closed with `CANONICAL_IDENTITY_EXTENSION_REQUIRED`; AI/CI cannot decide that two identical legacy rows are one transaction.
+`MIG010_REPAIR_POLICY_V1@1.1.0` — owner-private blocked-dry-run repair layer. Strategy `REBUILD_LEGACY_SLICE_V1`: scoped old legacy-derived target anomalies are rebuilt from source, invalid source is explained quarantine, duplicate semantics require owner decision. `PRESERVE_ALL` uses `CONTENT_FINGERPRINT_OCCURRENCE_V1`; CI/AI cannot select it automatically.
 
-Owner checkpoint is privacy-safe: snapshot created, dry-run = BLOCKED, state verify = PASS, diagnostics written, write authority remains false. Public-safe blocker classes are `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`; counts/details remain private.
+`PRH_CANONICAL_TRANSACTION_V1` remains schema version 1 and supports `EXTERNAL_ID`, `CONTENT_FINGERPRINT_V1`, `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Occurrence strategy is an additive migration capability: same content fingerprint, distinct owner-confirmed source occurrences, deterministic distinct source_record_id/transaction_id, mutable source_position remains separate.
 
-`tools/mig010-owner.js` creates private snapshot/dry-run/state/diagnostics. `tools/mig010-repair.js` creates private repair proposal + offline duplicate review + owner-bound resolution. Both reject `execute/write/apply` until a later explicit authorization stage.
+Owner checkpoint is privacy-safe: snapshot created, dry-run = BLOCKED, state verify = PASS, diagnostics written, write authority remains false. Public-safe blocker classes are `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`; counts/details and owner resolution payload remain private.
+
+`tools/mig010-owner.js` creates private snapshot/dry-run/state/diagnostics. `tools/mig010-repair.js` creates private repair proposal + offline duplicate review + owner-bound resolution/resolved rebuild candidate. Both reject `execute/write/apply` until a later explicit authorization stage.
 
 ## Current delivery
 
@@ -59,15 +61,15 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data must stay private. Public finance fixtures — independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration mapper/snapshot/state/diagnostic/proposal/review/resolution/resume token stay private.
+Real or real-derived household finance data must stay private. Public finance fixtures — independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration mapper/snapshot/state/diagnostic/proposal/review/resolution/resolved/resume token stay private.
 
-Full-history migration is not complete. MIG-010 code readiness/merge/repair proposal does not authorize real writes. New canonical mutation требует idempotency, preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
+Full-history migration is not complete. MIG-010 code readiness/merge/repair resolution does not authorize real writes. New canonical mutation требует idempotency, preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
 
 ## Domain boundaries
 
 FIN-010: `FIN-TRUTH-v1`, integer minor units, posted-only, transfer-neutral, refund as expense reduction, mixed-currency fail-closed.
 
-DATA-010: `PRH_CANONICAL_TRANSACTION_V1`; `source_position` mutable locator, not identity; DATA-001 compatibility uses `CONTENT_FINGERPRINT_V1` stable across row movement. Поэтому две полностью одинаковые content fingerprints не должны молча превращаться в две разные canonical source identities.
+DATA-010: `PRH_CANONICAL_TRANSACTION_V1`; `source_position` mutable locator, not identity. DATA-001 compatibility uses `CONTENT_FINGERPRINT_V1` stable across row movement. Owner-confirmed identical real operations use `CONTENT_FINGERPRINT_OCCURRENCE_V1`; financial core fields are not modified merely to create uniqueness.
 
 ARCH-010: `PRH_APPLICATION_CORE_V1`; `io_authority=false`, `financial_write_authority=false`, `network_authority=false`. Pure `lib/domain|finance|migration|application` has no `SpreadsheetApp`/DOM/storage/network dependency.
 
@@ -98,11 +100,13 @@ Before `AUTHORIZATION_REQUIRED` there are no real financial writes. GitHub Actio
 4. `/docs/PROJECT_STATUS.md`
 5. `/docs/operations/MIG010_FULL_HISTORY_MIGRATION.md`
 6. `/docs/operations/MIG010_REPAIR_POLICY.md`
-7. `/lib/migration/full_history_migration.v1.json`
-8. `/lib/migration/mig010_repair_policy.v1.json`
-9. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
-10. `/docs/architecture.md`
-11. exact candidate code/tests/workflows
+7. `/docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md`
+8. `/lib/migration/full_history_migration.v1.json`
+9. `/lib/migration/mig010_repair_policy.v1.json`
+10. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
+11. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
+12. `/docs/architecture.md`
+13. exact candidate code/tests/workflows
 
 ## Scope handoff
 
