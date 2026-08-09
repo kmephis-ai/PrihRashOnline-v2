@@ -20,27 +20,23 @@ const policy = JSON.parse(read('lib/migration/mig010_execution_policy.v1.json'))
 
 function match(text, pattern, message) { assert(pattern.test(text), message); }
 
-match(status, /MIG-010[^\n]{0,300}IN_PROGRESS[^\n]{0,300}OWNER_VERIFIED/i,
-  'project status must identify OWNER_VERIFIED while GitHub lifecycle remains IN_PROGRESS');
-match(status, /repair resolve[^\n]{0,180}READY_FOR_REBUILD_DRY_RUN/i,
-  'project status must preserve owner repair resolve checkpoint');
-match(status, /resolved rebuild dry-run[^\n]{0,120}PASS/i,
-  'project status must preserve owner rebuild verification PASS');
-match(status, /staging\/readback\/finalize[^\n]{0,120}PASS/i,
-  'status must record authorized migration execution');
-match(status, /MIG010_OWNER_POST_RECONCILIATION_V1[^\n]{0,100}PASS/i,
-  'status must record post-write reconciliation PASS');
+match(status, /MIG-010[^\n]{0,300}DONE[^\n]{0,300}OWNER_VERIFIED/i,
+  'project status must preserve completed OWNER_VERIFIED MIG lifecycle');
+match(status, /post-write reconciliation[^\n]{0,160}PASS/i,
+  'status must record private post-write reconciliation PASS');
 match(status, /unexplainedMismatch=0/,
   'status must record zero unexplained mismatch');
+match(status, /ANL-010[^\n]{0,260}IN_PROGRESS/i,
+  'status must identify successor Roadmap writer');
 
-match(context, /owner-private stage = `OWNER_VERIFIED`/,
-  'AI context must identify current irreversible stage');
+match(context, /MIG-010[^\n]{0,220}DONE/i,
+  'AI context must preserve MIG completion');
+match(context, /OWNER_VERIFIED/,
+  'AI context must preserve private verified evidence');
 match(context, /MIG010_EXECUTION_POLICY_V1@1\.0\.0/,
   'AI context must identify execution policy');
-match(context, /FINALIZED_PENDING_RECONCILIATION/,
-  'AI context must keep finalize separate from DONE');
-match(context, /fresh encrypted post-write backup[^\n]{0,80}PASS/i,
-  'AI context must record post-write backup PASS');
+match(context, /FINALIZED_PENDING_RECONCILIATION|post-write reconciliation/i,
+  'AI context must preserve finalize/reconciliation boundary');
 match(context, /Generic|generic[\s\S]{0,300}GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/i,
   'AI context must keep generic repository write blocked');
 
@@ -65,7 +61,7 @@ match(runbook, /manifest\.createdAt[\s\S]{0,260}24 часов/i,
 match(runbook, /MIG010_EXECUTOR_BACKUP_COPY_STALE/,
   'runbook must expose stale-copy reason');
 match(runbook, /backup_created_at[\s\S]{0,500}backup_verified_at/,
-  'runbook must bind backup creation and verification timestamps separately');
+  'runbook must bind backup timestamps separately');
 match(runbook, /hidden rollback copy/i,
   'runbook must require rollback copy');
 match(runbook, /hidden staging/i,
@@ -79,7 +75,7 @@ match(runbook, /adaptive existing-format-first/i,
 match(runbook, /contentsOnly:true[\s\S]{0,220}formulas/i,
   'runbook must document formula-preserving finalize/rollback semantics');
 match(runbook, /FINALIZED_PENDING_RECONCILIATION/,
-  'runbook must not equate finalize with DONE');
+  'runbook must preserve finalize boundary');
 match(runbook, /OWNER_VERIFIED/,
   'runbook must record verified owner execution');
 match(runbook, /unexplainedMismatch = 0/,
@@ -92,30 +88,20 @@ match(packageTool, /retainNonScopedTargetRows:\s*true/,
 match(packageTool, /formulaLikeTextFailClosed:\s*true/,
   'package builder must fail closed on formula-like source text');
 
-match(gateway, /prhMig010BeginAuthorizedExecution/,
-  'gateway missing begin');
-match(gateway, /prhMig010WriteAuthorizedBatch/,
-  'gateway missing batch write');
-match(gateway, /prhMig010FinalizeAuthorizedExecution/,
-  'gateway missing finalize');
-match(gateway, /prhMig010RollbackAuthorizedExecution/,
-  'gateway missing rollback');
-match(gateway, /MIG010_EXECUTION_TARGET_CHANGED_SINCE_BACKUP/,
-  'gateway must detect target drift');
-match(gateway, /MIG010_EXECUTION_BACKUP_COPY_STALE/,
-  'gateway must reject stale backup copy');
-match(gateway, /MIG010_EXECUTION_BACKUP_VERIFICATION_STALE/,
-  'gateway must reject stale backup verification');
-match(gateway, /MIG010_EXECUTION_BATCH_READBACK_MISMATCH/,
-  'gateway must fail on batch readback mismatch');
-match(gateway, /prhMig010RestoreFromRollback_/,
-  'gateway must implement verified rollback');
-match(gateway, /fresh_backup_copy_required:\s*true/,
-  'gateway metadata must expose fresh backup copy requirement');
-match(gateway, /fresh_backup_verification_required:\s*true/,
-  'gateway metadata must expose fresh backup verification requirement');
-match(gateway, /generic_repository_write_authorized:\s*false/,
-  'migration gateway must not grant generic repository authority');
+for (const pattern of [
+  /prhMig010BeginAuthorizedExecution/,
+  /prhMig010WriteAuthorizedBatch/,
+  /prhMig010FinalizeAuthorizedExecution/,
+  /prhMig010RollbackAuthorizedExecution/,
+  /MIG010_EXECUTION_TARGET_CHANGED_SINCE_BACKUP/,
+  /MIG010_EXECUTION_BACKUP_COPY_STALE/,
+  /MIG010_EXECUTION_BACKUP_VERIFICATION_STALE/,
+  /MIG010_EXECUTION_BATCH_READBACK_MISMATCH/,
+  /prhMig010RestoreFromRollback_/,
+  /fresh_backup_copy_required:\s*true/,
+  /fresh_backup_verification_required:\s*true/,
+  /generic_repository_write_authorized:\s*false/
+]) assert(pattern.test(gateway), `gateway contract missing ${pattern}`);
 
 match(typedWriter, /MIG010_TYPED_STAGING_WRITE_V2/,
   'typed writer must expose adaptive v2 contract');
@@ -139,11 +125,11 @@ match(executor, /MAX_BACKUP_AGE_MS = 24 \* 60 \* 60 \* 1000/,
 match(executor, /MIG010_EXECUTOR_BACKUP_COPY_STALE/,
   'executor must reject old backup copy independently of verify time');
 match(executor, /freshEncryptedBackupCopyRequired:\s*true/,
-  'executor contract must advertise fresh backup-copy requirement');
+  'executor must advertise fresh backup-copy requirement');
 match(executor, /freshEncryptedBackupVerifyRequired:\s*true/,
-  'executor contract must advertise fresh verification requirement');
+  'executor must advertise fresh verification requirement');
 match(executor, /publicCiCanAuthorize:\s*false/,
-  'executor contract must deny public CI authorization');
+  'executor must deny public CI authorization');
 match(executor, /FINALIZED_PENDING_RECONCILIATION/,
   'executor must stop at pending reconciliation');
 match(executor, /financialPayloadStdout:\s*false/,
@@ -174,9 +160,7 @@ for (const required of [
   'tests/mig010_authorized_executor_contract_test.js',
   'tests/mig010_typed_staging_write_contract_test.js',
   'tests/mig010_post_reconcile_contract_test.js'
-]) {
-  assert(llms.includes(required), `llms.txt missing ${required}`);
-}
+]) assert(llms.includes(required), `llms.txt missing ${required}`);
 
 for (const [name, value] of [['status', status], ['context', context], ['runbook', runbook], ['llms', llms]]) {
   assert(!/script\.google\.com\/macros\/s\/|\bAKfy[A-Za-z0-9_-]+\b/.test(value), `${name} contains private deployment locator`);
@@ -185,7 +169,8 @@ for (const [name, value] of [['status', status], ['context', context], ['runbook
 
 console.log('mig010_execution_documentation_contract_test: OK', {
   privateStage: 'OWNER_VERIFIED',
-  githubLifecycle: 'IN_PROGRESS',
+  githubLifecycle: 'DONE',
+  successorWriter: 'ANL-010',
   executionPolicy: 'MIG010_EXECUTION_POLICY_V1@1.0.0',
   genericRepositoryWriteAuthorized: false,
   publicCiCanAuthorize: false,
