@@ -84,6 +84,47 @@ function prhMig010ProbeRangeCleared_(range) {
   return true;
 }
 
+/**
+ * Diagnose the complete typed-write lifecycle without advancing session state:
+ * 1) text-type formats applied to package t:s cells;
+ * 2) values written and read back while typed formats are still active;
+ * 3) original number formats restored and read back again;
+ * 4) probe range cleared in finally.
+ */
+function prhMig010ProbeTypedLifecycle_(range, encodedRows, matrix) {
+  if (!range || typeof range.getNumberFormats !== 'function' ||
+      typeof range.setNumberFormats !== 'function') {
+    prhMig010Fail_('MIG010_EXECUTION_TYPED_FORMAT_API_UNAVAILABLE');
+  }
+  var originalFormats = range.getNumberFormats();
+  var typedFormats = prhMig010TypedFormats_(encodedRows, originalFormats);
+  var beforeRestore = [];
+  var afterRestore = [];
+  range.setNumberFormats(typedFormats);
+  try {
+    range.setValues(matrix);
+    SpreadsheetApp.flush();
+    beforeRestore = prhMig010ProbeMismatchClasses_(encodedRows, prhMig010EncodeRange_(range));
+
+    range.setNumberFormats(originalFormats);
+    SpreadsheetApp.flush();
+    afterRestore = prhMig010ProbeMismatchClasses_(encodedRows, prhMig010EncodeRange_(range));
+
+    var restored = range.getNumberFormats();
+    if (prhMig010StableStringify_(restored) !== prhMig010StableStringify_(originalFormats)) {
+      prhMig010Fail_('MIG010_EXECUTION_TYPED_FORMAT_RESTORE_FAILED');
+    }
+  } finally {
+    range.clearContent();
+    SpreadsheetApp.flush();
+    try { range.setNumberFormats(originalFormats); SpreadsheetApp.flush(); } catch (_) { /* verify below */ }
+  }
+  return {
+    beforeFormatRestore: beforeRestore,
+    afterFormatRestore: afterRestore
+  };
+}
+
 function prhMig010ProbeAuthorizedBatchReadback(request) {
   var input = request || {};
   var sessionId = prhMig010SessionId_(input.session_id);
@@ -114,16 +155,9 @@ function prhMig010ProbeAuthorizedBatchReadback(request) {
 
     var matrix = prhMig010DecodeRowsForWrite_(input.rows, startSheetRow);
     var range = stage.getRange(startSheetRow, 1, matrix.length, PRH_MIG010_EXECUTION.COLUMN_COUNT);
-    var classes = [];
-    try {
-      range.clearContent();
-      range.setValues(matrix);
-      SpreadsheetApp.flush();
-      classes = prhMig010ProbeMismatchClasses_(input.rows, prhMig010EncodeRange_(range));
-    } finally {
-      range.clearContent();
-      SpreadsheetApp.flush();
-    }
+    range.clearContent();
+    SpreadsheetApp.flush();
+    var lifecycle = prhMig010ProbeTypedLifecycle_(range, input.rows, matrix);
 
     if (!prhMig010ProbeRangeCleared_(range)) {
       prhMig010Fail_('MIG010_EXECUTION_PROBE_RANGE_CLEAR_FAILED');
@@ -132,10 +166,18 @@ function prhMig010ProbeAuthorizedBatchReadback(request) {
       prhMig010Fail_('MIG010_EXECUTION_LIVE_TARGET_DRIFT');
     }
 
+    var combined = {};
+    lifecycle.beforeFormatRestore.concat(lifecycle.afterFormatRestore).forEach(function (item) {
+      combined[item] = true;
+    });
+    var classes = Object.keys(combined).sort();
+
     return JSON.stringify({
       schema: PRH_MIG010_READBACK_PROBE.SCHEMA,
       status: classes.length ? 'MISMATCH_CLASSIFIED' : 'MATCHED',
       mismatchClasses: classes,
+      beforeFormatRestore: lifecycle.beforeFormatRestore,
+      afterFormatRestore: lifecycle.afterFormatRestore,
       rangeCleared: true,
       liveTargetMutated: false,
       financialPayloadStdout: false
