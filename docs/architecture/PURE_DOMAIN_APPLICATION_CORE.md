@@ -98,4 +98,4 @@ Domain functions могут вычислять actual financial values в privat
 
 ## Handoff к ARCH-011
 
-ARCH-011 должен реализовать repository interfaces/adapters **вокруг** pure application core. Google Sheets mapping, query ranges, locks/readback/write operations не должны проникать обратно в domain/KPI/migration semantics.
+ARCH-011 — следующий repository adapter item. Он должен реализовать repository interfaces/adapters **вокруг** pure application core. Google Sheets mapping, query ranges, locks/readback/write operations не должны проникать обратно в domain/KPI/migration semantics.
