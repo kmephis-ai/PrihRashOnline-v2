@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const {
   CONTRACT,
   assertContract,
@@ -62,6 +63,13 @@ assert.deepStrictEqual(groupConsecutiveRows([7, 4, 5, 11, 12, 13]).map((group) =
 assert.deepStrictEqual(groupConsecutiveRows([]), []);
 assert.throws(() => groupConsecutiveRows([2, 2]), /GOOGLE_PROJECTION_ROW_NUMBER_DUPLICATE/);
 assert.throws(() => buildColumnSpans(headers, ['ID', 'НЕИЗВЕСТНО']), /GOOGLE_PROJECTION_HEADER_NOT_ALLOWED/);
+const duplicatePhysicalHeaders = headers.slice();
+duplicatePhysicalHeaders[2] = 'ID';
+assert.throws(
+  () => buildColumnSpans(duplicatePhysicalHeaders, ['ID']),
+  /GOOGLE_PROJECTION_SOURCE_HEADER_DUPLICATE/,
+  'ambiguous physical mapped header must fail closed in pure planner'
+);
 
 const dimensionMap = {
   account: { 'Основной': 'ACC-MAIN', 'Накопления': 'ACC-SAVINGS' },
@@ -167,8 +175,42 @@ assert(!/getRange\(2\s*,\s*1\s*,[^\n]*lastColumn/.test(gatewaySource),
   'PERF-010 canonical data path must not read every source column for every data row');
 assert(/required_headers/.test(gatewaySource));
 assert(/column_span_count/.test(gatewaySource));
+assert(/GOOGLE_REPOSITORY_REQUIRED_HEADER_DUPLICATE/.test(gatewaySource));
+assert(/GOOGLE_REPOSITORY_READ_SOURCE_HEADER_DUPLICATE/.test(gatewaySource));
 assert(!/\.setValues?\s*\(/.test(gatewaySource));
 assert(!/\.appendRow\s*\(/.test(gatewaySource));
+
+// Runtime gateway also rejects an ambiguous mapped header row before any data read.
+let duplicateDataReads = 0;
+const duplicateContext = {
+  PR_CONFIG: { SHEETS: { OPERATIONS: '01 Операции' } },
+  getSheetRequired_: () => ({
+    getLastRow: () => 2,
+    getLastColumn: () => duplicatePhysicalHeaders.length,
+    getRange: (row, col, height, width) => ({
+      getValues: () => {
+        if (row === 1) return [duplicatePhysicalHeaders.slice()];
+        duplicateDataReads += 1;
+        return [Array(width).fill('')];
+      }
+    })
+  }),
+  operationWriteGuard_: () => true,
+  Object,
+  Array,
+  String,
+  Number,
+  Error,
+  Math
+};
+vm.createContext(duplicateContext);
+vm.runInContext(gatewaySource, duplicateContext, { filename: 'GoogleTransactionRepositoryGateway.js' });
+assert.throws(
+  () => duplicateContext.prhGoogleRepositoryReadOperationsTable_({ required_headers: ['ID'] }),
+  /GOOGLE_REPOSITORY_REQUIRED_HEADER_DUPLICATE/,
+  'gateway must reject ambiguous source header row'
+);
+assert.strictEqual(duplicateDataReads, 0, 'ambiguous header must fail before any data-row read');
 
 console.log('repository_projection_adapter_contract_test: OK', {
   contract: 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0',
@@ -178,6 +220,7 @@ console.log('repository_projection_adapter_contract_test: OK', {
   narrowQueryCells: 35,
   baselineFullWidthCells: headers.length * rows.length,
   querySemanticParity: true,
+  ambiguousSourceHeaderFailClosed: true,
   financialPayloadInTelemetry: false,
   financialWriteAuthority: false,
   freeOnly: true
