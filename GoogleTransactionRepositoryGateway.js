@@ -31,9 +31,9 @@ function prhGoogleRepositoryAssertHeaders_(headers) {
   }
   var normalized = headers.map(function (value) { return String(value || '').trim(); });
   PRH_GOOGLE_REPOSITORY_GATEWAY.REQUIRED_HEADERS.forEach(function (required) {
-    if (normalized.indexOf(required) < 0) {
-      throw new Error('GOOGLE_REPOSITORY_REQUIRED_HEADER_MISSING');
-    }
+    var count = normalized.filter(function (header) { return header === required; }).length;
+    if (count < 1) throw new Error('GOOGLE_REPOSITORY_REQUIRED_HEADER_MISSING');
+    if (count > 1) throw new Error('GOOGLE_REPOSITORY_REQUIRED_HEADER_DUPLICATE');
   });
   return true;
 }
@@ -67,9 +67,13 @@ function prhGoogleRepositoryNormalizeReadRequest_(request, headers, lastRow) {
   });
 
   var normalizedHeaders = headers.map(function (value) { return String(value || '').trim(); });
+  var requested = {};
+  required.forEach(function (header) { requested[header] = true; });
   var positions = {};
   normalizedHeaders.forEach(function (header, index) {
-    if (header && positions[header] == null) positions[header] = index + 1;
+    if (!header || !requested[header]) return;
+    if (positions[header] != null) throw new Error('GOOGLE_REPOSITORY_READ_SOURCE_HEADER_DUPLICATE');
+    positions[header] = index + 1;
   });
   required.forEach(function (header) {
     if (!positions[header]) throw new Error('GOOGLE_REPOSITORY_READ_HEADER_MISSING');
