@@ -35,7 +35,16 @@ var PR_AUDIT_TECHNICAL_FIELDS = Object.freeze([
   'auditCapacityPercent',
   'auditRotatedRows',
   'auditFailureCount',
-  'auditConsecutiveFailures'
+  'auditConsecutiveFailures',
+  'sliId',
+  'sloStatus',
+  'sloObjective',
+  'sloThresholdMs',
+  'sloGoodCount',
+  'sloBadCount',
+  'sloTotalCount',
+  'sloBudgetRemaining',
+  'sloReasonCode'
 ]);
 
 var PR_AUDIT_FORBIDDEN_FIELD_PARTS = Object.freeze([
