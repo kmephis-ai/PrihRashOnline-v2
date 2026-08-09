@@ -209,6 +209,7 @@ const currentHash = context.prhMig010TableHash_(target);
 const headerHash = context.prhMig010HashEncodedRows_([headerEncoded]);
 const finalHash = context.prhMig010HashEncodedRows_([headerEncoded, ...rows]);
 const batchHash = context.prhMig010HashEncodedRows_(rows);
+const nowIso = new Date().toISOString();
 const authBase = {
   authorization: 'IRREVERSIBLE_ACTION_AUTHORIZED',
   session_id: 'SYNSESSION001',
@@ -219,7 +220,8 @@ const authBase = {
   current_raw_table_hash: currentHash,
   final_raw_table_hash: finalHash,
   target_header_hash: headerHash,
-  backup_verified_at: new Date().toISOString()
+  backup_created_at: nowIso,
+  backup_verified_at: nowIso
 };
 
 assert.throws(
@@ -227,8 +229,12 @@ assert.throws(
   /MIG010_EXECUTION_IRREVERSIBLE_ACTION_NOT_AUTHORIZED/
 );
 assert.throws(
+  () => context.prhMig010BeginAuthorizedExecution({ ...authBase, backup_created_at: '2020-01-01T00:00:00Z' }),
+  /MIG010_EXECUTION_BACKUP_COPY_STALE/
+);
+assert.throws(
   () => context.prhMig010BeginAuthorizedExecution({ ...authBase, backup_verified_at: '2020-01-01T00:00:00Z' }),
-  /MIG010_EXECUTION_BACKUP_STALE/
+  /MIG010_EXECUTION_BACKUP_VERIFICATION_STALE/
 );
 
 const begin = context.prhMig010BeginAuthorizedExecution({ ...authBase, batch_count: 1 });
@@ -289,11 +295,15 @@ assert.strictEqual(status.max_batch_rows, 100);
 assert.strictEqual(status.rollback_copy_required, true);
 assert.strictEqual(status.staging_required, true);
 assert.strictEqual(status.explicit_authorization_required, true);
+assert.strictEqual(status.fresh_backup_copy_required, true);
+assert.strictEqual(status.fresh_backup_verification_required, true);
 assert.strictEqual(status.public_ci_can_authorize, false);
 assert.strictEqual(status.generic_repository_write_authorized, false);
 
 console.log('mig010_execution_gateway_contract_test: OK', {
   authorizationRequired: true,
+  freshBackupCopyRequired: true,
+  freshBackupVerificationRequired: true,
   stagingBeforeLiveMutation: true,
   batchReadback: true,
   idempotentBatch: true,
