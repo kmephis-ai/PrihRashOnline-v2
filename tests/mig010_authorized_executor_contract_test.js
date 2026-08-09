@@ -42,11 +42,25 @@ function pkg() {
 
 const packageValue = pkg();
 const now = new Date('2026-08-09T12:00:00.000Z');
-const request = createAuthorizationRequest(packageValue, packageValue.backup_cipher_sha256, now);
+const backupCreatedAt = '2026-08-09T10:00:00.000Z';
+const request = createAuthorizationRequest(packageValue, packageValue.backup_cipher_sha256, backupCreatedAt, now);
 assert.strictEqual(request.schema, AUTH_REQUEST_SCHEMA);
 assert.strictEqual(request.authorization_required, AUTH_LITERAL);
+assert.strictEqual(request.backup_created_at, backupCreatedAt);
+assert.strictEqual(request.backup_verified_at, now.toISOString());
 assert.strictEqual(request.write_authorized, false);
 assert(/^[0-9a-f]{64}$/.test(request.request_hash));
+
+assert.throws(
+  () => createAuthorizationRequest(
+    packageValue,
+    packageValue.backup_cipher_sha256,
+    '2026-08-08T11:59:59.999Z',
+    now
+  ),
+  /MIG010_EXECUTOR_BACKUP_COPY_STALE/,
+  'old backup must not become fresh merely by re-verification'
+);
 
 const authorization = {
   schema: AUTH_SCHEMA,
@@ -60,6 +74,7 @@ const authorization = {
   current_raw_table_hash: request.current_raw_table_hash,
   final_raw_table_hash: request.final_raw_table_hash,
   target_header_hash: request.target_header_hash,
+  backup_created_at: request.backup_created_at,
   backup_verified_at: request.backup_verified_at,
   write_authorized: true
 };
@@ -74,12 +89,16 @@ assert.throws(
   /MIG010_EXECUTOR_AUTH_BINDING_MISMATCH/
 );
 assert.throws(
+  () => assertAuthorization({ ...authorization, backup_created_at: '2026-08-09T09:00:00.000Z' }, request, packageValue, now.getTime()),
+  /MIG010_EXECUTOR_AUTH_BACKUP_TIME_MISMATCH/
+);
+assert.throws(
   () => assertAuthorization(authorization, { ...request, request_hash: '0'.repeat(64) }, packageValue, now.getTime()),
   /MIG010_EXECUTOR_AUTH_REQUEST_INVALID/
 );
 assert.throws(
   () => assertAuthorization(authorization, request, packageValue, now.getTime() + MAX_BACKUP_AGE_MS + 1),
-  /MIG010_EXECUTOR_BACKUP_STALE/
+  /MIG010_EXECUTOR_BACKUP_(?:COPY|VERIFICATION)_STALE/
 );
 
 function response(status, json) {
@@ -144,6 +163,8 @@ async function fakeFetch(url, options) {
   assert.deepStrictEqual(called[2].parameter.rows, packageValue.batches[1].rows);
   assert(called.every((item) => item.parameter.authorization === AUTH_LITERAL));
   assert(called.every((item) => item.parameter.package_hash === packageValue.package_hash));
+  assert(called.every((item) => item.parameter.backup_created_at === backupCreatedAt));
+  assert(called.every((item) => item.parameter.backup_verified_at === now.toISOString()));
 
   called.length = 0;
   const rolledBack = await rollbackAuthorizedPackage(common);
@@ -157,10 +178,14 @@ async function fakeFetch(url, options) {
   assert.strictEqual(contract.finalizePendingReconciliation, true);
   assert.strictEqual(contract.financialPayloadStdout, false);
   assert.strictEqual(contract.authorizationLiteral, AUTH_LITERAL);
+  assert.strictEqual(contract.freshEncryptedBackupCopyRequired, true);
+  assert.strictEqual(contract.freshEncryptedBackupVerifyRequired, true);
 
   console.log('mig010_authorized_executor_contract_test: OK', {
     exactAuthorizationBinding: true,
-    freshBackupRequired: true,
+    freshBackupCopyRequired: true,
+    freshBackupVerificationRequired: true,
+    staleBackupCannotBeRefreshedByVerify: true,
     allowlistedExecutionFunctions: true,
     finalizePendingReconciliation: true,
     rollbackAvailable: true,
