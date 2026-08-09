@@ -60,7 +60,7 @@ Counts/details, financial payload, owner resolution contents and private hashes 
 - Successful finalize status is `FINALIZED_PENDING_RECONCILIATION`, never `DONE`.
 - `tools/mig010-post-reconcile.js` requires a new encrypted backup after finalize and independently proves source revision + resolved candidate + candidate revision + final raw target hash, `unexplainedMismatch=0`, idempotent rerun.
 
-Owner authorization is a separate private schema `MIG010_OWNER_IRREVERSIBLE_AUTHORIZATION_V1`. It is valid only with literal `IRREVERSIBLE_ACTION_AUTHORIZED`, exact request/package bindings and fresh backup verification <=24h. GitHub Actions, merge and AI-agent cannot create it.
+Owner authorization is a separate private schema `MIG010_OWNER_IRREVERSIBLE_AUTHORIZATION_V1`. It is valid only with literal `IRREVERSIBLE_ACTION_AUTHORIZED`, exact request/package bindings and fresh backup verification <=24h. **GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`.** Merge и AI-agent также не могут создать owner authorization.
 
 ## Current delivery
 
