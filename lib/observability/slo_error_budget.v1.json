@@ -18,6 +18,17 @@
     "fail_service_state": "UNKNOWN",
     "financial_correctness_authority": false
   },
+  "correctness_signal": {
+    "semantics": "PASS_FAIL_MACHINE_EVIDENCE_ONLY",
+    "allowed_sources": [
+      "FINANCIAL_RECONCILIATION",
+      "CANONICAL_SCHEMA",
+      "ANALYTICS_PARITY",
+      "MIGRATION_RECONCILIATION",
+      "RUNTIME_HEALTH"
+    ],
+    "financial_values_allowed": false
+  },
   "sli_profiles": {
     "AVAILABILITY": {
       "kind": "BOOLEAN_OK_RATIO",
@@ -32,7 +43,7 @@
     },
     "CORRECTNESS": {
       "kind": "BOOLEAN_OK_RATIO",
-      "objective_ppm": 999000,
+      "objective_ppm": 1000000,
       "min_samples": 20
     },
     "FRESHNESS": {
@@ -43,7 +54,7 @@
     },
     "MIGRATION_ERRORS": {
       "kind": "ERROR_FREE_RATIO",
-      "objective_ppm": 999000,
+      "objective_ppm": 1000000,
       "min_samples": 20
     }
   },
