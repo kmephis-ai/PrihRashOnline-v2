@@ -65,13 +65,14 @@ class FakeRange {
     }
     return this;
   }
-  copyTo(targetRange) {
+  copyTo(targetRange, options) {
+    const contentsOnly = Boolean(options && options.contentsOnly === true);
     for (let r = 0; r < this.numRows; r += 1) {
       for (let c = 0; c < this.numColumns; c += 1) {
         const sourceCell = this._cell(r, c);
         const targetCell = targetRange._cell(r, c);
         targetCell.value = sourceCell.value instanceof Date ? new Date(sourceCell.value.getTime()) : sourceCell.value;
-        targetCell.formula = sourceCell.formula;
+        targetCell.formula = contentsOnly ? '' : sourceCell.formula;
       }
     }
     return targetRange;
@@ -137,11 +138,13 @@ const headers = [
   'ID','Дата и время','Дата','Месяц','Тип','Сумма','Счёт','Счёт назначения','Категория','Подкатегория',
   'Наименование','Член семьи','Проект','Теги','Регулярная','Комментарий','Источник','Строка источника','Статус','Исходный тип'
 ];
+const oldDateFormula = '=IF(B2="";"";INT(B2))';
+const oldMonthFormula = '=IF(C2="";"";DATE(YEAR(C2);MONTH(C2);1))';
 const initialRows = [
   headers.map((value) => valueCell(value)),
   [
     valueCell('OLD-1'), valueCell(new Date('2025-01-01T10:00:00Z')),
-    valueCell('', '=IF(B2="";"";INT(B2))'), valueCell('', '=IF(C2="";"";DATE(YEAR(C2);MONTH(C2);1))'),
+    valueCell('', oldDateFormula), valueCell('', oldMonthFormula),
     valueCell('Расход'), valueCell(10), valueCell('Основной'), valueCell(''), valueCell('Дом'), valueCell(''),
     valueCell('Old synthetic'), valueCell(''), valueCell(''), valueCell(''), valueCell(''), valueCell(''),
     valueCell('SYN-LEGACY'), valueCell(2), valueCell('Перенесено'), valueCell('Расход')
@@ -231,9 +234,14 @@ assert.throws(
 const begin = context.prhMig010BeginAuthorizedExecution({ ...authBase, batch_count: 1 });
 assert.strictEqual(begin.status, 'STAGING_READY');
 assert.strictEqual(begin.writeAuthorized, true);
-assert(spreadsheet.getSheetByName('__MIG010_RB_SYNSESSION001'));
-assert(spreadsheet.getSheetByName('__MIG010_STAGE_SYNSESSION001'));
+const rollbackSheet = spreadsheet.getSheetByName('__MIG010_RB_SYNSESSION001');
+const stageSheet = spreadsheet.getSheetByName('__MIG010_STAGE_SYNSESSION001');
+assert(rollbackSheet);
+assert(stageSheet);
 assert.strictEqual(context.prhMig010TableHash_(target), currentHash, 'begin must not mutate live target');
+assert.strictEqual(rollbackSheet.getRange(2, 3, 1, 1).getFormulas()[0][0], oldDateFormula,
+  'rollback copy must preserve formulas before any live mutation');
+assert.strictEqual(stageSheet.getLastRow(), 1, 'staging clone must clear old data rows but retain header');
 
 const batchRequest = {
   ...authBase,
@@ -247,15 +255,34 @@ assert.strictEqual(staged.status, 'BATCH_STAGED');
 const repeated = context.prhMig010WriteAuthorizedBatch(batchRequest);
 assert.strictEqual(repeated.status, 'ALREADY_APPLIED');
 assert.strictEqual(context.prhMig010TableHash_(target), currentHash, 'staging must not mutate live target');
+assert.strictEqual(stageSheet.getRange(2, 3, 1, 1).getFormulas()[0][0], rows[0][2].f,
+  'staging must preserve candidate date formula');
+assert.strictEqual(stageSheet.getRange(2, 4, 1, 1).getFormulas()[0][0], rows[0][3].f,
+  'staging must preserve candidate month formula');
 
 const finalized = context.prhMig010FinalizeAuthorizedExecution(authBase);
 assert.strictEqual(finalized.status, 'FINALIZED_PENDING_RECONCILIATION');
 assert.strictEqual(finalized.rollbackAvailable, true);
 assert.strictEqual(context.prhMig010TableHash_(target), finalHash);
+assert.strictEqual(target.getRange(2, 3, 1, 1).getFormulas()[0][0], rows[0][2].f,
+  'finalize must preserve date formula, not only evaluated value');
+assert.strictEqual(target.getRange(2, 4, 1, 1).getFormulas()[0][0], rows[0][3].f,
+  'finalize must preserve month formula, not only evaluated value');
 
 const rolledBack = context.prhMig010RollbackAuthorizedExecution(authBase);
 assert.strictEqual(rolledBack.status, 'ROLLED_BACK');
 assert.strictEqual(context.prhMig010TableHash_(target), currentHash);
+assert.strictEqual(target.getRange(2, 3, 1, 1).getFormulas()[0][0], oldDateFormula,
+  'rollback must restore original date formula exactly');
+assert.strictEqual(target.getRange(2, 4, 1, 1).getFormulas()[0][0], oldMonthFormula,
+  'rollback must restore original month formula exactly');
+
+// Regression guard: Apps Script contentsOnly semantics intentionally drop formulas.
+const scratch = spreadsheet.addSheet('SCRATCH', initialRows);
+const contentsOnlyTarget = spreadsheet.addSheet('CONTENTS_ONLY_TARGET', []);
+scratch.getRange(2, 1, 1, 20).copyTo(contentsOnlyTarget.getRange(1, 1, 1, 20), { contentsOnly: true });
+assert.strictEqual(contentsOnlyTarget.getRange(1, 3, 1, 1).getFormulas()[0][0], '',
+  'fake must model contentsOnly formula loss so gateway regression cannot be masked');
 
 const status = context.prhMig010ExecutionGatewayStatus();
 assert.strictEqual(status.max_batch_rows, 100);
@@ -271,6 +298,9 @@ console.log('mig010_execution_gateway_contract_test: OK', {
   batchReadback: true,
   idempotentBatch: true,
   finalizeHashVerified: true,
+  formulasPreservedOnFinalize: true,
+  formulasPreservedOnRollback: true,
+  contentsOnlyFormulaLossModeled: true,
   rollbackVerified: true,
   genericRepositoryWriteAuthorized: false
 });
