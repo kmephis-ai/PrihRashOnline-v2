@@ -77,7 +77,7 @@
       "sloSampleCount",
       "sloBadSampleCount",
       "sloRemainingBudgetPpm",
-      "sloBudgetConsumedBps",
+      "sloBudgetBurnBps",
       "sloBudgetState",
       "sloReasonCode"
     ]
