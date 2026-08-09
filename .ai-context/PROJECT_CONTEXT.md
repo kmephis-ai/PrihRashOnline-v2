@@ -22,7 +22,7 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `DATA-010` — DONE.
 - `ARCH-010` — DONE, Issue #89 Main Verification PASS.
 - `ARCH-011` — DONE; historical lifecycle: `ARCH-011` was the current writer before MIG-010, Issue #91 Main Verification PASS.
-- `MIG-010` — current P0 writer, Issue #96, draft PR #97; owner-private stage = `OWNER_VERIFIED`. Private full-history write + fresh-backup reconciliation = PASS. GitHub lifecycle remains IN_PROGRESS until final candidate gates, merge and Main Verification.
+- `MIG-010` — current P0 writer, Issue #96, PR #97 ready-for-review; owner-private stage = `OWNER_VERIFIED`. Private full-history write + fresh-backup reconciliation = PASS. GitHub lifecycle remains IN_PROGRESS until exact-head CI-003 merge and Main Verification.
 
 `PRH_TRANSACTION_REPOSITORY_V1` — storage-neutral repository port. Generic Google adapter read/query работает, canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
@@ -80,7 +80,7 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-For MIG-010 actual owner-private migration + post-write reconciliation are complete. PR #97 remains draft only until documentation/current-truth sync and final exact-head machine gates are green; then it may become ready for the normal CI-003 merge path.
+For MIG-010 actual owner-private migration + post-write reconciliation are complete. PR #97 is ready-for-review; the new exact candidate must replay the normal chain while `draft=false`, then CI-003 may perform autonomous squash merge and Main Verification may close Issue #96.
 
 После INC-001 Web Dashboard использует raw `HtmlOutput` placeholder injection; authenticated Web App render smoke v2 обязателен для runtime health.
 
