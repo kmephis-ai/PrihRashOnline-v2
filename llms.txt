@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; порядок/dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010, ANL-010 и TEST-010 DONE, OBS-010 current writer.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010/ANL-010/TEST-010/OBS-010/PERF-010 DONE, PERF-011 current writer.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task-packet schema.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/READY selection/one-writer/lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
@@ -12,6 +12,22 @@ tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — reviewer roles, read-only boundary, severity/arbitration и machine-gate authority.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid/external model dependency.
 
+# PERF-011 revision-aware read cache
+docs/operations/PERF011_REVISION_AWARE_CACHE.md — normative exact-revision cache semantics, adapter/projection namespace, TTL/LRU/invalidation/privacy and rollback.
+lib/repository/revision_aware_cache.v1.json — machine-readable `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`; exact revision-before-HIT, versioned adapter/projection key namespace, bounds and telemetry authority.
+lib/repository/revision_aware_cache.js — deterministic read/query decorator; normalized query identity, revision invalidation, TTL/LRU, projection-aware namespace and write denial.
+tests/repository_cache_adapter_contract_test.js — synthetic same-revision HIT, normalized query, projection namespace, invalidation/TTL/LRU/unknown-revision/write/privacy behavioral contract.
+.github/workflows/perf011-cache-contract.yml — supplementary zero-secret PERF-011 contract workflow; not completion authority.
+.github/workflows/pr-validation.yml — canonical named `Revision-aware read cache` gate plus full layered regression.
+
+# PERF-010 verified query projection
+docs/operations/PERF010_QUERY_PROJECTION.md — normative mapped-column/span/bounded-row projection semantics and rollback.
+lib/adapters/google_sheets_projection.v1.json — machine-readable `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0`.
+lib/adapters/google_sheets_projection.js — deterministic required-header/span/row-group planner and technical projection telemetry.
+lib/adapters/google_sheets_transaction_repository.js — Google adapter using projected scan + selected-row materialization while preserving repository semantics.
+GoogleTransactionRepositoryGateway.js — Apps Script header discovery + bounded projected data reads; duplicate mapped physical headers fail closed; canonical writes blocked.
+tests/repository_projection_adapter_contract_test.js — synthetic projection minimality, query parity, ambiguous-header fail-closed and no-full-width-read regression.
+
 # TEST-010 layered test architecture
 docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md — normative test layers, deterministic inventory, structured contract parsing, budgets and DoD.
 lib/testing/test_architecture.v1.json — machine-readable `PRH_TEST_ARCHITECTURE_V1@1.0.0` taxonomy, layer patterns/budgets/suites/required workflow gates.
@@ -20,13 +36,12 @@ lib/testing/structured_contract_parsers.js — structured Markdown lifecycle + w
 tools/run-layered-tests.js — deterministic `pure`/`full` test runner in stable path order.
 tests/test_architecture_contract_test.js — taxonomy/inventory/parser/workflow/pure-suite behavioral contract.
 
-# OBS-010 SLO/error-budget layer
+# OBS-010 verified SLO/error-budget layer
 docs/operations/OBS010_SLO_ERROR_BUDGET.md — normative integer-ppm/bps SLO semantics, half-open windows, budget states, correctness/privacy/cost boundaries and rollback.
 lib/observability/slo_error_budget.v1.json — machine-readable `PRH_SLO_ERROR_BUDGET_V1@1.0.0`, 5 SLI profiles, zero-tolerance correctness/migration error policy, budget bands and authority boundaries.
 lib/observability/slo_error_budget.js — deterministic local SLI/service evaluator + privacy-safe `toAuditMetadata()` mapper; no platform/network/write/provider authority.
 tests/slo_error_budget_policy_contract_test.js — synthetic window/precision/budget/zero-tolerance/correctness-source/privacy/service-state behavioral contract.
 SecurityPrivacyPolicy.js — runtime audit metadata allowlist; SLO fields are bounded technical metadata only and financial/raw payload remains forbidden.
-.github/workflows/pr-validation.yml — named `SLO error budget` gate plus full layered regression suite.
 
 # Finance/domain baseline
 docs/finance/KPI_DICTIONARY.md — normative KPI Dictionary v1.
@@ -50,7 +65,6 @@ lib/repository/transaction_repository.v1.json — machine-readable storage-neutr
 lib/repository/transaction_repository.js — deterministic query/revision + in-memory synthetic fake repository.
 lib/adapters/google_sheets_operations_mapping.v1.json — versioned current-store → canonical mapping policy.
 lib/adapters/google_sheets_transaction_repository.js — Google Sheets canonical transaction adapter with explicit currency/dimension resolvers.
-GoogleTransactionRepositoryGateway.js — generic Apps Script current-store read gateway; canonical financial writes independently fail-closed.
 tests/repository_adapter_contract_test.js — synthetic fake/Google mapping/gateway/financial parity + write-guard contract.
 
 # ANL-010 verified analytics extension
@@ -108,8 +122,8 @@ tests/mig010_owner_diagnostics_contract_test.js — exact-plan private blocker d
 tests/mig010_documentation_contract_test.js — MIG-010 completed/historical occurrence/repair/privacy truth contract.
 tests/mig010_execution_documentation_contract_test.js — owner-authorized execution/reconciliation historical truth contract.
 
-docs/PROJECT_STATUS.md — current R1 writer/status summary: MIG-010 + ANL-010 + TEST-010 DONE, OBS-010 IN_PROGRESS.
-docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration/analytics/testing boundaries + target architecture.
+docs/PROJECT_STATUS.md — current R1 summary: through PERF-010 DONE, PERF-011 IN_PROGRESS.
+docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration/analytics/testing/observability/projection boundaries + target architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline and Main Verification close path.
 docs/data-model.md — canonical data model, financial truth, migration, write and public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.

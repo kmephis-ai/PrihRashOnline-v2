@@ -1,6 +1,6 @@
 # PrihRashOnline-v2 — public-safe AI context
 
-Этот файл безопасен для public repository: real financial rows/aggregates, private runtime locators, OAuth, backup bytes/keys, owner-private mapper/snapshot/state/diagnostic/repair/execution payload здесь запрещены.
+Этот файл безопасен для public repository: real financial rows/aggregates, private runtime locators, OAuth, backup bytes/keys и owner-private payload запрещены.
 
 ## Канонические источники
 
@@ -10,11 +10,11 @@
 4. Exact-SHA code/tests/workflows и machine evidence.
 5. Architecture/ADR/operations docs.
 
-Chat history/memory и stale Roadmap copies not authority. При явном предоставлении `Master Audit v2.1` и `AI Development Playbook v1.0` действует precedence из `AGENTS.md`.
+Chat history/memory и stale Roadmap copies not authority. При явно предоставленных `Master Audit v2.1` / `AI Development Playbook v1.0` действует precedence из `AGENTS.md`.
 
 ## Current R0 truth
 
-R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты. AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
+R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 
 ## Current R1 truth
 
@@ -26,66 +26,58 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `ANL-010` — DONE, Issue #98 Main Verification PASS.
 - `TEST-010` — DONE, Issue #100 Main Verification PASS.
 - `OBS-010` — DONE, Issue #103 Main Verification PASS.
-- `PERF-010` — **current P1 writer**, Issue #105, branch `agent/PERF-010-query-projection-minimal-ranges`.
+- `PERF-010` — DONE, Issue #105 Main Verification PASS.
+- `PERF-011` — **current P1 writer**, Issue #108, branch `agent/PERF-011-revision-aware-read-cache`.
 
-`PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository port. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+`PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## PERF-010 query projection/minimal-range boundary
+## PERF-011 revision-aware cache boundary
 
-`PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` optimizes the current ARCH-011 Google Sheets adapter without changing repository/canonical/financial semantics.
+`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` decorates read/query operations only. It cannot define financial semantics and cannot inherit write authority from a wrapped repository.
 
-Read model:
+Exact HIT preconditions:
 
-- one complete header row may be read for control-plane column discovery;
-- data-plane rows are read only through requested mapped contiguous column spans and bounded row intervals;
-- `readAll()` / `getRevision()` read all canonical-required mapped headers but omit unmapped worksheet columns;
-- `getById()` scans only `ID`, then reads the full mapped projection for the unique matching source row;
-- `query()` scans only `ID`, `Дата и время`, and source headers needed by active filters, applies normalized query matching/order, then reads full mapped headers only for selected page row groups;
-- selected row numbers are grouped into contiguous intervals before full-row readback.
+- cache schema/version matches;
+- repository schema matches;
+- versioned adapter/mapping namespace matches;
+- versioned projection identity matches;
+- exact 64-hex repository revision is freshly probed before the HIT;
+- operation and normalized operation/query identity match;
+- TTL not expired.
 
-`normalizeQuery()` and repository result shape remain authoritative; PERF-010 does not define financial/business semantics. Synthetic parity tests compare projected Google query results with `applyQuery()` on the same canonical set.
+Key identity includes SHA-256 normalized operation identity. `QUERY` uses authoritative `normalizeQuery()`, so semantically equivalent query ordering does not create duplicate entries. If a repository advertises `capabilities.projection=true`, explicit `projection_identity` is mandatory; missing identity fails closed.
 
-`GoogleTransactionRepositoryGateway.js` v1.1.0 accepts strict `required_headers`, optional `start_row` and `row_count`. Unknown request/header fails closed. It does not use `getDataRange()` on the PERF-010 canonical path and has no financial-write authority. `writeBatch()` remains blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+Revision change invalidates all entries before HIT. Unknown revision fails closed before the underlying loader. Adapter/mapping/projection version change yields a different key namespace/MISS even with same revision/query.
 
-Public read instrumentation is technical only: projection ID, requested header count, projected column count, span count, row count, range read count and cell read count. It contains no amount, description, category, account/member/project value or transaction payload.
+Bounds: TTL default 30s/max 300s; entries default 64/hard max 512; LRU eviction. Eviction only turns a future request into MISS. Explicit invalidation clears entries and forgets the last revision.
 
-Current deterministic synthetic fixture evidence: source width 20 columns; mapped canonical width 15; old full-width baseline 80 data cells for four rows; projected `readAll=60`, `getById=19`, narrow type/status/category query `=35`. This is synthetic performance evidence only, not production finance telemetry.
+PERF-011 deliberately does not cache the exact revision probe and does not implement PERF-012 single-scan refresh. On MISS, PERF-010 projection path remains authoritative.
 
-Named machine gate: `Query projection minimal ranges` -> `tests/repository_projection_adapter_contract_test.js`; full TEST-010 layered suite also owns the test under `ADAPTER_INTEGRATION`.
+Cache layer `writeBatch()` always returns `BLOCKED / REVISION_CACHE_WRITE_NOT_AUTHORIZED`.
 
-Normative runbook: `docs/operations/PERF010_QUERY_PROJECTION.md`.
+Privacy-safe telemetry includes only HIT/MISS/EMPTY, reason, operation, cache-key SHA-256, domain-separated revision hash prefix, entry count, age, eviction and invalidation counts. Raw query, transaction ID, adapter/projection namespace and financial/canonical payload are absent.
+
+Normative runbook: `docs/operations/PERF011_REVISION_AWARE_CACHE.md`. Named canonical PR gate: `Revision-aware read cache`. Supplemental workflow `PERF-011 Cache Contract` is not completion authority.
+
+## PERF-010 verified projection boundary
+
+`PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` is DONE. Header discovery is separated from data-plane reads; canonical Google rows are read only through required contiguous column spans and bounded row groups. Generic financial write stays blocked. PERF-011 key namespace binds to the projection version rather than redefining projection behavior.
 
 ## OBS-010 verified SLO/error-budget boundary
 
-`PRH_SLO_ERROR_BUDGET_V1@1.0.0` is the single versioned OBS-010 authority on top of OBS-001 privacy-safe telemetry. It uses deterministic integer ppm/bps, half-open windows and SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`.
+`PRH_SLO_ERROR_BUDGET_V1@1.0.0` uses integer ppm/bps and SLI AVAILABILITY/LATENCY/CORRECTNESS/FRESHNESS/MIGRATION_ERRORS. Correctness accepts allowlisted technical machine evidence only. It has no financial truth/write authority and requires no paid provider.
 
-Observation shapes are deny-by-default. `CORRECTNESS` accepts allowlisted machine evidence only and never recomputes financial values. Public SLO evidence is bounded technical metadata only. No paid provider is required; `FREE_ONLY`, `financial_write=false`, `financial_correctness=false`.
+## TEST-010 verified testing boundary
 
-Normative runbook: `docs/operations/OBS010_SLO_ERROR_BUDGET.md`.
-
-## TEST-010 verified layered testing boundary
-
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` versioned test taxonomy separates `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`.
-
-Inventory scans tracked `tests/*_test.js` deterministically. Unclassified or ambiguous tests fail closed. `pure` suite rejects platform-service source tokens; `full` suite runs every tracked test in stable path order. Structured lifecycle/workflow parsers make current-writer assertions branch-derived rather than hard-coded to a completed successor ID.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed. Shared lifecycle/workflow parsers remove hard-coded successor authority.
 
 ## ANL-010 verified analytics boundary
 
-`PRH_ANALYTICS_CONTRACT_V1@1.0.0` defines `PRH_ANALYTICS_QUERY_V1` and `PRH_ANALYTICS_RESULT_V1`. Supported measures delegate to FIN-010 `evaluateKpis()` rather than duplicating financial formulas. Renderer/storage neutrality and `financial_write=false` remain invariant.
+`PRH_ANALYTICS_CONTRACT_V1@1.0.0` defines renderer/storage-neutral query/results and delegates financial KPI semantics to FIN-010 `evaluateKpis()`. `financial_write=false`.
 
 ## MIG-010 historical verified boundary
 
-`PRH_FULL_HISTORY_MIGRATION_V1`, `MIG010_REPAIR_POLICY_V1@1.1.0`, `CONTENT_FINGERPRINT_OCCURRENCE_V1`, `MIG010_EXECUTION_POLICY_V1@1.0.0` and adaptive typed staging remain historical contracts.
-
-Owner-private execution was exact-authorized and verified by fresh encrypted post-write reconciliation:
-
-- `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`;
-- `unexplainedMismatch=0`;
-- `provenanceComplete=true`;
-- `idempotentRerunNoop=true`;
-- `rollbackCanBeReleased=true`.
-
-This evidence does not grant continuing generic write authority. Hidden staging/rollback cleanup was not automatic. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; merge/AI cannot transfer owner authorization to later mutations.
+Owner-private full-history migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed occurrence identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Authorized execution was governed by `MIG010_EXECUTION_POLICY_V1@1.0.0`; finalize could enter `FINALIZED_PENDING_RECONCILIATION` and was not considered complete until post-write reconciliation reached the verified boundary. This one-time authorization/evidence never grants later generic write authority. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions and AI cannot reuse it for later mutations.
 
 ## Current delivery
 
@@ -100,7 +92,7 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-PERF-010 remains IN_PROGRESS until its projection/parity/docs/machine evidence is green, PR is ready, exact-head trusted gates pass and Main Verification closes Issue #105.
+PERF-011 remains IN_PROGRESS until its cache/docs/machine evidence is green and Main Verification closes Issue #108.
 
 ## Executable continuation protocol
 
@@ -108,45 +100,37 @@ PERF-010 remains IN_PROGRESS until its projection/parity/docs/machine evidence i
 
 ## Read-only multi-AI review
 
-Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers always `READ_ONLY`, `writer_authority: false`; P0/P1 block review evidence, P2/P3 advisory. Review does not override machine gates/Main Verification.
+Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers always `READ_ONLY`, `writer_authority:false`; P0/P1 block, P2/P3 advisory. Review never overrides machine gates/Main Verification.
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys and migration owner-private artifacts stay private. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys и migration artifacts stay private. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
-FIN-010: `FIN-TRUTH-v1`, integer minor units, posted-only, transfer-neutral, refund as expense reduction, mixed-currency fail-closed.
-
-DATA-010: `PRH_CANONICAL_TRANSACTION_V1`; `source_position` mutable locator, not identity. Owner-confirmed identical operations may use `CONTENT_FINGERPRINT_OCCURRENCE_V1` without modifying financial fields for uniqueness.
-
-ARCH-010: `PRH_APPLICATION_CORE_V1`; `io_authority=false`, `financial_write_authority=false`, `network_authority=false`.
-
-ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation remains blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
-
-ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; pure query/evaluation boundary, renderer/storage-neutral, `financial_write=false`.
-
-TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test execution/classification authority only, no product/business/write authority.
-
-OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLI/error-budget authority only, no financial truth/write authority.
-
-PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1`; Google read-plan authority only, no financial/query/write authority.
+FIN-010: `FIN-TRUTH-v1`.  
+DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
+ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority.  
+ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; Google mutation blocked.  
+ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; no financial-write authority.  
+TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test authority only.  
+OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLO authority only.  
+PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1`; read-plan authority only.  
+PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.
 
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #105
+3. active GitHub Issue #108
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/operations/PERF010_QUERY_PROJECTION.md`
-6. `/lib/adapters/google_sheets_projection.v1.json`
-7. `/lib/adapters/google_sheets_projection.js`
-8. `/lib/adapters/google_sheets_transaction_repository.js`
-9. `/GoogleTransactionRepositoryGateway.js`
-10. `/tests/repository_projection_adapter_contract_test.js`
-11. `/docs/operations/OBS010_SLO_ERROR_BUDGET.md`
-12. exact candidate code/tests/workflows
+5. `/docs/operations/PERF011_REVISION_AWARE_CACHE.md`
+6. `/lib/repository/revision_aware_cache.v1.json`
+7. `/lib/repository/revision_aware_cache.js`
+8. `/tests/repository_cache_adapter_contract_test.js`
+9. `/docs/operations/PERF010_QUERY_PROJECTION.md`
+10. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001/002/003`, `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010` = DONE. `PERF-010` = current R1 writer. Other R1 items remain dependency/priority-gated until its Main Verification.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` = DONE. `PERF-011` = current R1 writer. PERF-012+ remain dependency-gated until its Main Verification.
