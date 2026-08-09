@@ -1,0 +1,94 @@
+{
+  "schema": "PRH_SLO_ERROR_BUDGET_V1",
+  "version": "1.0.0",
+  "roadmap_id": "OBS-010",
+  "precision": {
+    "ratio_denominator_ppm": 1000000,
+    "budget_consumed_denominator_bps": 10000,
+    "rounding": "INTEGER_FLOOR_GOOD_RATIO_CEIL_BURN"
+  },
+  "window": {
+    "interval": "HALF_OPEN_START_INCLUSIVE_END_EXCLUSIVE",
+    "timestamps": "UNIX_EPOCH_MS_INTEGER",
+    "empty_or_insufficient": "UNKNOWN"
+  },
+  "telemetry_state": {
+    "allowed": ["PASS", "WARN", "FAIL"],
+    "warn_service_state": "DEGRADED",
+    "fail_service_state": "UNKNOWN",
+    "financial_correctness_authority": false
+  },
+  "correctness_signal": {
+    "allowed_sources": [
+      "FINANCIAL_RECONCILIATION",
+      "CANONICAL_SCHEMA",
+      "ANALYTICS_PARITY",
+      "MIGRATION_RECONCILIATION",
+      "RUNTIME_HEALTH"
+    ],
+    "financial_values_allowed": false,
+    "raw_payload_allowed": false
+  },
+  "sli_profiles": {
+    "AVAILABILITY": {
+      "kind": "BOOLEAN_OK_RATIO",
+      "objective_ppm": 995000,
+      "min_samples": 20
+    },
+    "LATENCY": {
+      "kind": "LATENCY_THRESHOLD_RATIO",
+      "objective_ppm": 950000,
+      "threshold_ms": 2000,
+      "min_samples": 20
+    },
+    "CORRECTNESS": {
+      "kind": "CORRECTNESS_EVIDENCE_RATIO",
+      "objective_ppm": 1000000,
+      "min_samples": 20
+    },
+    "FRESHNESS": {
+      "kind": "AGE_THRESHOLD_RATIO",
+      "objective_ppm": 990000,
+      "threshold_ms": 900000,
+      "min_samples": 5
+    },
+    "MIGRATION_ERRORS": {
+      "kind": "ERROR_FREE_RATIO",
+      "objective_ppm": 1000000,
+      "min_samples": 20
+    }
+  },
+  "budget_bands_bps": [
+    { "max_inclusive": 5000, "state": "HEALTHY" },
+    { "max_inclusive": 8000, "state": "WATCH" },
+    { "max_inclusive": 10000, "state": "CRITICAL" },
+    { "max_inclusive": null, "state": "BREACHED" }
+  ],
+  "service_state_order": ["PASS", "WATCH", "DEGRADED", "CRITICAL", "BREACHED", "UNKNOWN"],
+  "privacy": {
+    "financial_payload_allowed": false,
+    "real_financial_aggregates_allowed": false,
+    "public_tests": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "audit_metadata_fields": [
+      "sliId",
+      "sloStatus",
+      "sloObjectivePpm",
+      "sloThresholdMs",
+      "sloSampleCount",
+      "sloBadSampleCount",
+      "sloRemainingBudgetPpm",
+      "sloBudgetConsumedBps",
+      "sloBudgetState",
+      "sloReasonCode"
+    ]
+  },
+  "authority": {
+    "io": false,
+    "network": false,
+    "ui": false,
+    "financial_write": false,
+    "financial_correctness": false,
+    "external_provider_required": false,
+    "paid_dependency_required": false
+  }
+}
