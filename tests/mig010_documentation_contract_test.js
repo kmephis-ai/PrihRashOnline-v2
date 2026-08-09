@@ -10,10 +10,13 @@ const status = read('docs/PROJECT_STATUS.md');
 const context = read('.ai-context/PROJECT_CONTEXT.md');
 const architecture = read('docs/architecture.md');
 const runbook = read('docs/operations/MIG010_FULL_HISTORY_MIGRATION.md');
+const repairRunbook = read('docs/operations/MIG010_REPAIR_POLICY.md');
 const llms = read('llms.txt');
 const workflow = read('.github/workflows/pr-validation.yml');
 const ownerTool = read('tools/mig010-owner.js');
+const repairTool = read('tools/mig010-repair.js');
 const contract = JSON.parse(read('lib/migration/full_history_migration.v1.json'));
+const repairPolicy = JSON.parse(read('lib/migration/mig010_repair_policy.v1.json'));
 
 function match(text, pattern, message) {
   assert(pattern.test(text), message);
@@ -59,12 +62,34 @@ match(runbook, /вне Git repository/i,
 match(runbook, /unexplainedMismatch = 0/,
   'runbook must require zero unexplained mismatch');
 
+match(repairRunbook, /MIG010_REPAIR_POLICY_V1/,
+  'repair runbook must identify versioned repair policy');
+match(repairRunbook, /REBUILD_LEGACY_SLICE_V1/,
+  'repair runbook must define scoped legacy rebuild strategy');
+match(repairRunbook, /SOURCE_INVALID -> QUARANTINE_EXPLAINED/,
+  'invalid source must be quarantined rather than silently lost');
+match(repairRunbook, /DEDUPLICATE_KEEP_ONE[\s\S]{0,1000}PRESERVE_ALL[\s\S]{0,1000}UNRESOLVED/,
+  'repair runbook must expose bounded duplicate owner decisions');
+match(repairRunbook, /PRESERVE_ALL[\s\S]{0,400}CANONICAL_IDENTITY_EXTENSION_REQUIRED/,
+  'preserve-all duplicate decision must fail closed until identity extension');
+match(repairRunbook, /не имеют права автоматически выбирать `DEDUPLICATE_KEEP_ONE`/,
+  'AI/CI must not decide financial duplicate semantics');
+match(repairRunbook, /write_authority: false/,
+  'repair stage must have no write authority');
+
 assert.strictEqual(contract.schema, 'PRH_FULL_HISTORY_MIGRATION_V1');
 assert.strictEqual(contract.batch.max_size, 100);
 assert.strictEqual(contract.resume.integrity, 'HMAC-SHA256');
 assert.strictEqual(contract.pre_write.authorization, 'IRREVERSIBLE_ACTION_AUTHORIZED');
 assert.strictEqual(contract.pre_write.public_ci_can_authorize_real_write, false);
 assert.strictEqual(contract.reconciliation.required_unexplained_mismatch, 0);
+
+assert.strictEqual(repairPolicy.schema, 'MIG010_REPAIR_POLICY_V1');
+assert.strictEqual(repairPolicy.strategy, 'REBUILD_LEGACY_SLICE_V1');
+assert.strictEqual(repairPolicy.source_invalid.action, 'QUARANTINE_EXPLAINED');
+assert.strictEqual(repairPolicy.source_duplicate.action, 'OWNER_DECISION_REQUIRED');
+assert.strictEqual(repairPolicy.source_duplicate.public_ci_can_decide, false);
+assert.strictEqual(repairPolicy.write_authority, false);
 
 match(ownerTool, /writeCommandEnabled:\s*false/,
   'owner tool contract must advertise write disabled');
@@ -83,23 +108,39 @@ match(ownerTool, /MIG010_PRIVATE_DIAGNOSTIC_INSIDE_REPOSITORY/,
 match(ownerTool, /MIG010_SNAPSHOT_BACKUP_MISMATCH/,
   'owner tool must bind snapshot to backup evidence');
 
-match(workflow, /- name: Full-history migration protocol[\s\S]{0,700}full_history_migration_contract_test\.js[\s\S]{0,700}mig010_owner_diagnostics_contract_test\.js[\s\S]{0,700}mig010_documentation_contract_test\.js/m,
-  'PR Validation must have named full-history migration + diagnostics gate');
+match(repairTool, /offlineDuplicateReview:\s*true/,
+  'repair tool contract must advertise offline duplicate review');
+match(repairTool, /writeCommandEnabled:\s*false/,
+  'repair tool contract must keep write disabled');
+match(repairTool, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
+  'repair tool write commands must fail closed');
+match(repairTool, /financialPayloadStdout:\s*false/,
+  'repair tool stdout must exclude financial payload');
+
+match(workflow, /- name: Full-history migration protocol[\s\S]{0,1200}mig010_repair_policy_contract_test\.js[\s\S]{0,600}mig010_repair_tool_contract_test\.js[\s\S]{0,600}mig010_documentation_contract_test\.js/m,
+  'PR Validation must have named migration diagnostics + repair gate');
 
 for (const required of [
   'docs/operations/MIG010_FULL_HISTORY_MIGRATION.md',
+  'docs/operations/MIG010_REPAIR_POLICY.md',
   'lib/migration/full_history_migration.v1.json',
   'lib/migration/full_history_migration.js',
+  'lib/migration/mig010_repair_policy.v1.json',
+  'lib/migration/mig010_repair_policy.js',
   'tests/full_history_migration_contract_test.js',
   'tools/mig010-owner.js',
+  'tools/mig010-repair.js',
   'tests/mig010_owner_tool_contract_test.js',
-  'tests/mig010_owner_diagnostics_contract_test.js'
+  'tests/mig010_owner_diagnostics_contract_test.js',
+  'tests/mig010_repair_policy_contract_test.js',
+  'tests/mig010_repair_tool_contract_test.js'
 ]) {
   assert(llms.includes(required), `llms.txt missing ${required}`);
 }
 
 for (const [name, text] of [
-  ['status', status], ['context', context], ['architecture', architecture], ['runbook', runbook], ['llms', llms]
+  ['status', status], ['context', context], ['architecture', architecture],
+  ['runbook', runbook], ['repairRunbook', repairRunbook], ['llms', llms]
 ]) {
   assert(!/script\.google\.com\/macros\/s\/|\bAKfy[A-Za-z0-9_-]+\b/.test(text), `${name} contains private runtime locator`);
   assert(!/[A-Z]:\\(?:YandexDisk|PrihRashOnline-Keys|PrihRashOnline(?:\\|$))/i.test(text), `${name} contains owner-private path`);
@@ -112,6 +153,9 @@ console.log('mig010_documentation_contract_test: OK', {
   publicCiCanAuthorizeWrite: false,
   privatePathsOutsideRepository: true,
   privateDiagnostics: true,
+  repairPolicy: 'MIG010_REPAIR_POLICY_V1',
+  duplicateOwnerDecision: true,
+  preserveAllFailsClosed: true,
   detailedFindingsStdout: false,
   unexplainedMismatchRequired: 0
 });
