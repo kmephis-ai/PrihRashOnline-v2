@@ -8,20 +8,19 @@ const vm = require('vm');
 const root = path.join(__dirname, '..');
 const dashboardSource = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
 const runtimeSource = fs.readFileSync(path.join(root, 'RuntimeHealth.js'), 'utf8');
+const dashboardHtml = fs.readFileSync(path.join(root, 'DashboardWebApp.html'), 'utf8');
 
 // Compile the exact deployable server-side sources with Node/V8 before exercising them.
 new vm.Script(dashboardSource, { filename: 'DashboardWebDataService.js' });
 new vm.Script(runtimeSource, { filename: 'RuntimeHealth.js' });
 
-let renderedInitialData = null;
-const htmlOutput = {
-  setTitle() { return this; },
-  addMetaTag() { return this; },
-  getContent() {
-    return '<!doctype html><html><body><script id="initial-data" type="application/json">' +
-      String(renderedInitialData || '') + '</script><div>PrihRashOnline</div></body></html>';
-  }
-};
+function makeHtmlOutput(content) {
+  return {
+    setTitle() { return this; },
+    addMetaTag() { return this; },
+    getContent() { return content; }
+  };
+}
 
 const context = vm.createContext({
   console,
@@ -35,15 +34,12 @@ const context = vm.createContext({
   Date,
   RegExp,
   HtmlService: {
-    createTemplateFromFile(name) {
+    createHtmlOutputFromFile(name) {
       assert.strictEqual(name, 'DashboardWebApp');
-      return {
-        initialData: '',
-        evaluate() {
-          renderedInitialData = this.initialData;
-          return htmlOutput;
-        }
-      };
+      return makeHtmlOutput(dashboardHtml);
+    },
+    createHtmlOutput(content) {
+      return makeHtmlOutput(String(content));
     }
   },
   PR_BUILD_INFO: {
@@ -77,9 +73,12 @@ const context = vm.createContext({
 vm.runInContext(dashboardSource, context, { filename: 'DashboardWebDataService.js' });
 vm.runInContext(runtimeSource, context, { filename: 'RuntimeHealth.js' });
 
+const renderedHtml = vm.runInContext("prhRenderWebDashboard_({smoke:true}).getContent()", context);
+assert.ok(renderedHtml.includes('"smoke":true'));
+assert.ok(!renderedHtml.includes('<?!= initialData ?>'), 'initialData placeholder must be replaced before output');
+
 const smokeToken = vm.runInContext('prhWebAppSmokeToken()', context);
 assert.strictEqual(smokeToken, 'PRH_WEBAPP_SMOKE_V1|OK');
-assert.ok(renderedInitialData.includes('"smoke":true'));
 
 const healthToken = vm.runInContext(
   "prhReleaseHealthCheckToken({candidateSha:'" + 'a'.repeat(40) + "',sourceTreeHash:'" + 'b'.repeat(64) + "'})",
@@ -91,6 +90,8 @@ assert.match(
 );
 
 assert.match(dashboardSource, /function prhRenderWebDashboard_\(data\)/);
+assert.match(dashboardSource, /createHtmlOutputFromFile\('DashboardWebApp'\)/);
+assert.doesNotMatch(dashboardSource, /createTemplateFromFile\('DashboardWebApp'\)/);
 assert.match(dashboardSource, /function prhWebAppSmokeToken\(\)/);
 assert.doesNotMatch(
   dashboardSource.match(/function prhWebAppSmokeToken\(\)[\s\S]*?\n}/)[0],
@@ -101,7 +102,8 @@ assert.match(runtimeSource, /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
 
 console.log('dashboard-web-runtime-smoke: PASS', {
   syntax: 'V8',
-  template: 'DashboardWebApp',
+  renderMode: 'RAW_HTML_OUTPUT_PLACEHOLDER_INJECTION',
+  templateParserUsed: false,
   workbookReadsInSmoke: false,
   healthTokenShapePreserved: true
 });
