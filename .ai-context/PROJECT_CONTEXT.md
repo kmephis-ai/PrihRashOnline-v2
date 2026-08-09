@@ -10,7 +10,7 @@
 4. Exact-SHA code/tests/workflows и machine evidence.
 5. Architecture/ADR/operations docs.
 
-Chat history/memory и stale Roadmap copies не authority. При явном предоставлении `Master Audit v2.1` и `AI Development Playbook v1.0` действует precedence из `AGENTS.md`.
+Chat history/memory и stale Roadmap copies not authority. При явном предоставлении `Master Audit v2.1` и `AI Development Playbook v1.0` действует precedence из `AGENTS.md`.
 
 ## Current R0 truth
 
@@ -34,7 +34,9 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 Owner checkpoint is privacy-safe: snapshot created, dry-run = BLOCKED, state verify = PASS, diagnostics written, write authority remains false. Public-safe blocker classes are `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`; counts/details and owner resolution payload remain private.
 
-`tools/mig010-owner.js` creates private snapshot/dry-run/state/diagnostics. `tools/mig010-repair.js` creates private repair proposal + offline duplicate review + owner-bound resolution/resolved rebuild candidate. Both reject `execute/write/apply` until a later explicit authorization stage.
+`tools/mig010-owner.js` creates private snapshot/dry-run/state/diagnostics. `tools/mig010-repair.js` creates private repair proposal + offline duplicate review + owner-bound resolution/resolved rebuild candidate. `tools/mig010-rebuild-dry-run.js` independently recomputes/validates exact resolved candidate before any authorization stage. All current MIG-010 tools reject `execute/write/apply`.
+
+Previous owner proposal carry-forward is bounded: only `MIG010_REPAIR_POLICY_V1` proposal versions `1.0.0` and `1.1.0` are accepted, with exact schema/strategy/proposal/source binding. Unknown versions fail closed; prior owner financial decisions are not silently rewritten.
 
 ## Current delivery
 
@@ -63,7 +65,7 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 Real or real-derived household finance data must stay private. Public finance fixtures — independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration mapper/snapshot/state/diagnostic/proposal/review/resolution/resolved/resume token stay private.
 
-Full-history migration is not complete. MIG-010 code readiness/merge/repair resolution does not authorize real writes. New canonical mutation требует idempotency, preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
+Full-history migration is not complete. MIG-010 code readiness/merge/repair resolution/rebuild verification does not authorize real writes. New canonical mutation требует idempotency, preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
 
 ## Domain boundaries
 
@@ -83,7 +85,9 @@ CODE_READY
 -> OWNER_DRY_RUN
      -> BLOCKED -> OWNER_PRIVATE_DIAGNOSTICS -> REPAIR_PROPOSAL
           -> DUPLICATE_OWNER_REVIEW (если требуется)
+          -> REPAIR_RESOLVE
           -> RESOLVED_REBUILD_DRY_RUN
+          -> AUTHORIZATION_REQUIRED
      -> READY -> AUTHORIZATION_REQUIRED
 -> BATCHING
 -> PRIVATE_RECONCILIATION
@@ -104,9 +108,10 @@ Before `AUTHORIZATION_REQUIRED` there are no real financial writes. GitHub Actio
 8. `/lib/migration/full_history_migration.v1.json`
 9. `/lib/migration/mig010_repair_policy.v1.json`
 10. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
-11. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
-12. `/docs/architecture.md`
-13. exact candidate code/tests/workflows
+11. `/tools/mig010-rebuild-dry-run.js`
+12. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
+13. `/docs/architecture.md`
+14. exact candidate code/tests/workflows
 
 ## Scope handoff
 
