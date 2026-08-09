@@ -23,7 +23,7 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
+- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS; previous lifecycle state was `IN_PROGRESS`.
 - `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97; owner-private stage = **OWNER_VERIFIED**. Private full-history write завершён и post-write reconciliation = **PASS**; lifecycle остаётся `IN_PROGRESS` только до PR machine gates, merge и Main Verification.
 - `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после завершения текущего P0 writer.
 
