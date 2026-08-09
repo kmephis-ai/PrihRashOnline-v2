@@ -28,10 +28,14 @@ function match(text, pattern, message) {
 
 match(status, /ARCH-011[^\n]{0,220}\*\*DONE\*\*|ARCH-011[^\n]{0,220}DONE/i,
   'ARCH-011 must be DONE in current status');
-match(status, /MIG-010[^\n]{0,220}\*\*IN_PROGRESS\*\*|MIG-010[^\n]{0,220}IN_PROGRESS/i,
-  'MIG-010 must be current IN_PROGRESS item');
-match(status, /Private full-history migration[^\n]{0,180}(?:не выполнена|not)/i,
-  'status must not claim owner-private migration complete');
+match(status, /MIG-010[^\n]{0,260}\*\*IN_PROGRESS\*\*|MIG-010[^\n]{0,260}IN_PROGRESS/i,
+  'MIG-010 must remain IN_PROGRESS until PR/Main Verification');
+match(status, /MIG-010[^\n]{0,320}OWNER_VERIFIED/i,
+  'status must expose owner-private verified stage');
+match(status, /Private full-history migration[^\n]{0,220}(?:выполнена|owner-verified)/i,
+  'status must truthfully record completed private migration');
+match(status, /unexplainedMismatch=0/,
+  'status must record zero unexplained mismatch after post-write reconciliation');
 match(status, /IRREVERSIBLE_ACTION_AUTHORIZED/,
   'status must expose separate irreversible-action boundary');
 match(status, /CONTENT_FINGERPRINT_OCCURRENCE_V1/,
@@ -39,7 +43,9 @@ match(status, /CONTENT_FINGERPRINT_OCCURRENCE_V1/,
 
 match(context, /MIG-010[^\n]{0,180}current P0 writer[^\n]{0,120}Issue #96/i,
   'AI context must identify current MIG-010 writer');
-match(context, /ARCH-011[^\n]{0,180}(?:now DONE|DONE)/i,
+match(context, /owner-private stage = `OWNER_VERIFIED`/,
+  'AI context must identify owner-verified private stage');
+match(context, /ARCH-011[^\n]{0,180}DONE/i,
   'AI context must preserve ARCH-011 completion');
 match(context, /GitHub Actions[^\n]{0,220}cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`/i,
   'AI context must deny autonomous irreversible authorization');
@@ -49,9 +55,9 @@ match(context, /CONTENT_FINGERPRINT_OCCURRENCE_V1/,
 match(architecture, /PRH_FULL_HISTORY_MIGRATION_V1/,
   'architecture must identify migration machine contract');
 match(architecture, /Current write authority = false/i,
-  'architecture must keep current real-write authority false');
-match(architecture, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
-  'architecture must expose disabled real-write command');
+  'architecture must keep generic current write authority false');
+match(architecture, /owner-verified MIG-010 private full-history reconciliation/i,
+  'architecture must record verified private reconciliation');
 
 match(canonicalDoc, /CONTENT_FINGERPRINT_OCCURRENCE_V1/,
   'canonical documentation must define occurrence identity strategy');
@@ -79,7 +85,7 @@ match(runbook, /proposal policy `1\.0\.0` или `1\.1\.0`/,
 match(runbook, /detailedFindingsStdout=false/,
   'runbook must keep detailed diagnostic findings out of stdout');
 match(runbook, /owner\/repair\/rebuild tools[^\n]{0,240}не содержат активной команды write/i,
-  'runbook must keep all current migration tools write disabled');
+  'runbook must keep owner/repair/rebuild tools write disabled');
 match(runbook, /private mapper/i,
   'runbook must identify private mapper');
 match(runbook, /вне Git repository/i,
@@ -162,7 +168,7 @@ match(rebuildTool, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
 match(rebuildTool, /financialPayloadStdout:\s*false/,
   'rebuild stdout must exclude financial payload');
 
-match(workflow, /- name: Full-history migration protocol[\s\S]{0,2200}mig010_occurrence_identity_contract_test\.js[\s\S]{0,700}mig010_repair_policy_contract_test\.js[\s\S]{0,700}mig010_repair_policy_compatibility_contract_test\.js[\s\S]{0,700}mig010_repair_tool_contract_test\.js[\s\S]{0,700}mig010_rebuild_dry_run_contract_test\.js[\s\S]{0,700}mig010_documentation_contract_test\.js/m,
+match(workflow, /- name: Full-history migration protocol[\s\S]{0,2600}mig010_occurrence_identity_contract_test\.js[\s\S]{0,900}mig010_repair_policy_contract_test\.js[\s\S]{0,900}mig010_repair_policy_compatibility_contract_test\.js[\s\S]{0,900}mig010_repair_tool_contract_test\.js[\s\S]{0,900}mig010_rebuild_dry_run_contract_test\.js[\s\S]{0,900}mig010_documentation_contract_test\.js/m,
   'PR Validation must have named migration occurrence + compatibility + repair + rebuild gate');
 
 for (const required of [
@@ -200,8 +206,9 @@ for (const [name, text] of [
 
 console.log('mig010_documentation_contract_test: OK', {
   currentWriter: 'MIG-010',
+  ownerPrivateStage: 'OWNER_VERIFIED',
   arch011: 'DONE',
-  realWriteAuthority: false,
+  genericRealWriteAuthority: false,
   publicCiCanAuthorizeWrite: false,
   privatePathsOutsideRepository: true,
   privateDiagnostics: true,
@@ -211,6 +218,7 @@ console.log('mig010_documentation_contract_test: OK', {
   preserveAllOccurrenceIdentity: true,
   occurrenceIdentityStrategy: 'CONTENT_FINGERPRINT_OCCURRENCE_V1',
   resolvedRebuildDryRun: true,
+  privateMigrationVerified: true,
   detailedFindingsStdout: false,
   unexplainedMismatchRequired: 0
 });
