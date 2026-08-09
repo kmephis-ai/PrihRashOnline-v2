@@ -144,9 +144,11 @@ Proposal/staging/control/config writes не дают permission на canonical t
 
 ## 10. Migration policy
 
-**Full-history migration is not currently declared complete.**
+Исторический pre-MIG-010 marker **“Full-history migration is not currently declared complete.”** больше не является current state: MIG-010 owner-private execution прошла exact-bound authorization, staging/readback/finalize, fresh encrypted backup и post-write reconciliation с `unexplainedMismatch=0`, поэтому private stage = `OWNER_VERIFIED`. При этом MIG-010 GitHub lifecycle остаётся `IN_PROGRESS` до exact-head gates, CI-003 merge и Main Verification; generic repository write authority не открыта.
 
-Migration должна быть **deterministic, resumable and idempotent** и хранить source **provenance**/fingerprints, missing/duplicate/changed/core-field mismatch detection, bounded batches, private reconciliation и recovery evidence. Stored legacy migration status не сильнее computed reconciliation. Big-bang cutover запрещён.
+Любая новая migration/cutover должна быть **deterministic, resumable and idempotent** и хранить source **provenance**/fingerprints, missing/duplicate/changed/core-field mismatch detection, bounded batches, private reconciliation и recovery evidence. Stored legacy migration status не сильнее computed reconciliation. Big-bang cutover запрещён.
+
+`OWNER_VERIFIED` одной миграции не переносит authorization на будущие mutations: новый irreversible write требует нового exact-bound owner authorization и fresh recovery evidence.
 
 ## 11. Build and reproducibility
 
@@ -224,4 +226,4 @@ Start with:
 - active Roadmap Issue/task packet;
 - relevant architecture/data/operations contracts.
 
-AIENG-001 и AIENG-002 — DONE; AIENG-003 завершает `MASTER-G1` только после собственного Main Verification.
+AIENG-001, AIENG-002 и AIENG-003 — DONE. Current writer определяется live Issue/Roadmap protocol; на текущем MIG-010 этапе private evidence уже `OWNER_VERIFIED`, но `DONE` допускается только после Main Verification.
