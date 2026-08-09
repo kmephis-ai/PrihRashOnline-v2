@@ -34,10 +34,11 @@ vm.runInContext(source, context, { filename: 'Mig010ExecutionReadbackProbe.js' }
 
 assert.strictEqual(FUNCTION_NAME, 'prhMig010ProbeAuthorizedBatchReadback');
 assert.strictEqual(REMOTE_SCHEMA, 'MIG010_EXECUTION_READBACK_PROBE_V1');
-assert(source.includes('function prhMig010ProbeTypedLifecycle_'));
-assert(source.includes('prhMig010TypedFormats_(encodedRows, originalFormats)'));
-assert(source.includes('beforeFormatRestore'));
-assert(source.includes('afterFormatRestore'));
+assert(source.includes('function prhMig010ProbeAdaptiveWrite_'));
+assert(source.includes('prhMig010SetTypedValues_(range, encodedRows, matrix)'));
+assert(source.includes('adaptiveFormatReadback'));
+assert(source.includes('adaptiveRepairApplied'));
+assert(source.includes('originalFormatsRestoredAfterClear: true'));
 assert(source.includes('range.clearContent();'));
 assert(source.includes('prhMig010TableHash_(target.sheet) !== session.current_raw_table_hash'));
 assert(source.includes('liveTargetMutated: false'));
@@ -64,31 +65,35 @@ assert.deepStrictEqual(Array.from(classify(
   [[{ t: 's', v: 'safe' }]]
 )), []);
 
-const normalized = normalizeProbe({
+const matched = normalizeProbe({
   schema: REMOTE_SCHEMA,
-  status: 'MISMATCH_CLASSIFIED',
-  mismatchClasses: ['STRING_TYPE_COERCION'],
-  beforeFormatRestore: [],
-  afterFormatRestore: ['STRING_TYPE_COERCION'],
+  status: 'MATCHED',
+  mismatchClasses: [],
+  adaptiveFormatReadback: [],
+  adaptiveRepairApplied: true,
   rangeCleared: true,
+  originalFormatsRestoredAfterClear: true,
   liveTargetMutated: false,
   financialPayloadStdout: false
 });
-assert.strictEqual(normalized.schema, TOOL_SCHEMA);
-assert.deepStrictEqual(normalized.mismatchClasses, ['STRING_TYPE_COERCION']);
-assert.deepStrictEqual(normalized.beforeFormatRestore, []);
-assert.deepStrictEqual(normalized.afterFormatRestore, ['STRING_TYPE_COERCION']);
-assert.strictEqual(normalized.rangeCleared, true);
-assert.strictEqual(normalized.liveTargetMutated, false);
-assert.strictEqual(normalized.financialPayloadStdout, false);
+assert.strictEqual(matched.schema, TOOL_SCHEMA);
+assert.strictEqual(matched.status, 'MATCHED');
+assert.deepStrictEqual(matched.mismatchClasses, []);
+assert.deepStrictEqual(matched.adaptiveFormatReadback, []);
+assert.strictEqual(matched.adaptiveRepairApplied, true);
+assert.strictEqual(matched.originalFormatsRestoredAfterClear, true);
+assert.strictEqual(matched.rangeCleared, true);
+assert.strictEqual(matched.liveTargetMutated, false);
+assert.strictEqual(matched.financialPayloadStdout, false);
 
 assert.throws(() => normalizeProbe({
   schema: REMOTE_SCHEMA,
   status: 'MISMATCH_CLASSIFIED',
   mismatchClasses: ['PRIVATE_VALUE'],
-  beforeFormatRestore: [],
-  afterFormatRestore: ['PRIVATE_VALUE'],
+  adaptiveFormatReadback: ['PRIVATE_VALUE'],
+  adaptiveRepairApplied: true,
   rangeCleared: true,
+  originalFormatsRestoredAfterClear: true,
   liveTargetMutated: false,
   financialPayloadStdout: false
 }), /MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID/);
@@ -97,28 +102,30 @@ assert.throws(() => normalizeProbe({
   schema: REMOTE_SCHEMA,
   status: 'MISMATCH_CLASSIFIED',
   mismatchClasses: ['STRING_TYPE_COERCION'],
-  beforeFormatRestore: [],
-  afterFormatRestore: [],
+  adaptiveFormatReadback: [],
+  adaptiveRepairApplied: true,
   rangeCleared: true,
+  originalFormatsRestoredAfterClear: true,
   liveTargetMutated: false,
   financialPayloadStdout: false
-}), /MIG010_READBACK_PROBE_REMOTE_LIFECYCLE_INVALID/);
+}), /MIG010_READBACK_PROBE_REMOTE_ADAPTIVE_INVALID/);
 
 assert(toolSource.includes('diagnostic.liveTargetState !== \'INITIAL\''));
 assert(toolSource.includes('diagnostic.rollbackMatchesInitial !== true'));
 assert(toolSource.includes('pkg.batches[diagnostic.nextBatch]'));
 assert(toolSource.includes('devMode: false'));
-assert(toolSource.includes('beforeFormatRestore'));
-assert(toolSource.includes('afterFormatRestore'));
+assert(toolSource.includes('adaptiveFormatReadback'));
+assert(toolSource.includes('originalFormatsRestoredAfterClear'));
 assert(toolSource.includes('financialPayloadStdout: false'));
 assert(!/process\.stdout\.write\([^\n]*(rows|session_id|package_hash|batch_hash)/.test(toolSource));
 
 console.log('mig010_readback_probe_contract_test: OK', {
   stagingOnly: true,
   exactNextBatch: true,
-  typedLifecycleSeparated: true,
+  adaptiveProductionPath: true,
   mismatchClassesOnly: true,
   rangeCleared: true,
+  originalFormatsRestoredAfterClear: true,
   liveTargetMutated: false,
   financialPayloadStdout: false
 });
