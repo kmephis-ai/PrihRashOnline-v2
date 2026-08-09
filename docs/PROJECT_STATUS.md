@@ -12,11 +12,7 @@
 
 `SEC-003 + CI-001 + CI-002 + CI-003 + AIENG-001 + AIENG-002 + AIENG-003 = DONE`.
 
-AIENG chain:
-
-- `AIENG-001` — **DONE**;
-- `AIENG-002` — **DONE**;
-- `AIENG-003` — **DONE**, Main Verification Issue #72 PASS.
+AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 
 ### MASTER-G2 / Recoverability — **complete**
 
@@ -24,20 +20,18 @@ AIENG chain:
 
 ## R1 / Canonical Financial Platform — текущая волна
 
-Первый P0 item R1 — `FIN-010` Versioned KPI Dictionary. Live lifecycle хранится в Issue #85; пока он `IN_PROGRESS`, `DATA-010` остаётся dependency-blocked.
+- `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
+- `DATA-010` Canonical transaction schema v1 — **IN_PROGRESS**, Issue #87.
+- `ARCH-010` и последующие domain/adapters остаются dependency-blocked до DATA-010 DONE.
 
-FIN-010 формализует существующую FIN-001 financial truth и не создаёт новую Dashboard/Sheets-specific семантику:
+FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 
-- Income;
-- Expense;
-- Cash Flow;
-- Savings;
-- Budget variance;
-- transfer/refund/reversal policy;
-- exact minor-unit money/currency/rounding policy;
-- explicit partial-period policy.
+DATA-010 candidate contracts:
 
-Канонические FIN-010 machine contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `tests/kpi_dictionary_contract_test.js`. Human-readable contract: `docs/finance/KPI_DICTIONARY.md`.
+- `lib/domain/canonical_transaction.v1.schema.json` — strict portable schema;
+- `lib/domain/canonical_transaction.js` — validation, source-identity и migration-compatibility layer;
+- `tests/canonical_transaction_schema_contract_test.js` — schema/identity/FIN/KPI/DATA-001 compatibility tests;
+- `docs/data/CANONICAL_TRANSACTION_SCHEMA.md` — normative human contract.
 
 ### MASTER-G3 / Canonical platform — **open**
 
@@ -68,7 +62,8 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 - private Dashboard **не** сделан публичным;
 - public Git history rewrite **не authorized/executed**;
 - paid cloud/AI/OCR provider **не** включён;
-- DATA-010 и последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
+- DATA-010 не разрешает canonical writes и не означает migration/cutover;
+- ARCH-010 и последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
 
 ## Source precedence
 
