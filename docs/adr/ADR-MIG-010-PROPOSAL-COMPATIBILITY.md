@@ -26,8 +26,10 @@ Carry-forward разрешён только если одновременно с
 - `strategy=REBUILD_LEGACY_SLICE_V1`;
 - exact `proposal_hash`;
 - exact `source_revision`;
-- валидный target revision;
+- exact plan/target/backup/mapping binding;
 - owner resolution с теми же exact proposal/source bindings.
+
+Engine **не доверяет сохранённому hash как строке**. Перед resolution он повторно вычисляет proposal identity из versioned policy/strategy, plan/source/target/backup/mapping binding, scoped target identity, explained-invalid quarantine, duplicate groups и unique candidate identities. Если recomputed hash не равен сохранённому `proposal_hash`, processing останавливается с `MIG010_REPAIR_PROPOSAL_HASH_MISMATCH`.
 
 Неизвестная policy version fail-closed с `MIG010_REPAIR_PROPOSAL_POLICY_INCOMPATIBLE`.
 
@@ -43,5 +45,6 @@ Policy v1.1 меняет только representation: вместо прежне�
 - carry-forward не создаёт write authority;
 - engine не переписывает proposal hash/source revision;
 - stale/tampered/unknown proposal блокируется;
+- synthetic contract портит target scope и duplicate groups и требует hash mismatch fail-closed;
 - resolved candidate после carry-forward обязан пройти отдельный `tools/mig010-rebuild-dry-run.js verify`;
 - real write по-прежнему требует отдельный `IRREVERSIBLE_ACTION_AUTHORIZED`.
