@@ -36,12 +36,18 @@ MIG-010 current candidate:
 
 - `lib/migration/full_history_migration.v1.json` — `PRH_FULL_HISTORY_MIGRATION_V1`;
 - `lib/migration/full_history_migration.js` — deterministic dry-run, bounded batches, HMAC resume, backup/authorization gate, reconciliation;
+- `lib/migration/mig010_repair_policy.v1.json` + `.js` — `MIG010_REPAIR_POLICY_V1`, scoped legacy rebuild/quarantine/duplicate owner decision;
 - `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill;
-- `tools/mig010-owner.js` — owner-local encrypted-backup snapshot/dry-run/state boundary; write commands intentionally disabled;
-- `tests/mig010_owner_tool_contract_test.js` — encrypted-backup binding, private-path и no-payload-stdout contract;
-- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md` — owner runbook.
+- `tools/mig010-owner.js` — owner-local encrypted-backup snapshot/dry-run/state/diagnostics boundary; write commands intentionally disabled;
+- `tools/mig010-repair.js` — private repair proposal + offline duplicate review + resolution; write commands disabled;
+- `tests/mig010_owner_tool_contract_test.js`, `tests/mig010_owner_diagnostics_contract_test.js`, `tests/mig010_repair_policy_contract_test.js`, `tests/mig010_repair_tool_contract_test.js` — owner privacy/diagnostic/repair contracts;
+- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md` + `docs/operations/MIG010_REPAIR_POLICY.md` — owner runbooks.
 
-Первый behavioral PR Validation #162 прошёл на synthetic data. **Private full-history migration пока не выполнена и не разрешена.**
+Owner-private checkpoint достигнут без публикации financial payload: encrypted-backup snapshot создан, full-history dry-run корректно вернул `BLOCKED`, private state verify = PASS, diagnostics созданы owner-local. Набор public-safe blocker classes: `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`. `writeAuthorized=false`; ни один real migration batch не выполнялся.
+
+Repair stage намеренно не угадывает смысл `SOURCE_DUPLICATE`. `CORE_MISMATCH`/legacy `SOURCE_MISSING` покрываются proposal на scoped rebuild старого legacy-derived target slice; `SOURCE_INVALID` сохраняется в private explained quarantine; duplicate groups требуют owner decision. `PRESERVE_ALL` остаётся fail-closed с `CANONICAL_IDENTITY_EXTENSION_REQUIRED`, потому что Canonical v1 не разрешает две одинаковые `CONTENT_FINGERPRINT_V1` source identities.
+
+**Private full-history migration пока не выполнена и не разрешена.**
 
 ### MASTER-G3 / Canonical platform — **open**
 
@@ -53,7 +59,7 @@ Exit требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-01
 
 ARCH-011 добавил storage-neutral repository port и Google Sheets adapter снаружи pure core. Наличие `writeBatch()` interface не создаёт permission: current Google adapter возвращает `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-MIG-010 добавляет migration protocol, но merge/CI не создают write authority. Реальный первый batch требует owner-private `IRREVERSIBLE_ACTION_AUTHORIZED`, exact plan hash и свежий DR-001 backup evidence.
+MIG-010 добавляет migration/repair protocol, но merge/CI не создают write authority. Реальный первый batch требует owner-private `IRREVERSIBLE_ACTION_AUTHORIZED`, exact plan/rebuild hash и свежий DR-001 backup evidence.
 
 ## Executable AI engineering baseline
 
@@ -77,6 +83,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 ## Что намеренно не утверждается
 
 - full-history migration **не** завершена;
+- owner-private repair proposal/resolution **не** является authorization на real financial writes;
 - MIG-010 code readiness **не** является authorization на real financial writes;
 - Google -> Yandex cutover **не** выполнен;
 - private Dashboard **не** сделан публичным;
