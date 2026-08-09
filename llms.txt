@@ -23,8 +23,16 @@ docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md — normative pure domain/appl
 lib/application/application_core.v1.json — `PRH_APPLICATION_CORE_V1` use-case/authority/dependency contract.
 lib/application/financial_core.js — pure canonical validation/KPI/migration application facade без I/O authority.
 tests/pure_domain_application_core_contract_test.js — local behavior/property + platform/UI dependency-boundary contract.
+docs/architecture/TRANSACTION_REPOSITORY_PORT.md — normative `PRH_TRANSACTION_REPOSITORY_V1` read/query/write-interface boundary; Google canonical writes remain fail-closed.
+docs/adr/ADR-ARCH-011-TRANSACTION-REPOSITORY.md — ARCH-011 architecture decision for repository port + Google Sheets adapter.
+lib/repository/transaction_repository.v1.json — machine-readable storage-neutral transaction repository contract.
+lib/repository/transaction_repository.js — deterministic query/revision + in-memory synthetic fake repository.
+lib/adapters/google_sheets_operations_mapping.v1.json — versioned current `01 Операции` → canonical mapping policy.
+lib/adapters/google_sheets_transaction_repository.js — Google Sheets canonical transaction adapter with explicit currency/dimension resolvers.
+GoogleTransactionRepositoryGateway.js — Apps Script current-store read gateway; canonical financial writes independently fail-closed.
+tests/repository_adapter_contract_test.js — synthetic fake/Google mapping/gateway/financial parity + write-guard contract.
 docs/PROJECT_STATUS.md — R0 complete + current R1/MASTER-G3 state; live lifecycle сверяется с GitHub Issues.
-docs/architecture.md — current Google runtime/control plane + pure core + target repository-adapter architecture.
+docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + target architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline и Main Verification close path.
 docs/data-model.md — canonical data model, financial truth, migration, write и public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
