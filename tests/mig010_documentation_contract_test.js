@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { parseProjectStatusEntries, currentRoadmapWriters } = require('../lib/testing/structured_contract_parsers');
 
 const root = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
@@ -25,11 +26,19 @@ const canonicalSchema = JSON.parse(read('lib/domain/canonical_transaction.v1.sch
 function match(text, pattern, message) {
   assert(pattern.test(text), message);
 }
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-match(status, /ARCH-011[^\n]{0,220}\*\*DONE\*\*|ARCH-011[^\n]{0,220}DONE/i,
-  'ARCH-011 must be DONE in current status');
-match(status, /MIG-010[^\n]{0,260}\*\*DONE\*\*|MIG-010[^\n]{0,260}DONE/i,
-  'MIG-010 must be DONE after Main Verification');
+const statusEntries = parseProjectStatusEntries(status);
+const statusById = new Map(statusEntries.map((entry) => [entry.id, entry.lifecycle]));
+const currentWriters = currentRoadmapWriters(status);
+assert.strictEqual(statusById.get('ARCH-011'), 'DONE', 'ARCH-011 must be DONE in current status');
+assert.strictEqual(statusById.get('MIG-010'), 'DONE', 'MIG-010 must be DONE after Main Verification');
+assert.strictEqual(currentWriters.length, 1, 'status must expose exactly one active successor writer');
+assert.notStrictEqual(currentWriters[0], 'MIG-010', 'completed MIG-010 must not remain current writer');
+const currentWriter = currentWriters[0];
+
 match(status, /MIG-010[^\n]{0,360}OWNER_VERIFIED/i,
   'status must preserve owner-private verified evidence');
 match(status, /MIG010_OWNER_POST_RECONCILIATION_V1|post-write reconciliation/i,
@@ -40,15 +49,13 @@ match(status, /IRREVERSIBLE_ACTION_AUTHORIZED/,
   'status must expose separate irreversible-action boundary');
 match(status, /CONTENT_FINGERPRINT_OCCURRENCE_V1/,
   'status must expose occurrence identity capability without private resolution payload');
-match(status, /ANL-010[^\n]{0,260}IN_PROGRESS/i,
-  'status must identify the successor active writer');
 
 match(context, /MIG-010[^\n]{0,220}DONE/i,
   'AI context must preserve MIG-010 completion');
 match(context, /private stage `OWNER_VERIFIED`|OWNER_VERIFIED/i,
   'AI context must preserve owner-verified private stage');
-match(context, /ANL-010[^\n]{0,180}current P1 writer[^\n]{0,120}Issue #98/i,
-  'AI context must identify current ANL-010 writer');
+match(context, new RegExp(`${escapeRegExp(currentWriter)}[^\\n]{0,240}(?:current|writer|IN_PROGRESS)`, 'i'),
+  'AI context must identify the same current writer as structured project status');
 match(context, /ARCH-011[^\n]{0,180}DONE/i,
   'AI context must preserve ARCH-011 completion');
 match(context, /GitHub Actions[^\n]{0,220}cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`/i,
@@ -210,7 +217,8 @@ for (const [name, text] of [
 
 console.log('mig010_documentation_contract_test: OK', {
   lifecycle: 'DONE',
-  successorWriter: 'ANL-010',
+  successorWriter: currentWriter,
+  structuredLifecycleState: true,
   ownerPrivateStage: 'OWNER_VERIFIED',
   arch011: 'DONE',
   genericRealWriteAuthority: false,
