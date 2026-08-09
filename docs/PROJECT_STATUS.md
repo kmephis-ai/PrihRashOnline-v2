@@ -23,9 +23,9 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS; previous lifecycle state was `IN_PROGRESS`.
-- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97; current owner-private stage = **AUTHORIZATION_REQUIRED**.
-- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после текущего P0 writer.
+- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
+- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97; owner-private stage = **OWNER_VERIFIED**. Private full-history write завершён и post-write reconciliation = **PASS**; lifecycle остаётся `IN_PROGRESS` только до PR machine gates, merge и Main Verification.
+- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после завершения текущего P0 writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
@@ -45,6 +45,7 @@ MIG-010 implementation включает:
 - `MIG010_EXECUTION_POLICY_V1@1.0.0` + `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`;
 - owner-private execution-package builder;
 - separate authorization-gated `Mig010ExecutionGateway.js` с staging/readback/rollback;
+- adaptive exact-type staging write для Google Sheets coercion случаев без изменения package financial semantics;
 - owner-local authorized executor, который без private `IRREVERSIBLE_ACTION_AUTHORIZED` fail-closed;
 - fresh-backup post-write reconciliation verifier.
 
@@ -56,8 +57,14 @@ Owner-private checkpoint достигнут без публикации financia
 - duplicate semantics — решены владельцем private review;
 - repair resolve — `READY_FOR_REBUILD_DRY_RUN`, blockers cleared;
 - independent resolved rebuild dry-run — **PASS**, `reconciliationReady=true`;
-- current real write authorization — **false**;
-- ни один real migration batch ещё не выполнялся.
+- owner explicit `IRREVERSIBLE_ACTION_AUTHORIZED` — применён только к exact-bound execution package/request;
+- staging/readback/finalize — **PASS**;
+- fresh encrypted post-write backup — **PASS**;
+- `MIG010_OWNER_POST_RECONCILIATION_V1` — **PASS**;
+- `unexplainedMismatch=0`;
+- `provenanceComplete=true`;
+- `idempotentRerunNoop=true`;
+- `rollbackCanBeReleased=true`.
 
 `SOURCE_INVALID` остаётся explained private quarantine. Owner-confirmed identical operations используют `CONTENT_FINGERPRINT_OCCURRENCE_V1`: content fingerprint не искажается, а отдельные реальные occurrences получают deterministic distinct identities.
 
@@ -67,25 +74,24 @@ Owner-private checkpoint достигнут без публикации financia
 RESOLVED_REBUILD_DRY_RUN = PASS
 -> EXECUTION_PACKAGE
 -> AUTHORIZATION_REQUEST
--> AUTHORIZATION_REQUIRED
--> (только после owner IRREVERSIBLE_ACTION_AUTHORIZED)
-   STAGING -> READBACK -> FINALIZED_PENDING_RECONCILIATION
+-> owner IRREVERSIBLE_ACTION_AUTHORIZED
+-> STAGING -> READBACK -> FINALIZED_PENDING_RECONCILIATION
 -> FRESH ENCRYPTED BACKUP
 -> POST-WRITE RECONCILIATION, unexplainedMismatch=0
--> OWNER_VERIFIED
+-> OWNER_VERIFIED = PASS
 ```
 
-Execution package/authorization request не являются разрешением. GitHub Actions, merge PR и AI-agent не могут создать `IRREVERSIBLE_ACTION_AUTHORIZED`.
+Execution package/authorization request сами по себе не являются разрешением. GitHub Actions, merge PR и AI-agent не могут создать `IRREVERSIBLE_ACTION_AUTHORIZED`.
 
 `Mig010ExecutionGateway.js` не ослабляет ARCH-011: generic Google repository mutation остаётся запрещённой. MIG gateway — отдельный narrowly scoped owner-authorized path, связанный exact hashes, fresh backup и private session.
 
-Finalize выполняется только после полного staging hash verification. При finalize failure live target восстанавливается из hidden rollback copy. После успешного finalize rollback сохраняется до fresh-backup reconciliation PASS.
+Finalize выполняется только после полного staging hash verification. При finalize failure live target восстанавливается из hidden rollback copy. Успешный owner-private reconciliation доказал exact final raw-table parity; rollback может быть освобождён только отдельной безопасной cleanup-процедурой, но не удаляется автоматически.
 
-**Private full-history migration пока не выполнена и не разрешена.**
+**Private full-history migration выполнена и owner-verified. MIG-010 ещё не `DONE` только до завершения GitHub lifecycle: final exact-head gates -> merge -> Main Verification -> Issue #96 close.**
 
 ### MASTER-G3 / Canonical platform — **open**
 
-Exit требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`, а также private full-history reconciliation и synthetic performance PASS.
+Private full-history reconciliation gate уже PASS. MASTER-G3 всё ещё требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE` и synthetic performance PASS.
 
 ## Pure core + repository boundary
 
@@ -116,11 +122,10 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- full-history migration **не** завершена;
-- owner-private repair/rebuild verification **не** является authorization на real financial writes;
-- execution package/request **не** является authorization;
-- authorized migration **не** выполнялась;
-- `unexplainedMismatch=0` на post-write real workbook **ещё не доказан**;
+- owner-verified private migration сама по себе **не** означает, что PR #97 уже merged или Issue #96 уже DONE;
+- execution package/request сами по себе **не** являются authorization;
+- owner authorization не создаёт generic repository write authority;
+- hidden staging/rollback cleanup **не** выполнен автоматически;
 - Google -> Yandex cutover **не** выполнен;
 - private Dashboard **не** сделан публичным;
 - public Git history rewrite **не authorized/executed**;
