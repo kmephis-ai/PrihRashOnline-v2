@@ -254,10 +254,12 @@ function prhMig010BeginAuthorizedExecution(request) {
     }
     var rollback = target.sheet.copyTo(target.spreadsheet).setName(rollbackName);
     rollback.hideSheet();
-    var stage = target.spreadsheet.insertSheet(stageName);
+    var stage = target.sheet.copyTo(target.spreadsheet).setName(stageName);
     stage.hideSheet();
-    target.sheet.getRange(1, 1, 1, PRH_MIG010_EXECUTION.COLUMN_COUNT)
-      .copyTo(stage.getRange(1, 1, 1, PRH_MIG010_EXECUTION.COLUMN_COUNT), { contentsOnly: true });
+    var stageLastRow = Math.max(stage.getLastRow(), 1);
+    if (stageLastRow > 1) {
+      stage.getRange(2, 1, stageLastRow - 1, PRH_MIG010_EXECUTION.COLUMN_COUNT).clearContent();
+    }
 
     var session = {
       schema: 'MIG010_EXECUTION_SESSION_V1',
@@ -353,7 +355,7 @@ function prhMig010RestoreFromRollback_(spreadsheet, targetSheet, rollbackSheet, 
   for (var start = 1; start <= sourceLastRow; start += PRH_MIG010_EXECUTION.MAX_BATCH_ROWS) {
     var count = Math.min(PRH_MIG010_EXECUTION.MAX_BATCH_ROWS, sourceLastRow - start + 1);
     rollbackSheet.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT)
-      .copyTo(targetSheet.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT), { contentsOnly: true });
+      .copyTo(targetSheet.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT));
   }
   SpreadsheetApp.flush();
   if (prhMig010TableHash_(targetSheet) !== expectedHash) {
@@ -383,14 +385,16 @@ function prhMig010FinalizeAuthorizedExecution(request) {
       prhMig010Fail_('MIG010_EXECUTION_LIVE_TARGET_DRIFT');
     }
 
-    var stageLastRow = Math.max(stage.getLastRow(), 1);
-    var clearLastRow = Math.max(target.sheet.getLastRow(), stageLastRow, 1);
+    var stageFinalRow = Math.max(stage.getLastRow(), 1);
+    var clearLastRow = Math.max(target.sheet.getLastRow(), stageFinalRow, 1);
     try {
-      target.sheet.getRange(2, 1, Math.max(clearLastRow - 1, 1), PRH_MIG010_EXECUTION.COLUMN_COUNT).clearContent();
-      for (var start = 2; start <= stageLastRow; start += PRH_MIG010_EXECUTION.MAX_BATCH_ROWS) {
-        var count = Math.min(PRH_MIG010_EXECUTION.MAX_BATCH_ROWS, stageLastRow - start + 1);
+      if (clearLastRow > 1) {
+        target.sheet.getRange(2, 1, clearLastRow - 1, PRH_MIG010_EXECUTION.COLUMN_COUNT).clearContent();
+      }
+      for (var start = 2; start <= stageFinalRow; start += PRH_MIG010_EXECUTION.MAX_BATCH_ROWS) {
+        var count = Math.min(PRH_MIG010_EXECUTION.MAX_BATCH_ROWS, stageFinalRow - start + 1);
         stage.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT)
-          .copyTo(target.sheet.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT), { contentsOnly: true });
+          .copyTo(target.sheet.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT));
         SpreadsheetApp.flush();
         if (prhMig010HashRange_(target.sheet.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT)) !==
             prhMig010HashRange_(stage.getRange(start, 1, count, PRH_MIG010_EXECUTION.COLUMN_COUNT))) {
