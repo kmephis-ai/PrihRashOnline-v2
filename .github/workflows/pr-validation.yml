@@ -82,6 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           node tests/full_history_migration_contract_test.js
+          node tests/mig010_plan_privacy_contract_test.js
           node tests/mig010_owner_tool_contract_test.js
           node tests/mig010_documentation_contract_test.js
       - name: Prepare dashboard bundle
