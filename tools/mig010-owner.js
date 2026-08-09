@@ -10,10 +10,14 @@ const {
   createInitialResumeToken,
   decodeResumeToken
 } = require('../lib/migration/full_history_migration');
+const { readEncryptedBackup } = require('./private-backup');
 
 const SNAPSHOT_SCHEMA = 'MIG010_OWNER_PRIVATE_SNAPSHOT_V1';
 const STATE_SCHEMA = 'MIG010_OWNER_PRIVATE_STATE_V1';
+const MAPPER_SCHEMA = 'MIG010_OWNER_PRIVATE_MAPPER_V1';
 const DR_EVIDENCE_SCHEMA = 'DR-001-EVIDENCE-v1';
+const REPO_ROOT = path.resolve(__dirname, '..');
+const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function fail(reason) {
   const error = new Error(reason);
@@ -49,6 +53,14 @@ function ensureParent(filePath) {
   fs.mkdirSync(path.dirname(path.resolve(filePath)), { recursive: true });
 }
 
+function assertOutsideRepository(filePath, reason = 'MIG010_PRIVATE_PATH_INSIDE_REPOSITORY') {
+  const resolved = path.resolve(filePath);
+  const relative = path.relative(REPO_ROOT, resolved);
+  const inside = relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
+  if (inside) fail(reason);
+  return resolved;
+}
+
 function readJson(filePath, reason) {
   try {
     return JSON.parse(fs.readFileSync(path.resolve(filePath), 'utf8'));
@@ -58,17 +70,18 @@ function readJson(filePath, reason) {
 }
 
 function writePrivateJson(filePath, value) {
-  ensureParent(filePath);
-  fs.writeFileSync(path.resolve(filePath), `${JSON.stringify(value, null, 2)}\n`, {
+  const resolved = assertOutsideRepository(filePath);
+  ensureParent(resolved);
+  fs.writeFileSync(resolved, `${JSON.stringify(value, null, 2)}\n`, {
     encoding: 'utf8',
     flag: 'w',
     mode: 0o600
   });
-  try { fs.chmodSync(path.resolve(filePath), 0o600); } catch (_) { /* Windows ACL owner-managed. */ }
+  try { fs.chmodSync(resolved, 0o600); } catch (_) { /* Windows ACL owner-managed. */ }
 }
 
 function createResumeSecret(filePath) {
-  const resolved = path.resolve(filePath);
+  const resolved = assertOutsideRepository(filePath, 'MIG010_RESUME_SECRET_INSIDE_REPOSITORY');
   ensureParent(resolved);
   const secret = crypto.randomBytes(32).toString('base64');
   fs.writeFileSync(resolved, `${secret}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
@@ -77,17 +90,46 @@ function createResumeSecret(filePath) {
 }
 
 function readResumeSecret(filePath) {
+  const resolved = assertOutsideRepository(filePath, 'MIG010_RESUME_SECRET_INSIDE_REPOSITORY');
   let text;
-  try { text = fs.readFileSync(path.resolve(filePath), 'utf8').trim(); } catch (_) { fail('MIG010_RESUME_SECRET_FILE_INVALID'); }
+  try { text = fs.readFileSync(resolved, 'utf8').trim(); } catch (_) { fail('MIG010_RESUME_SECRET_FILE_INVALID'); }
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(text)) fail('MIG010_RESUME_SECRET_FILE_INVALID');
   const secret = Buffer.from(text, 'base64');
   if (secret.length !== 32) fail('MIG010_RESUME_SECRET_LENGTH_INVALID');
   return secret;
 }
 
+function readBackupKey(filePath) {
+  const resolved = assertOutsideRepository(filePath, 'MIG010_BACKUP_KEY_INSIDE_REPOSITORY');
+  let text;
+  try { text = fs.readFileSync(resolved, 'utf8').trim(); } catch (_) { fail('MIG010_BACKUP_KEY_FILE_INVALID'); }
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(text)) fail('MIG010_BACKUP_KEY_FILE_INVALID');
+  const key = Buffer.from(text, 'base64');
+  if (key.length !== 32) fail('MIG010_BACKUP_KEY_LENGTH_INVALID');
+  return key;
+}
+
+function backupCellValue(cell) {
+  if (!cell || typeof cell !== 'object') fail('MIG010_BACKUP_CELL_INVALID');
+  if (cell.t === 'n') {
+    if (typeof cell.v !== 'number' || !Number.isFinite(cell.v)) fail('MIG010_BACKUP_CELL_INVALID');
+    return cell.v;
+  }
+  if (cell.t === 'b') {
+    if (typeof cell.v !== 'boolean') fail('MIG010_BACKUP_CELL_INVALID');
+    return cell.v;
+  }
+  if (cell.t === 'd') {
+    if (typeof cell.v !== 'string' || !Number.isFinite(Date.parse(cell.v))) fail('MIG010_BACKUP_CELL_INVALID');
+    return cell.v;
+  }
+  if (cell.t === 's') return String(cell.v == null ? '' : cell.v);
+  fail('MIG010_BACKUP_CELL_TYPE_INVALID');
+}
+
 function normalizeSnapshot(snapshot) {
   if (!snapshot || snapshot.schema !== SNAPSHOT_SCHEMA || !Array.isArray(snapshot.source_records) ||
-      !Array.isArray(snapshot.canonical_records)) {
+      !Array.isArray(snapshot.canonical_records) || !SHA256_RE.test(String(snapshot.backup_cipher_sha256 || ''))) {
     fail('MIG010_PRIVATE_SNAPSHOT_INVALID');
   }
   const mappingVersion = String(snapshot.mapping_version || '').trim();
@@ -95,6 +137,7 @@ function normalizeSnapshot(snapshot) {
   return {
     schema: SNAPSHOT_SCHEMA,
     mapping_version: mappingVersion,
+    backup_cipher_sha256: String(snapshot.backup_cipher_sha256),
     source_records: snapshot.source_records,
     canonical_records: snapshot.canonical_records
   };
@@ -102,7 +145,7 @@ function normalizeSnapshot(snapshot) {
 
 function normalizeBackupEvidence(evidence) {
   if (!evidence || evidence.schema !== DR_EVIDENCE_SCHEMA || evidence.status !== 'PASS' || evidence.checksum !== 'PASS' ||
-      !/^[0-9a-f]{64}$/.test(String(evidence.backupCipherSha256 || ''))) {
+      !SHA256_RE.test(String(evidence.backupCipherSha256 || ''))) {
     fail('MIG010_BACKUP_EVIDENCE_INVALID');
   }
   return {
@@ -110,6 +153,60 @@ function normalizeBackupEvidence(evidence) {
     status: 'PASS',
     checksum: 'PASS',
     backupCipherSha256: String(evidence.backupCipherSha256)
+  };
+}
+
+function loadPrivateMapper(filePath) {
+  const resolved = assertOutsideRepository(filePath, 'MIG010_PRIVATE_MAPPER_INSIDE_REPOSITORY');
+  let mapper;
+  try {
+    const moduleId = require.resolve(resolved);
+    delete require.cache[moduleId];
+    mapper = require(moduleId);
+  } catch (_) {
+    fail('MIG010_PRIVATE_MAPPER_LOAD_FAILED');
+  }
+  if (!mapper || mapper.schema !== MAPPER_SCHEMA || typeof mapper.buildSnapshot !== 'function') {
+    fail('MIG010_PRIVATE_MAPPER_INVALID');
+  }
+  const mappingVersion = String(mapper.mappingVersion || '').trim();
+  if (!mappingVersion || mappingVersion.length > 80) fail('MIG010_PRIVATE_MAPPING_VERSION_INVALID');
+  return { mapper, mappingVersion };
+}
+
+function commandSnapshotFromBackup(args) {
+  for (const required of ['backup', 'key', 'mapper', 'out']) {
+    if (!args[required]) fail('MIG010_SNAPSHOT_ARGUMENTS_REQUIRED');
+  }
+  const backupPath = assertOutsideRepository(args.backup, 'MIG010_BACKUP_PATH_INSIDE_REPOSITORY');
+  const key = readBackupKey(args.key);
+  const { mapper, mappingVersion } = loadPrivateMapper(args.mapper);
+  const { pkg, cipherSha256 } = readEncryptedBackup(backupPath, key);
+  let mapped;
+  try {
+    mapped = mapper.buildSnapshot({ backupPackage: pkg, cellValue: backupCellValue });
+  } catch (error) {
+    const reason = safeReason(error, 'MIG010_PRIVATE_MAPPER_EXECUTION_FAILED');
+    fail(reason);
+  }
+  if (!mapped || !Array.isArray(mapped.source_records) || !Array.isArray(mapped.canonical_records)) {
+    fail('MIG010_PRIVATE_MAPPER_RESULT_INVALID');
+  }
+  const snapshot = normalizeSnapshot({
+    schema: SNAPSHOT_SCHEMA,
+    mapping_version: mappingVersion,
+    backup_cipher_sha256: cipherSha256,
+    source_records: mapped.source_records,
+    canonical_records: mapped.canonical_records
+  });
+  writePrivateJson(args.out, snapshot);
+  return {
+    schema: 'MIG010_OWNER_SNAPSHOT_V1',
+    status: 'SNAPSHOT_CREATED',
+    mappingVersion,
+    backupCipherSha256: cipherSha256,
+    snapshotWritten: true,
+    financialPayloadStdout: false
   };
 }
 
@@ -155,8 +252,10 @@ function commandDryRun(args) {
   for (const required of ['snapshot', 'backup-evidence', 'secret', 'state']) {
     if (!args[required]) fail('MIG010_OWNER_DRY_RUN_ARGUMENTS_REQUIRED');
   }
-  const snapshot = normalizeSnapshot(readJson(args.snapshot, 'MIG010_PRIVATE_SNAPSHOT_READ_FAILED'));
+  const snapshotPath = assertOutsideRepository(args.snapshot, 'MIG010_PRIVATE_SNAPSHOT_INSIDE_REPOSITORY');
+  const snapshot = normalizeSnapshot(readJson(snapshotPath, 'MIG010_PRIVATE_SNAPSHOT_READ_FAILED'));
   const backup = normalizeBackupEvidence(readJson(args['backup-evidence'], 'MIG010_BACKUP_EVIDENCE_READ_FAILED'));
+  if (snapshot.backup_cipher_sha256 !== backup.backupCipherSha256) fail('MIG010_SNAPSHOT_BACKUP_MISMATCH');
   const secret = readResumeSecret(args.secret);
   const batchSize = args['batch-size'] == null ? undefined : Number(args['batch-size']);
   const plan = buildMigrationPlan({
@@ -180,7 +279,8 @@ function normalizePrivateState(state) {
 
 function commandVerifyState(args) {
   if (!args.state || !args.secret) fail('MIG010_VERIFY_STATE_ARGUMENTS_REQUIRED');
-  const state = normalizePrivateState(readJson(args.state, 'MIG010_PRIVATE_STATE_READ_FAILED'));
+  const statePath = assertOutsideRepository(args.state, 'MIG010_PRIVATE_STATE_INSIDE_REPOSITORY');
+  const state = normalizePrivateState(readJson(statePath, 'MIG010_PRIVATE_STATE_READ_FAILED'));
   const secret = readResumeSecret(args.secret);
   if (state.plan.status === 'READY') {
     if (!state.resume_token) fail('MIG010_PRIVATE_STATE_RESUME_MISSING');
@@ -207,6 +307,9 @@ function commandContract() {
     schema: 'MIG010_OWNER_TOOL_V1',
     privateSnapshotSchema: SNAPSHOT_SCHEMA,
     privateStateSchema: STATE_SCHEMA,
+    privateMapperSchema: MAPPER_SCHEMA,
+    snapshotFromEncryptedBackup: true,
+    privatePathsOutsideRepository: true,
     dryRun: true,
     writeCommandEnabled: false,
     irreversibleActionRequired: true,
@@ -222,6 +325,8 @@ async function main() {
     if (command === 'init-secret') {
       if (!args.out) fail('MIG010_SECRET_OUTPUT_REQUIRED');
       result = createResumeSecret(args.out);
+    } else if (command === 'snapshot-from-backup') {
+      result = commandSnapshotFromBackup(args);
     } else if (command === 'dry-run') {
       result = commandDryRun(args);
     } else if (command === 'verify-state') {
@@ -245,10 +350,16 @@ if (require.main === module) main();
 module.exports = {
   SNAPSHOT_SCHEMA,
   STATE_SCHEMA,
+  MAPPER_SCHEMA,
   parseArgs,
+  assertOutsideRepository,
   readResumeSecret,
+  readBackupKey,
+  backupCellValue,
   normalizeSnapshot,
   normalizeBackupEvidence,
+  loadPrivateMapper,
+  commandSnapshotFromBackup,
   privateStateFromPlan,
   publicDryRunResult,
   commandDryRun,
