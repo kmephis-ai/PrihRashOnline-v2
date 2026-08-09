@@ -41,6 +41,7 @@ docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md — normative AnalyticsQuery/Anal
 lib/analytics/analytics_contract.v1.json — machine-readable `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; renderer/storage-neutral, no I/O/network/UI/financial-write authority.
 lib/analytics/analytics_engine.js — pure deterministic query normalization/hash, canonical filtering/grouping, FIN-010 KPI evaluation, previous-period comparison and provenance.
 tests/analytics_extension_contract_test.js — synthetic KPI parity, query canonicalization, grouping/time/comparison, budget, fail-closed/property/pure-boundary regressions.
+tests/analytics_query_edge_contract_test.js — fail-closed comparison+grain/time-bucket-sort semantics, bounded truncation and input-order determinism.
 tests/analytics_documentation_contract_test.js — ANL-010 docs/current-context/llms/privacy/authority truth contract.
 
 # MIG-010 historical verified migration boundary
