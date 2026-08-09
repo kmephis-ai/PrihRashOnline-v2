@@ -19,8 +19,12 @@ docs/data/CANONICAL_TRANSACTION_SCHEMA.md — normative Canonical Transaction v1
 lib/domain/canonical_transaction.v1.schema.json — strict machine-readable `PRH_CANONICAL_TRANSACTION_V1` JSON Schema.
 lib/domain/canonical_transaction.js — canonical validator, source identity, FIN-TRUTH и migration compatibility helpers.
 tests/canonical_transaction_schema_contract_test.js — schema/identity/DATA-001/FIN/KPI compatibility contracts.
+docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md — normative pure domain/application boundary и ARCH-011 handoff.
+lib/application/application_core.v1.json — `PRH_APPLICATION_CORE_V1` use-case/authority/dependency contract.
+lib/application/financial_core.js — pure canonical validation/KPI/migration application facade без I/O authority.
+tests/pure_domain_application_core_contract_test.js — local behavior/property + platform/UI dependency-boundary contract.
 docs/PROJECT_STATUS.md — R0 complete + current R1/MASTER-G3 state; live lifecycle сверяется с GitHub Issues.
-docs/architecture.md — current Google runtime/control plane и target domain/repository-adapter architecture.
+docs/architecture.md — current Google runtime/control plane + pure core + target repository-adapter architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline и Main Verification close path.
 docs/data-model.md — canonical data model, financial truth, migration, write и public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
