@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; порядок/dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010 и ANL-010 DONE, TEST-010 current writer.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010, ANL-010 и TEST-010 DONE, OBS-010 current writer.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task-packet schema.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/READY selection/one-writer/lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
@@ -19,6 +19,14 @@ lib/testing/test_architecture.js — deterministic `tests/*_test.js` inventory/c
 lib/testing/structured_contract_parsers.js — structured Markdown lifecycle + workflow named-step parsers used to avoid stale hard-coded machine authority.
 tools/run-layered-tests.js — deterministic `pure`/`full` test runner in stable path order.
 tests/test_architecture_contract_test.js — taxonomy/inventory/parser/workflow/pure-suite behavioral contract.
+
+# OBS-010 SLO/error-budget layer
+docs/operations/OBS010_SLO_ERROR_BUDGET.md — normative integer-ppm/bps SLO semantics, half-open windows, budget states, correctness/privacy/cost boundaries and rollback.
+lib/observability/slo_error_budget.v1.json — machine-readable `PRH_SLO_ERROR_BUDGET_V1@1.0.0`, 5 SLI profiles, zero-tolerance correctness/migration error policy, budget bands and authority boundaries.
+lib/observability/slo_error_budget.js — deterministic local SLI/service evaluator + privacy-safe `toAuditMetadata()` mapper; no platform/network/write/provider authority.
+tests/slo_error_budget_policy_contract_test.js — synthetic window/precision/budget/zero-tolerance/correctness-source/privacy/service-state behavioral contract.
+SecurityPrivacyPolicy.js — runtime audit metadata allowlist; SLO fields are bounded technical metadata only and financial/raw payload remains forbidden.
+.github/workflows/pr-validation.yml — named `SLO error budget` gate plus full layered regression suite.
 
 # Finance/domain baseline
 docs/finance/KPI_DICTIONARY.md — normative KPI Dictionary v1.
@@ -100,12 +108,12 @@ tests/mig010_owner_diagnostics_contract_test.js — exact-plan private blocker d
 tests/mig010_documentation_contract_test.js — MIG-010 completed/historical occurrence/repair/privacy truth contract.
 tests/mig010_execution_documentation_contract_test.js — owner-authorized execution/reconciliation historical truth contract.
 
-docs/PROJECT_STATUS.md — current R1 writer/status summary: MIG-010 + ANL-010 DONE, TEST-010 IN_PROGRESS.
-docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration/analytics boundaries + target architecture.
+docs/PROJECT_STATUS.md — current R1 writer/status summary: MIG-010 + ANL-010 + TEST-010 DONE, OBS-010 IN_PROGRESS.
+docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration/analytics/testing boundaries + target architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline and Main Verification close path.
 docs/data-model.md — canonical data model, financial truth, migration, write and public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
-docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe bounded observability contract.
+docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe bounded observability baseline consumed by OBS-010.
 docs/operations/FINOPS001_FREE_ONLY_GUARD.md — executable FREE_ONLY/cost circuit-breaker contract.
 docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md — public-history privacy remediation state; destructive rewrite not authorized/executed.
 
