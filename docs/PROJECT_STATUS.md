@@ -21,7 +21,7 @@
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS; previous lifecycle state was `IN_PROGRESS`.
+- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
 - `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED`, fresh encrypted post-write reconciliation PASS.
 - `ANL-010` Analytics extension contract v1 — **IN_PROGRESS**, Issue #98, draft PR #99; current R1 writer.
 - `TEST-010`, `OBS-010`, `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
