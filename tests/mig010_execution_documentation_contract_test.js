@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { parseProjectStatusEntries, currentRoadmapWriters } = require('../lib/testing/structured_contract_parsers');
 
 const root = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
@@ -19,20 +20,31 @@ const genericGateway = read('GoogleTransactionRepositoryGateway.js');
 const policy = JSON.parse(read('lib/migration/mig010_execution_policy.v1.json'));
 
 function match(text, pattern, message) { assert(pattern.test(text), message); }
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-match(status, /MIG-010[^\n]{0,300}DONE[^\n]{0,300}OWNER_VERIFIED/i,
-  'project status must preserve completed OWNER_VERIFIED MIG lifecycle');
+const statusEntries = parseProjectStatusEntries(status);
+const statusById = new Map(statusEntries.map((entry) => [entry.id, entry.lifecycle]));
+const currentWriters = currentRoadmapWriters(status);
+assert.strictEqual(statusById.get('MIG-010'), 'DONE', 'MIG-010 must remain DONE after Main Verification');
+assert.strictEqual(currentWriters.length, 1, 'status must expose exactly one successor Roadmap writer');
+assert.notStrictEqual(currentWriters[0], 'MIG-010', 'completed MIG-010 must not remain current writer');
+const currentWriter = currentWriters[0];
+
+match(status, /MIG-010[^\n]{0,420}OWNER_VERIFIED/i,
+  'project status must preserve completed OWNER_VERIFIED MIG lifecycle evidence');
 match(status, /post-write reconciliation[^\n]{0,160}PASS/i,
   'status must record private post-write reconciliation PASS');
 match(status, /unexplainedMismatch=0/,
   'status must record zero unexplained mismatch');
-match(status, /ANL-010[^\n]{0,260}IN_PROGRESS/i,
-  'status must identify successor Roadmap writer');
 
 match(context, /MIG-010[^\n]{0,220}DONE/i,
   'AI context must preserve MIG completion');
 match(context, /OWNER_VERIFIED/,
   'AI context must preserve private verified evidence');
+match(context, new RegExp(`${escapeRegExp(currentWriter)}[^\\n]{0,240}(?:current|writer|IN_PROGRESS)`, 'i'),
+  'AI context must identify the same successor writer as structured project status');
 match(context, /MIG010_EXECUTION_POLICY_V1@1\.0\.0/,
   'AI context must identify execution policy');
 match(context, /FINALIZED_PENDING_RECONCILIATION|post-write reconciliation/i,
@@ -170,7 +182,8 @@ for (const [name, value] of [['status', status], ['context', context], ['runbook
 console.log('mig010_execution_documentation_contract_test: OK', {
   privateStage: 'OWNER_VERIFIED',
   githubLifecycle: 'DONE',
-  successorWriter: 'ANL-010',
+  successorWriter: currentWriter,
+  structuredLifecycleState: true,
   executionPolicy: 'MIG010_EXECUTION_POLICY_V1@1.0.0',
   genericRepositoryWriteAuthorized: false,
   publicCiCanAuthorize: false,

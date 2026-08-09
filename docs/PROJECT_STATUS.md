@@ -23,39 +23,42 @@
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
 - `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED`, fresh encrypted post-write reconciliation PASS.
-- `ANL-010` Analytics extension contract v1 — **IN_PROGRESS**, Issue #98, draft PR #99; current R1 writer.
-- `TEST-010`, `OBS-010`, `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
+- `ANL-010` Analytics extension contract v1 — **DONE**, Issue #98 Main Verification PASS.
+- `TEST-010` Layered test architecture — **IN_PROGRESS**, Issue #100; current R1 writer.
+- `OBS-010`, `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
 ARCH-010: `PRH_APPLICATION_CORE_V1`, pure use-cases без I/O/network/financial-write authority.
 ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`, deterministic fake + Google adapter; generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, renderer/storage-neutral query/result contract, `financial_write=false`.
 
-## ANL-010 current truth
+## TEST-010 current truth
 
-ANL-010 вводит `PRH_ANALYTICS_CONTRACT_V1@1.0.0` с двумя versioned surfaces:
+TEST-010 вводит `PRH_TEST_ARCHITECTURE_V1@1.0.0` — machine-readable taxonomy и deterministic inventory тестов.
 
-- `PRH_ANALYTICS_QUERY_V1` — measures, dimensions, filters, explicit `[start,end)` time range, grain, comparison, sort и bounded parameters/limits;
-- `PRH_ANALYTICS_RESULT_V1` — deterministic rows/series shape, query identity и canonical/KPI/FIN provenance.
+Целевые слои:
 
-Financial semantics не дублируются: supported measures делегируются FIN-010 `evaluateKpis()` и сохраняют `FIN-TRUTH-v1`, integer minor units, single-currency fail-closed, posted-only accounting, transfer neutrality и refund-as-expense-reduction.
+- `PURE_DOMAIN_APPLICATION` — financial/domain/application property/invariant authority без platform services;
+- `MIGRATION_RECOVERY` — migration/reconciliation/recovery contracts;
+- `ADAPTER_INTEGRATION` — ports/adapters/integration;
+- `RUNTIME_INTEGRATION` — runtime/deploy/recovery integration;
+- `UI_E2E` — UI/rendering/end-to-end;
+- `POLICY_GOVERNANCE` — security/privacy/FREE_ONLY/docs/AI/CI/Roadmap governance.
 
-Analytics contract renderer/storage-neutral и не имеет I/O/network/UI/financial-write authority. Public tests используют только independently generated synthetic transactions. ChartSpec/WidgetSpec, renderer selection и advanced OLAP остаются отдельными Roadmap scopes.
+`unclassified_test=FAIL`, `ambiguous_classification=FAIL`, `duplicate_machine_authority=FAIL`. Full suite исполняется в deterministic path order; pure suite может выполняться отдельно и не получает `SpreadsheetApp`, DOM или network authority.
 
-Current behavioral evidence:
+Critical lifecycle checks переводятся с hard-coded current-writer substring assertions на structured parsers: Markdown status entries и named workflow steps разбираются как структуры. Это устраняет ложные red gates при переходе `ANL-010 -> TEST-010`, но не ослабляет проверяемые invariants.
 
-- strict query validation + deterministic canonical query hash;
-- ungrouped `dimensions: []` supported;
-- dimensions/filter/time grain grouping;
-- `PREVIOUS_PERIOD` comparison with explicit same-length preceding interval;
-- comparison + grain without relative-bucket alignment policy — fail-closed;
-- budget variance requires explicit integer `budget_minor` and v1 forbids implicit grouped allocation semantics;
-- empty-period budget variance preserves FIN-010 `budget - zero expense` semantics;
-- bounded result truncation and input-order determinism;
-- randomized synthetic KPI parity/property checks;
-- pure boundary scan rejects Apps Script/DOM/network/write dependencies.
+Public tests остаются independently generated synthetic only; реальный financial payload запрещён. TEST-010 не меняет финансовую семантику и не создаёт write authority.
 
-Normative contract: `docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md`.
+Normative runbook: `docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md`.
+
+## ANL-010 verified boundary
+
+ANL-010 завершён Main Verification. `PRH_ANALYTICS_QUERY_V1` / `PRH_ANALYTICS_RESULT_V1` сохраняют deterministic query identity, canonical/KPI provenance, bounded grouping/filter/time/comparison/sort semantics и делегируют financial calculations FIN-010 `evaluateKpis()`.
+
+Analytics contract renderer/storage-neutral и не имеет I/O/network/UI/financial-write authority. ChartSpec/WidgetSpec и advanced OLAP остаются отдельными Roadmap scopes.
 
 ## MIG-010 verified historical boundary
 
@@ -76,7 +79,7 @@ RESOLVED_REBUILD_DRY_RUN = PASS
 
 Private evidence established `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Hidden staging/rollback cleanup was not performed automatically and is not implied by DONE.
 
-Owner-confirmed identical real operations remain represented by the additive Canonical v1 identity strategy `CONTENT_FINGERPRINT_OCCURRENCE_V1`; this capability preserves content fingerprint semantics and does not create generic financial-write authority.
+Owner-confirmed identical real operations remain represented by `CONTENT_FINGERPRINT_OCCURRENCE_V1`; this capability does not create generic financial-write authority.
 
 ### MASTER-G3 / Canonical platform — **open**
 
@@ -87,8 +90,6 @@ Private full-history reconciliation gate is PASS. MASTER-G3 still requires `FIN-
 `lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**`, `lib/analytics/**` are pure boundaries. They do not own platform I/O/network/financial-write authority.
 
 ARCH-011 exposes the storage-neutral repository port outside the pure domain. Presence of `writeBatch()` interface does not grant Google mutation permission; current generic Google adapter returns `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
-
-ANL-010 consumes canonical transactions as plain data and returns plain analytics result objects. It does not know whether source data came from Google Sheets, a synthetic fake or a future YDB adapter.
 
 ## Executable AI engineering baseline
 
@@ -103,7 +104,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 - private primary store/runtime: Google Sheets + Apps Script;
 - family UI: private `MYSELF` Apps Script Web Dashboard;
-- Dashboard render path after INC-001 uses raw `HtmlOutput` placeholder injection; trusted runtime health includes Web App render smoke v2;
+- Dashboard trusted runtime health includes authenticated Web App render smoke v2;
 - public GitHub finance content: independently generated synthetic only;
 - DEV delivery: exact-SHA autonomous pipeline;
 - PROD/cutover/destructive data actions: separate policy gates;
@@ -111,8 +112,9 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- ANL-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- analytics contract не создаёт chart/UI implementation и не даёт financial-write authority;
+- TEST-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- layered runner не заменяет required trusted deploy/runtime/Main Verification gates;
+- test taxonomy не меняет FIN/DATA/MIG/ANL business semantics;
 - owner authorization MIG-010 не переносится на future mutations;
 - hidden MIG staging/rollback cleanup не выполнен автоматически;
 - Google -> Yandex cutover не выполнен;

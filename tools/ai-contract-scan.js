@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { currentRoadmapWriters, branchRoadmapId } = require('../lib/testing/structured_contract_parsers');
 const root = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 
@@ -25,21 +26,9 @@ function forbidMatch(id, text, pattern, message) {
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-function statusInProgressIds() {
-  const ids = [];
-  const pattern = /^- `([A-Z]+-\d+)`[^\n]*\*\*IN_PROGRESS\*\*/gmi;
-  let match;
-  while ((match = pattern.exec(status)) !== null) ids.push(match[1]);
-  return Array.from(new Set(ids));
-}
-function branchRoadmapId() {
-  const branch = String(process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '');
-  const match = /^agent\/([A-Z]+-\d+)-/.exec(branch);
-  return match ? match[1] : '';
-}
 
-const activeIds = statusInProgressIds();
-const branchItem = branchRoadmapId();
+const activeIds = currentRoadmapWriters(status);
+const branchItem = branchRoadmapId(process.env);
 const currentRoadmapItem = branchItem || (activeIds.length === 1 ? activeIds[0] : '');
 if (activeIds.length !== 1) {
   failures.push({ id: 'AI_SINGLE_CURRENT_WRITER', message: `Expected exactly one documented IN_PROGRESS item, got ${activeIds.join(',') || 'none'}` });

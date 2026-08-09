@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; порядок/dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010 DONE, ANL-010 current writer.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010 и ANL-010 DONE, TEST-010 current writer.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task-packet schema.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/READY selection/one-writer/lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
@@ -12,6 +12,15 @@ tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — reviewer roles, read-only boundary, severity/arbitration и machine-gate authority.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid/external model dependency.
 
+# TEST-010 layered test architecture
+docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md — normative test layers, deterministic inventory, structured contract parsing, budgets and DoD.
+lib/testing/test_architecture.v1.json — machine-readable `PRH_TEST_ARCHITECTURE_V1@1.0.0` taxonomy, layer patterns/budgets/suites/required workflow gates.
+lib/testing/test_architecture.js — deterministic `tests/*_test.js` inventory/classification, fail-closed ambiguity/unclassified checks and pure-source boundary.
+lib/testing/structured_contract_parsers.js — structured Markdown lifecycle + workflow named-step parsers used to avoid stale hard-coded machine authority.
+tools/run-layered-tests.js — deterministic `pure`/`full` test runner in stable path order.
+tests/test_architecture_contract_test.js — taxonomy/inventory/parser/workflow/pure-suite behavioral contract.
+
+# Finance/domain baseline
 docs/finance/KPI_DICTIONARY.md — normative KPI Dictionary v1.
 lib/finance/kpi_dictionary.v1.json — machine-readable `PRH_KPI_DICTIONARY_V1` bound to `FIN-TRUTH-v1`.
 lib/finance/kpi_dictionary.js — deterministic KPI evaluator.
@@ -36,13 +45,13 @@ lib/adapters/google_sheets_transaction_repository.js — Google Sheets canonical
 GoogleTransactionRepositoryGateway.js — generic Apps Script current-store read gateway; canonical financial writes independently fail-closed.
 tests/repository_adapter_contract_test.js — synthetic fake/Google mapping/gateway/financial parity + write-guard contract.
 
-# ANL-010 analytics extension
+# ANL-010 verified analytics extension
 docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md — normative AnalyticsQuery/AnalyticsResult v1 semantics, FIN-010 delegation, time/comparison/budget/fail-closed/privacy boundaries.
 lib/analytics/analytics_contract.v1.json — machine-readable `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; renderer/storage-neutral, no I/O/network/UI/financial-write authority.
 lib/analytics/analytics_engine.js — pure deterministic query normalization/hash, canonical filtering/grouping, FIN-010 KPI evaluation, previous-period comparison and provenance.
 tests/analytics_extension_contract_test.js — synthetic KPI parity, query canonicalization, grouping/time/comparison, budget, fail-closed/property/pure-boundary regressions.
 tests/analytics_query_edge_contract_test.js — fail-closed comparison+grain/time-bucket-sort semantics, bounded truncation and input-order determinism.
-tests/analytics_documentation_contract_test.js — ANL-010 docs/current-context/llms/privacy/authority truth contract.
+tests/analytics_documentation_contract_test.js — ANL-010 verified docs/context/privacy/authority contract using structured lifecycle state rather than hard-coded current writer.
 
 # MIG-010 historical verified migration boundary
 docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md — owner-confirmed `PRESERVE_ALL` uses deterministic `CONTENT_FINGERPRINT_OCCURRENCE_V1` without implicit write authority.
@@ -91,8 +100,8 @@ tests/mig010_owner_diagnostics_contract_test.js — exact-plan private blocker d
 tests/mig010_documentation_contract_test.js — MIG-010 completed/historical occurrence/repair/privacy truth contract.
 tests/mig010_execution_documentation_contract_test.js — owner-authorized execution/reconciliation historical truth contract.
 
-docs/PROJECT_STATUS.md — current R1 writer/status summary: MIG-010 DONE, ANL-010 IN_PROGRESS.
-docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration boundary + target architecture.
+docs/PROJECT_STATUS.md — current R1 writer/status summary: MIG-010 + ANL-010 DONE, TEST-010 IN_PROGRESS.
+docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration/analytics boundaries + target architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline and Main Verification close path.
 docs/data-model.md — canonical data model, financial truth, migration, write and public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
