@@ -87,7 +87,11 @@ assert(fullStep && /node tools\/run-layered-tests\.js full/.test(fullStep.run),
 
 const documentedWriters = currentRoadmapWriters(statusText);
 assert.strictEqual(documentedWriters.length, 1, 'PROJECT_STATUS must have exactly one current writer');
-assert.strictEqual(documentedWriters[0], 'TEST-010', 'TEST-010 must be current writer on this branch');
+const branchWriter = branchRoadmapId(process.env);
+if (branchWriter) {
+  assert.strictEqual(documentedWriters[0], branchWriter,
+    `PROJECT_STATUS current writer ${documentedWriters[0]} must match PR branch writer ${branchWriter}`);
+}
 
 console.log('test_architecture_contract_test: OK', {
   schema: CONTRACT.schema,
@@ -95,6 +99,8 @@ console.log('test_architecture_contract_test: OK', {
   layers: CONTRACT.layers.map((layer) => layer.id),
   trackedTests: inventory.files.length,
   pureTests: pureFiles.length,
+  currentWriter: documentedWriters[0],
+  branchWriter: branchWriter || 'MAIN_OR_LOCAL',
   structuredStatusParser: true,
   structuredWorkflowParser: true,
   unclassifiedFailClosed: true,
