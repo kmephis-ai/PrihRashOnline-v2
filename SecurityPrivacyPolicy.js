@@ -43,7 +43,7 @@ var PR_AUDIT_TECHNICAL_FIELDS = Object.freeze([
   'sloSampleCount',
   'sloBadSampleCount',
   'sloRemainingBudgetPpm',
-  'sloBudgetConsumedBps',
+  'sloBudgetBurnBps',
   'sloBudgetState',
   'sloReasonCode'
 ]);
