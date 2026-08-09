@@ -16,7 +16,7 @@ const {
 const TOOL_SCHEMA = 'MIG010_OWNER_AUTHORIZED_RESUME_V1';
 const FUNCTIONS = Object.freeze({
   resume: 'prhMig010ResumeAuthorizedExecution',
-  batch: 'prhMig010WriteAuthorizedBatch',
+  batch: 'prhMig010WriteAuthorizedBatchTyped',
   finalize: 'prhMig010FinalizeAuthorizedExecution'
 });
 
