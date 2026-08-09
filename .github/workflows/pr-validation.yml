@@ -88,6 +88,7 @@ jobs:
           node tests/mig010_leading_columns_mapper_contract_test.js
           node tests/mig010_target_blank_date_contract_test.js
           node tests/mig010_owner_tool_contract_test.js
+          node tests/mig010_owner_diagnostics_contract_test.js
           node tests/mig010_documentation_contract_test.js
       - name: Prepare dashboard bundle
         run: npm run prepare:web
