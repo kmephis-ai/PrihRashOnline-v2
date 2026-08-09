@@ -44,7 +44,7 @@ match(architecture, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
 
 match(runbook, /CODE_READY[\s\S]{0,500}OWNER_PRIVATE_SNAPSHOT[\s\S]{0,500}OWNER_DRY_RUN[\s\S]{0,500}AUTHORIZATION_REQUIRED[\s\S]{0,500}PRIVATE_RECONCILIATION/,
   'runbook migration state machine missing');
-match(runbook, /write commands?[^\n]{0,240}(?:не содержит|disabled|выключ)/i,
+match(runbook, /owner tool[^\n]{0,240}(?:не содержит[^\n]{0,120}(?:write|команд)|write[^\n]{0,120}(?:disabled|выключ|не содержит))/i,
   'runbook must keep owner tool write disabled');
 match(runbook, /private mapper[\s\S]{0,220}вне Git repository/i,
   'runbook must keep private mapper outside repository');
@@ -67,7 +67,7 @@ match(ownerTool, /MIG010_PRIVATE_MAPPER_INSIDE_REPOSITORY/,
 match(ownerTool, /MIG010_SNAPSHOT_BACKUP_MISMATCH/,
   'owner tool must bind snapshot to backup evidence');
 
-match(workflow, /- name: Full-history migration protocol[\s\S]{0,300}full_history_migration_contract_test\.js[\s\S]{0,300}mig010_owner_tool_contract_test\.js/m,
+match(workflow, /- name: Full-history migration protocol[\s\S]{0,450}full_history_migration_contract_test\.js[\s\S]{0,450}mig010_owner_tool_contract_test\.js[\s\S]{0,450}mig010_documentation_contract_test\.js/m,
   'PR Validation must have named full-history migration gate');
 
 for (const required of [
