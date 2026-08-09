@@ -75,6 +75,13 @@ jobs:
         run: node tests/pure_domain_application_core_contract_test.js
       - name: Transaction repository adapter
         run: node tests/repository_adapter_contract_test.js
+      - name: Analytics extension contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/analytics_extension_contract_test.js
+          node tests/analytics_query_edge_contract_test.js
+          node tests/analytics_documentation_contract_test.js
       - name: Migration reconcile synthetic
         run: node tests/migration_reconciliation_contract_test.js
       - name: Full-history migration protocol
