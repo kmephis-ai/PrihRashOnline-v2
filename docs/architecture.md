@@ -12,7 +12,7 @@ R1 уже закрепил:
 - DATA-010 — portable Canonical Transaction v1;
 - ARCH-010 — pure application boundary;
 - ARCH-011 — storage-neutral transaction repository port + Google Sheets adapter;
-- MIG-010 — текущий P0: deterministic owner-private full-history migration protocol поверх этих границ.
+- MIG-010 — текущий P0: deterministic owner-private full-history migration protocol поверх этих границ; private migration + post-write reconciliation уже owner-verified, GitHub lifecycle ещё завершается.
 
 ## Компоненты
 
@@ -32,8 +32,10 @@ R1 уже закрепил:
 | `lib/application/**` | pure use-cases без storage/UI/network authority |
 | `lib/repository/**` | storage-neutral transaction repository port + deterministic fake |
 | `lib/adapters/**` | platform/storage mapping adapters вне pure core |
-| `GoogleTransactionRepositoryGateway.js` | current Apps Script Google operations read boundary; canonical writes blocked |
-| `tools/mig010-owner.js` | owner-local private snapshot/dry-run state boundary; real write disabled pending explicit authorization |
+| `GoogleTransactionRepositoryGateway.js` | current Apps Script Google operations read boundary; generic canonical writes blocked |
+| `Mig010ExecutionGateway.js` | one-time exact-bound owner-authorized migration boundary with staging/readback/rollback |
+| `Mig010ExecutionTypedWrite.js` | adaptive exact-type staging transport for Google Sheets coercion behavior |
+| `tools/mig010-owner.js` | owner-local private snapshot/dry-run state boundary; generic real write command disabled |
 | HTML Web Dashboard | current family UI |
 | GitHub | source/policy/tests/docs/Roadmap control plane; synthetic-only financial content |
 | GitHub Actions | zero-secret validation + trusted default-branch deploy/runtime/merge control plane |
@@ -58,7 +60,7 @@ KPI / validation / migration-review results
 private MYSELF Web Dashboard / Sheets menu
 ```
 
-MIG-010 добавляет отдельный owner-private migration path, а не меняет этот runtime flow:
+MIG-010 использовал отдельный owner-private migration path, не изменяя generic runtime flow:
 
 ```text
 verified encrypted DR-001 backup
@@ -67,11 +69,15 @@ private mapper outside Git repository
         ↓
 private source + canonical snapshot
         ↓
-PRH_FULL_HISTORY_MIGRATION_V1 dry-run
+PRH_FULL_HISTORY_MIGRATION_V1 dry-run / repair / exact package
         ↓
-AUTHORIZATION_REQUIRED
-        ↓ future explicit owner action only
-bounded migration batches + private reconciliation
+owner IRREVERSIBLE_ACTION_AUTHORIZED
+        ↓
+staging + exact readback + finalize
+        ↓
+fresh encrypted backup + private reconciliation
+        ↓
+OWNER_VERIFIED
 ```
 
 Финансовые строки не реплицируются в GitHub ради tests, docs или release evidence.
@@ -100,7 +106,7 @@ In-memory fake разрешает synthetic-only writes при explicit test aut
 - поддерживает read/query;
 - generic write interface всегда fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-Apps Script gateway остаётся вне pure core и может использовать `SpreadsheetApp`, но не содержит `setValue`, `setValues`, `appendRow`, `deleteRow` operation-write primitives. ARCH-011 завершён Main Verification; adapter existence не даёт financial-write authority.
+Apps Script gateway остаётся вне pure core и может использовать `SpreadsheetApp`, но generic repository gateway не содержит operation-write primitives. ARCH-011 завершён Main Verification; adapter existence не даёт financial-write authority.
 
 ## Full-history migration boundary — MIG-010
 
@@ -110,22 +116,24 @@ Protocol фиксирует:
 
 - deterministic source revision и target repository revision;
 - DATA-001 `INSERT / REUSE / BLOCK` dry-run;
-- batch size `<=100`, order по source fingerprint;
+- batch size `<=100`, deterministic order;
 - idempotency key + exact expected target revision на batch;
 - HMAC-SHA256 resume token, привязанный к exact plan hash/next batch/revision;
 - DR-001 encrypted backup SHA binding;
 - private reconciliation с обязательным `unexplainedMismatch = 0`;
-- rerun должен быть reuse-only.
+- rerun должен быть reuse-only/idempotent.
 
 Owner-local `tools/mig010-owner.js` создаёт private snapshot только из encrypted backup через mapper, который должен лежать вне Git repository. Snapshot/state/resume secret тоже обязаны находиться вне repo. Stdout содержит только technical hashes/status/reason codes.
 
-**Current write authority = false.** Команды `execute/write/apply` намеренно выключены и возвращают `MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED`. Реальный first write нельзя включить посредством GitHub Actions, merge или AI-agent. Нужны отдельное owner-private `IRREVERSIBLE_ACTION_AUTHORIZED`, fresh verified DR backup, exact plan binding и migration-specific write/readback/rollback adapter.
+**Current write authority = false** для generic Google repository и для owner/repair/rebuild tools. MIG-010 one-time mutation была выполнена отдельным migration-specific gateway только после owner-private `IRREVERSIBLE_ACTION_AUTHORIZED`, exact package/request binding, fresh verified DR backup, staging/readback и rollback readiness. Это не создаёт постоянного generic write permission.
+
+Private post-write reconciliation уже доказала `unexplainedMismatch=0`, полную provenance, exact final raw-table parity и idempotent rerun. Hidden rollback/staging cleanup остаётся отдельной bounded operation и не выполняется автоматически.
 
 ## Financial truth
 
 Legacy итоговые ячейки не являются golden truth или authoritative financial source. Финансовые gates опираются на canonical transaction semantics, KPI Dictionary и invariant/reconciliation contracts.
 
-Доказанный baseline включает FIN-001/FIN-010, DATA-001/DATA-010, ARCH-010, ARCH-011, synthetic financial edge cases и public-tree synthetic-only boundary. Полный history migration/cutover **не считается завершённым**, пока MIG-010 private reconciliation не доказан.
+Доказанный baseline включает FIN-001/FIN-010, DATA-001/DATA-010, ARCH-010, ARCH-011, synthetic financial edge cases, public-tree synthetic-only boundary и owner-verified MIG-010 private full-history reconciliation. Это не означает Google -> Yandex cutover или открытие generic write authority.
 
 ## Trust boundaries
 
@@ -139,7 +147,7 @@ Legacy итоговые ячейки не являются golden truth или a
 
 Apps Script имеет доступ к приватной книге. Web App остаётся `MYSELF`; private deployment locator не публикуется. Dashboard render использует raw `HtmlOutput` placeholder injection; privacy-safe Web App render smoke v2 — обязательная часть authenticated runtime health.
 
-MIG-010 private mapper, decrypted snapshot/state and future authorization live only in owner-private environment outside repository.
+MIG-010 private mapper, decrypted snapshot/state and authorization remain owner-private outside repository. Successful one-time migration does not expose these artifacts publicly.
 
 ### GitHub Actions trust split
 
@@ -157,7 +165,7 @@ CI-003 autonomous squash merge
 Main Verification
 ```
 
-Machine delivery PASS не является mutation authorization для private full-history migration.
+Machine delivery PASS не является mutation authorization для private financial writes.
 
 ## R0 cross-cutting safety layers
 
@@ -167,13 +175,13 @@ FINOPS-001: executable `FREE_ONLY`, unknown/billable provider fail-closed.
 
 ## Dashboard/application writes
 
-Web Dashboard read paths не изменяют `01 Операции`. Pure application core не имеет write authority. ARCH-011 current Google canonical write blocked. MIG-010 создаёт migration protocol, но пока также не имеет активного real-write command.
+Web Dashboard read paths не изменяют `01 Операции`. Pure application core не имеет write authority. ARCH-011 current Google canonical write blocked. MIG-010 использовал отдельный exact-bound migration gateway; этот факт не разблокирует generic writes.
 
-Любой future canonical mutation должен иметь idempotency, bounded scope, preconditions, audit, readback, rollback/snapshot и private reconciliation.
+Любой future canonical mutation должен иметь idempotency, bounded scope, preconditions, audit, readback, rollback/snapshot, private reconciliation и при irreversible action — новое explicit owner authorization.
 
 ## DEV и PROD
 
-`main` означает code, прошедший autonomous DEV delivery evidence. Это не автоматическое разрешение PROD cutover, destructive migration, history rewrite, real full-history write или paid-service activation.
+`main` означает code, прошедший autonomous DEV delivery evidence. Это не автоматическое разрешение PROD cutover, destructive migration, history rewrite, нового real financial write или paid-service activation.
 
 ## Целевая архитектура
 
