@@ -24,14 +24,17 @@ R0 machine-proven complete: TEST/SEC/FIN/DATA truth, reproducible supply chain, 
 
 ## Current R1 truth
 
-`FIN-010` — первый P0 R1 item. Он формализует FIN-001 semantics в versioned KPI Dictionary:
+- `FIN-010` KPI Dictionary v1 — DONE, Issue #85 Main Verification PASS.
+- `DATA-010` Canonical Transaction v1 — current P0 writer, Issue #87.
 
-- `lib/finance/kpi_dictionary.v1.json` — machine-readable definitions;
-- `lib/finance/kpi_dictionary.js` — deterministic evaluator;
-- `tests/kpi_dictionary_contract_test.js` — FIN-001 parity/property contract;
-- `docs/finance/KPI_DICTIONARY.md` — normative human-readable contract.
+DATA-010 candidate:
 
-До FIN-010 Main Verification `DATA-010` dependency-blocked. KPI Dictionary не выполняет migration и не даёт permission на financial writes.
+- `lib/domain/canonical_transaction.v1.schema.json` — strict `PRH_CANONICAL_TRANSACTION_V1`;
+- `lib/domain/canonical_transaction.js` — validation/source identity/migration compatibility;
+- `tests/canonical_transaction_schema_contract_test.js` — schema + DATA-001 + FIN/KPI parity;
+- `docs/data/CANONICAL_TRANSACTION_SCHEMA.md` — normative contract.
+
+Canonical schema не даёт permission на financial writes и не означает full-history migration. Следующий domain/application item выбирается только после DATA-010 Main Verification.
 
 ## Current delivery
 
@@ -79,6 +82,12 @@ KPI Dictionary v1 наследует `FIN-TRUTH-v1`: posted-only, integer minor 
 
 UI, chart renderer и legacy total cells не являются источником KPI truth.
 
+## DATA-010 canonical data boundary
+
+Canonical Transaction v1 отделяет portable domain fields от Google Sheet layout. Stable `transaction_id` и logical source identity обязательны; `source_position` — mutable locator, не identity. Money остаётся integer `amount_minor` + explicit currency. Account/category/member/project/tags — domain dimensions, а не spreadsheet headers.
+
+Для DATA-001 legacy compatibility используется `CONTENT_FINGERPRINT_V1`, stable при row movement. Изменение imported source fingerprint/record identity после canonical import fail-closed.
+
 ## Start-reading order
 
 1. `/AGENTS.md`
@@ -86,22 +95,24 @@ UI, chart renderer и legacy total cells не являются источник�
 3. active GitHub Roadmap Issue
 4. `/docs/PROJECT_STATUS.md`
 5. `/docs/finance/KPI_DICTIONARY.md`
-6. `/lib/finance/kpi_dictionary.v1.json`
-7. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
-8. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
-9. `/docs/architecture.md`
-10. `/docs/RELEASE_PROCESS.md`
-11. `/docs/data-model.md`
-12. exact candidate code/tests/workflows
+6. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
+7. `/lib/domain/canonical_transaction.v1.schema.json`
+8. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
+9. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
+10. `/docs/architecture.md`
+11. `/docs/RELEASE_PROCESS.md`
+12. `/docs/data-model.md`
+13. exact candidate code/tests/workflows
 
 ## Не выводить из контекста
 
-Не считать автоматически завершёнными full-history migration, DATA-010, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Reviewer не writer и не release authority.
+Не считать автоматически завершёнными full-history migration, DATA-010, ARCH-010, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Reviewer не writer и не release authority.
 
 ## Scope handoff
 
 - `AIENG-001` — DONE.
 - `AIENG-002` — DONE.
 - `AIENG-003` — DONE.
-- `FIN-010` — current R1 writer.
-- `DATA-010` — next P0 dependency after FIN-010 DONE.
+- `FIN-010` — DONE.
+- `DATA-010` — current R1 writer.
+- `ARCH-010` — dependency-blocked до DATA-010 DONE.
