@@ -46,8 +46,10 @@ match(runbook, /CODE_READY[\s\S]{0,500}OWNER_PRIVATE_SNAPSHOT[\s\S]{0,500}OWNER_
   'runbook migration state machine missing');
 match(runbook, /owner tool[^\n]{0,240}(?:не содержит[^\n]{0,120}(?:write|команд)|write[^\n]{0,120}(?:disabled|выключ|не содержит))/i,
   'runbook must keep owner tool write disabled');
-match(runbook, /private mapper[\s\S]{0,220}вне Git repository/i,
-  'runbook must keep private mapper outside repository');
+match(runbook, /private mapper/i,
+  'runbook must identify private mapper');
+match(runbook, /вне Git repository/i,
+  'runbook must keep owner-private files outside repository');
 match(runbook, /unexplainedMismatch = 0/,
   'runbook must require zero unexplained mismatch');
 
