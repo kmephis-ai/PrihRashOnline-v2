@@ -1,7 +1,7 @@
 # MIG-010 — owner-private repair/rebuild policy
 
 `roadmap_id: MIG-010`  
-`policy: MIG010_REPAIR_POLICY_V1`  
+`policy: MIG010_REPAIR_POLICY_V1@1.1.0`  
 `strategy: REBUILD_LEGACY_SLICE_V1`  
 `write_authority: false`
 
@@ -38,15 +38,33 @@ Quarantine остаётся owner-private и привязана к source revisi
 
 ## SOURCE_DUPLICATE
 
-Canonical v1 использует `CONTENT_FINGERPRINT_V1`: source identity включает content fingerprint, а `source_position` не является immutable identity. Поэтому две полностью одинаковые source transactions имеют одну и ту же canonical source identity и не могут быть молча представлены как две разные canonical records.
+Обычный DATA-001 path использует `CONTENT_FINGERPRINT_V1`: source identity включает content fingerprint, а `source_position` не является immutable identity. Поэтому duplicate group никогда не разрешается автоматически.
 
 Для каждой duplicate group разрешены только три owner решения:
 
 - `DEDUPLICATE_KEEP_ONE` — владелец подтверждает, что группа содержит повторную отправку одного события, и выбирает одну source row как retained position; остальные rows остаются private quarantine с reason `OWNER_CONFIRMED_DUPLICATE_RESUBMISSION`;
-- `PRESERVE_ALL` — владелец подтверждает, что это разные реальные операции; MIG-010 остаётся `BLOCKED` с `CANONICAL_IDENTITY_EXTENSION_REQUIRED`;
+- `PRESERVE_ALL` — владелец подтверждает, что одинаковые rows являются разными реальными операциями; repair использует `CONTENT_FINGERPRINT_OCCURRENCE_V1` и сохраняет каждую occurrence как отдельную canonical transaction;
 - `UNRESOLVED` — MIG-010 остаётся `BLOCKED` с `SOURCE_DUPLICATE_OWNER_DECISION_REQUIRED`.
 
-GitHub CI, AI-agent и heuristic rule не имеют права автоматически выбирать `DEDUPLICATE_KEEP_ONE`.
+GitHub CI, AI-agent и heuristic rule не имеют права автоматически выбирать `DEDUPLICATE_KEEP_ONE` или `PRESERVE_ALL`.
+
+### `CONTENT_FINGERPRINT_OCCURRENCE_V1`
+
+Occurrence identity активируется только после owner `PRESERVE_ALL`.
+
+Для members одной duplicate group:
+
+- content `source_fingerprint` остаётся одинаковым и не модифицируется;
+- members детерминированно сортируются по source row внутри exact owner-private snapshot;
+- каждому member присваивается `occurrence_ordinal`;
+- distinct `source_record_id` и canonical `transaction_id` строятся из fingerprint + ordinal;
+- `source_position` остаётся locator, а не identity;
+- финансовые поля не меняются ради различения записей;
+- repeated resolve на том же source snapshot/resolution возвращает те же identities и resolved hash.
+
+Новая strategy является backward-compatible capability extension `PRH_CANONICAL_TRANSACTION_V1`; старые `EXTERNAL_ID` и `CONTENT_FINGERPRINT_V1` не меняются.
+
+Architecture rationale: `docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md`.
 
 ## Offline duplicate review
 
@@ -55,7 +73,7 @@ GitHub CI, AI-agent и heuristic rule не имеют права автомат�
 - `MIG010_OWNER_PRIVATE_REPAIR_PROPOSAL_V1`;
 - опциональный self-contained private HTML review.
 
-HTML не имеет network dependencies. Он содержит owner-private duplicate context только локально и генерирует download-файл `MIG010_OWNER_PRIVATE_REPAIR_RESOLUTION_V1`. Resolution cryptographically/logically binding включает exact `proposal_hash` и `source_revision`.
+HTML не имеет network dependencies. Он содержит owner-private duplicate context только локально и генерирует download-файл `MIG010_OWNER_PRIVATE_REPAIR_RESOLUTION_V1`. Resolution binding включает exact `proposal_hash` и `source_revision`.
 
 Публичный stdout не содержит amounts, dates, descriptions, source rows, counts или duplicate payload.
 
@@ -63,9 +81,17 @@ HTML не имеет network dependencies. Он содержит owner-private d
 
 `tools/mig010-repair.js resolve` принимает private snapshot + proposal + owner resolution и создаёт `MIG010_OWNER_PRIVATE_REPAIR_RESOLVED_V1`.
 
-Если все duplicate groups подтверждены как `DEDUPLICATE_KEEP_ONE`, resolved state содержит deterministic canonical rebuild candidate, private quarantine и scoped target replacement set, но `write_authorized=false`.
+- `DEDUPLICATE_KEEP_ONE` создаёт обычный `CONTENT_FINGERPRINT_V1` candidate + quarantine для подтверждённых повторных submit rows.
+- `PRESERVE_ALL` создаёт deterministic `CONTENT_FINGERPRINT_OCCURRENCE_V1` candidate для каждой подтверждённой реальной occurrence.
+- `UNRESOLVED` оставляет resolved state `BLOCKED`.
 
-Если хотя бы одна group имеет `PRESERVE_ALL` или `UNRESOLVED`, resolved state остаётся `BLOCKED`, canonical write candidate не создаётся.
+Если все duplicate groups получили owner decision `DEDUPLICATE_KEEP_ONE` или `PRESERVE_ALL`, resolved state может перейти в `READY_FOR_REBUILD_DRY_RUN`, но `write_authorized=false` остаётся обязательным.
+
+## Compatibility с уже созданным owner resolution
+
+Owner decision семантически привязан к `proposal_hash` и `source_revision`. Policy v1.1.0 не меняет смысл `PRESERVE_ALL`: он по-прежнему означает «не удалять ни одну подтверждённую реальную операцию». Изменился только технический способ представить это решение в Canonical v1 через versioned occurrence identity.
+
+Новый repair candidate должен валидировать старый exact proposal/resolution pair только при совпадении schema/proposal/source binding; произвольный resolution для другого proposal не принимается.
 
 ## Неизменяемые safety rules
 
@@ -73,5 +99,6 @@ HTML не имеет network dependencies. Он содержит owner-private d
 - scoped rebuild не означает разрешение delete/replace;
 - source/target/proposal/resolution hashes должны совпасть;
 - private proposal/review/resolution/resolved state находятся вне Git repository;
-- реальный first write всё ещё требует отдельный `IRREVERSIBLE_ACTION_AUTHORIZED`, свежий DR-001 backup, migration-specific adapter, readback и rollback;
+- occurrence identity не является разрешением на запись;
+- реальный first write всё ещё требует отдельный `IRREVERSIBLE_ACTION_AUTHORIZED`, свежий DR-001 backup, exact rebuild hash, migration-specific adapter, readback и rollback;
 - public evidence остаётся без real/derived financial payload.
