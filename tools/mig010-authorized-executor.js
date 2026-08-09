@@ -87,7 +87,15 @@ function assertPackage(pkg) {
   return pkg;
 }
 
-function requestIdentity(pkg, backupVerifiedAt, sessionId) {
+function normalizeFreshTimestamp(value, nowMs, invalidReason, staleReason) {
+  const parsed = Date.parse(String(value || ''));
+  if (!Number.isFinite(parsed)) fail(invalidReason);
+  const age = nowMs - parsed;
+  if (age < 0 || age > MAX_BACKUP_AGE_MS) fail(staleReason);
+  return new Date(parsed).toISOString();
+}
+
+function requestIdentity(pkg, backupCreatedAt, backupVerifiedAt, sessionId) {
   return {
     schema: AUTH_REQUEST_SCHEMA,
     authorization_required: AUTH_LITERAL,
@@ -98,18 +106,27 @@ function requestIdentity(pkg, backupVerifiedAt, sessionId) {
     current_raw_table_hash: pkg.current_raw_table_hash,
     final_raw_table_hash: pkg.final_raw_table_hash,
     target_header_hash: pkg.target_header_hash,
+    backup_created_at: backupCreatedAt,
     backup_verified_at: backupVerifiedAt,
     session_id: sessionId,
     write_authorized: false
   };
 }
 
-function createAuthorizationRequest(pkg, backupCipherSha256, now = new Date()) {
+function createAuthorizationRequest(pkg, backupCipherSha256, backupCreatedAt, now = new Date()) {
   assertPackage(pkg);
   if (backupCipherSha256 !== pkg.backup_cipher_sha256) fail('MIG010_EXECUTOR_BACKUP_PACKAGE_MISMATCH');
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail('MIG010_EXECUTOR_REQUEST_TIME_INVALID');
+  const nowMs = now.getTime();
+  const createdAt = normalizeFreshTimestamp(
+    backupCreatedAt,
+    nowMs,
+    'MIG010_EXECUTOR_BACKUP_CREATED_AT_INVALID',
+    'MIG010_EXECUTOR_BACKUP_COPY_STALE'
+  );
+  const verifiedAt = now.toISOString();
   const sessionId = `MIG010_${crypto.randomBytes(12).toString('hex')}`;
-  const identity = requestIdentity(pkg, now.toISOString(), sessionId);
+  const identity = requestIdentity(pkg, createdAt, verifiedAt, sessionId);
   return Object.freeze({ ...identity, request_hash: sha256Hex(canonicalJson(identity)) });
 }
 
@@ -117,9 +134,26 @@ function assertAuthorization(auth, request, pkg, nowMs = Date.now()) {
   assertPackage(pkg);
   if (!request || request.schema !== AUTH_REQUEST_SCHEMA || request.write_authorized !== false ||
       !SHA256_RE.test(String(request.request_hash || '')) ||
-      sha256Hex(canonicalJson(requestIdentity(pkg, request.backup_verified_at, request.session_id))) !== request.request_hash) {
+      sha256Hex(canonicalJson(requestIdentity(
+        pkg,
+        request.backup_created_at,
+        request.backup_verified_at,
+        request.session_id
+      ))) !== request.request_hash) {
     fail('MIG010_EXECUTOR_AUTH_REQUEST_INVALID');
   }
+  normalizeFreshTimestamp(
+    request.backup_created_at,
+    nowMs,
+    'MIG010_EXECUTOR_BACKUP_CREATED_AT_INVALID',
+    'MIG010_EXECUTOR_BACKUP_COPY_STALE'
+  );
+  normalizeFreshTimestamp(
+    request.backup_verified_at,
+    nowMs,
+    'MIG010_EXECUTOR_BACKUP_VERIFIED_AT_INVALID',
+    'MIG010_EXECUTOR_BACKUP_VERIFICATION_STALE'
+  );
   if (!auth || auth.schema !== AUTH_SCHEMA || auth.authorization !== AUTH_LITERAL || auth.write_authorized !== true) {
     fail('MIG010_EXECUTOR_IRREVERSIBLE_ACTION_NOT_AUTHORIZED');
   }
@@ -133,11 +167,21 @@ function assertAuthorization(auth, request, pkg, nowMs = Date.now()) {
   ]) {
     if (auth[field] !== request[field] || auth[field] !== pkg[field]) fail('MIG010_EXECUTOR_AUTH_BINDING_MISMATCH');
   }
-  if (auth.backup_verified_at !== request.backup_verified_at) fail('MIG010_EXECUTOR_AUTH_BACKUP_TIME_MISMATCH');
-  const verifiedAt = Date.parse(String(auth.backup_verified_at || ''));
-  if (!Number.isFinite(verifiedAt)) fail('MIG010_EXECUTOR_BACKUP_VERIFIED_AT_INVALID');
-  const age = nowMs - verifiedAt;
-  if (age < 0 || age > MAX_BACKUP_AGE_MS) fail('MIG010_EXECUTOR_BACKUP_STALE');
+  if (auth.backup_created_at !== request.backup_created_at || auth.backup_verified_at !== request.backup_verified_at) {
+    fail('MIG010_EXECUTOR_AUTH_BACKUP_TIME_MISMATCH');
+  }
+  normalizeFreshTimestamp(
+    auth.backup_created_at,
+    nowMs,
+    'MIG010_EXECUTOR_BACKUP_CREATED_AT_INVALID',
+    'MIG010_EXECUTOR_BACKUP_COPY_STALE'
+  );
+  normalizeFreshTimestamp(
+    auth.backup_verified_at,
+    nowMs,
+    'MIG010_EXECUTOR_BACKUP_VERIFIED_AT_INVALID',
+    'MIG010_EXECUTOR_BACKUP_VERIFICATION_STALE'
+  );
   return Object.freeze(auth);
 }
 
@@ -152,6 +196,7 @@ function baseRequest(auth, pkg) {
     current_raw_table_hash: pkg.current_raw_table_hash,
     final_raw_table_hash: pkg.final_raw_table_hash,
     target_header_hash: pkg.target_header_hash,
+    backup_created_at: auth.backup_created_at,
     backup_verified_at: auth.backup_verified_at
   };
 }
@@ -276,7 +321,8 @@ function commandRequest(args) {
   const backupPath = assertOutsideRepository(args.backup, 'MIG010_EXECUTOR_BACKUP_INSIDE_REPOSITORY');
   const key = readBackupKey(args.key);
   const verified = readEncryptedBackup(backupPath, key);
-  const request = createAuthorizationRequest(pkg, verified.cipherSha256, new Date());
+  const backupCreatedAt = verified && verified.pkg && verified.pkg.manifest && verified.pkg.manifest.createdAt;
+  const request = createAuthorizationRequest(pkg, verified.cipherSha256, backupCreatedAt, new Date());
   writePrivateJson(args.out, request);
   return {
     schema: AUTH_REQUEST_SCHEMA,
@@ -285,6 +331,7 @@ function commandRequest(args) {
     packageHash: request.package_hash,
     resolvedHash: request.resolved_hash,
     backupCipherSha256: request.backup_cipher_sha256,
+    backupCreatedAt: request.backup_created_at,
     backupVerifiedAt: request.backup_verified_at,
     requestWritten: true,
     financialPayloadStdout: false,
@@ -324,6 +371,7 @@ function commandContract() {
     authorizationLiteral: AUTH_LITERAL,
     maxBackupAgeMs: MAX_BACKUP_AGE_MS,
     exactPackageBinding: true,
+    freshEncryptedBackupCopyRequired: true,
     freshEncryptedBackupVerifyRequired: true,
     privateAuthorizationRequired: true,
     executionFunctionsAllowlisted: Object.values(ALLOWED_FUNCTIONS),
@@ -362,6 +410,7 @@ module.exports = {
   ALLOWED_FUNCTIONS,
   parseArgs,
   assertPackage,
+  normalizeFreshTimestamp,
   requestIdentity,
   createAuthorizationRequest,
   assertAuthorization,
