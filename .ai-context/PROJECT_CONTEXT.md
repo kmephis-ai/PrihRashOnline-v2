@@ -77,7 +77,7 @@ Normative runbook: `docs/operations/PERF011_REVISION_AWARE_CACHE.md`. Named cano
 
 ## MIG-010 historical verified boundary
 
-Owner-private full-history migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. This one-time authorization/evidence never grants later generic write authority. GitHub Actions and AI cannot create or reuse `IRREVERSIBLE_ACTION_AUTHORIZED` for later mutations.
+Owner-private full-history migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. This one-time authorization/evidence never grants later generic write authority. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions and AI cannot reuse it for later mutations.
 
 ## Current delivery
 
@@ -104,7 +104,7 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys and migration artifacts stay private. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys и migration artifacts stay private. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
