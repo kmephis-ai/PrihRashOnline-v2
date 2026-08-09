@@ -21,8 +21,8 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `FIN-010` — DONE.
 - `DATA-010` — DONE.
 - `ARCH-010` — DONE, Issue #89 Main Verification PASS.
-- `ARCH-011` — previous current writer, Issue #91; now DONE after Main Verification PASS.
-- `MIG-010` — current P0 writer, Issue #96, draft PR #97; owner-private stage = `AUTHORIZATION_REQUIRED`.
+- `ARCH-011` — DONE, Issue #91 Main Verification PASS.
+- `MIG-010` — current P0 writer, Issue #96, draft PR #97; owner-private stage = `OWNER_VERIFIED`. Private full-history write + fresh-backup reconciliation = PASS. GitHub lifecycle remains IN_PROGRESS until final candidate gates, merge and Main Verification.
 
 `PRH_TRANSACTION_REPOSITORY_V1` — storage-neutral repository port. Generic Google adapter read/query работает, canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
@@ -36,18 +36,22 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 Privacy-safe stage evidence:
 
-- encrypted-backup snapshot — created;
+- encrypted-backup snapshot — PASS;
 - initial full-history dry-run — fail-closed `BLOCKED`, legacy anomalies identified;
 - private diagnostics — complete;
 - duplicate semantics — resolved by owner-private offline review;
 - repair resolve — `READY_FOR_REBUILD_DRY_RUN`, no remaining repair blockers;
 - independent resolved rebuild dry-run — `PASS`, `reconciliationReady=true`;
-- current `writeAuthorized=false`;
-- real migration batches — **not executed**.
+- exact owner `IRREVERSIBLE_ACTION_AUTHORIZED` — consumed only for bound package/request/session;
+- staging/readback/finalize — PASS;
+- Google Sheets type-coercion incident — repaired by adaptive exact-type staging writer without changing package financial semantics;
+- fresh encrypted post-write backup — PASS;
+- `MIG010_OWNER_POST_RECONCILIATION_V1` — PASS;
+- `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
 
-Counts/details, financial payload, owner resolution contents and private hashes stay private.
+Counts/details, financial payload, owner resolution contents, runtime identifiers and private payload stay private.
 
-## Pre-authorization execution layer
+## Owner-authorized execution layer
 
 `MIG010_EXECUTION_POLICY_V1@1.0.0` uses `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`.
 
@@ -56,8 +60,9 @@ Counts/details, financial payload, owner resolution contents and private hashes 
 - `Mig010ExecutionGateway.js` is a separate migration-specific Apps Script boundary. Generic ARCH-011 repository write authority remains false.
 - Gateway begin validates exact live raw-table hash, then creates hidden rollback copy + hidden staging while live target remains unchanged.
 - Staging batches are sequential/idempotent, <=100 and require write/readback hash parity.
+- `Mig010ExecutionTypedWrite.js` preserves explicit package cell types under Google Sheets formatting/coercion behavior; exact readback remains the authority.
 - Finalize is allowed only after full staging hash + live no-drift checks. Any finalize failure restores rollback and verifies initial hash.
-- Successful finalize status is `FINALIZED_PENDING_RECONCILIATION`, never `DONE`.
+- Successful finalize status is `FINALIZED_PENDING_RECONCILIATION`, never `DONE` by itself.
 - `tools/mig010-post-reconcile.js` requires a new encrypted backup after finalize and independently proves source revision + resolved candidate + candidate revision + final raw target hash, `unexplainedMismatch=0`, idempotent rerun.
 
 Owner authorization is a separate private schema `MIG010_OWNER_IRREVERSIBLE_AUTHORIZATION_V1`. It is valid only with literal `IRREVERSIBLE_ACTION_AUTHORIZED`, exact request/package bindings and fresh backup verification <=24h. **GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`.** Merge и AI-agent также не могут создать owner authorization.
@@ -75,7 +80,7 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-For MIG-010 the PR intentionally remains draft until actual owner-private migration + post-write reconciliation are complete. Code readiness alone must not close Issue #96.
+For MIG-010 actual owner-private migration + post-write reconciliation are complete. PR #97 remains draft only until documentation/current-truth sync and final exact-head machine gates are green; then it may become ready for the normal CI-003 merge path.
 
 После INC-001 Web Dashboard использует raw `HtmlOutput` placeholder injection; authenticated Web App render smoke v2 обязателен для runtime health.
 
@@ -91,7 +96,7 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 Real or real-derived household finance data must stay private. Public finance fixtures — independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration mapper/snapshot/state/diagnostic/proposal/review/resolution/resolved/execution-package/authorization stay private.
 
-Full-history migration is not complete. Rebuild PASS, execution package, authorization request, code merge или CI не являются real-write authorization. New canonical mutation требует exact preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
+Owner-verified full-history migration does not create continuing generic write authority. New canonical mutation still requires exact preconditions, readback, reconciliation, rollback/snapshot and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
 
 ## Domain boundaries
 
@@ -115,16 +120,15 @@ CODE_READY
           -> RESOLVED_REBUILD_DRY_RUN = PASS
 -> EXECUTION_PACKAGE
 -> AUTHORIZATION_REQUEST
--> AUTHORIZATION_REQUIRED
--> owner IRREVERSIBLE_ACTION_AUTHORIZED only
+-> owner IRREVERSIBLE_ACTION_AUTHORIZED
 -> STAGING + READBACK
 -> FINALIZED_PENDING_RECONCILIATION
 -> FRESH ENCRYPTED BACKUP
 -> POST-WRITE RECONCILIATION, unexplainedMismatch=0
--> OWNER_VERIFIED
+-> OWNER_VERIFIED = PASS
 ```
 
-Before explicit authorization there are no real financial writes. After finalize rollback remains available until post-write PASS.
+Rollback remained available through reconciliation; successful PASS allows it to be released only by a separate bounded cleanup step. Hidden staging/rollback resources are not auto-deleted by owner verification.
 
 ## Start-reading order
 
@@ -141,11 +145,12 @@ Before explicit authorization there are no real financial writes. After finalize
 11. `/lib/migration/mig010_execution_policy.v1.json`
 12. `/tools/mig010-execution-package.js`
 13. `/Mig010ExecutionGateway.js`
-14. `/tools/mig010-authorized-executor.js`
-15. `/tools/mig010-post-reconcile.js`
-16. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
-17. exact candidate code/tests/workflows
+14. `/Mig010ExecutionTypedWrite.js`
+15. `/tools/mig010-authorized-executor.js`
+16. `/tools/mig010-post-reconcile.js`
+17. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
+18. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001/002/003`, `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011` = DONE. `MIG-010` = current R1 P0 writer. Other R1 items остаются dependency/priority-gated.
+`AIENG-001/002/003`, `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011` = DONE. `MIG-010` = current R1 P0 writer with private `OWNER_VERIFIED` evidence; it becomes DONE only after PR/Main Verification. Other R1 items remain dependency/priority-gated.
