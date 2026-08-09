@@ -9,9 +9,8 @@ This file is a public-safe human summary. Authoritative execution state remains 
 - `SEC-003`, `CI-001`, `CI-002`, `CI-003`;
 - `DR-001`, `OBS-001`, `FINOPS-001`;
 - `DOC-001` documentation truth reset;
-- `AIENG-001` root machine-enforced repository AI contract.
-
-When this AIENG-002 candidate reaches `main`, deterministic Roadmap continuation/task-packet/lifecycle semantics are also machine-enforced.
+- `AIENG-001` root machine-enforced repository AI contract;
+- `AIENG-002` executable Roadmap-to-agent task protocol.
 
 ## R0 master gates
 
@@ -21,34 +20,35 @@ When this AIENG-002 candidate reaches `main`, deterministic Roadmap continuation
 
 ### MASTER-G1 / Autonomous delivery + AI engineering
 
-Delivery engine (`SEC-003 + CI-001 + CI-002 + CI-003`) and `AIENG-001` are complete.
+Delivery engine (`SEC-003 + CI-001 + CI-002 + CI-003`) is complete.
 
 AIENG chain state:
 
 - `AIENG-001` — repository AI contract: **DONE**;
-- `AIENG-002` — Roadmap-to-agent executable task protocol: current item; after merge **DONE**;
-- `AIENG-003` — read-only multi-AI review protocol: **remaining next dependency**.
+- `AIENG-002` — Roadmap-to-agent executable task protocol: **DONE**;
+- `AIENG-003` — exact-candidate read-only multi-AI review: final R0 item; it becomes **DONE only after its own Main Verification**.
 
-State after AIENG-002 merge: **open only for AIENG-003**.
+Until AIENG-003 Main Verification closes Issue #72, `MASTER-G1` remains open. After that close, `MASTER-G1` and the full R0 exit condition are complete.
 
 ### MASTER-G2 / Recoverability
 
 `DR-001 + OBS-001 + FINOPS-001` — **complete**.
 
-## Executable Roadmap Autopilot
+## Executable AI engineering baseline
 
-AIENG-002 defines the public-safe deterministic continuation contract:
+Root `AGENTS.md` is the public-safe repository AI operating contract.
 
-- `tools/roadmap-task-protocol.js`;
-- `.ai-context/roadmap-task-packet.schema.json` (`PRH_ROADMAP_TASK_V1`);
-- `docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`;
-- deterministic contract tests and named PR gate.
-
-Continuation resumes the single `IN_PROGRESS` writer or resolves one concrete dependency-ready `READY` Roadmap ID. Multiple writers/missing dependencies/incomplete packets/private context fail closed. `DONE` requires Main Verification, not merely merge.
+- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` resolve continuation, one-writer ownership and lifecycle.
+- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review.
+- required reviewer roles: architecture, security/privacy, financial/data, test/operations;
+- reviewers are `READ_ONLY`, `writer_authority=false` and cannot mark Roadmap DONE;
+- unresolved P0/P1 blocks review evidence; P2/P3 remains advisory;
+- conflict resolution follows policy/spec/tests/ADR, never model voting;
+- required review contracts are deterministic local Node checks and require no paid AI/API provider.
 
 ## R1 entry condition
 
-Do not treat R1 feature/platform expansion as current priority until `MASTER-G1` is complete. After AIENG-003 closes it, dependency-ordered R1 starts with:
+Do not treat R1 feature/platform expansion as current priority until all R0 master gates are complete. When Issue #72 is machine-closed, dependency-ordered R1 starts with:
 
 1. `FIN-010` — versioned KPI Dictionary;
 2. `DATA-010` — canonical transaction schema v1;
@@ -65,10 +65,6 @@ Do not treat R1 feature/platform expansion as current priority until `MASTER-G1`
 - paid-by-usage provider activation: blocked unless a future reviewed provider policy remains inside `FREE_ONLY`;
 - billable provider allowlist: empty at FINOPS-001 baseline.
 
-## Repository AI truth
-
-Root `AGENTS.md` is the public-safe repository AI operating contract. `.ai-context/PROJECT_CONTEXT.md`, `llms.txt` and the AIENG-002 task protocol are machine-readable entry points, not private user-memory stores.
-
 ## What is deliberately not claimed
 
 - full-history migration is **not** complete;
@@ -77,7 +73,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. `.ai-conte
 - public Git history rewrite is **not authorized/executed**;
 - paid cloud/AI/OCR provider is **not** enabled;
 - old RC/release snapshot mechanics are **not** current delivery policy;
-- AIENG-003 multi-AI review is **not** complete until its own Roadmap item closes.
+- AI review does **not** replace machine gates or create reviewer write authority.
 
 ## Source precedence
 
