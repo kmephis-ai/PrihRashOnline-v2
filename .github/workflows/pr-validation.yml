@@ -73,6 +73,8 @@ jobs:
         run: node tests/canonical_transaction_schema_contract_test.js
       - name: Pure domain/application core
         run: node tests/pure_domain_application_core_contract_test.js
+      - name: Transaction repository adapter
+        run: node tests/repository_adapter_contract_test.js
       - name: Migration reconcile synthetic
         run: node tests/migration_reconciliation_contract_test.js
       - name: Prepare dashboard bundle
