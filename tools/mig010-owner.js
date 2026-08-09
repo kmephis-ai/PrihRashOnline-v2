@@ -8,12 +8,19 @@ const {
   RESUME_SCHEMA,
   buildMigrationPlan,
   createInitialResumeToken,
-  decodeResumeToken
+  decodeResumeToken,
+  canonicalToMigrationRecord,
+  verifyFullHistoryReconciliation
 } = require('../lib/migration/full_history_migration');
+const {
+  normalizeSourceRecord,
+  planIdempotentImport
+} = require('../lib/migration/migration_reconciliation');
 const { readEncryptedBackup } = require('./private-backup');
 
 const SNAPSHOT_SCHEMA = 'MIG010_OWNER_PRIVATE_SNAPSHOT_V1';
 const STATE_SCHEMA = 'MIG010_OWNER_PRIVATE_STATE_V1';
+const DIAGNOSTIC_SCHEMA = 'MIG010_OWNER_PRIVATE_DIAGNOSTIC_V1';
 const MAPPER_SCHEMA = 'MIG010_OWNER_PRIVATE_MAPPER_V1';
 const DR_EVIDENCE_SCHEMA = 'DR-001-EVIDENCE-v1';
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -302,15 +309,120 @@ function commandVerifyState(args) {
   };
 }
 
+function technicalSourceLocator(raw, index) {
+  const row = Number(raw && raw.source_row);
+  return {
+    index,
+    source_system: String(raw && raw.source_system || ''),
+    source_sheet: String(raw && raw.source_sheet || ''),
+    source_row: Number.isInteger(row) && row >= 2 ? row : null
+  };
+}
+
+function commandDiagnose(args) {
+  for (const required of ['snapshot', 'state', 'out']) {
+    if (!args[required]) fail('MIG010_DIAGNOSTIC_ARGUMENTS_REQUIRED');
+  }
+  const snapshotPath = assertOutsideRepository(args.snapshot, 'MIG010_PRIVATE_SNAPSHOT_INSIDE_REPOSITORY');
+  const statePath = assertOutsideRepository(args.state, 'MIG010_PRIVATE_STATE_INSIDE_REPOSITORY');
+  const outputPath = assertOutsideRepository(args.out, 'MIG010_PRIVATE_DIAGNOSTIC_INSIDE_REPOSITORY');
+  const snapshot = normalizeSnapshot(readJson(snapshotPath, 'MIG010_PRIVATE_SNAPSHOT_READ_FAILED'));
+  const state = normalizePrivateState(readJson(statePath, 'MIG010_PRIVATE_STATE_READ_FAILED'));
+
+  const recomputed = buildMigrationPlan({
+    source_records: snapshot.source_records,
+    canonical_records: snapshot.canonical_records,
+    mapping_version: snapshot.mapping_version,
+    backup_binding: state.plan.backup_binding,
+    batch_size: state.plan.batch_size
+  });
+  if (recomputed.plan_hash !== state.plan.plan_hash ||
+      recomputed.source_revision !== state.plan.source_revision ||
+      recomputed.initial_target_revision !== state.plan.initial_target_revision) {
+    fail('MIG010_DIAGNOSTIC_STATE_BINDING_INVALID');
+  }
+
+  const projectedTarget = snapshot.canonical_records.map(canonicalToMigrationRecord);
+  const reconciliation = verifyFullHistoryReconciliation(snapshot.source_records, snapshot.canonical_records);
+  const importPlan = planIdempotentImport(snapshot.source_records, projectedTarget);
+
+  const sourceFindings = [];
+  importPlan.forEach((item) => {
+    if (item.action !== 'BLOCK') return;
+    const raw = snapshot.source_records[item.index];
+    sourceFindings.push({
+      ...technicalSourceLocator(raw, item.index),
+      reason: item.reason,
+      source_fingerprint: item.fingerprint || null
+    });
+  });
+  snapshot.source_records.forEach((raw, index) => {
+    let invalid = false;
+    try {
+      const normalized = normalizeSourceRecord(raw);
+      invalid = normalized.source_quality !== 'VALID';
+    } catch (_) {
+      invalid = true;
+    }
+    if (!invalid) return;
+    if (sourceFindings.some((finding) => finding.index === index && finding.reason === 'SOURCE_INVALID')) return;
+    sourceFindings.push({ ...technicalSourceLocator(raw, index), reason: 'SOURCE_INVALID', source_fingerprint: null });
+  });
+  sourceFindings.sort((a, b) => a.index - b.index || a.reason.localeCompare(b.reason));
+
+  const targetFindings = reconciliation.private_result.results
+    .filter((item) => item.status !== 'CLEAN')
+    .map((item) => {
+      const projected = projectedTarget[item.index] || {};
+      return {
+        index: item.index,
+        transaction_id: item.transaction_id || projected.transaction_id || '',
+        source_system: projected.source_system || '',
+        source_sheet: projected.source_sheet || '',
+        source_row: Number.isInteger(projected.source_row) ? projected.source_row : null,
+        reason: item.reason,
+        core_diff_fields: Array.isArray(item.core_diff_fields) ? item.core_diff_fields.slice().sort() : [],
+        current_source_row: Number.isInteger(item.current_source_row) ? item.current_source_row : null
+      };
+    });
+
+  const report = {
+    schema: DIAGNOSTIC_SCHEMA,
+    created_at: new Date().toISOString(),
+    plan_hash: recomputed.plan_hash,
+    plan_status: recomputed.status,
+    source_revision: recomputed.source_revision,
+    target_revision: recomputed.initial_target_revision,
+    blocked_reasons: Array.from(new Set(recomputed.blocked_reasons)).sort(),
+    source_findings: sourceFindings,
+    target_findings: targetFindings,
+    reconciliation_summary: reconciliation.private_result.summary,
+    write_authorized: false
+  };
+  writePrivateJson(outputPath, report);
+  return {
+    schema: 'MIG010_OWNER_DIAGNOSTIC_V1',
+    status: 'DIAGNOSTIC_WRITTEN',
+    planHash: recomputed.plan_hash,
+    blockedReasons: report.blocked_reasons,
+    diagnosticWritten: true,
+    detailedFindingsStdout: false,
+    financialPayloadStdout: false,
+    writeAuthorized: false
+  };
+}
+
 function commandContract() {
   return {
     schema: 'MIG010_OWNER_TOOL_V1',
     privateSnapshotSchema: SNAPSHOT_SCHEMA,
     privateStateSchema: STATE_SCHEMA,
+    privateDiagnosticSchema: DIAGNOSTIC_SCHEMA,
     privateMapperSchema: MAPPER_SCHEMA,
     snapshotFromEncryptedBackup: true,
     privatePathsOutsideRepository: true,
     dryRun: true,
+    privateDiagnostics: true,
     writeCommandEnabled: false,
     irreversibleActionRequired: true,
     realFinancialPayloadStdout: false
@@ -331,6 +443,8 @@ async function main() {
       result = commandDryRun(args);
     } else if (command === 'verify-state') {
       result = commandVerifyState(args);
+    } else if (command === 'diagnose') {
+      result = commandDiagnose(args);
     } else if (command === 'contract') {
       result = commandContract();
     } else if (command === 'execute' || command === 'write' || command === 'apply') {
@@ -350,6 +464,7 @@ if (require.main === module) main();
 module.exports = {
   SNAPSHOT_SCHEMA,
   STATE_SCHEMA,
+  DIAGNOSTIC_SCHEMA,
   MAPPER_SCHEMA,
   parseArgs,
   assertOutsideRepository,
@@ -364,5 +479,7 @@ module.exports = {
   publicDryRunResult,
   commandDryRun,
   commandVerifyState,
+  technicalSourceLocator,
+  commandDiagnose,
   commandContract
 };
