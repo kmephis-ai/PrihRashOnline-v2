@@ -20,7 +20,10 @@ const proposalPath = path.join(temp, 'proposal.private.json');
 const reviewPath = path.join(temp, 'review.private.html');
 const resolutionPath = path.join(temp, 'resolution.private.json');
 const resolvedPath = path.join(temp, 'resolved.private.json');
+const preserveResolutionPath = path.join(temp, 'preserve-resolution.private.json');
+const preserveResolvedPath = path.join(temp, 'preserve-resolved.private.json');
 const CANARY = 'PRIVATE-REPAIR-CANARY-DESCRIPTION';
+const OCCURRENCE_IDENTITY = 'CONTENT_FINGERPRINT_OCCURRENCE_V1';
 
 function run(args) {
   const result = spawnSync(process.execPath, [tool, ...args], { cwd: root, encoding: 'utf8' });
@@ -46,6 +49,7 @@ try {
   assert.strictEqual(result.payload.schema, 'MIG010_REPAIR_TOOL_V1');
   assert.strictEqual(result.payload.writeCommandEnabled, false);
   assert.strictEqual(result.payload.offlineDuplicateReview, true);
+  assert.strictEqual(result.payload.preserveAllOccurrenceIdentity, OCCURRENCE_IDENTITY);
 
   const unique = source(2, { occurred_at: '2025-04-01T09:00:00Z', name: 'Unique synthetic' });
   const duplicateA = source(3);
@@ -104,6 +108,7 @@ try {
   const review = fs.readFileSync(reviewPath, 'utf8');
   assert(review.includes(CANARY), 'private offline review should contain private duplicate context');
   assert(review.includes('MIG010_OWNER_PRIVATE_REPAIR_RESOLUTION_V1'));
+  assert(review.includes(OCCURRENCE_IDENTITY), 'private review must explain PRESERVE_ALL identity strategy');
   assert(!/https?:\/\//.test(review), 'offline review must not depend on network resources');
 
   const proposal = JSON.parse(fs.readFileSync(proposalPath, 'utf8'));
@@ -129,12 +134,39 @@ try {
   assert.strictEqual(result.payload.status, 'READY_FOR_REBUILD_DRY_RUN');
   assert.strictEqual(result.payload.targetRebuild, true);
   assert.strictEqual(result.payload.quarantinePresent, true);
+  assert.strictEqual(result.payload.occurrenceIdentityStrategy, null);
   assert.strictEqual(result.payload.writeAuthorized, false);
   assert(!result.stdout.includes(CANARY));
   const resolved = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
   assert.strictEqual(resolved.status, 'READY_FOR_REBUILD_DRY_RUN');
   assert.strictEqual(resolved.canonical_candidate.length, 2);
   assert.strictEqual(resolved.write_authorized, false);
+
+  fs.writeFileSync(preserveResolutionPath, JSON.stringify({
+    schema: 'MIG010_OWNER_PRIVATE_REPAIR_RESOLUTION_V1',
+    proposal_hash: proposal.proposal_hash,
+    source_revision: proposal.source_revision,
+    duplicate_decisions: [{
+      fingerprint: proposal.duplicate_groups[0].fingerprint,
+      decision: 'PRESERVE_ALL'
+    }]
+  }, null, 2), { mode: 0o600 });
+
+  result = run([
+    'resolve', '--snapshot', snapshotPath, '--proposal', proposalPath,
+    '--resolution', preserveResolutionPath, '--out', preserveResolvedPath
+  ]);
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.payload.status, 'READY_FOR_REBUILD_DRY_RUN');
+  assert.strictEqual(result.payload.occurrenceIdentityStrategy, OCCURRENCE_IDENTITY);
+  assert.strictEqual(result.payload.writeAuthorized, false);
+  assert(!result.stdout.includes(CANARY));
+  const preserveResolved = JSON.parse(fs.readFileSync(preserveResolvedPath, 'utf8'));
+  assert.strictEqual(preserveResolved.canonical_candidate.length, 3);
+  const occurrence = preserveResolved.canonical_candidate.filter((tx) => tx.provenance.identity_strategy === OCCURRENCE_IDENTITY);
+  assert.strictEqual(occurrence.length, 2);
+  assert.notStrictEqual(occurrence[0].transaction_id, occurrence[1].transaction_id);
+  assert.strictEqual(preserveResolved.write_authorized, false);
 
   for (const command of ['execute', 'write', 'apply']) {
     result = run([command]);
@@ -150,6 +182,7 @@ try {
     ownerResolutionBound: true,
     quarantine: true,
     targetRebuild: true,
+    preserveAllOccurrenceIdentity: true,
     writeCommandsEnabled: false
   });
 } finally {
