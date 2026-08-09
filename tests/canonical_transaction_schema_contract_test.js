@@ -31,7 +31,9 @@ function sha256(value) {
 }
 
 function canonicalFromSynthetic(row, overrides = {}) {
-  const sourceId = String(row.source_external_id || row.transaction_id);
+  // Golden fixture deliberately contains a duplicate source_external_id for DATA-001 tests.
+  // Clean canonical DATA-010 fixtures use their independently generated transaction_id as stable synthetic source identity.
+  const sourceId = String(row.transaction_id);
   return normalizeCanonicalTransaction({
     schema: SCHEMA_ID,
     schema_version: SCHEMA_VERSION,
