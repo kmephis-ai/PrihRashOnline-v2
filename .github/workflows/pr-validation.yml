@@ -77,6 +77,24 @@ jobs:
         run: node tests/repository_adapter_contract_test.js
       - name: Migration reconcile synthetic
         run: node tests/migration_reconciliation_contract_test.js
+      - name: Full-history migration protocol
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/full_history_migration_contract_test.js
+          node tests/mig010_plan_privacy_contract_test.js
+          node tests/mig010_existing_target_preflight_contract_test.js
+          node tests/mig010_private_mapper_example_contract_test.js
+          node tests/mig010_leading_columns_mapper_contract_test.js
+          node tests/mig010_target_blank_date_contract_test.js
+          node tests/mig010_owner_tool_contract_test.js
+          node tests/mig010_owner_diagnostics_contract_test.js
+          node tests/mig010_occurrence_identity_contract_test.js
+          node tests/mig010_repair_policy_contract_test.js
+          node tests/mig010_repair_policy_compatibility_contract_test.js
+          node tests/mig010_repair_tool_contract_test.js
+          node tests/mig010_rebuild_dry_run_contract_test.js
+          node tests/mig010_documentation_contract_test.js
       - name: Prepare dashboard bundle
         run: npm run prepare:web
       - name: Run all contract tests

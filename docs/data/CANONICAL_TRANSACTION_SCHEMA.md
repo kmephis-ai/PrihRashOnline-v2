@@ -58,7 +58,23 @@ FX conversion не входит в DATA-010. Canonical record хранит ис�
 
 Например, Google source row может переместиться с `row:10` на `row:44`; это меняет только `source_position`. Immutable identity/fingerprint canonical import остаётся прежней, если source core content не изменился.
 
-Для источников со stable external ID используется `EXTERNAL_ID`. Для DATA-001 legacy migration shape, где stable external ID может отсутствовать, используется `CONTENT_FINGERPRINT_V1`: logical record identity строится из DATA-001 content fingerprint, который не зависит от row position.
+### Identity strategies
+
+`PRH_CANONICAL_TRANSACTION_V1` поддерживает три явно версионированные стратегии:
+
+- `EXTERNAL_ID` — источник предоставляет собственный stable record ID;
+- `CONTENT_FINGERPRINT_V1` — DATA-001 legacy migration без stable external ID; logical record identity строится из content fingerprint, независимого от row position;
+- `CONTENT_FINGERPRINT_OCCURRENCE_V1` — узкая MIG-010 extension для **owner-confirmed** случая, когда несколько source rows имеют полностью одинаковый content fingerprint, но владелец подтвердил, что это разные реальные операции и выбрал `PRESERVE_ALL`.
+
+`CONTENT_FINGERPRINT_OCCURRENCE_V1` не заменяет обычный fingerprint identity и не активируется эвристикой. Для одной группы одинакового fingerprint MIG-010 задаёт deterministic occurrence ordinal в порядке source rows внутри exact owner-private source snapshot. `source_record_id` и `transaction_id` включают этот ordinal, а `source_fingerprint` остаётся общим content fingerprint. Поэтому:
+
+- одинаковые реальные операции могут существовать как разные canonical transactions;
+- их финансовые поля не искажаются для искусственного различения;
+- повторный resolve на том же source snapshot детерминирован;
+- изменение только `source_position` не меняет identity при том же occurrence ordinal;
+- CI/AI не имеют права самостоятельно превращать `SOURCE_DUPLICATE` в `PRESERVE_ALL`.
+
+Occurrence strategy является backward-compatible расширением enum `identity_strategy`; `schema_version` остаётся `1`, top-level shape и FIN-TRUTH semantics не меняются.
 
 Изменение `source_system`, `source_record_id`, `source_fingerprint`, `identity_strategy` или `transform_version` после canonical import считается source identity mutation и fail-closed.
 
@@ -87,7 +103,9 @@ Shared errors используют bounded `CANONICAL_*` reason codes и не д
 - legacy `name` → canonical `description`;
 - отсутствующий legacy status трактуется adapter'ом как explicit `posted` для historical migration compatibility.
 
-`toMigrationCompatibilityRecord()` и `assertMigrationFingerprintParity()` доказывают round-trip fingerprint parity. Это **compatibility contract**, а не разрешение full-history migration.
+`fromMigrationCanonicalOccurrenceRecord()` используется только MIG-010 repair path после owner `PRESERVE_ALL`. Он сохраняет тот же migration fingerprint, но создаёт distinct occurrence-aware `source_record_id`/`transaction_id`.
+
+`toMigrationCompatibilityRecord()` и `assertMigrationFingerprintParity()` доказывают round-trip fingerprint parity для `CONTENT_FINGERPRINT_V1` и `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Это **compatibility contract**, а не разрешение full-history migration.
 
 ## Privacy boundary
 
@@ -95,4 +113,4 @@ Public schema/tests используют только independently generated sy
 
 ## Scope boundary
 
-DATA-010 не выполняет migration/cutover и не меняет private workbook. Full-history migration остаётся `MIG-010` и требует backup, idempotency, resume и private reconciliation gates.
+DATA-010 не выполняет migration/cutover и не меняет private workbook. Full-history migration остаётся `MIG-010` и требует backup, owner-private duplicate resolution, idempotency, resume, reconciliation и отдельный irreversible-action gate.
