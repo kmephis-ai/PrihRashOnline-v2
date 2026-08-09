@@ -38,12 +38,13 @@ var PR_AUDIT_TECHNICAL_FIELDS = Object.freeze([
   'auditConsecutiveFailures',
   'sliId',
   'sloStatus',
-  'sloObjective',
+  'sloObjectivePpm',
   'sloThresholdMs',
-  'sloGoodCount',
-  'sloBadCount',
-  'sloTotalCount',
-  'sloBudgetRemaining',
+  'sloSampleCount',
+  'sloBadSampleCount',
+  'sloRemainingBudgetPpm',
+  'sloBudgetConsumedBps',
+  'sloBudgetState',
   'sloReasonCode'
 ]);
 
