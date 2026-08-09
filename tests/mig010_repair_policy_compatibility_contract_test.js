@@ -7,6 +7,7 @@ const {
   RESOLUTION_SCHEMA,
   OCCURRENCE_IDENTITY,
   COMPATIBLE_PROPOSAL_POLICY_VERSIONS,
+  storedProposalHash,
   assertProposalPolicyCompatibility
 } = require('../lib/migration/mig010_repair_policy');
 const { sourceRevision } = require('../lib/migration/full_history_migration');
@@ -43,10 +44,17 @@ const current = buildRepairProposal({
 });
 assert.strictEqual(current.policy_version, '1.1.0');
 assert.strictEqual(assertProposalPolicyCompatibility(current), true);
+assert.strictEqual(storedProposalHash(current), current.proposal_hash);
 
-// Simulate an exact owner-private proposal created under the previous repair policy.
-// The proposal hash is preserved exactly; the current engine does not rewrite it.
-const legacyProposal = Object.freeze({ ...current, policy_version: '1.0.0' });
+// Simulate an exact owner-private proposal created under the previous policy.
+// Its own v1.0 policy version participates in the proposal hash.
+const legacyDraft = { ...current, policy_version: '1.0.0' };
+const legacyProposal = Object.freeze({
+  ...legacyDraft,
+  proposal_hash: storedProposalHash(legacyDraft)
+});
+assert.notStrictEqual(legacyProposal.proposal_hash, current.proposal_hash,
+  'policy version must participate in exact proposal identity');
 assert.strictEqual(assertProposalPolicyCompatibility(legacyProposal), true);
 
 const preserveAll = {
@@ -84,11 +92,30 @@ assert.throws(
   /MIG010_REPAIR_PROPOSAL_POLICY_INCOMPATIBLE/
 );
 
+const tamperedScope = {
+  ...legacyProposal,
+  target_scope: [{ transaction_id: 'SYN-TAMPERED-TARGET' }]
+};
+assert.throws(
+  () => assertProposalPolicyCompatibility(tamperedScope),
+  /MIG010_REPAIR_PROPOSAL_HASH_MISMATCH/
+);
+
+const tamperedDuplicates = {
+  ...legacyProposal,
+  duplicate_groups: []
+};
+assert.throws(
+  () => assertProposalPolicyCompatibility(tamperedDuplicates),
+  /MIG010_REPAIR_PROPOSAL_HASH_MISMATCH/
+);
+
 console.log('mig010_repair_policy_compatibility_contract_test: OK', {
   acceptedProposalVersions: COMPATIBLE_PROPOSAL_POLICY_VERSIONS,
   legacyOwnerResolutionReused: true,
-  exactProposalHashPreserved: true,
+  exactProposalHashRecomputed: true,
   preserveAllOccurrenceIdentity: true,
   unknownPolicyVersionRejected: true,
+  tamperedProposalRejected: true,
   writeAuthority: false
 });
