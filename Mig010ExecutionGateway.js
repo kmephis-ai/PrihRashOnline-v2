@@ -181,6 +181,14 @@ function prhMig010WriteSession_(session) {
   );
 }
 
+function prhMig010AssertFreshTime_(value, invalidReason, staleReason) {
+  var timestamp = Date.parse(String(value || ''));
+  if (!isFinite(timestamp)) prhMig010Fail_(invalidReason);
+  var age = Date.now() - timestamp;
+  if (age < 0 || age > PRH_MIG010_EXECUTION.MAX_BACKUP_AGE_MS) prhMig010Fail_(staleReason);
+  return timestamp;
+}
+
 function prhMig010AssertAuthorization_(request) {
   var input = request || {};
   if (input.authorization !== PRH_MIG010_EXECUTION.AUTHORIZATION) {
@@ -190,10 +198,16 @@ function prhMig010AssertAuthorization_(request) {
     .forEach(function (field) {
       if (!prhMig010Hex64_(input[field])) prhMig010Fail_('MIG010_EXECUTION_AUTHORIZATION_BINDING_INVALID');
     });
-  var verifiedAt = Date.parse(String(input.backup_verified_at || ''));
-  if (!isFinite(verifiedAt)) prhMig010Fail_('MIG010_EXECUTION_BACKUP_VERIFIED_AT_INVALID');
-  var age = Date.now() - verifiedAt;
-  if (age < 0 || age > PRH_MIG010_EXECUTION.MAX_BACKUP_AGE_MS) prhMig010Fail_('MIG010_EXECUTION_BACKUP_STALE');
+  prhMig010AssertFreshTime_(
+    input.backup_created_at,
+    'MIG010_EXECUTION_BACKUP_CREATED_AT_INVALID',
+    'MIG010_EXECUTION_BACKUP_COPY_STALE'
+  );
+  prhMig010AssertFreshTime_(
+    input.backup_verified_at,
+    'MIG010_EXECUTION_BACKUP_VERIFIED_AT_INVALID',
+    'MIG010_EXECUTION_BACKUP_VERIFICATION_STALE'
+  );
   return input;
 }
 
@@ -205,7 +219,9 @@ function prhMig010AssertSessionRequest_(request, session) {
       request.backup_cipher_sha256 !== session.backup_cipher_sha256 ||
       request.current_raw_table_hash !== session.current_raw_table_hash ||
       request.final_raw_table_hash !== session.final_raw_table_hash ||
-      request.target_header_hash !== session.target_header_hash) {
+      request.target_header_hash !== session.target_header_hash ||
+      request.backup_created_at !== session.backup_created_at ||
+      request.backup_verified_at !== session.backup_verified_at) {
     prhMig010Fail_('MIG010_EXECUTION_SESSION_BINDING_MISMATCH');
   }
 }
@@ -272,6 +288,8 @@ function prhMig010BeginAuthorizedExecution(request) {
       current_raw_table_hash: input.current_raw_table_hash,
       final_raw_table_hash: input.final_raw_table_hash,
       target_header_hash: input.target_header_hash,
+      backup_created_at: input.backup_created_at,
+      backup_verified_at: input.backup_verified_at,
       batch_count: batchCount,
       next_batch: 0,
       next_sheet_row: 2,
@@ -465,6 +483,8 @@ function prhMig010ExecutionGatewayStatus() {
     rollback_copy_required: true,
     staging_required: true,
     explicit_authorization_required: true,
+    fresh_backup_copy_required: true,
+    fresh_backup_verification_required: true,
     public_ci_can_authorize: false,
     generic_repository_write_authorized: false
   };
