@@ -14,7 +14,7 @@ Chat history/memory и stale Roadmap copies not authority. При явно пр�
 
 ## Current R0 truth
 
-R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты. AIENG-001/002/003 = DONE.
+R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 
 ## Current R1 truth
 
@@ -133,4 +133,4 @@ PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.
 
 ## Scope handoff
 
-`AIENG-001/002/003`, `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` = DONE. `PERF-011` = current R1 writer. PERF-012+ remain dependency-gated until its Main Verification.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` = DONE. `PERF-011` = current R1 writer. PERF-012+ remain dependency-gated until its Main Verification.
