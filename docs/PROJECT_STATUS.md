@@ -48,8 +48,10 @@ Current behavioral evidence:
 - ungrouped `dimensions: []` supported;
 - dimensions/filter/time grain grouping;
 - `PREVIOUS_PERIOD` comparison with explicit same-length preceding interval;
+- comparison + grain without relative-bucket alignment policy — fail-closed;
 - budget variance requires explicit integer `budget_minor` and v1 forbids implicit grouped allocation semantics;
 - empty-period budget variance preserves FIN-010 `budget - zero expense` semantics;
+- bounded result truncation and input-order determinism;
 - randomized synthetic KPI parity/property checks;
 - pure boundary scan rejects Apps Script/DOM/network/write dependencies.
 
@@ -73,6 +75,8 @@ RESOLVED_REBUILD_DRY_RUN = PASS
 ```
 
 Private evidence established `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Hidden staging/rollback cleanup was not performed automatically and is not implied by DONE.
+
+Owner-confirmed identical real operations remain represented by the additive Canonical v1 identity strategy `CONTENT_FINGERPRINT_OCCURRENCE_V1`; this capability preserves content fingerprint semantics and does not create generic financial-write authority.
 
 ### MASTER-G3 / Canonical platform — **open**
 
