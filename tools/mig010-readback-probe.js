@@ -85,7 +85,42 @@ function normalizeProbe(value) {
   if (!value || value.schema !== REMOTE_SCHEMA || !['MISMATCH_CLASSIFIED', 'MATCHED'].includes(value.status)) {
     fail('MIG010_READBACK_PROBE_REMOTE_RESULT_INVALID');
   }
+
   const mismatchClasses = normalizeClasses(value.mismatchClasses, 'MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
+  if (value.status === 'MISMATCH_CLASSIFIED' && mismatchClasses.length < 1) {
+    fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
+  }
+  if (value.status === 'MATCHED' && mismatchClasses.length !== 0) {
+    fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
+  }
+  if (value.rangeCleared !== true || value.liveTargetMutated !== false || value.financialPayloadStdout !== false) {
+    fail('MIG010_READBACK_PROBE_REMOTE_SAFETY_INVALID');
+  }
+
+  if (value.adaptiveFormatReadback != null) {
+    const adaptiveFormatReadback = normalizeClasses(
+      value.adaptiveFormatReadback,
+      'MIG010_READBACK_PROBE_REMOTE_ADAPTIVE_INVALID'
+    );
+    if (JSON.stringify(adaptiveFormatReadback) !== JSON.stringify(mismatchClasses) ||
+        typeof value.adaptiveRepairApplied !== 'boolean' ||
+        value.originalFormatsRestoredAfterClear !== true) {
+      fail('MIG010_READBACK_PROBE_REMOTE_ADAPTIVE_INVALID');
+    }
+    return Object.freeze({
+      schema: TOOL_SCHEMA,
+      status: value.status,
+      mismatchClasses,
+      adaptiveFormatReadback,
+      adaptiveRepairApplied: value.adaptiveRepairApplied,
+      rangeCleared: true,
+      originalFormatsRestoredAfterClear: true,
+      liveTargetMutated: false,
+      financialPayloadStdout: false
+    });
+  }
+
+  // Backward-compatible normalization for already-produced lifecycle probes.
   const beforeFormatRestore = normalizeClasses(
     value.beforeFormatRestore == null ? value.mismatchClasses : value.beforeFormatRestore,
     'MIG010_READBACK_PROBE_REMOTE_LIFECYCLE_INVALID'
@@ -97,15 +132,6 @@ function normalizeProbe(value) {
   const combined = Array.from(new Set([...beforeFormatRestore, ...afterFormatRestore])).sort();
   if (JSON.stringify(combined) !== JSON.stringify(mismatchClasses)) {
     fail('MIG010_READBACK_PROBE_REMOTE_LIFECYCLE_INVALID');
-  }
-  if (value.status === 'MISMATCH_CLASSIFIED' && mismatchClasses.length < 1) {
-    fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
-  }
-  if (value.status === 'MATCHED' && mismatchClasses.length !== 0) {
-    fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
-  }
-  if (value.rangeCleared !== true || value.liveTargetMutated !== false || value.financialPayloadStdout !== false) {
-    fail('MIG010_READBACK_PROBE_REMOTE_SAFETY_INVALID');
   }
   return Object.freeze({
     schema: TOOL_SCHEMA,
