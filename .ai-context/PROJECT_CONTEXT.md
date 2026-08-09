@@ -1,6 +1,6 @@
 # PrihRashOnline-v2 — public-safe AI context
 
-Этот файл безопасен для public repository: real financial rows/aggregates, private runtime locators, OAuth, backup bytes/keys, owner-private mapper/snapshot/state здесь запрещены.
+Этот файл безопасен для public repository: real financial rows/aggregates, private runtime locators, OAuth, backup bytes/keys, owner-private mapper/snapshot/state/diagnostic/repair payload здесь запрещены.
 
 ## Канонические источники
 
@@ -28,7 +28,11 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 `PRH_FULL_HISTORY_MIGRATION_V1` — current MIG-010 protocol: deterministic dry-run, <=100 batches, idempotency, expected target revision, HMAC resume, DR-001 backup binding, private reconciliation and separate irreversible-action authorization.
 
-Owner tool `tools/mig010-owner.js` creates private snapshot from encrypted backup through a private mapper outside repository, then private dry-run/state. Commands `execute/write/apply` are intentionally disabled until explicit owner authorization stage.
+`MIG010_REPAIR_POLICY_V1` — owner-private blocked-dry-run repair layer. Strategy `REBUILD_LEGACY_SLICE_V1`: scoped old legacy-derived target anomalies are rebuilt from source, invalid source is explained quarantine, duplicate semantics require owner decision. `PRESERVE_ALL` remains fail-closed with `CANONICAL_IDENTITY_EXTENSION_REQUIRED`; AI/CI cannot decide that two identical legacy rows are one transaction.
+
+Owner checkpoint is privacy-safe: snapshot created, dry-run = BLOCKED, state verify = PASS, diagnostics written, write authority remains false. Public-safe blocker classes are `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`; counts/details remain private.
+
+`tools/mig010-owner.js` creates private snapshot/dry-run/state/diagnostics. `tools/mig010-repair.js` creates private repair proposal + offline duplicate review + owner-bound resolution. Both reject `execute/write/apply` until a later explicit authorization stage.
 
 ## Current delivery
 
@@ -55,15 +59,15 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data must stay private. Public finance fixtures — independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration mapper/snapshot/state/resume token stay private.
+Real or real-derived household finance data must stay private. Public finance fixtures — independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration mapper/snapshot/state/diagnostic/proposal/review/resolution/resume token stay private.
 
-Full-history migration is not complete. MIG-010 code readiness/merge does not authorize real writes. New canonical mutation требует idempotency, preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
+Full-history migration is not complete. MIG-010 code readiness/merge/repair proposal does not authorize real writes. New canonical mutation требует idempotency, preconditions, readback, reconciliation, rollback and explicit owner irreversible-action authorization. `FREE_ONLY` обязателен.
 
 ## Domain boundaries
 
 FIN-010: `FIN-TRUTH-v1`, integer minor units, posted-only, transfer-neutral, refund as expense reduction, mixed-currency fail-closed.
 
-DATA-010: `PRH_CANONICAL_TRANSACTION_V1`; `source_position` mutable locator, not identity; DATA-001 compatibility uses `CONTENT_FINGERPRINT_V1` stable across row movement.
+DATA-010: `PRH_CANONICAL_TRANSACTION_V1`; `source_position` mutable locator, not identity; DATA-001 compatibility uses `CONTENT_FINGERPRINT_V1` stable across row movement. Поэтому две полностью одинаковые content fingerprints не должны молча превращаться в две разные canonical source identities.
 
 ARCH-010: `PRH_APPLICATION_CORE_V1`; `io_authority=false`, `financial_write_authority=false`, `network_authority=false`. Pure `lib/domain|finance|migration|application` has no `SpreadsheetApp`/DOM/storage/network dependency.
 
@@ -75,13 +79,16 @@ ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; fake repository supports synthetic op
 CODE_READY
 -> OWNER_PRIVATE_SNAPSHOT
 -> OWNER_DRY_RUN
--> AUTHORIZATION_REQUIRED
+     -> BLOCKED -> OWNER_PRIVATE_DIAGNOSTICS -> REPAIR_PROPOSAL
+          -> DUPLICATE_OWNER_REVIEW (если требуется)
+          -> RESOLVED_REBUILD_DRY_RUN
+     -> READY -> AUTHORIZATION_REQUIRED
 -> BATCHING
 -> PRIVATE_RECONCILIATION
 -> OWNER_VERIFIED
 ```
 
-Before `AUTHORIZATION_REQUIRED` there are no real financial writes. GitHub Actions, merge or AI-agent cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`. Future first write requires exact plan hash, fresh verified DR-001 backup, migration-specific write/readback/rollback adapter and owner action.
+Before `AUTHORIZATION_REQUIRED` there are no real financial writes. GitHub Actions, merge or AI-agent cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`. Future first write requires exact plan/rebuild hash, fresh verified DR-001 backup, migration-specific write/readback/rollback adapter and owner action.
 
 ## Start-reading order
 
@@ -90,10 +97,12 @@ Before `AUTHORIZATION_REQUIRED` there are no real financial writes. GitHub Actio
 3. active GitHub Issue
 4. `/docs/PROJECT_STATUS.md`
 5. `/docs/operations/MIG010_FULL_HISTORY_MIGRATION.md`
-6. `/lib/migration/full_history_migration.v1.json`
-7. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
-8. `/docs/architecture.md`
-9. exact candidate code/tests/workflows
+6. `/docs/operations/MIG010_REPAIR_POLICY.md`
+7. `/lib/migration/full_history_migration.v1.json`
+8. `/lib/migration/mig010_repair_policy.v1.json`
+9. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
+10. `/docs/architecture.md`
+11. exact candidate code/tests/workflows
 
 ## Scope handoff
 
