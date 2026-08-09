@@ -6,6 +6,8 @@
 
 Независимый reviewer получает один immutable candidate и работает строго `READ_ONLY`. Review дополняет deterministic CI, но не заменяет его и не создаёт второй источник истины.
 
+Machine boundary: `review_mode: READ_ONLY`, `writer_authority: false`.
+
 Обязательные роли:
 
 - `ARCHITECTURE` — границы слоёв, coupling, архитектурные инварианты;
