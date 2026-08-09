@@ -21,8 +21,9 @@ const crypto = require('crypto');
 const path = require('path');
 
 const MAPPER_SCHEMA = 'MIG010_OWNER_PRIVATE_MAPPER_V1';
-const MAPPING_VERSION = 'LEGACY-SPLIT-FORM-TO-CANONICAL-v1';
+const MAPPING_VERSION = 'LEGACY-SPLIT-FORM-TO-CANONICAL-v2';
 const SOURCE_TRANSFORM_VERSION = 'SOURCE-TRANSFORM-v1';
+const SOURCE_SYSTEM = 'GOOGLE_FORM_LEGACY';
 
 function fail(reason) {
   const error = new Error(reason);
@@ -97,7 +98,7 @@ function assertLegacySourceHeaders(headers) {
   assertHeaderAt(headers, 1, ['Тип операции'], 'MIG010_PRIVATE_SOURCE_TYPE_HEADER_INVALID');
   assertHeaderAt(headers, 2, ['Счет', 'Счёт'], 'MIG010_PRIVATE_SOURCE_EXPENSE_ACCOUNT_HEADER_INVALID');
   assertHeaderAt(headers, 3, ['Категория'], 'MIG010_PRIVATE_SOURCE_EXPENSE_CATEGORY_HEADER_INVALID');
-  assertHeaderAt(headers, 4, ['Наименование'], 'MIG010_PRIVATE_SOURCE_EXPENSE_NAME_HEADER_INVALID');
+  assertHeaderAt(headers, 4, ['Наименование'], 'MIG010_PRIVATE_SOURCE_NAME_HEADER_INVALID');
   assertHeaderAt(headers, 5, ['Сумма'], 'MIG010_PRIVATE_SOURCE_EXPENSE_AMOUNT_HEADER_INVALID');
   assertHeaderAt(headers, 6, ['Счет', 'Счёт'], 'MIG010_PRIVATE_SOURCE_INCOME_ACCOUNT_HEADER_INVALID');
   assertHeaderAt(headers, 7, ['Источник'], 'MIG010_PRIVATE_SOURCE_INCOME_SOURCE_HEADER_INVALID');
@@ -168,7 +169,6 @@ function minorExact(value, majorToMinorExact) {
 }
 
 function invalidSource(sourceSystem, sourceSheet, sourceRow) {
-  // Intentionally incomplete so DATA-001 normalizer classifies it SOURCE_INVALID.
   return {
     source_system: sourceSystem,
     source_sheet: sourceSheet,
@@ -304,7 +304,7 @@ module.exports = {
     const { canonical, majorToMinorExact } = loadProjectModules();
     const config = {
       sourceLabel,
-      sourceSystem: sourceLabel,
+      sourceSystem: SOURCE_SYSTEM,
       sourceContainer: sourceLabel,
       currency
     };
