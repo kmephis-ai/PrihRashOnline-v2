@@ -37,21 +37,23 @@ TEST-010: `PRH_TEST_ARCHITECTURE_V1@1.0.0`, deterministic fail-closed test inven
 
 ## OBS-010 current truth
 
-OBS-010 вводит `PRH_SLO_CONTRACT_V1@1.0.0` поверх OBS-001 privacy-safe technical telemetry baseline.
+OBS-010 вводит единственный versioned contract `PRH_SLO_ERROR_BUDGET_V1@1.0.0` поверх OBS-001 privacy-safe technical telemetry baseline.
 
-Versioned SLI v1:
+SLI v1 используют integer ppm/bps и half-open evaluation windows `[start_ms, end_ms)`:
 
-- `availability` — success ratio, objective `99.5%`;
-- `latency` — observations не медленнее `1500 ms`, objective `95%`;
-- `correctness` — только allowlisted PASS/FAIL machine evidence, objective `100%`;
-- `freshness` — observations не старше `15 минут`, objective `99%`;
-- `migration_errors` — проверенные migration/reconciliation units без error, objective `100%`.
+- `AVAILABILITY` — objective `995000 ppm` = `99.5%`;
+- `LATENCY` — observations не медленнее `2000 ms`, objective `950000 ppm` = `95%`;
+- `CORRECTNESS` — только allowlisted PASS/FAIL machine evidence, zero-tolerance objective `1000000 ppm` = `100%`;
+- `FRESHNESS` — technical age не больше `900000 ms` = `15 минут`, objective `990000 ppm` = `99%`;
+- `MIGRATION_ERRORS` — zero-tolerance objective `1000000 ppm` = `100%`.
 
-Evaluator локальный и deterministic: не читает wall clock самостоятельно, SpreadsheetApp, DOM, network или внешний provider. Error-budget states: `PASS`, `DEGRADED`, `EXHAUSTED`, `INSUFFICIENT_DATA`, `UNKNOWN`; aggregate state — `PASS/WARN/FAIL`.
+Evaluator локальный и deterministic: не читает wall clock самостоятельно, SpreadsheetApp, DOM, network, внешний provider или write API. Budget states: `HEALTHY`, `WATCH`, `CRITICAL`, `BREACHED`; insufficient/unavailable telemetry возвращает `UNKNOWN`, а не implicit green. Для zero-tolerance SLI любое bad observation даёт `BREACHED`.
 
-Observation schema deny-by-default. Public evidence содержит только SLI/status/objective/threshold/count/budget/reason technical metadata. Финансовые суммы, descriptions, categories, accounts, transaction/raw payload запрещены. `SecurityPrivacyPolicy.js` остаётся runtime allowlist authority.
+Observation shapes deny-by-default. `CORRECTNESS` требует source из allowlist `FINANCIAL_RECONCILIATION`, `CANONICAL_SCHEMA`, `ANALYTICS_PARITY`, `MIGRATION_RECONCILIATION`, `RUNTIME_HEALTH`; финансовые значения в correctness signal запрещены.
 
-OBS-010 не вычисляет финансовые KPI и не переопределяет FIN/DATA/MIG/ANL semantics. `correctness` хранит только bounded результат существующей machine authority.
+Public evidence содержит только SLI/status/objective ppm/threshold/sample counts/budget ppm+bps/state/reason technical metadata. Финансовые суммы, descriptions, categories, accounts, transaction/raw payload запрещены. `SecurityPrivacyPolicy.js` остаётся runtime allowlist authority; `toAuditMetadata()` не переносит raw observations/source.
+
+OBS-010 не вычисляет финансовые KPI и не переопределяет FIN/DATA/MIG/ANL semantics. Named PR gate: `SLO error budget`; full layered suite также обязан запускать его contract test.
 
 Normative runbook: `docs/operations/OBS010_SLO_ERROR_BUDGET.md`.
 
@@ -122,6 +124,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 - OBS-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
 - SLO layer не заменяет FIN/DATA/MIG/ANL correctness authorities и не вычисляет финансовую истину;
 - SLO report не разрешает публикацию financial payload;
+- SLO policy не требует/не включает paid observability provider;
 - TEST-010 layered runner не заменяет required trusted deploy/runtime/Main Verification gates;
 - owner authorization MIG-010 не переносится на future mutations;
 - hidden MIG staging/rollback cleanup не выполнен автоматически;
