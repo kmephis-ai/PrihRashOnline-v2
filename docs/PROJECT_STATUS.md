@@ -21,21 +21,30 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 ## R1 / Canonical Financial Platform — текущая волна
 
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
-- `DATA-010` Canonical transaction schema v1 — **IN_PROGRESS**, Issue #87.
-- `ARCH-010` и последующие domain/adapters остаются dependency-blocked до DATA-010 DONE.
+- `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
+- `ARCH-010` Pure domain/application core — **IN_PROGRESS**, Issue #89.
+- `ARCH-011`, `ANL-010`, `TEST-010`, `OBS-010` и другие dependent items остаются blocked до ARCH-010 DONE по своим declared dependencies.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 
-DATA-010 candidate contracts:
+DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
 
-- `lib/domain/canonical_transaction.v1.schema.json` — strict portable schema;
-- `lib/domain/canonical_transaction.js` — validation, source-identity и migration-compatibility layer;
-- `tests/canonical_transaction_schema_contract_test.js` — schema/identity/FIN/KPI/DATA-001 compatibility tests;
-- `docs/data/CANONICAL_TRANSACTION_SCHEMA.md` — normative human contract.
+ARCH-010 candidate contracts:
+
+- `lib/application/application_core.v1.json` — `PRH_APPLICATION_CORE_V1` purity/authority/use-case contract;
+- `lib/application/financial_core.js` — pure canonical validation/KPI/migration use-cases;
+- `tests/pure_domain_application_core_contract_test.js` — behavior + dependency-boundary contracts;
+- `docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md` — normative architecture boundary.
 
 ### MASTER-G3 / Canonical platform — **open**
 
 Exit требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`, а также private full-history reconciliation и synthetic performance PASS.
+
+## Pure core boundary
+
+`lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` являются локально исполняемым pure boundary. Application core принимает plain data, не имеет I/O/network/financial-write authority и не зависит от `SpreadsheetApp`, Apps Script UI, DOM или Google Sheet layout.
+
+ARCH-011 должен добавить Google Sheets repository adapter снаружи pure core; adapter existence не даёт автоматического разрешения canonical financial writes.
 
 ## Executable AI engineering baseline
 
@@ -62,8 +71,8 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 - private Dashboard **не** сделан публичным;
 - public Git history rewrite **не authorized/executed**;
 - paid cloud/AI/OCR provider **не** включён;
-- DATA-010 не разрешает canonical writes и не означает migration/cutover;
-- ARCH-010 и последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
+- ARCH-010 не реализует repository I/O и не разрешает financial writes;
+- ARCH-011 и последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
 
 ## Source precedence
 

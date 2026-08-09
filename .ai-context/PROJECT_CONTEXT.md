@@ -25,16 +25,17 @@ R0 machine-proven complete: TEST/SEC/FIN/DATA truth, reproducible supply chain, 
 ## Current R1 truth
 
 - `FIN-010` KPI Dictionary v1 — DONE, Issue #85 Main Verification PASS.
-- `DATA-010` Canonical Transaction v1 — current P0 writer, Issue #87.
+- `DATA-010` Canonical Transaction v1 — DONE, Issue #87 Main Verification PASS.
+- `ARCH-010` Pure domain/application core — current writer, Issue #89.
 
-DATA-010 candidate:
+ARCH-010 candidate:
 
-- `lib/domain/canonical_transaction.v1.schema.json` — strict `PRH_CANONICAL_TRANSACTION_V1`;
-- `lib/domain/canonical_transaction.js` — validation/source identity/migration compatibility;
-- `tests/canonical_transaction_schema_contract_test.js` — schema + DATA-001 + FIN/KPI parity;
-- `docs/data/CANONICAL_TRANSACTION_SCHEMA.md` — normative contract.
+- `lib/application/application_core.v1.json` — `PRH_APPLICATION_CORE_V1` authority/use-case/dependency contract;
+- `lib/application/financial_core.js` — pure canonical validation/KPI/migration use-cases;
+- `tests/pure_domain_application_core_contract_test.js` — behavior + static dependency boundary;
+- `docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md` — normative architecture boundary.
 
-Canonical schema не даёт permission на financial writes и не означает full-history migration. Следующий domain/application item выбирается только после DATA-010 Main Verification.
+Pure core не имеет I/O/network/financial-write authority. ARCH-011 repository adapter запускается только после ARCH-010 Main Verification.
 
 ## Current delivery
 
@@ -88,6 +89,12 @@ Canonical Transaction v1 отделяет portable domain fields от Google She
 
 Для DATA-001 legacy compatibility используется `CONTENT_FINGERPRINT_V1`, stable при row movement. Изменение imported source fingerprint/record identity после canonical import fail-closed.
 
+## ARCH-010 pure application boundary
+
+`lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` — pure in-process boundary. Application use-cases принимают plain data и переиспользуют canonical/KPI/migration contracts; они не должны обращаться к `SpreadsheetApp`, Apps Script UI, DOM, storage или network.
+
+`PRH_APPLICATION_CORE_V1` фиксирует `io_authority=false`, `financial_write_authority=false`, `network_authority=false`. Static CI contract блокирует imports из pure core в top-level runtime/UI modules.
+
 ## Start-reading order
 
 1. `/AGENTS.md`
@@ -96,17 +103,18 @@ Canonical Transaction v1 отделяет portable domain fields от Google She
 4. `/docs/PROJECT_STATUS.md`
 5. `/docs/finance/KPI_DICTIONARY.md`
 6. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
-7. `/lib/domain/canonical_transaction.v1.schema.json`
-8. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
-9. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
-10. `/docs/architecture.md`
-11. `/docs/RELEASE_PROCESS.md`
-12. `/docs/data-model.md`
-13. exact candidate code/tests/workflows
+7. `/docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md`
+8. `/lib/application/application_core.v1.json`
+9. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
+10. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
+11. `/docs/architecture.md`
+12. `/docs/RELEASE_PROCESS.md`
+13. `/docs/data-model.md`
+14. exact candidate code/tests/workflows
 
 ## Не выводить из контекста
 
-Не считать автоматически завершёнными full-history migration, DATA-010, ARCH-010, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Reviewer не writer и не release authority.
+Не считать автоматически завершёнными full-history migration, ARCH-010, ARCH-011, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Pure application core не является repository adapter и не имеет write authority.
 
 ## Scope handoff
 
@@ -114,5 +122,6 @@ Canonical Transaction v1 отделяет portable domain fields от Google She
 - `AIENG-002` — DONE.
 - `AIENG-003` — DONE.
 - `FIN-010` — DONE.
-- `DATA-010` — current R1 writer.
-- `ARCH-010` — dependency-blocked до DATA-010 DONE.
+- `DATA-010` — DONE.
+- `ARCH-010` — current R1 writer.
+- `ARCH-011` — dependency-blocked до ARCH-010 DONE.

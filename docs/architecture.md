@@ -6,18 +6,28 @@
 
 Google Sheets/GAS — **текущий adapter/runtime**, а не вечный domain boundary. Долгосрочная цель — modular monolith с pure domain/application core и repository adapters, чтобы Google и будущий Yandex backend можно было проверять одним domain contract и мигрировать shadow/canary path без big bang.
 
+R1 уже закрепил:
+
+- FIN-010 — versioned KPI Dictionary v1;
+- DATA-010 — portable Canonical Transaction v1;
+- ARCH-010 — текущий pure application boundary над этими contract'ами.
+
 ## Компоненты
 
 | Компонент | Текущая роль |
 |---|---|
 | Google Sheets | private primary data store и spreadsheet adapter |
-| `01 Операции` | текущий canonical transaction surface; Web Dashboard read-only |
+| `01 Операции` | текущий transaction surface; Web Dashboard read-only |
 | `09 Настройки` | технические flags/config |
 | `10 Контроль` | private KPI/control snapshots |
 | `11 Предпросмотр` | staging/review queue для quality proposals |
 | `13 Журнал` | bounded privacy-safe technical audit journal |
 | `14 Аналитика` | существующая spreadsheet analytics/fallback |
-| Apps Script | application/data services, owner-only runtime, reporting, guarded actions |
+| Apps Script | current platform/runtime adapter, owner-only runtime, reporting, guarded actions |
+| `lib/domain/**` | portable canonical domain contracts |
+| `lib/finance/**` | pure FIN-TRUTH/KPI semantics |
+| `lib/migration/**` | pure deterministic migration reconciliation/planning |
+| `lib/application/**` | pure use-cases без storage/UI/network authority |
 | HTML Web Dashboard | current family UI |
 | GitHub | source/policy/tests/docs/Roadmap control plane; synthetic-only financial content |
 | GitHub Actions | zero-secret validation + trusted default-branch deploy/runtime/merge control plane |
@@ -27,27 +37,56 @@ Google Sheets/GAS — **текущий adapter/runtime**, а не вечный d
 ```text
 private Google Sheets
         ↓
-Apps Script services
+Apps Script / future repository adapter
         ↓
-canonical/read models + guarded application actions
+plain canonical transactions
+        ↓
+pure application core
+        ↓
+KPI / validation / migration-review results
         ↓
 private MYSELF Web Dashboard / Sheets menu
 ```
 
 Финансовые строки не реплицируются в GitHub ради tests, docs или release evidence.
 
+## Pure domain/application boundary — ARCH-010
+
+Machine contract: `lib/application/application_core.v1.json` (`PRH_APPLICATION_CORE_V1`).  
+Facade: `lib/application/financial_core.js`.  
+Normative detail: `docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md`.
+
+Core принимает plain data и не владеет I/O:
+
+- `io_authority: false`;
+- `financial_write_authority: false`;
+- `network_authority: false`.
+
+Use-cases:
+
+1. canonical dataset validation через DATA-010;
+2. financial snapshot через FIN-010 / FIN-TRUTH-v1;
+3. migration review через DATA-001 reconciliation;
+4. idempotent import planning через DATA-001 planner.
+
+`SpreadsheetApp`, Apps Script services, DOM/UI и network calls не допускаются внутри `lib/domain|finance|migration|application`. Static dependency contract проверяет это в CI.
+
+ARCH-011 должен подключить Google Sheets как внешний repository adapter; storage mapping/locks/ranges/readback не должны проникать обратно в pure semantics.
+
 ## Financial truth
 
-Legacy итоговые ячейки не являются golden truth. Финансовые gates опираются на canonical/raw transaction semantics и отдельные invariant/reconciliation contracts.
+Legacy итоговые ячейки не являются golden truth. Финансовые gates опираются на canonical transaction semantics, KPI Dictionary и invariant/reconciliation contracts.
 
-Текущий R0 baseline доказывает:
+Доказанный baseline включает:
 
 - synthetic financial edge-case fixtures;
-- financial reconciliation без unexplained mismatch под canonical rules;
-- source-to-canonical provenance/idempotency/mismatch detection;
+- FIN-001 financial reconciliation;
+- FIN-010 KPI Dictionary parity;
+- DATA-001 source-to-canonical provenance/idempotency/mismatch detection;
+- DATA-010 strict canonical schema/source identity;
 - public tree synthetic-only boundary.
 
-Полный history migration/cutover остаётся отдельным будущим Roadmap item; наличие текущего DEV dataset не означает, что full history уже мигрирована.
+Полный history migration/cutover остаётся отдельным MIG-010; наличие canonical contracts не означает, что full history уже мигрирована.
 
 ## Trust boundaries
 
@@ -125,7 +164,7 @@ Owner-local portable backup:
 
 Web Dashboard read paths не изменяют `01 Операции`. Текущие поддерживаемые bounded writes относятся к staging/control/config/reporting surfaces и имеют собственные guards/readback where applicable.
 
-Любой будущий mutation path в canonical operations должен иметь отдельную write policy: idempotency, bounded scope, preconditions, audit, readback, rollback/snapshot и private reconciliation. Наличие старого draft PR не является разрешением такого write path.
+Pure application core также не имеет write authority. Любой будущий mutation path в canonical operations должен иметь отдельную write policy: idempotency, bounded scope, preconditions, audit, readback, rollback/snapshot и private reconciliation. Наличие schema/core/adapter не является разрешением такого write path.
 
 ## DEV и PROD
 
@@ -135,14 +174,12 @@ PROD/data-cutover decisions остаются отдельными policy gates �
 
 ## Целевая архитектура
 
-Следующий архитектурный слой после закрытия всех R0 master gates:
-
 ```text
 PWA / future family clients
         ↓
-Application services
+Application services (pure use-cases)
         ↓
-Pure canonical domain model
+Pure canonical domain + KPI/migration rules
         ↓
 Repository contracts
         ↓
