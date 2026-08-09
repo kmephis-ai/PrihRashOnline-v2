@@ -54,10 +54,10 @@ function createContext(options = {}) {
     }
   };
   if (!options.webSmokeMissing) {
-    context.prhWebAppSmokeToken = function () {
+    context.prhWebAppRenderSmokeToken = function () {
       webSmokeCounter.value += 1;
       if (options.webSmokeThrows) throw new Error('synthetic web smoke failure');
-      return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V1|OK';
+      return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V2|OK';
     };
   }
   vm.createContext(context);
@@ -141,7 +141,7 @@ assert.throws(
   /RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING/
 );
 assert.throws(
-  () => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V1|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
+  () => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
   /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/
 );
 assert.throws(
@@ -154,7 +154,7 @@ console.log('runtime_health_contract_test: OK', {
   sourceTreeHash: true,
   transportPing: true,
   privateSchemaRead: true,
-  webAppRenderSmoke: true,
+  webAppRenderSmoke: 'V2',
   scalarEntrypoint: true,
   financialPayload: false
 });
