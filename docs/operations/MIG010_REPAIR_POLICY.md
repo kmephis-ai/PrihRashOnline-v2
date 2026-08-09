@@ -16,6 +16,7 @@ OWNER_DRY_RUN = BLOCKED
   -> OWNER_PRIVATE_DIAGNOSTICS
   -> REPAIR_PROPOSAL
   -> DUPLICATE_OWNER_REVIEW (только если требуется)
+  -> REPAIR_RESOLVE
   -> RESOLVED_REBUILD_DRY_RUN
   -> AUTHORIZATION_REQUIRED
 ```
@@ -42,7 +43,7 @@ Quarantine остаётся owner-private и привязана к source revisi
 
 Для каждой duplicate group разрешены только три owner решения:
 
-- `DEDUPLICATE_KEEP_ONE` — владелец подтверждает, что группа содержит повторную отправку одного события, и выбирает одну source row как retained position; остальные rows остаются private quarantine с reason `OWNER_CONFIRMED_DUPLICATE_RESUBMISSION`;
+- `DEDUPLICATE_KEEP_ONE` — владелец подтверждает повторную отправку одного события и выбирает retained source row; остальные rows остаются private quarantine с reason `OWNER_CONFIRMED_DUPLICATE_RESUBMISSION`;
 - `PRESERVE_ALL` — владелец подтверждает, что одинаковые rows являются разными реальными операциями; repair использует `CONTENT_FINGERPRINT_OCCURRENCE_V1` и сохраняет каждую occurrence как отдельную canonical transaction;
 - `UNRESOLVED` — MIG-010 остаётся `BLOCKED` с `SOURCE_DUPLICATE_OWNER_DECISION_REQUIRED`.
 
@@ -89,15 +90,43 @@ HTML не имеет network dependencies. Он содержит owner-private d
 
 ## Compatibility с уже созданным owner resolution
 
-Owner decision семантически привязан к `proposal_hash` и `source_revision`. Policy v1.1.0 не меняет смысл `PRESERVE_ALL`: он по-прежнему означает «не удалять ни одну подтверждённую реальную операцию». Изменился только технический способ представить это решение в Canonical v1 через versioned occurrence identity.
+Owner decision семантически привязан к `proposal_hash` и `source_revision`. Policy v1.1.0 не меняет смысл `PRESERVE_ALL`: он по-прежнему означает «не удалять ни одну подтверждённую реальную операцию». Изменился только технический способ представить это решение через versioned occurrence identity.
 
-Новый repair candidate должен валидировать старый exact proposal/resolution pair только при совпадении schema/proposal/source binding; произвольный resolution для другого proposal не принимается.
+Current engine намеренно принимает только proposal policy versions:
+
+- `MIG010_REPAIR_POLICY_V1@1.0.0`;
+- `MIG010_REPAIR_POLICY_V1@1.1.0`.
+
+Для carry-forward обязательны exact `schema`, `strategy=REBUILD_LEGACY_SLICE_V1`, `proposal_hash`, `source_revision` и target binding. Неизвестная policy version возвращает `MIG010_REPAIR_PROPOSAL_POLICY_INCOMPATIBLE`. Старый exact owner resolution не переписывается и не требует повторного financial decision.
+
+## Resolved rebuild dry-run
+
+После `resolve` и до любого irreversible-action stage запускается:
+
+```text
+node tools/mig010-rebuild-dry-run.js verify \
+  --snapshot <private> \
+  --proposal <private> \
+  --resolution <private> \
+  --resolved <private>
+```
+
+Verifier повторно вычисляет repair resolution и проверяет:
+
+- exact resolved/proposal/source/target binding;
+- `PRH_CANONICAL_TRANSACTION_V1` collection invariants;
+- migration fingerprint parity;
+- occurrence-aware identities для `PRESERVE_ALL`;
+- deterministic candidate revision hash;
+- `writeAuthorized=false`.
+
+Публичный stdout не содержит candidate/quarantine counts или financial payload. Любой tampered/stale private artifact fail-closed. `PASS` означает только `reconciliationReady=true` для следующего policy stage.
 
 ## Неизменяемые safety rules
 
-- repair tool не имеет `execute/write/apply` authority;
+- owner, repair и rebuild-dry-run tools не имеют `execute/write/apply` authority;
 - scoped rebuild не означает разрешение delete/replace;
-- source/target/proposal/resolution hashes должны совпасть;
+- source/target/proposal/resolution/resolved hashes должны совпасть;
 - private proposal/review/resolution/resolved state находятся вне Git repository;
 - occurrence identity не является разрешением на запись;
 - реальный first write всё ещё требует отдельный `IRREVERSIBLE_ACTION_AUTHORIZED`, свежий DR-001 backup, exact rebuild hash, migration-specific adapter, readback и rollback;
