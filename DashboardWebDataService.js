@@ -34,11 +34,17 @@ const PRH_WEB_DASHBOARD = Object.freeze({
 });
 
 function prhRenderWebDashboard_(data) {
-  var template = HtmlService.createTemplateFromFile('DashboardWebApp');
-  var serialized = JSON.stringify(data == null ? {} : data);
-  template.initialData = serialized.split('<').join(String.fromCharCode(92) + 'u003c');
+  var serialized = JSON.stringify(data == null ? {} : data)
+    .split('<').join(String.fromCharCode(92) + 'u003c');
+  var rawOutput = HtmlService.createHtmlOutputFromFile('DashboardWebApp');
+  var html = rawOutput.getContent();
+  var placeholder = '<' + '?!= initialData ?' + '>';
+  if (html.indexOf(placeholder) === -1) {
+    throw new Error('WEBAPP_INITIAL_DATA_PLACEHOLDER_MISSING');
+  }
 
-  var output = template.evaluate();
+  html = html.replace(placeholder, serialized);
+  var output = HtmlService.createHtmlOutput(html);
   output.setTitle('PrihRashOnline Dashboard');
   output.addMetaTag('viewport', 'width=device-width, initial-scale=1');
   return output;
@@ -59,6 +65,9 @@ function prhWebAppSmokeToken() {
   var html = output && typeof output.getContent === 'function' ? output.getContent() : '';
   if (!html || html.indexOf('id="initial-data"') === -1 || html.indexOf('PrihRashOnline') === -1) {
     throw new Error('WEBAPP_RENDER_SMOKE_FAILED');
+  }
+  if (html.indexOf('<' + '?!= initialData ?' + '>') !== -1) {
+    throw new Error('WEBAPP_INITIAL_DATA_NOT_INJECTED');
   }
   return 'PRH_WEBAPP_SMOKE_V1|OK';
 }
