@@ -24,11 +24,32 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `ARCH-011` — DONE, Issue #91 Main Verification PASS.
 - `MIG-010` — DONE, Issue #96 Main Verification PASS; private `OWNER_VERIFIED` evidence retained historically.
 - `ANL-010` — DONE, Issue #98 Main Verification PASS.
-- `TEST-010` — **current P1 writer**, Issue #100, branch `agent/TEST-010-layered-test-architecture`.
+- `TEST-010` — DONE, Issue #100 Main Verification PASS.
+- `OBS-010` — **current P1 writer**, Issue #103, branch `agent/OBS-010-slo-error-budget-layer`.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository port. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## TEST-010 layered testing boundary
+## OBS-010 SLO/error-budget boundary
+
+`PRH_SLO_CONTRACT_V1@1.0.0` defines local deterministic SLI/error-budget semantics on top of OBS-001 privacy-safe telemetry.
+
+SLI v1:
+
+- `availability`;
+- `latency`;
+- `correctness`;
+- `freshness`;
+- `migration_errors`.
+
+The evaluator consumes only a deny-by-default technical observation schema. Unknown fields fail closed. It has no `SpreadsheetApp`, DOM, network, external monitoring provider or financial-write authority. Tests supply explicit timestamps/durations; wall-clock state is not implicit.
+
+`correctness` does not recompute financial truth. It accepts only bounded PASS/FAIL evidence from allowlisted existing machine authorities (`FINANCIAL_RECONCILIATION`, `CANONICAL_SCHEMA`, `ANALYTICS_PARITY`, `MIGRATION_RECONCILIATION`, `RUNTIME_HEALTH`).
+
+Public SLO evidence is technical metadata only: SLI/status/objective/threshold/count/error-budget/reason fields. Real or real-derived amounts, descriptions, categories, accounts, transactions and raw payload stay forbidden. Runtime serialization remains governed by `SecurityPrivacyPolicy.js`.
+
+Normative runbook: `docs/operations/OBS010_SLO_ERROR_BUDGET.md`.
+
+## TEST-010 verified layered testing boundary
 
 `PRH_TEST_ARCHITECTURE_V1@1.0.0` versioned test taxonomy separates:
 
@@ -41,7 +62,7 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 Inventory scans tracked `tests/*_test.js` deterministically. Unclassified or ambiguous tests fail closed; layer file budgets are versioned. `pure` suite is an explicit subset and rejects platform-service source tokens. `full` suite remains the ordinary PR contract authority and runs every tracked test in stable path order.
 
-Structured contract parsers replace representative lifecycle-critical source regexes: `docs/PROJECT_STATUS.md` entries are parsed into `{id,lifecycle}` records and `.github/workflows/pr-validation.yml` named steps are parsed into structured step records before gate assertions. This prevents stale hard-coded writer/gate text from becoming accidental machine authority while preserving fail-closed checks.
+Structured contract parsers replace lifecycle-critical source regex authority: `docs/PROJECT_STATUS.md` entries and named workflow steps are parsed structurally. Current writer assertions are branch-derived rather than hard-coded to a completed successor ID.
 
 TEST-010 does not change FIN-TRUTH, KPI, Canonical Transaction, migration or analytics semantics and has no financial-write authority. Public tests remain independently generated synthetic only; no paid service/API dependency is introduced.
 
@@ -78,7 +99,7 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-TEST-010 remains IN_PROGRESS until its behavioral/docs/machine evidence is green, PR is ready, exact-head trusted gates pass and Main Verification closes Issue #100.
+OBS-010 remains IN_PROGRESS until its behavioral/docs/machine evidence is green, PR is ready, exact-head trusted gates pass and Main Verification closes Issue #103.
 
 ## Executable continuation protocol
 
@@ -106,20 +127,21 @@ ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; pure query/evaluation boundary, renderer/s
 
 TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test execution/classification authority only, no product/business/write authority.
 
+OBS-010: `PRH_SLO_CONTRACT_V1`; technical SLI/error-budget authority only, no financial truth/write authority.
+
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #100
+3. active GitHub Issue #103
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md`
-6. `/lib/testing/test_architecture.v1.json`
-7. `/lib/testing/test_architecture.js`
-8. `/lib/testing/structured_contract_parsers.js`
-9. `/tests/test_architecture_contract_test.js`
-10. `/tools/run-layered-tests.js`
-11. exact candidate code/tests/workflows
+5. `/docs/operations/OBS010_SLO_ERROR_BUDGET.md`
+6. `/lib/observability/slo.v1.json`
+7. `/lib/observability/slo.js`
+8. `/tests/telemetry_slo_contract_test.js`
+9. `/docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md`
+10. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001/002/003`, `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010` = DONE. `TEST-010` = current R1 writer. Other R1 items remain dependency/priority-gated until its Main Verification.
+`AIENG-001/002/003`, `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010` = DONE. `OBS-010` = current R1 writer. Other R1 items remain dependency/priority-gated until its Main Verification.
