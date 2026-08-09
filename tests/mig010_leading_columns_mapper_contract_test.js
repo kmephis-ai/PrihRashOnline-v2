@@ -51,6 +51,10 @@ try {
   assert.strictEqual(snapshot.source_records[0].source_row, 2);
   assert.strictEqual(snapshot.source_records[0].type, 'expense');
   assert.strictEqual(snapshot.source_records[0].amount_minor, 2550);
+  assert.strictEqual(snapshot.source_records[0].source_system, 'GOOGLE_FORM_LEGACY');
+  assert.strictEqual(snapshot.source_records[0].source_sheet, sourceName);
+  assert.strictEqual(snapshot.canonical_records[0].provenance.source_system, 'GOOGLE_FORM_LEGACY');
+  assert.strictEqual(snapshot.canonical_records[0].provenance.source_container, sourceName);
   assert.strictEqual(snapshot.canonical_records[0].provenance.source_position, 'row:2');
 
   const dateAlias = JSON.parse(JSON.stringify(pkg));
@@ -69,6 +73,8 @@ try {
   console.log('mig010_leading_columns_mapper_contract_test: OK', {
     oneEmptyLeadingColumnAccepted: true,
     timestampAliases: ['Дата', 'Отметка времени'],
+    sourceSystemMachineSafe: true,
+    sourceContainerHumanReadable: true,
     sourceRowPreserved: true,
     nonEmptyPrefixRejected: true,
     unknownTimestampHeaderRejected: true,
