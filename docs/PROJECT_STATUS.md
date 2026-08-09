@@ -36,16 +36,18 @@ MIG-010 current candidate:
 
 - `lib/migration/full_history_migration.v1.json` — `PRH_FULL_HISTORY_MIGRATION_V1`;
 - `lib/migration/full_history_migration.js` — deterministic dry-run, bounded batches, HMAC resume, backup/authorization gate, reconciliation;
-- `lib/migration/mig010_repair_policy.v1.json` + `.js` — `MIG010_REPAIR_POLICY_V1`, scoped legacy rebuild/quarantine/duplicate owner decision;
+- `lib/migration/mig010_repair_policy.v1.json` + `.js` — `MIG010_REPAIR_POLICY_V1@1.1.0`, scoped legacy rebuild/quarantine/duplicate owner decision;
+- `PRH_CANONICAL_TRANSACTION_V1` additive identity capability `CONTENT_FINGERPRINT_OCCURRENCE_V1` для owner-confirmed identical real operations;
+- `tests/mig010_occurrence_identity_contract_test.js` — distinct occurrence identity + FIN-TRUTH parity + row-position separation;
 - `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill;
 - `tools/mig010-owner.js` — owner-local encrypted-backup snapshot/dry-run/state/diagnostics boundary; write commands intentionally disabled;
-- `tools/mig010-repair.js` — private repair proposal + offline duplicate review + resolution; write commands disabled;
+- `tools/mig010-repair.js` — private repair proposal + offline duplicate review + owner-bound resolution; write commands disabled;
 - `tests/mig010_owner_tool_contract_test.js`, `tests/mig010_owner_diagnostics_contract_test.js`, `tests/mig010_repair_policy_contract_test.js`, `tests/mig010_repair_tool_contract_test.js` — owner privacy/diagnostic/repair contracts;
-- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md` + `docs/operations/MIG010_REPAIR_POLICY.md` — owner runbooks.
+- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md`, `docs/operations/MIG010_REPAIR_POLICY.md`, `docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md` — owner runbooks/architecture decision.
 
 Owner-private checkpoint достигнут без публикации financial payload: encrypted-backup snapshot создан, full-history dry-run корректно вернул `BLOCKED`, private state verify = PASS, diagnostics созданы owner-local. Набор public-safe blocker classes: `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`. `writeAuthorized=false`; ни один real migration batch не выполнялся.
 
-Repair stage намеренно не угадывает смысл `SOURCE_DUPLICATE`. `CORE_MISMATCH`/legacy `SOURCE_MISSING` покрываются proposal на scoped rebuild старого legacy-derived target slice; `SOURCE_INVALID` сохраняется в private explained quarantine; duplicate groups требуют owner decision. `PRESERVE_ALL` остаётся fail-closed с `CANONICAL_IDENTITY_EXTENSION_REQUIRED`, потому что Canonical v1 не разрешает две одинаковые `CONTENT_FINGERPRINT_V1` source identities.
+Repair stage намеренно не угадывает смысл `SOURCE_DUPLICATE`. `CORE_MISMATCH`/legacy `SOURCE_MISSING` покрываются proposal на scoped rebuild старого legacy-derived target slice; `SOURCE_INVALID` сохраняется в private explained quarantine; duplicate groups требуют owner decision. При `PRESERVE_ALL` repair использует `CONTENT_FINGERPRINT_OCCURRENCE_V1`: одинаковый content fingerprint сохраняется, но owner-confirmed occurrences получают distinct deterministic source/transaction identities. Это всё ещё только private rebuild candidate, не write authorization.
 
 **Private full-history migration пока не выполнена и не разрешена.**
 
@@ -83,7 +85,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 ## Что намеренно не утверждается
 
 - full-history migration **не** завершена;
-- owner-private repair proposal/resolution **не** является authorization на real financial writes;
+- owner-private repair proposal/resolution/resolved candidate **не** является authorization на real financial writes;
 - MIG-010 code readiness **не** является authorization на real financial writes;
 - Google -> Yandex cutover **не** выполнен;
 - private Dashboard **не** сделан публичным;
