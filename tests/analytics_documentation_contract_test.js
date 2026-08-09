@@ -38,7 +38,8 @@ match(doc, /\[start,end\)/, 'doc must define half-open period');
 match(doc, /PREVIOUS_PERIOD/, 'doc must define comparison v1');
 match(doc, /dimensions: \[\][^\n]{0,160}ungrouped query/i, 'doc must define empty dimensions');
 match(doc, /BUDGET_VARIANCE[\s\S]{0,500}ungrouped `grain=NONE`/i, 'doc must bound budget allocation semantics');
-match(doc, /empty scoped dataset[\s\S]{0,250}budget_minor/i, 'doc must preserve empty budget parity');
+match(doc, /(?:empty scoped dataset|scoped dataset пуст)[\s\S]{0,250}budget_minor/i,
+  'doc must preserve empty budget parity');
 match(doc, /renderer\/storage-neutral/i, 'doc must preserve renderer/storage neutrality');
 match(doc, /financial write authority|financial-write authority/i, 'doc must deny financial write authority');
 match(doc, /independently generated synthetic/i, 'doc must enforce synthetic-only public tests');
@@ -56,6 +57,7 @@ for (const required of [
   'lib/analytics/analytics_contract.v1.json',
   'lib/analytics/analytics_engine.js',
   'tests/analytics_extension_contract_test.js',
+  'tests/analytics_query_edge_contract_test.js',
   'tests/analytics_documentation_contract_test.js'
 ]) assert(llms.includes(required), `llms.txt missing ${required}`);
 
