@@ -79,6 +79,8 @@ jobs:
         run: node tests/pure_domain_application_core_contract_test.js
       - name: Transaction repository adapter
         run: node tests/repository_adapter_contract_test.js
+      - name: Query projection minimal ranges
+        run: node tests/repository_projection_adapter_contract_test.js
       - name: Analytics extension contract
         shell: bash
         run: |

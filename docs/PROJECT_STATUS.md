@@ -25,8 +25,9 @@
 - `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED`, fresh encrypted post-write reconciliation PASS.
 - `ANL-010` Analytics extension contract v1 — **DONE**, Issue #98 Main Verification PASS.
 - `TEST-010` Layered test architecture — **DONE**, Issue #100 Main Verification PASS.
-- `OBS-010` SLO/error-budget layer — **IN_PROGRESS**, Issue #103; current R1 writer.
-- `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
+- `OBS-010` SLO/error-budget layer — **DONE**, Issue #103 Main Verification PASS.
+- `PERF-010` Query projection/minimal ranges — **IN_PROGRESS**, Issue #105; current R1 writer.
+- другие items остаются dependency/priority-gated до завершения current writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
@@ -34,26 +35,36 @@ ARCH-010: `PRH_APPLICATION_CORE_V1`, pure use-cases без I/O/network/financial
 ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`, deterministic fake + Google adapter; generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, renderer/storage-neutral query/result contract, `financial_write=false`.
 TEST-010: `PRH_TEST_ARCHITECTURE_V1@1.0.0`, deterministic fail-closed test inventory/layers + structured lifecycle/workflow parsers.
+OBS-010: `PRH_SLO_ERROR_BUDGET_V1@1.0.0`, integer ppm/bps SLI/error-budget authority без financial truth/write authority.
 
-## OBS-010 current truth
+## PERF-010 current truth
 
-OBS-010 вводит единственный versioned contract `PRH_SLO_ERROR_BUDGET_V1@1.0.0` поверх OBS-001 privacy-safe technical telemetry baseline.
+PERF-010 вводит `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` поверх ARCH-011 Google Sheets adapter без изменения `PRH_TRANSACTION_REPOSITORY_V1` query/output semantics.
 
-SLI v1 используют integer ppm/bps и half-open evaluation windows `[start_ms, end_ms)`:
+Read model:
 
-- `AVAILABILITY` — objective `995000 ppm` = `99.5%`;
-- `LATENCY` — observations не медленнее `2000 ms`, objective `950000 ppm` = `95%`;
-- `CORRECTNESS` — только allowlisted PASS/FAIL machine evidence, zero-tolerance objective `1000000 ppm` = `100%`;
-- `FRESHNESS` — technical age не больше `900000 ms` = `15 минут`, objective `990000 ppm` = `99%`;
-- `MIGRATION_ERRORS` — zero-tolerance objective `1000000 ppm` = `100%`.
+- header discovery может читать одну полную строку заголовков как control plane;
+- data rows читаются только по requested mapped contiguous column spans и bounded row interval;
+- `readAll()`/`getRevision()` читают 15 canonical mapped columns вместо всех worksheet columns;
+- `getById()` сначала сканирует только `ID`, затем дочитывает full mapped projection найденной строки;
+- `query()` сначала читает только `ID` + `Дата и время` + headers задействованных filters, выбирает/sorts source rows, а full mapped projection дочитывает только для выбранной page;
+- соседние selected row numbers группируются в contiguous row intervals.
 
-Evaluator локальный и deterministic: не читает wall clock самостоятельно, SpreadsheetApp, DOM, network, внешний provider или write API. Budget states: `HEALTHY`, `WATCH`, `CRITICAL`, `BREACHED`; insufficient/unavailable telemetry возвращает `UNKNOWN`, а не implicit green. Для zero-tolerance SLI любое bad observation даёт `BREACHED`.
+Projection telemetry public-safe и содержит только projection/header/span/row/range/cell counts. Financial values, descriptions, categories, account IDs и transaction payload туда не входят.
 
-Observation shapes deny-by-default. `CORRECTNESS` требует source из allowlist `FINANCIAL_RECONCILIATION`, `CANONICAL_SCHEMA`, `ANALYTICS_PARITY`, `MIGRATION_RECONCILIATION`, `RUNTIME_HEALTH`; финансовые значения в correctness signal запрещены.
+Synthetic 4-row/20-column fixture даёт deterministic evidence: old full-width baseline `80` data cells; mapped `readAll = 60`; `getById = 19`; narrow type/status/category query = `35` cells. Query semantic parity проверяется против authoritative repository `applyQuery()`.
 
-Public evidence содержит только SLI/status/objective ppm/threshold/sample counts/budget ppm+bps/state/reason technical metadata. Финансовые суммы, descriptions, categories, accounts, transaction/raw payload запрещены. `SecurityPrivacyPolicy.js` остаётся runtime allowlist authority; `toAuditMetadata()` не переносит raw observations/source.
+`GoogleTransactionRepositoryGateway.js` version `1.1.0` не использует `getDataRange()` или write primitives; canonical financial write остаётся `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-OBS-010 не вычисляет финансовые KPI и не переопределяет FIN/DATA/MIG/ANL semantics. Named PR gate: `SLO error budget`; full layered suite также обязан запускать его contract test.
+Named PR gate: `Query projection minimal ranges`; full TEST-010 layered suite также обязан запускать `repository_projection_adapter_contract_test.js` под `ADAPTER_INTEGRATION`.
+
+Normative runbook: `docs/operations/PERF010_QUERY_PROJECTION.md`.
+
+## OBS-010 verified boundary
+
+OBS-010 завершён Main Verification. Единственный versioned contract `PRH_SLO_ERROR_BUDGET_V1@1.0.0` использует integer ppm/bps, half-open windows и SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`.
+
+Observation shapes deny-by-default; correctness принимает только allowlisted PASS/FAIL machine evidence. Public evidence — bounded technical metadata only. Financial/raw payload запрещён; `FREE_ONLY`, `financial_write=false`, `financial_correctness=false`.
 
 Normative runbook: `docs/operations/OBS010_SLO_ERROR_BUDGET.md`.
 
@@ -121,10 +132,11 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- OBS-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- SLO layer не заменяет FIN/DATA/MIG/ANL correctness authorities и не вычисляет финансовую истину;
-- SLO report не разрешает публикацию financial payload;
-- SLO policy не требует/не включает paid observability provider;
+- PERF-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- PERF-010 не вводит PERF-011 cache, PERF-012 single-scan refresh или PERF-013 incremental aggregates;
+- projection planner не является источником financial/query semantics и не меняет canonical output;
+- projection telemetry не разрешает публикацию financial payload;
+- OBS-010 SLO layer не заменяет FIN/DATA/MIG/ANL correctness authorities;
 - TEST-010 layered runner не заменяет required trusted deploy/runtime/Main Verification gates;
 - owner authorization MIG-010 не переносится на future mutations;
 - hidden MIG staging/rollback cleanup не выполнен автоматически;
