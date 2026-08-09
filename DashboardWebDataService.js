@@ -33,15 +33,34 @@ const PRH_WEB_DASHBOARD = Object.freeze({
   ])
 });
 
+function prhRenderWebDashboard_(data) {
+  var template = HtmlService.createTemplateFromFile('DashboardWebApp');
+  var serialized = JSON.stringify(data == null ? {} : data);
+  template.initialData = serialized.split('<').join(String.fromCharCode(92) + 'u003c');
+
+  var output = template.evaluate();
+  output.setTitle('PrihRashOnline Dashboard');
+  output.addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  return output;
+}
+
 function doGet(e) {
   var params = (e && e.parameter) || {};
-  var template = HtmlService.createTemplateFromFile('DashboardWebApp');
   var data = prhGetWebDashboardData(params.year, params.month, params.view);
-  template.initialData = JSON.stringify(data).replace(/</g, String.fromCharCode(92) + 'u003c');
+  return prhRenderWebDashboard_(data);
+}
 
-  return template.evaluate()
-    .setTitle('PrihRashOnline Dashboard')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+/**
+ * Privacy-safe render smoke used by authenticated CI runtime health.
+ * It deliberately avoids workbook reads and returns only a constant token.
+ */
+function prhWebAppSmokeToken() {
+  var output = prhRenderWebDashboard_({ smoke: true });
+  var html = output && typeof output.getContent === 'function' ? output.getContent() : '';
+  if (!html || html.indexOf('id="initial-data"') === -1 || html.indexOf('PrihRashOnline') === -1) {
+    throw new Error('WEBAPP_RENDER_SMOKE_FAILED');
+  }
+  return 'PRH_WEBAPP_SMOKE_V1|OK';
 }
 
 function prhGetWebDashboardData(requestedYear, requestedMonth, requestedView) {
