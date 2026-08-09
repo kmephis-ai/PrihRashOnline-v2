@@ -67,6 +67,8 @@ jobs:
         run: node tests/multi_ai_review_protocol_contract_test.js
       - name: Layered test architecture
         run: node tests/test_architecture_contract_test.js
+      - name: SLO error budget
+        run: node tests/slo_error_budget_policy_contract_test.js
       - name: Financial reconcile synthetic
         run: node tests/financial_reconciliation_contract_test.js
       - name: KPI Dictionary
