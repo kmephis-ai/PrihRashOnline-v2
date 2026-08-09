@@ -19,8 +19,14 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
 [
   'function doGet(e)', 'function prhGetWebDashboardData(', 'function prhOpenWebDashboard()',
   "OPERATIONS_SHEET: '01 Операции'", "QUALITY_CELL: 'E396'", "VERSION: '1.2.0'",
-  'HtmlService.createTemplateFromFile', 'ScriptApp.getService().getUrl()'
+  "HtmlService.createHtmlOutputFromFile('DashboardWebApp')", 'HtmlService.createHtmlOutput(html)',
+  'function prhWebAppSmokeToken()', 'ScriptApp.getService().getUrl()'
 ].forEach((required) => expect(service.includes(required), `Missing base service contract: ${required}`));
+
+expect(!service.includes("HtmlService.createTemplateFromFile('DashboardWebApp')"),
+  'Dashboard must not reintroduce Apps Script template parser for DashboardWebApp');
+expect(!service.includes('.evaluate()'),
+  'Dashboard Web App render path must not use HtmlTemplate.evaluate()');
 
 [
   "VERSION: '1.3.0'", 'function prhGetWebDashboardDataV13(', 'function prhWebExecutiveStabilityIndex_(',
@@ -74,6 +80,8 @@ expect(html.length < 120000, `HTML payload is unexpectedly large: ${html.length}
 
 console.log('dashboard_web_contract_test: OK', {
   htmlLength: html.length,
+  renderMode: 'RAW_HTML_OUTPUT_PLACEHOLDER_INJECTION',
+  templateParserUsed: false,
   syntheticYears: synthetic.yearlyIncome.length,
   syntheticMonthRows: synthetic.drilldowns.month.rows.length
 });
