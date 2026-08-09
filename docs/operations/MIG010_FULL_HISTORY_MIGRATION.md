@@ -16,7 +16,8 @@ MIG-010 переносит полную историю только через d
 CODE_READY
   -> OWNER_PRIVATE_SNAPSHOT
   -> OWNER_DRY_RUN
-  -> AUTHORIZATION_REQUIRED
+       -> BLOCKED -> OWNER_PRIVATE_DIAGNOSTICS -> REPAIR_POLICY_REQUIRED -> OWNER_DRY_RUN
+       -> READY   -> AUTHORIZATION_REQUIRED
   -> BATCHING (<=100)
   -> PRIVATE_RECONCILIATION
   -> OWNER_VERIFIED
@@ -31,10 +32,11 @@ CODE_READY
 - `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill.
 - `tests/mig010_existing_target_preflight_contract_test.js` — existing target `CORE_MISMATCH`/provenance drift blocks accidental INSERT.
 - `tests/mig010_plan_privacy_contract_test.js` — plan object не возвращает raw source records.
-- `tools/mig010-owner.js` — owner-local privacy boundary.
+- `tools/mig010-owner.js` — owner-local privacy boundary: snapshot/dry-run/state/diagnostics; write disabled.
 - `tools/mig010-private-mapper.example.js` — public-safe functional template без private selectors.
 - `tests/mig010_private_mapper_example_contract_test.js` — split expense/income mapping + provenance preflight на synthetic backup.
 - `tests/mig010_owner_tool_contract_test.js` — encrypted-backup binding/stdout/private-path/write-disabled contract.
+- `tests/mig010_owner_diagnostics_contract_test.js` — exact-plan-bound private diagnostic report; public stdout содержит только reason codes/hashes.
 
 ## Owner-private files
 
@@ -46,10 +48,11 @@ CODE_READY
 - generated private snapshot;
 - migration resume secret;
 - migration private state;
+- private blocker diagnostic report;
 - future irreversible authorization file;
 - private reconciliation details.
 
-Owner tool технически отклоняет private mapper/snapshot/state/secret внутри repository tree.
+Owner tool технически отклоняет private mapper/snapshot/state/diagnostic/secret внутри repository tree.
 
 ## Functional private mapper template
 
@@ -69,6 +72,8 @@ Tracked `tools/mig010-private-mapper.example.js` не содержит owner-pri
 - восстанавливает DATA-001 source provenance из current target source/reference fields;
 - использует `CONTENT_FINGERPRINT_V1` canonical identity;
 - не выводит labels/amounts/descriptions в stdout.
+
+Compatibility wrapper `tools/mig010-private-mapper-leading-columns.example.js` принимает только известные timestamp aliases и bounded empty leading columns. Legacy target row с migrating provenance, но пустым timestamp, не чинится автоматически: только внутри dry-run mapper подставляет diagnostic RFC3339 sentinel, чтобы reconciliation мог классифицировать anomaly и заблокировать write. Workbook/backup не изменяются.
 
 ## Создание private snapshot
 
@@ -110,7 +115,28 @@ Snapshot содержит encrypted backup SHA-256. Dry-run разрешён т�
 - `INSERT` — новый однозначный source;
 - `BLOCK` — duplicate/invalid/mismatch/provenance ambiguity.
 
-Invalid source quality прерывает plan до создания batch. Если существует любой blocking reason, write batches не создаются.
+Malformed source формирует `SOURCE_INVALID` и блокирует batches. Полностью структурный source с explicit invalid quality также fail-closed до write. Если существует любой blocking reason, write batches не создаются.
+
+## Owner-private blocker diagnostics
+
+Если dry-run возвращает `BLOCKED`, command:
+
+```text
+node tools/mig010-owner.js diagnose --snapshot <private> --state <private> --out <private>
+```
+
+пересчитывает exact migration plan из snapshot и сравнивает plan/source/target hashes с private state. При любом binding mismatch diagnostic не создаётся.
+
+Private diagnostic file `MIG010_OWNER_PRIVATE_DIAGNOSTIC_V1` может содержать только owner-local technical reconciliation details, необходимые для repair policy: source/target indexes, source provenance locators, transaction IDs, fingerprint, reason code, названия несовпавших core fields и private summary. Реальные значения core fields, amounts/categories/descriptions в публичный stdout не выводятся.
+
+Публичный stdout `MIG010_OWNER_DIAGNOSTIC_V1` содержит только:
+
+- `status=DIAGNOSTIC_WRITTEN`;
+- exact `planHash`;
+- bounded `blockedReasons`;
+- флаги `diagnosticWritten=true`, `detailedFindingsStdout=false`, `financialPayloadStdout=false`, `writeAuthorized=false`.
+
+Diagnostic mode не является repair/write mode. Он не изменяет Google Sheets, backup, snapshot или migration state.
 
 ## Deterministic batching
 
@@ -171,7 +197,7 @@ Plan object не содержит `source_records`/`private_source_records`; raw
 }
 ```
 
-Не публикуются counts, dates/period distributions, amounts, categories, descriptions, source positions, sheet names, mapper configuration, resume token/secret или private reconciliation rows.
+Не публикуются counts, dates/period distributions, amounts, categories, descriptions, source positions, sheet names, mapper configuration, resume token/secret или private reconciliation/diagnostic rows.
 
 ## Rollback
 
