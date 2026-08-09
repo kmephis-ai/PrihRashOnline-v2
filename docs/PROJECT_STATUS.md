@@ -24,35 +24,42 @@
 - `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
 - `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED`, fresh encrypted post-write reconciliation PASS.
 - `ANL-010` Analytics extension contract v1 — **DONE**, Issue #98 Main Verification PASS.
-- `TEST-010` Layered test architecture — **IN_PROGRESS**, Issue #100; current R1 writer.
-- `OBS-010`, `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
+- `TEST-010` Layered test architecture — **DONE**, Issue #100 Main Verification PASS.
+- `OBS-010` SLO/error-budget layer — **IN_PROGRESS**, Issue #103; current R1 writer.
+- `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
 ARCH-010: `PRH_APPLICATION_CORE_V1`, pure use-cases без I/O/network/financial-write authority.
 ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`, deterministic fake + Google adapter; generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, renderer/storage-neutral query/result contract, `financial_write=false`.
+TEST-010: `PRH_TEST_ARCHITECTURE_V1@1.0.0`, deterministic fail-closed test inventory/layers + structured lifecycle/workflow parsers.
 
-## TEST-010 current truth
+## OBS-010 current truth
 
-TEST-010 вводит `PRH_TEST_ARCHITECTURE_V1@1.0.0` — machine-readable taxonomy и deterministic inventory тестов.
+OBS-010 вводит `PRH_SLO_CONTRACT_V1@1.0.0` поверх OBS-001 privacy-safe technical telemetry baseline.
 
-Целевые слои:
+Versioned SLI v1:
 
-- `PURE_DOMAIN_APPLICATION` — financial/domain/application property/invariant authority без platform services;
-- `MIGRATION_RECOVERY` — migration/reconciliation/recovery contracts;
-- `ADAPTER_INTEGRATION` — ports/adapters/integration;
-- `RUNTIME_INTEGRATION` — runtime/deploy/recovery integration;
-- `UI_E2E` — UI/rendering/end-to-end;
-- `POLICY_GOVERNANCE` — security/privacy/FREE_ONLY/docs/AI/CI/Roadmap governance.
+- `availability` — success ratio, objective `99.5%`;
+- `latency` — observations не медленнее `1500 ms`, objective `95%`;
+- `correctness` — только allowlisted PASS/FAIL machine evidence, objective `100%`;
+- `freshness` — observations не старше `15 минут`, objective `99%`;
+- `migration_errors` — проверенные migration/reconciliation units без error, objective `100%`.
 
-`unclassified_test=FAIL`, `ambiguous_classification=FAIL`, `duplicate_machine_authority=FAIL`. Full suite исполняется в deterministic path order; pure suite может выполняться отдельно и не получает `SpreadsheetApp`, DOM или network authority.
+Evaluator локальный и deterministic: не читает wall clock самостоятельно, SpreadsheetApp, DOM, network или внешний provider. Error-budget states: `PASS`, `DEGRADED`, `EXHAUSTED`, `INSUFFICIENT_DATA`, `UNKNOWN`; aggregate state — `PASS/WARN/FAIL`.
 
-Critical lifecycle checks переводятся с hard-coded current-writer substring assertions на structured parsers: Markdown status entries и named workflow steps разбираются как структуры. Это устраняет ложные red gates при переходе `ANL-010 -> TEST-010`, но не ослабляет проверяемые invariants.
+Observation schema deny-by-default. Public evidence содержит только SLI/status/objective/threshold/count/budget/reason technical metadata. Финансовые суммы, descriptions, categories, accounts, transaction/raw payload запрещены. `SecurityPrivacyPolicy.js` остаётся runtime allowlist authority.
 
-Public tests остаются independently generated synthetic only; реальный financial payload запрещён. TEST-010 не меняет финансовую семантику и не создаёт write authority.
+OBS-010 не вычисляет финансовые KPI и не переопределяет FIN/DATA/MIG/ANL semantics. `correctness` хранит только bounded результат существующей machine authority.
 
-Normative runbook: `docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md`.
+Normative runbook: `docs/operations/OBS010_SLO_ERROR_BUDGET.md`.
+
+## TEST-010 verified boundary
+
+TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`.
+
+`unclassified_test=FAIL`, `ambiguous_classification=FAIL`, `duplicate_machine_authority=FAIL`. Full suite исполняется в deterministic path order; pure suite не получает platform-service authority. Lifecycle/workflow machine authority использует structured parsers вместо hard-coded successor IDs.
 
 ## ANL-010 verified boundary
 
@@ -112,15 +119,16 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- TEST-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- layered runner не заменяет required trusted deploy/runtime/Main Verification gates;
-- test taxonomy не меняет FIN/DATA/MIG/ANL business semantics;
+- OBS-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- SLO layer не заменяет FIN/DATA/MIG/ANL correctness authorities и не вычисляет финансовую истину;
+- SLO report не разрешает публикацию financial payload;
+- TEST-010 layered runner не заменяет required trusted deploy/runtime/Main Verification gates;
 - owner authorization MIG-010 не переносится на future mutations;
 - hidden MIG staging/rollback cleanup не выполнен автоматически;
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
 - public Git history rewrite не authorized/executed;
-- paid cloud/AI/OCR provider не включён.
+- paid cloud/AI/OCR/observability provider не включён.
 
 ## Source precedence
 
