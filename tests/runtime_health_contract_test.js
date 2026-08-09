@@ -12,6 +12,7 @@ const sourceTreeHash = 'b'.repeat(64);
 function createContext(options = {}) {
   const existingSheets = new Set(options.sheets || ['operations', 'settings', 'control']);
   const readCounter = { value: 0 };
+  const webSmokeCounter = { value: 0 };
   const spreadsheet = options.noSpreadsheet ? null : {
     getSheetByName(name) {
       if (!existingSheets.has(name)) return null;
@@ -52,14 +53,22 @@ function createContext(options = {}) {
       getActiveSpreadsheet() { return spreadsheet; }
     }
   };
+  if (!options.webSmokeMissing) {
+    context.prhWebAppRenderSmokeToken = function () {
+      webSmokeCounter.value += 1;
+      if (options.webSmokeThrows) throw new Error('synthetic web smoke failure');
+      return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V2|OK';
+    };
+  }
   vm.createContext(context);
   vm.runInContext(source, context, { filename: 'RuntimeHealth.js' });
-  return { context, readCounter };
+  return { context, readCounter, webSmokeCounter };
 }
 
 const transportOnly = createContext({ noSpreadsheet: true });
 assert.strictEqual(transportOnly.context.prhRuntimeTransportPing(), 'PRH_TRANSPORT_V1|OK');
 assert.strictEqual(transportOnly.readCounter.value, 0, 'transport ping must not touch workbook data');
+assert.strictEqual(transportOnly.webSmokeCounter.value, 0, 'transport ping must not render Web App');
 
 const healthy = createContext();
 const result = healthy.context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash });
@@ -73,6 +82,7 @@ assert.strictEqual(result.requiredSheetCount, 3);
 assert.strictEqual(result.readCheck, true);
 assert(Number.isInteger(result.latencyMs) && result.latencyMs >= 0);
 assert.strictEqual(healthy.readCounter.value, 1, 'health probe must prove read capability exactly once');
+assert.strictEqual(healthy.webSmokeCounter.value, 1, 'health probe must render Web App exactly once');
 
 const tokenHealthy = createContext();
 const token = tokenHealthy.context.prhReleaseHealthCheckToken({ candidateSha, sourceTreeHash });
@@ -90,6 +100,7 @@ assert.deepStrictEqual(tokenParts.slice(0, 8), [
 ]);
 assert(/^\d+$/.test(tokenParts[8]), 'health token latency must be a non-negative integer');
 assert.strictEqual(tokenHealthy.readCounter.value, 1, 'token entrypoint must perform exactly one read proof');
+assert.strictEqual(tokenHealthy.webSmokeCounter.value, 1, 'token entrypoint must perform exactly one Web App render smoke');
 
 const publicResult = JSON.parse(JSON.stringify(result));
 ['amount','income','expense','balance','description','category','row','value','payload','account'].forEach((forbidden) => {
@@ -125,12 +136,25 @@ assert.throws(
   () => createContext({ readFailure: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
   /synthetic read failure/
 );
+assert.throws(
+  () => createContext({ webSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
+  /RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING/
+);
+assert.throws(
+  () => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
+  /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/
+);
+assert.throws(
+  () => createContext({ webSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
+  /synthetic web smoke failure/
+);
 
 console.log('runtime_health_contract_test: OK', {
   exactSha: true,
   sourceTreeHash: true,
   transportPing: true,
   privateSchemaRead: true,
+  webAppRenderSmoke: 'V2',
   scalarEntrypoint: true,
   financialPayload: false
 });
