@@ -106,10 +106,10 @@ jobs:
           node tests/mig010_documentation_contract_test.js
       - name: Prepare dashboard bundle
         run: npm run prepare:web
-      - name: Run all contract tests
-        run: node tools/run-layered-tests.js full
       - name: Install Playwright browser
         run: npx --no-install playwright install --with-deps chromium
+      - name: Run all contract tests
+        run: node tools/run-layered-tests.js full
       - name: Responsive visual gate
         run: node tests/dashboard_web_visual_test.js
       - name: Build immutable Apps Script candidate
