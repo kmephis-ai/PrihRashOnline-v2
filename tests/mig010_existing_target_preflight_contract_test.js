@@ -78,16 +78,17 @@ assert.strictEqual(sourceMissingBlocked.status, 'BLOCKED');
 assert(sourceMissingBlocked.blocked_reasons.includes('SOURCE_MISSING'));
 assert.strictEqual(sourceMissingBlocked.batches.length, 0);
 
-const invalidQuality = plan([source({ source_quality: 'INVALID' })], []);
-assert.strictEqual(invalidQuality.status, 'BLOCKED');
-assert(invalidQuality.blocked_reasons.includes('SOURCE_INVALID'));
-assert.strictEqual(invalidQuality.batches.length, 0);
+assert.throws(
+  () => plan([source({ source_quality: 'INVALID' })], []),
+  /MIGRATION_SOURCE_QUALITY_INVALID/,
+  'invalid source quality must abort plan before any batch can be created'
+);
 
 console.log('mig010_existing_target_preflight_contract_test: OK', {
   cleanReuse: true,
   coreMismatchBlocked: true,
   sourceRowMovedBlocked: true,
   sourceMissingBlocked: true,
-  invalidQualityBlocked: true,
+  invalidQualityAbortsPlan: true,
   accidentalInsertOnDrift: false
 });
