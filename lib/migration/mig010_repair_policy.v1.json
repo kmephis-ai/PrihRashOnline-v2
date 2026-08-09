@@ -1,6 +1,6 @@
 {
   "schema": "MIG010_REPAIR_POLICY_V1",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "strategy": "REBUILD_LEGACY_SLICE_V1",
   "target_anomalies": {
     "CORE_MISMATCH": "REBUILD_SCOPED_TARGET",
@@ -18,7 +18,8 @@
       "PRESERVE_ALL",
       "UNRESOLVED"
     ],
-    "preserve_all_requires": "CANONICAL_IDENTITY_EXTENSION_REQUIRED",
+    "preserve_all_identity_strategy": "CONTENT_FINGERPRINT_OCCURRENCE_V1",
+    "occurrence_order": "SOURCE_ROW_ASC_WITHIN_IDENTICAL_FINGERPRINT_GROUP",
     "public_ci_can_decide": false
   },
   "write_authority": false,
