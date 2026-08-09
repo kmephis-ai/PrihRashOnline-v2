@@ -140,8 +140,8 @@ async function fakeFetch(url, options) {
     ALLOWED_FUNCTIONS.finalize
   ]);
   assert.strictEqual(called[0].parameter.batch_count, 2);
-  assert.strictEqual(called[1].parameter.rows, packageValue.batches[0].rows);
-  assert.strictEqual(called[2].parameter.rows, packageValue.batches[1].rows);
+  assert.deepStrictEqual(called[1].parameter.rows, packageValue.batches[0].rows);
+  assert.deepStrictEqual(called[2].parameter.rows, packageValue.batches[1].rows);
   assert(called.every((item) => item.parameter.authorization === AUTH_LITERAL));
   assert(called.every((item) => item.parameter.package_hash === packageValue.package_hash));
 
