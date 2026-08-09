@@ -76,7 +76,7 @@ DATA-010 разделяет:
 - imported source snapshot fingerprint: `source_fingerprint`;
 - mutable physical locator: `source_position`.
 
-Изменение row position не должно менять logical source identity. Для DATA-001 legacy shape используется `CONTENT_FINGERPRINT_V1`, поскольку DATA-001 fingerprint не зависит от row movement. Для providers со stable external ID предусмотрен `EXTERNAL_ID`.
+`source_position` не является logical identity. Изменение row position не должно менять logical source identity. Для DATA-001 legacy shape используется `CONTENT_FINGERPRINT_V1`, поскольку DATA-001 fingerprint не зависит от row movement. Для providers со stable external ID предусмотрен `EXTERNAL_ID`.
 
 Stored legacy status не переопределяет computed reconciliation result.
 
