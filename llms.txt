@@ -27,6 +27,7 @@ tests/pure_domain_application_core_contract_test.js — local behavior/property 
 docs/architecture/TRANSACTION_REPOSITORY_PORT.md — normative `PRH_TRANSACTION_REPOSITORY_V1` read/query/write-interface boundary; Google canonical writes remain fail-closed.
 docs/adr/ADR-ARCH-011-TRANSACTION-REPOSITORY.md — ARCH-011 architecture decision for repository port + Google Sheets adapter.
 docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md — MIG-010 decision: owner-confirmed `PRESERVE_ALL` uses deterministic `CONTENT_FINGERPRINT_OCCURRENCE_V1` without write authority.
+docs/adr/ADR-MIG-010-PROPOSAL-COMPATIBILITY.md — bounded carry-forward exact owner proposal v1.0/v1.1; unknown versions fail closed, owner decision is not reinterpreted.
 lib/repository/transaction_repository.v1.json — machine-readable storage-neutral transaction repository contract.
 lib/repository/transaction_repository.js — deterministic query/revision + in-memory synthetic fake repository.
 lib/adapters/google_sheets_operations_mapping.v1.json — versioned current-store → canonical mapping policy.
