@@ -44,7 +44,9 @@
         "source_container": { "type": ["string", "null"], "maxLength": 240 },
         "source_record_id": { "type": "string", "minLength": 3, "maxLength": 192 },
         "source_fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "identity_strategy": { "enum": ["EXTERNAL_ID", "CONTENT_FINGERPRINT_V1"] },
+        "identity_strategy": {
+          "enum": ["EXTERNAL_ID", "CONTENT_FINGERPRINT_V1", "CONTENT_FINGERPRINT_OCCURRENCE_V1"]
+        },
         "transform_version": { "type": "string", "minLength": 1, "maxLength": 80 },
         "source_position": { "type": ["string", "null"], "maxLength": 128 }
       }
