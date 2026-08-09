@@ -93,9 +93,27 @@ assert.strictEqual(CONTRACT.financial_truth_policy, 'FIN-TRUTH-v1');
 const normalized = normalizeAnalyticsQuery(query());
 assert.strictEqual(normalized.schema, QUERY_SCHEMA);
 assert.strictEqual(normalized.currency, 'RUB');
+assert.deepStrictEqual(normalized.dimensions, []);
 assert.deepStrictEqual(normalized.filters, []);
 assert.strictEqual(analyticsQueryHash(query()), analyticsQueryHash({ ...query(), filters: [] }));
 assert(/^[0-9a-f]{64}$/.test(analyticsQueryHash(query())));
+
+const canonicalFilterA = query({
+  measures: ['EXPENSE'],
+  filters: [
+    { field: 'category_id', operator: 'IN', values: ['cat-home', 'cat-food'] },
+    { field: 'status', operator: 'EQ', values: ['posted'] }
+  ]
+});
+const canonicalFilterB = query({
+  measures: ['EXPENSE'],
+  filters: [
+    { field: 'status', operator: 'EQ', values: ['posted'] },
+    { field: 'category_id', operator: 'IN', values: ['cat-food', 'cat-home'] }
+  ]
+});
+assert.strictEqual(analyticsQueryHash(canonicalFilterA), analyticsQueryHash(canonicalFilterB),
+  'equivalent filter/value ordering must canonicalize to one query identity');
 
 const result = evaluateAnalytics(fixture, query());
 assert.strictEqual(result.schema, RESULT_SCHEMA);
@@ -135,6 +153,15 @@ const budgetDirect = evaluateKpis(fixture, {
 });
 assert.strictEqual(budget.rows[0].measures.BUDGET_VARIANCE, budgetDirect.budget_variance_minor);
 
+const emptyBudget = evaluateAnalytics(fixture, query({
+  measures: ['BUDGET_VARIANCE'],
+  time_range: { start: '2035-01-01', end: '2035-02-01' },
+  parameters: { budget_minor: 50000 }
+}));
+assert.strictEqual(emptyBudget.rows.length, 1);
+assert.strictEqual(emptyBudget.rows[0].measures.BUDGET_VARIANCE, 50000,
+  'empty scoped period must preserve FIN-010 budget - zero expense semantics');
+
 const grouped = evaluateAnalytics(fixture, query({
   measures: ['EXPENSE', 'REFUND'],
   dimensions: ['category_id'],
@@ -158,13 +185,7 @@ const monthly = evaluateAnalytics(fixture, query({
 }));
 assert.deepStrictEqual(monthly.rows.map((item) => item.dimensions.time_bucket), ['2026-01', '2026-02']);
 
-const filtered = evaluateAnalytics(fixture, query({
-  measures: ['EXPENSE'],
-  filters: [
-    { field: 'category_id', operator: 'IN', values: ['cat-home', 'cat-food'] },
-    { field: 'status', operator: 'EQ', values: ['posted'] }
-  ]
-}));
+const filtered = evaluateAnalytics(fixture, canonicalFilterA);
 assert.strictEqual(filtered.rows[0].measures.EXPENSE, direct.expense_minor);
 
 const comparison = evaluateAnalytics(fixture, query({
@@ -222,6 +243,10 @@ for (let iteration = 0; iteration < 80; iteration += 1) {
   assert.strictEqual(analytics.rows[0].measures.TRANSFER, expected.transfer_minor);
 }
 
+const inputBefore = JSON.stringify(fixture);
+evaluateAnalytics(fixture, canonicalFilterA);
+assert.strictEqual(JSON.stringify(fixture), inputBefore, 'analytics evaluation must not mutate canonical input');
+
 const engineSource = fs.readFileSync(path.join(__dirname, '..', 'lib/analytics/analytics_engine.js'), 'utf8');
 assert(!/SpreadsheetApp|HtmlService|DocumentApp|UrlFetchApp|fetch\s*\(|XMLHttpRequest|\bdocument\.|\bwindow\./.test(engineSource));
 assert(!/writeBatch|setValues|appendRow|financial_write_authority\s*[:=]\s*true/.test(engineSource));
@@ -235,6 +260,9 @@ console.log('analytics_extension_contract_test: OK', {
   storageNeutral: true,
   kpiParity: true,
   deterministicQueryIdentity: true,
+  equivalentFilterOrdering: true,
+  emptyBudgetParity: true,
+  inputMutation: false,
   comparison: 'PREVIOUS_PERIOD',
   propertyIterations: 80,
   financialWriteAuthority: false
