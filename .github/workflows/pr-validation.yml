@@ -81,6 +81,8 @@ jobs:
         run: node tests/repository_adapter_contract_test.js
       - name: Query projection minimal ranges
         run: node tests/repository_projection_adapter_contract_test.js
+      - name: Revision-aware read cache
+        run: node tests/repository_cache_adapter_contract_test.js
       - name: Analytics extension contract
         shell: bash
         run: |
