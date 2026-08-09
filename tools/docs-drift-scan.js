@@ -17,6 +17,7 @@ const docs = {
   dataModel: read('docs/data-model.md'),
   userGuide: read('docs/user-guide.md'),
   status: read('docs/PROJECT_STATUS.md'),
+  kpiDictionary: read('docs/finance/KPI_DICTIONARY.md'),
   dr: read('docs/operations/DR001_DIRECT_OWNER_BACKUP.md'),
   observability: read('docs/operations/OBS001_AUDIT_TELEMETRY.md'),
   finops: read('docs/operations/FINOPS001_FREE_ONLY_GUARD.md'),
@@ -44,7 +45,8 @@ const currentOperationalDocs = [
   ['docs/dashboard.md', docs.dashboard],
   ['docs/data-model.md', docs.dataModel],
   ['docs/user-guide.md', docs.userGuide],
-  ['docs/PROJECT_STATUS.md', docs.status]
+  ['docs/PROJECT_STATUS.md', docs.status],
+  ['docs/finance/KPI_DICTIONARY.md', docs.kpiDictionary]
 ];
 
 for (const [name, text] of currentOperationalDocs) {
@@ -72,7 +74,7 @@ forbidMatch('DOC_RELEASE_ACTIVE_POST_MERGE_WRITE', docs.release,
   'Release process must not prescribe a post-merge README/runtime-locator write');
 
 requireMatch('DOC_README_R0_BASELINE', docs.readme, /R0 platform baseline/,
-  'README must identify the current R0 platform baseline');
+  'README must identify the proven R0 platform baseline');
 requireMatch('DOC_README_PRIVATE_MYSELF', docs.readme, /MYSELF/,
   'README must state the private Web App access boundary');
 requireMatch('DOC_README_SYNTHETIC_ONLY', docs.readme, /independently generated synthetic|независимо сгенерированные synthetic/i,
@@ -131,10 +133,27 @@ requireMatch('DOC_STATUS_G1', docs.status, /MASTER-G1/,
   'Project status must expose MASTER-G1');
 requireMatch('DOC_STATUS_G2', docs.status, /MASTER-G2/,
   'Project status must expose MASTER-G2');
-requireMatch('DOC_STATUS_AIENG_REMAINING', docs.status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/,
-  'Project status must identify remaining R0 AIENG chain');
-requireMatch('DOC_STATUS_R1_BLOCKED', docs.status, /Do not treat R1|until all R0/i,
-  'Project status must not imply R1 is current before all R0 gates');
+requireMatch('DOC_STATUS_R0_COMPLETE', docs.status, /R0[^\n]{0,100}(?:завершён|complete)/i,
+  'Project status must state proven R0 completion');
+requireMatch('DOC_STATUS_AIENG_CHAIN', docs.status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/,
+  'Project status must preserve the completed AIENG chain');
+requireMatch('DOC_STATUS_R1_FIN010', docs.status, /R1 \/ Canonical Financial Platform[\s\S]{0,1200}FIN-010[\s\S]{0,300}IN_PROGRESS/i,
+  'Project status must identify FIN-010 as the current R1 item');
+requireMatch('DOC_STATUS_G3_OPEN', docs.status, /MASTER-G3[\s\S]{0,120}open/i,
+  'Project status must expose open MASTER-G3');
+
+requireMatch('DOC_KPI_SCHEMA', docs.kpiDictionary, /PRH_KPI_DICTIONARY_V1/,
+  'KPI Dictionary doc must identify its machine schema');
+requireMatch('DOC_KPI_FIN_TRUTH', docs.kpiDictionary, /FIN-TRUTH-v1/,
+  'KPI Dictionary doc must bind to FIN-TRUTH-v1');
+requireMatch('DOC_KPI_EXACT_MONEY', docs.kpiDictionary, /целых `minor units`|integer minor units/i,
+  'KPI Dictionary doc must require exact minor-unit money');
+requireMatch('DOC_KPI_TRANSFER_NEUTRAL', docs.kpiDictionary, /transfer[^\n]{0,160}нейтрален/i,
+  'KPI Dictionary doc must state transfer neutrality');
+requireMatch('DOC_KPI_MIXED_CURRENCY_FAIL_CLOSED', docs.kpiDictionary, /Mixed-currency[^\n]{0,160}fail-closed/i,
+  'KPI Dictionary doc must fail closed on mixed currency in v1');
+requireMatch('DOC_KPI_NO_LEGACY_TRUTH', docs.kpiDictionary, /Legacy total cells[^\n]{0,120}(?:не являются|not)/i,
+  'KPI Dictionary doc must reject legacy totals as truth');
 
 requireMatch('DOC_DR_DONE', docs.dr, /DR-001 is \*\*DONE\*\*/,
   'DR runbook must state the proven DR-001 status');
@@ -159,6 +178,8 @@ requireMatch('WORKFLOW_MAIN_VERIFICATION_NAME', docs.mainVerification, /^name: M
   'Main verification workflow name drifted');
 requireMatch('WORKFLOW_DOC_TRUTH_GATE', docs.prValidation, /- name: Documentation truth\s+run: node tools\/docs-drift-scan\.js/m,
   'PR Validation must run named Documentation truth gate');
+requireMatch('WORKFLOW_KPI_DICTIONARY_GATE', docs.prValidation, /- name: KPI Dictionary\s+run: node tests\/kpi_dictionary_contract_test\.js/m,
+  'PR Validation must run named KPI Dictionary gate');
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -169,8 +190,10 @@ if (failures.length > 0) {
   console.log('docs-truth: PASS', {
     operationalDocs: currentOperationalDocs.length,
     currentReleaseModel: 'EXACT_SHA_AUTONOMOUS',
+    currentRoadmapWave: 'R1',
+    currentRoadmapItem: 'FIN-010',
     publicRuntimeLocator: false,
-    r0MasterGatesDocumented: true,
+    r0MasterGatesComplete: true,
     historicalChangelogExcludedFromInstructionScan: true
   });
 }

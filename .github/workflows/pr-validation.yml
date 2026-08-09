@@ -67,6 +67,8 @@ jobs:
         run: node tests/multi_ai_review_protocol_contract_test.js
       - name: Financial reconcile synthetic
         run: node tests/financial_reconciliation_contract_test.js
+      - name: KPI Dictionary
+        run: node tests/kpi_dictionary_contract_test.js
       - name: Migration reconcile synthetic
         run: node tests/migration_reconciliation_contract_test.js
       - name: Prepare dashboard bundle
