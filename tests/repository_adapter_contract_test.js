@@ -240,22 +240,33 @@ const gatewaySource = fs.readFileSync(path.join(__dirname, '..', 'GoogleTransact
 assert(/getSheetRequired_\(PR_CONFIG\.SHEETS\.OPERATIONS\)/.test(gatewaySource));
 assert(/operationWriteGuard_\(\)/.test(gatewaySource));
 assert(/GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/.test(gatewaySource));
+assert(!/\.getDataRange\s*\(/.test(gatewaySource), 'Google operations gateway must not use full data-range reads');
 assert(!/\.setValues?\s*\(/.test(gatewaySource), 'Google operations gateway must not contain write primitive');
 assert(!/\.appendRow\s*\(/.test(gatewaySource), 'Google operations gateway must not contain append primitive');
 assert(!/\.deleteRow\s*\(/.test(gatewaySource), 'Google operations gateway must not contain delete primitive');
 
 let legacyGuardCalls = 0;
+const gatewayReadCalls = [];
 const syntheticSheet = {
   getLastRow: () => rows.length + 1,
   getLastColumn: () => headers.length,
   getRange: (row, col, height, width) => ({
     getValues: () => {
-      assert.strictEqual(col, 1);
-      assert.strictEqual(width, headers.length);
-      if (row === 1) return [headers.slice()];
-      assert.strictEqual(row, 2);
-      assert.strictEqual(height, rows.length);
-      return rows.map((record) => record.slice());
+      gatewayReadCalls.push({ row, col, height, width });
+      assert(Number.isInteger(row) && row >= 1);
+      assert(Number.isInteger(col) && col >= 1);
+      assert(Number.isInteger(height) && height >= 1);
+      assert(Number.isInteger(width) && width >= 1);
+      if (row === 1) {
+        assert.strictEqual(col, 1);
+        assert.strictEqual(height, 1);
+        assert.strictEqual(width, headers.length);
+        return [headers.slice()];
+      }
+      const startOffset = row - 2;
+      return rows.slice(startOffset, startOffset + height).map((record) =>
+        record.slice(col - 1, col - 1 + width)
+      );
     }
   })
 };
@@ -273,13 +284,26 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(gatewaySource, context, { filename: 'GoogleTransactionRepositoryGateway.js' });
-const gatewaySnapshot = context.prhGoogleRepositoryReadOperationsTable_();
+const gatewaySnapshot = context.prhGoogleRepositoryReadOperationsTable_({
+  required_headers: MAPPING.required_headers.slice()
+});
 assert.strictEqual(gatewaySnapshot.schema, 'PRH_GOOGLE_OPERATIONS_TABLE_V1');
 assert.strictEqual(gatewaySnapshot.rows.length, rows.length);
+assert.deepStrictEqual(Array.from(gatewaySnapshot.headers), MAPPING.required_headers);
 assert.deepStrictEqual(Array.from(context.PRH_GOOGLE_REPOSITORY_GATEWAY.REQUIRED_HEADERS), MAPPING.required_headers);
+assert.strictEqual(gatewaySnapshot.read_plan.projected_column_count, MAPPING.required_headers.length);
+assert.strictEqual(gatewaySnapshot.read_plan.row_count, rows.length);
+assert.strictEqual(gatewaySnapshot.read_plan.cell_read_count, MAPPING.required_headers.length * rows.length);
+assert(gatewaySnapshot.read_plan.cell_read_count < headers.length * rows.length);
+assert.strictEqual(gatewayReadCalls[0].row, 1, 'first gateway read must be header discovery');
+assert.strictEqual(gatewayReadCalls[0].height, 1, 'header discovery must read one row only');
+assert(gatewayReadCalls.slice(1).every((call) => call.row === 2 && call.height === rows.length));
+assert(gatewayReadCalls.slice(1).every((call) => call.width < headers.length));
 const gatewayStatus = context.prhGoogleRepositoryGatewayStatus();
 assert.strictEqual(gatewayStatus.write_authorized, false);
 assert.strictEqual(gatewayStatus.write_reason, 'GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED');
+assert.strictEqual(gatewayStatus.projected_read_capability, true);
+assert.strictEqual(gatewayStatus.projection_schema, 'PRH_GOOGLE_PROJECTED_READ_V1');
 assert(!Object.prototype.hasOwnProperty.call(gatewayStatus, 'rows'));
 assert(!Object.prototype.hasOwnProperty.call(gatewayStatus, 'revision'));
 assert.throws(() => context.prhGoogleRepositoryApplyCanonicalBatch_(), /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/);
@@ -310,6 +334,7 @@ console.log('repository_adapter_contract_test: OK', {
   googleAdapter: `${ADAPTER_SCHEMA}@${ADAPTER_VERSION}`,
   googleMapping: MAPPING.version,
   googleReadQuery: true,
+  googleProjectedRead: true,
   googleWriteAuthorized: false,
   googleWriteReason: 'GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED',
   appsScriptGatewaySyntheticIntegration: true,
