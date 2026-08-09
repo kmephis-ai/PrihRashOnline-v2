@@ -12,8 +12,6 @@
 
 `SEC-003 + CI-001 + CI-002 + CI-003 + AIENG-001 + AIENG-002 + AIENG-003 = DONE`.
 
-AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
-
 ### MASTER-G2 / Recoverability — **complete**
 
 `DR-001 + OBS-001 + FINOPS-001 = DONE`.
@@ -23,114 +21,104 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS; previous lifecycle state was `IN_PROGRESS`.
-- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97; owner-private stage = **OWNER_VERIFIED**. Private full-history write завершён и post-write reconciliation = **PASS**; lifecycle остаётся `IN_PROGRESS` только до PR machine gates, merge и Main Verification.
-- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после завершения текущего P0 writer.
+- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
+- `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED`, fresh encrypted post-write reconciliation PASS.
+- `ANL-010` Analytics extension contract v1 — **IN_PROGRESS**, Issue #98, draft PR #99; current R1 writer.
+- `TEST-010`, `OBS-010`, `PERF-010` и другие items остаются dependency/priority-gated до завершения current writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
 ARCH-010: `PRH_APPLICATION_CORE_V1`, pure use-cases без I/O/network/financial-write authority.
 ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`, deterministic fake + Google adapter; generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## MIG-010 current truth
+## ANL-010 current truth
 
-MIG-010 implementation включает:
+ANL-010 вводит `PRH_ANALYTICS_CONTRACT_V1@1.0.0` с двумя versioned surfaces:
 
-- `PRH_FULL_HISTORY_MIGRATION_V1` — deterministic dry-run, bounded batches, HMAC resume, backup/authorization gate, reconciliation;
-- `MIG010_REPAIR_POLICY_V1@1.1.0` + `REBUILD_LEGACY_SLICE_V1`;
-- additive Canonical v1 identity `CONTENT_FINGERPRINT_OCCURRENCE_V1` для owner-confirmed identical real operations;
-- owner-local encrypted-backup snapshot/dry-run/private diagnostics;
-- offline duplicate owner review + exact-bound resolution;
-- independent resolved rebuild dry-run;
-- `MIG010_EXECUTION_POLICY_V1@1.0.0` + `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`;
-- owner-private execution-package builder;
-- separate authorization-gated `Mig010ExecutionGateway.js` с staging/readback/rollback;
-- adaptive exact-type staging write для Google Sheets coercion случаев без изменения package financial semantics;
-- owner-local authorized executor, который без private `IRREVERSIBLE_ACTION_AUTHORIZED` fail-closed;
-- fresh-backup post-write reconciliation verifier.
+- `PRH_ANALYTICS_QUERY_V1` — measures, dimensions, filters, explicit `[start,end)` time range, grain, comparison, sort и bounded parameters/limits;
+- `PRH_ANALYTICS_RESULT_V1` — deterministic rows/series shape, query identity и canonical/KPI/FIN provenance.
 
-Owner-private checkpoint достигнут без публикации financial payload:
+Financial semantics не дублируются: supported measures делегируются FIN-010 `evaluateKpis()` и сохраняют `FIN-TRUTH-v1`, integer minor units, single-currency fail-closed, posted-only accounting, transfer neutrality и refund-as-expense-reduction.
 
-- encrypted-backup snapshot — PASS;
-- initial full-history dry-run — корректно `BLOCKED`, что выявило legacy anomalies;
-- private diagnostics — PASS;
-- duplicate semantics — решены владельцем private review;
-- repair resolve — `READY_FOR_REBUILD_DRY_RUN`, blockers cleared;
-- independent resolved rebuild dry-run — **PASS**, `reconciliationReady=true`;
-- owner explicit `IRREVERSIBLE_ACTION_AUTHORIZED` — применён только к exact-bound execution package/request;
-- staging/readback/finalize — **PASS**;
-- fresh encrypted post-write backup — **PASS**;
-- `MIG010_OWNER_POST_RECONCILIATION_V1` — **PASS**;
-- `unexplainedMismatch=0`;
-- `provenanceComplete=true`;
-- `idempotentRerunNoop=true`;
-- `rollbackCanBeReleased=true`.
+Analytics contract renderer/storage-neutral и не имеет I/O/network/UI/financial-write authority. Public tests используют только independently generated synthetic transactions. ChartSpec/WidgetSpec, renderer selection и advanced OLAP остаются отдельными Roadmap scopes.
 
-`SOURCE_INVALID` остаётся explained private quarantine. Owner-confirmed identical operations используют `CONTENT_FINGERPRINT_OCCURRENCE_V1`: content fingerprint не искажается, а отдельные реальные occurrences получают deterministic distinct identities.
+Current behavioral evidence:
 
-### Current irreversible boundary
+- strict query validation + deterministic canonical query hash;
+- ungrouped `dimensions: []` supported;
+- dimensions/filter/time grain grouping;
+- `PREVIOUS_PERIOD` comparison with explicit same-length preceding interval;
+- comparison + grain without relative-bucket alignment policy — fail-closed;
+- budget variance requires explicit integer `budget_minor` and v1 forbids implicit grouped allocation semantics;
+- empty-period budget variance preserves FIN-010 `budget - zero expense` semantics;
+- bounded result truncation and input-order determinism;
+- randomized synthetic KPI parity/property checks;
+- pure boundary scan rejects Apps Script/DOM/network/write dependencies.
+
+Normative contract: `docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md`.
+
+## MIG-010 verified historical boundary
+
+MIG-010 owner-private flow completed:
 
 ```text
 RESOLVED_REBUILD_DRY_RUN = PASS
--> EXECUTION_PACKAGE
--> AUTHORIZATION_REQUEST
+-> exact execution package/request
 -> owner IRREVERSIBLE_ACTION_AUTHORIZED
--> STAGING -> READBACK -> FINALIZED_PENDING_RECONCILIATION
+-> STAGING + READBACK
+-> FINALIZED_PENDING_RECONCILIATION
 -> FRESH ENCRYPTED BACKUP
--> POST-WRITE RECONCILIATION, unexplainedMismatch=0
--> OWNER_VERIFIED = PASS
+-> POST-WRITE RECONCILIATION
+-> OWNER_VERIFIED
+-> PR/Main Verification
+-> DONE
 ```
 
-Execution package/authorization request сами по себе не являются разрешением. GitHub Actions, merge PR и AI-agent не могут создать `IRREVERSIBLE_ACTION_AUTHORIZED`.
+Private evidence established `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Hidden staging/rollback cleanup was not performed automatically and is not implied by DONE.
 
-`Mig010ExecutionGateway.js` не ослабляет ARCH-011: generic Google repository mutation остаётся запрещённой. MIG gateway — отдельный narrowly scoped owner-authorized path, связанный exact hashes, fresh backup и private session.
-
-Finalize выполняется только после полного staging hash verification. При finalize failure live target восстанавливается из hidden rollback copy. Успешный owner-private reconciliation доказал exact final raw-table parity; rollback может быть освобождён только отдельной безопасной cleanup-процедурой, но не удаляется автоматически.
-
-**Private full-history migration выполнена и owner-verified. MIG-010 ещё не `DONE` только до завершения GitHub lifecycle: final exact-head gates -> merge -> Main Verification -> Issue #96 close.**
+Owner-confirmed identical real operations remain represented by the additive Canonical v1 identity strategy `CONTENT_FINGERPRINT_OCCURRENCE_V1`; this capability preserves content fingerprint semantics and does not create generic financial-write authority.
 
 ### MASTER-G3 / Canonical platform — **open**
 
-Private full-history reconciliation gate уже PASS. MASTER-G3 всё ещё требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE` и synthetic performance PASS.
+Private full-history reconciliation gate is PASS. MASTER-G3 still requires `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE` and synthetic performance PASS.
 
 ## Pure core + repository boundary
 
-`lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` — pure boundary. Application core не имеет I/O/network/financial-write authority.
+`lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**`, `lib/analytics/**` are pure boundaries. They do not own platform I/O/network/financial-write authority.
 
-ARCH-011 добавил storage-neutral repository port и Google Sheets adapter снаружи pure core. Наличие `writeBatch()` interface не создаёт permission: current generic Google adapter возвращает `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+ARCH-011 exposes the storage-neutral repository port outside the pure domain. Presence of `writeBatch()` interface does not grant Google mutation permission; current generic Google adapter returns `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-MIG-010 execution gateway является отдельной policy boundary и не меняет generic repository authority.
+ANL-010 consumes canonical transactions as plain data and returns plain analytics result objects. It does not know whether source data came from Google Sheets, a synthetic fake or a future YDB adapter.
 
 ## Executable AI engineering baseline
 
 Root `AGENTS.md` is the public-safe repository AI operating contract.
 
-- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` задают continuation, one-writer ownership и lifecycle.
-- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` задают supplementary exact-candidate review.
-- reviewers всегда `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks review evidence, P2/P3 advisory.
-- required AI checks deterministic/local и не требуют paid AI/API provider.
+- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` define continuation, one-writer ownership and lifecycle.
+- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review.
+- reviewers always `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks review evidence, P2/P3 advisory.
+- required AI checks deterministic/local and require no paid AI/API provider.
 
 ## Current runtime truth
 
 - private primary store/runtime: Google Sheets + Apps Script;
 - family UI: private `MYSELF` Apps Script Web Dashboard;
-- Dashboard render path после INC-001 использует raw `HtmlOutput` placeholder injection; trusted runtime health включает Web App render smoke v2;
+- Dashboard render path after INC-001 uses raw `HtmlOutput` placeholder injection; trusted runtime health includes Web App render smoke v2;
 - public GitHub finance content: independently generated synthetic only;
 - DEV delivery: exact-SHA autonomous pipeline;
 - PROD/cutover/destructive data actions: separate policy gates;
-- `FREE_ONLY` обязателен; paid-by-usage provider activation не разрешён автоматически.
+- `FREE_ONLY` mandatory; paid-by-usage provider activation is not automatic.
 
 ## Что намеренно не утверждается
 
-- owner-verified private migration сама по себе **не** означает, что PR #97 уже merged или Issue #96 уже DONE;
-- execution package/request сами по себе **не** являются authorization;
-- owner authorization не создаёт generic repository write authority;
-- hidden staging/rollback cleanup **не** выполнен автоматически;
-- Google -> Yandex cutover **не** выполнен;
-- private Dashboard **не** сделан публичным;
-- public Git history rewrite **не authorized/executed**;
-- paid cloud/AI/OCR provider **не** включён;
-- последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
+- ANL-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- analytics contract не создаёт chart/UI implementation и не даёт financial-write authority;
+- owner authorization MIG-010 не переносится на future mutations;
+- hidden MIG staging/rollback cleanup не выполнен автоматически;
+- Google -> Yandex cutover не выполнен;
+- private Dashboard не сделан публичным;
+- public Git history rewrite не authorized/executed;
+- paid cloud/AI/OCR provider не включён.
 
 ## Source precedence
 

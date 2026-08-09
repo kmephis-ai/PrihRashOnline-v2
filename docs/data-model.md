@@ -4,7 +4,7 @@
 
 Google Sheets остаётся private primary store/current adapter. Web Dashboard не копирует финансовую историю в GitHub и не создаёт public shadow database.
 
-R0 отделил **financial truth rules** от legacy spreadsheet totals. R1 уже закрепил FIN-010 KPI Dictionary v1, DATA-010 portable Canonical Transaction v1, ARCH-010 pure core и ARCH-011 repository adapter. MIG-010 private full-history migration выполнена через отдельный owner-authorized boundary и подтверждена fresh-backup post-write reconciliation; generic repository write authority при этом не открыта.
+R1 уже закрепил FIN-010 KPI Dictionary v1, DATA-010 Canonical Transaction v1, ARCH-010 pure core, ARCH-011 repository adapter и MIG-010 verified full-history migration. Current ANL-010 добавляет отдельный pure AnalyticsQuery/AnalyticsResult contract поверх canonical transactions и FIN-010, не открывая generic repository write authority.
 
 ## Основные private sheets
 
@@ -15,27 +15,19 @@ R0 отделил **financial truth rules** от legacy spreadsheet totals. R1 �
 | `10 Контроль` | private KPI/control snapshots | append + readback where supported |
 | `11 Предпросмотр` | quality proposal staging/review | bounded proposal state |
 | `13 Журнал` | privacy-safe technical audit | bounded rotating append |
-| `14 Аналитика` | existing spreadsheet analytics/fallback | existing private spreadsheet mechanisms |
+| `14 Аналитика` | existing spreadsheet analytics/fallback | existing private spreadsheet mechanisms, not canonical analytics truth |
 
-Наличие листа или старого service не является автоматическим разрешением записи. Write authority определяется отдельным contract/policy.
+Наличие листа/service/query contract не является автоматическим разрешением записи. Write authority определяется отдельным policy contract.
 
 ## Financial truth
 
-Legacy monthly/summary cells не используются как authoritative golden truth для financial CI.
+Legacy monthly/summary cells не используются как authoritative golden truth.
 
-Canonical financial reconciliation + KPI Dictionary v1 задают semantics для:
-
-- Income / Expense / Cash Flow / Savings / Budget variance;
-- transfer neutrality;
-- refund/reversal behavior;
-- zero values;
-- integer-minor-unit money/rounding;
-- explicit period/currency policy;
-- category partition rules.
+KPI Dictionary v1 задаёт semantics для Income / Expense / Cash Flow / Savings / Budget variance, transfer neutrality, refund/reversal behavior, zero values, integer minor units, explicit period/currency policy и category partition rules.
 
 Machine source: `lib/finance/kpi_dictionary.v1.json`; human contract: `docs/finance/KPI_DICTIONARY.md`.
 
-Реальные reconciliation values/deltas остаются private; наружу выходит только technical PASS/FAIL.
+ANL-010 не дублирует эти formulas: analytics measures вызывают FIN-010 evaluator. Это предотвращает divergence между Dashboard/analytics и canonical financial truth.
 
 ## Canonical Transaction v1
 
@@ -45,128 +37,84 @@ Portable domain record определён в:
 - `lib/domain/canonical_transaction.js` — strict validator + compatibility helpers;
 - `docs/data/CANONICAL_TRANSACTION_SCHEMA.md` — normative human contract.
 
-Schema v1 содержит explicit:
+Schema v1 содержит stable transaction identity, RFC3339 occurred time, type/status, integer `amount_minor` + currency, household dimensions, optional description/counterparty/reversal и structured provenance.
 
-- stable `transaction_id`;
-- RFC3339 `occurred_at`;
-- type/status;
-- non-negative integer `amount_minor` + 3-letter uppercase `currency`;
-- account/destination/category/member/project/tags;
-- counterparty/description;
-- reversal semantics;
-- structured provenance.
+Unknown fields, duplicate identity, invalid money/currency/transfer/refund semantics fail closed. Canonical schema сама по себе не разрешает writes.
 
-Unknown canonical fields, duplicate transaction identity, invalid money/currency, invalid transfer/refund semantics и duplicate logical source identity отклоняются fail-closed.
+## AnalyticsQuery / AnalyticsResult v1
 
-Canonical schema не разрешает writes сама по себе. Она задаёт portable record contract, который application/repository adapters обязаны соблюдать.
+Machine contract: `lib/analytics/analytics_contract.v1.json` (`PRH_ANALYTICS_CONTRACT_V1@1.0.0`).
+
+`PRH_ANALYTICS_QUERY_V1` — immutable/plain request shape:
+
+- explicit currency;
+- one or more FIN-010 measure IDs;
+- zero or more canonical dimensions;
+- bounded filters;
+- optional explicit `[start,end)` period;
+- grain `NONE|DAY|MONTH|YEAR`;
+- comparison `NONE|PREVIOUS_PERIOD`;
+- deterministic sort/limit;
+- bounded measure parameters such as integer `budget_minor`.
+
+`PRH_ANALYTICS_RESULT_V1` — plain deterministic result:
+
+- query hash;
+- current/comparison periods;
+- dimensions + integer-minor-unit measures;
+- total row count/truncation;
+- provenance to analytics contract, canonical schema, KPI Dictionary, FIN-TRUTH and canonical input revision.
+
+Analytics result — **derived read model**, а не новый financial source of truth и не persistence authority. Он может пересчитываться из canonical transactions. Real analytics result/aggregates остаются private и не используются как public fixtures.
+
+Empty `dimensions: []` означает ungrouped aggregate. Equivalent filter/value ordering canonicalizes в одинаковый SHA-256 query identity. `BUDGET_VARIANCE` v1 намеренно не поддерживает grouped allocation без отдельной policy.
 
 ## Source-to-canonical provenance
 
-Migration reconciliation требует deterministic source identity/fingerprint и умеет fail-closed обнаруживать:
+Migration reconciliation использует deterministic source identity/fingerprint и fail-closed обнаруживает missing/duplicate/changed/core-mismatch states.
 
-- missing source row;
-- duplicate source identity;
-- changed source row;
-- core-field mismatch;
-- non-idempotent duplicate import.
+DATA-010 разделяет immutable logical source identity, source snapshot fingerprint и mutable `source_position`. `source_position` не является identity. Owner-confirmed identical occurrences могут использовать `CONTENT_FINGERPRINT_OCCURRENCE_V1` без изменения financial fields ради uniqueness.
 
-DATA-010 разделяет:
-
-- immutable logical source identity: `source_system + identity_strategy + source_record_id + transform_version`;
-- imported source snapshot fingerprint: `source_fingerprint`;
-- mutable physical locator: `source_position`.
-
-`source_position` не является logical identity. Изменение row position не должно менять logical source identity. Для DATA-001 legacy shape используется `CONTENT_FINGERPRINT_V1`, поскольку DATA-001 fingerprint не зависит от row movement. Для owner-confirmed identical occurrences MIG-010 использует `CONTENT_FINGERPRINT_OCCURRENCE_V1` без изменения financial fields ради uniqueness. Для providers со stable external ID предусмотрен `EXTERNAL_ID`.
-
-Stored legacy status не переопределяет computed reconciliation result.
-
-До отдельного deterministic Roadmap item + `OWNER_VERIFIED` gate full-history migration **не считается завершённым**. Этот gate теперь пройден: owner-authorized staging/readback/finalize завершены, создан fresh encrypted post-write backup, а `MIG010_OWNER_POST_RECONCILIATION_V1` доказал exact final target parity, `unexplainedMismatch=0`, полную provenance и idempotent rerun. Это не означает открытие generic write authority или выполнение Google -> Yandex cutover.
+MIG-010 full-history migration DONE: owner-authorized staging/readback/finalize, fresh encrypted post-write backup и `MIG010_OWNER_POST_RECONCILIATION_V1` PASS с `unexplainedMismatch=0`, полной provenance и idempotent rerun. Это не открывает generic write authority и не означает Yandex cutover.
 
 ## Dashboard transaction fields
 
-Текущие services распознают transaction fields по Sheet headers where possible. Эта compatibility — adapter concern, не canonical domain contract.
+Current services распознают transaction fields по Sheet headers where possible. Эта compatibility — adapter concern, не canonical domain contract.
 
-DATA-010 canonical fields не определяются порядком/названием Google columns. Google repository adapter (`ARCH-011`) преобразует Sheet representation в portable schema, а не протаскивает Spreadsheet layout в domain layer.
+DATA-010 canonical fields не определяются Google column order/names. ARCH-011 adapter преобразует Sheet representation в portable schema. ANL-010 затем работает только с canonical plain records и не знает spreadsheet layout.
 
 ## Quality queue — `11 Предпросмотр`
 
-Очередь является staging/review surface для quality issues и proposals.
-
-```text
-detected issue
-→ proposal / explanation
-→ staged review state
-→ confirm or reject
-```
-
-Изменение proposal state не равно изменению canonical financial operation. Proposal/classifier/AI output не является финансовой истиной без deterministic validation и отдельного write action.
-
-## Classification rules
-
-Поддерживаемые подтверждённые rules хранятся в private Document Properties. Они могут содержать технические/нормализованные признаки, необходимые runtime, но не становятся public fixtures или model-training dataset автоматически.
+Proposal staging/review state не равно изменению canonical operation. Classifier/AI/proposal output не является financial truth без deterministic validation и отдельного write action.
 
 ## Control snapshots — `10 Контроль`
 
-KPI/control snapshots могут содержать реальные household aggregates. Поэтому:
-
-- они остаются в private Google workbook;
-- их реальные значения не копируются в GitHub regression fixtures/docs/issues;
-- public tests используют независимо сгенерированные synthetic equivalents;
-- snapshot/readback не делает snapshot canonical financial truth выше transaction reconciliation/KPI rules.
+KPI/control snapshots могут содержать реальные household aggregates, поэтому остаются private. Public tests используют independently generated synthetic equivalents. Snapshot не становится authoritative выше canonical transaction/KPI rules.
 
 ## Audit — `13 Журнал`
 
-OBS-001 устанавливает отдельную privacy-safe audit schema:
-
-- technical fields проходят explicit allowlist;
-- correlation/event identity сохраняются;
-- journal bounded и rotates oldest rows;
-- audit storage failure не превращает корректную financial operation в outage;
-- technical health/counters не содержат financial payload.
+OBS-001 использует privacy-safe allowlisted technical audit fields. Financial payload не telemetry.
 
 ## Cost usage counters
 
-FINOPS-001 хранит только provider/month **normalized technical usage counters** в Script Properties. Это не деньги и не household finance data.
-
-Cost Guard:
-
-- не хранит transaction amounts/categories/descriptions;
-- требует explicit provider safety envelope;
-- conservatively reserve'ит usage до потенциального provider call;
-- fail-closed блокирует unknown provider / paid-required workload / projected overage.
+FINOPS-001 хранит только provider/month normalized technical usage counters. `FREE_ONLY` и `paidOverageAllowed:false` остаются executable invariants.
 
 ## Public GitHub privacy boundary
 
-В публичном repository допустимы:
+В public repository допустимы code/contracts/docs, independently generated synthetic financial fixtures и non-financial technical evidence.
 
-- source code;
-- architecture/schema/contracts/docs;
-- independently generated synthetic financial fixtures;
-- non-financial technical build/latency/quota/cost-guard/status evidence.
+Не допускаются real или real-derived transaction rows/IDs/amounts/totals/aggregates/category distributions/seasonality/control totals, private screenshots/exports/reports, authenticated Dashboard/API bodies, OAuth/private clasp, backup bytes/key или private deployment locators.
 
-**Не допускаются:**
-
-- реальные transaction rows;
-- реальные operation IDs;
-- реальные или real-derived amounts/totals/aggregates/category distributions/seasonality/control totals;
-- scaled/sampled/transformed fixtures, если они произведены из household finance data;
-- private screenshots/exports/reports;
-- authenticated Dashboard/API responses;
-- OAuth tokens/client secrets/private clasp config;
-- backup bytes, encryption key или decrypted backup payload;
-- private deployment identifiers как public operational state.
-
-Если public test нуждается в финансовой форме/edge case, данные генерируются независимо deterministic synthetic generator'ом.
+Это правило распространяется и на analytics tests: public query/result examples должны быть independently synthetic, а не derived from household data.
 
 ## R1 canonical model
 
-Dependency order / live truth:
+1. `FIN-010` KPI Dictionary — DONE;
+2. `DATA-010` Canonical Transaction — DONE;
+3. `ARCH-010` pure domain/application core — DONE;
+4. `ARCH-011` repository + Google adapter — DONE;
+5. `MIG-010` deterministic full-history migration — DONE, private `OWNER_VERIFIED` + Main Verification;
+6. `ANL-010` Analytics extension contract v1 — IN_PROGRESS;
+7. дальнейшие dependency-ready items — по canonical Roadmap.
 
-1. versioned KPI Dictionary (`FIN-010`) — DONE;
-2. canonical transaction schema (`DATA-010`) — DONE;
-3. pure domain/application core (`ARCH-010`) — DONE;
-4. repository contracts + Google adapter (`ARCH-011`) — DONE;
-5. deterministic full-history migration (`MIG-010`) — private `OWNER_VERIFIED`, GitHub lifecycle завершается PR/Main Verification;
-6. analytics contract (`ANL-010`) и дальнейшие dependency-ready items — по canonical Roadmap.
-
-UI не должен знать, какой storage adapter является primary; financial truth живёт в versioned domain rules/contracts.
+UI/renderer не должен знать storage adapter и не должен владеть financial formulas. Financial truth остаётся versioned FIN/canonical contracts; analytics является pure derived read-model boundary.

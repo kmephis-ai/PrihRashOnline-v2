@@ -28,23 +28,27 @@ function match(text, pattern, message) {
 
 match(status, /ARCH-011[^\n]{0,220}\*\*DONE\*\*|ARCH-011[^\n]{0,220}DONE/i,
   'ARCH-011 must be DONE in current status');
-match(status, /MIG-010[^\n]{0,260}\*\*IN_PROGRESS\*\*|MIG-010[^\n]{0,260}IN_PROGRESS/i,
-  'MIG-010 must remain IN_PROGRESS until PR/Main Verification');
-match(status, /MIG-010[^\n]{0,320}OWNER_VERIFIED/i,
-  'status must expose owner-private verified stage');
-match(status, /Private full-history migration[^\n]{0,220}(?:выполнена|owner-verified)/i,
-  'status must truthfully record completed private migration');
+match(status, /MIG-010[^\n]{0,260}\*\*DONE\*\*|MIG-010[^\n]{0,260}DONE/i,
+  'MIG-010 must be DONE after Main Verification');
+match(status, /MIG-010[^\n]{0,360}OWNER_VERIFIED/i,
+  'status must preserve owner-private verified evidence');
+match(status, /MIG010_OWNER_POST_RECONCILIATION_V1|post-write reconciliation/i,
+  'status must preserve completed private reconciliation evidence');
 match(status, /unexplainedMismatch=0/,
-  'status must record zero unexplained mismatch after post-write reconciliation');
+  'status must preserve zero unexplained mismatch evidence');
 match(status, /IRREVERSIBLE_ACTION_AUTHORIZED/,
   'status must expose separate irreversible-action boundary');
 match(status, /CONTENT_FINGERPRINT_OCCURRENCE_V1/,
   'status must expose occurrence identity capability without private resolution payload');
+match(status, /ANL-010[^\n]{0,260}IN_PROGRESS/i,
+  'status must identify the successor active writer');
 
-match(context, /MIG-010[^\n]{0,180}current P0 writer[^\n]{0,120}Issue #96/i,
-  'AI context must identify current MIG-010 writer');
-match(context, /owner-private stage = `OWNER_VERIFIED`/,
-  'AI context must identify owner-verified private stage');
+match(context, /MIG-010[^\n]{0,220}DONE/i,
+  'AI context must preserve MIG-010 completion');
+match(context, /private stage `OWNER_VERIFIED`|OWNER_VERIFIED/i,
+  'AI context must preserve owner-verified private stage');
+match(context, /ANL-010[^\n]{0,180}current P1 writer[^\n]{0,120}Issue #98/i,
+  'AI context must identify current ANL-010 writer');
 match(context, /ARCH-011[^\n]{0,180}DONE/i,
   'AI context must preserve ARCH-011 completion');
 match(context, /GitHub Actions[^\n]{0,220}cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`/i,
@@ -169,7 +173,7 @@ match(rebuildTool, /financialPayloadStdout:\s*false/,
   'rebuild stdout must exclude financial payload');
 
 match(workflow, /- name: Full-history migration protocol[\s\S]{0,2600}mig010_occurrence_identity_contract_test\.js[\s\S]{0,900}mig010_repair_policy_contract_test\.js[\s\S]{0,900}mig010_repair_policy_compatibility_contract_test\.js[\s\S]{0,900}mig010_repair_tool_contract_test\.js[\s\S]{0,900}mig010_rebuild_dry_run_contract_test\.js[\s\S]{0,900}mig010_documentation_contract_test\.js/m,
-  'PR Validation must have named migration occurrence + compatibility + repair + rebuild gate');
+  'PR Validation must preserve named historical migration regression gate');
 
 for (const required of [
   'docs/data/CANONICAL_TRANSACTION_SCHEMA.md',
@@ -205,7 +209,8 @@ for (const [name, text] of [
 }
 
 console.log('mig010_documentation_contract_test: OK', {
-  currentWriter: 'MIG-010',
+  lifecycle: 'DONE',
+  successorWriter: 'ANL-010',
   ownerPrivateStage: 'OWNER_VERIFIED',
   arch011: 'DONE',
   genericRealWriteAuthority: false,

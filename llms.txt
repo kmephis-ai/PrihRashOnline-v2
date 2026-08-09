@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; порядок/dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; R0 complete, MIG-010 private stage OWNER_VERIFIED, GitHub lifecycle still IN_PROGRESS until Main Verification.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; MIG-010 DONE, ANL-010 current writer.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task-packet schema.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/READY selection/one-writer/lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
@@ -11,23 +11,24 @@ tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
 .ai-context/multi-ai-review-report.schema.json — bounded specialist reviewer report schema.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — reviewer roles, read-only boundary, severity/arbitration и machine-gate authority.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid/external model dependency.
+
 docs/finance/KPI_DICTIONARY.md — normative KPI Dictionary v1.
 lib/finance/kpi_dictionary.v1.json — machine-readable `PRH_KPI_DICTIONARY_V1` bound to `FIN-TRUTH-v1`.
 lib/finance/kpi_dictionary.js — deterministic KPI evaluator.
 tests/kpi_dictionary_contract_test.js — FIN-001 parity/property contract.
+
 docs/data/CANONICAL_TRANSACTION_SCHEMA.md — normative Canonical Transaction v1 contract, DATA-001 compatibility и occurrence-aware owner-confirmed duplicate identity.
 lib/domain/canonical_transaction.v1.schema.json — strict machine-readable `PRH_CANONICAL_TRANSACTION_V1` JSON Schema.
 lib/domain/canonical_transaction.js — canonical validator, source identity, `CONTENT_FINGERPRINT_OCCURRENCE_V1`, FIN-TRUTH и migration compatibility helpers.
 tests/canonical_transaction_schema_contract_test.js — schema/identity/DATA-001/FIN/KPI compatibility contracts.
-tests/mig010_occurrence_identity_contract_test.js — owner-confirmed identical operations получают distinct occurrence identity при сохранении content fingerprint и FIN-TRUTH parity.
+
 docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md — normative pure domain/application boundary.
 lib/application/application_core.v1.json — `PRH_APPLICATION_CORE_V1` use-case/authority/dependency contract.
 lib/application/financial_core.js — pure canonical validation/KPI/migration application facade без I/O authority.
 tests/pure_domain_application_core_contract_test.js — local behavior/property + platform/UI dependency-boundary contract.
+
 docs/architecture/TRANSACTION_REPOSITORY_PORT.md — normative `PRH_TRANSACTION_REPOSITORY_V1` read/query/write-interface boundary; generic Google canonical writes remain fail-closed.
 docs/adr/ADR-ARCH-011-TRANSACTION-REPOSITORY.md — ARCH-011 architecture decision for repository port + Google Sheets adapter.
-docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md — MIG-010 decision: owner-confirmed `PRESERVE_ALL` uses deterministic `CONTENT_FINGERPRINT_OCCURRENCE_V1` without implicit write authority.
-docs/adr/ADR-MIG-010-PROPOSAL-COMPATIBILITY.md — bounded carry-forward exact owner proposal v1.0/v1.1; unknown versions fail closed, owner decision is not reinterpreted.
 lib/repository/transaction_repository.v1.json — machine-readable storage-neutral transaction repository contract.
 lib/repository/transaction_repository.js — deterministic query/revision + in-memory synthetic fake repository.
 lib/adapters/google_sheets_operations_mapping.v1.json — versioned current-store → canonical mapping policy.
@@ -35,57 +36,68 @@ lib/adapters/google_sheets_transaction_repository.js — Google Sheets canonical
 GoogleTransactionRepositoryGateway.js — generic Apps Script current-store read gateway; canonical financial writes independently fail-closed.
 tests/repository_adapter_contract_test.js — synthetic fake/Google mapping/gateway/financial parity + write-guard contract.
 
-docs/operations/MIG010_FULL_HISTORY_MIGRATION.md — owner-private deterministic full-history migration runbook, blocked diagnostics/repair/rebuild verification и irreversible-action boundary.
-docs/operations/MIG010_REPAIR_POLICY.md — owner-private legacy-slice rebuild/quarantine/duplicate-decision + occurrence identity + v1.0/v1.1 proposal compatibility; no implicit write authority.
-docs/operations/MIG010_AUTHORIZED_EXECUTION.md — exact owner authorization, staging/readback/adaptive type preservation/finalize/rollback/fresh-backup reconciliation; current private execution OWNER_VERIFIED.
+# ANL-010 analytics extension
+docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md — normative AnalyticsQuery/AnalyticsResult v1 semantics, FIN-010 delegation, time/comparison/budget/fail-closed/privacy boundaries.
+lib/analytics/analytics_contract.v1.json — machine-readable `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; renderer/storage-neutral, no I/O/network/UI/financial-write authority.
+lib/analytics/analytics_engine.js — pure deterministic query normalization/hash, canonical filtering/grouping, FIN-010 KPI evaluation, previous-period comparison and provenance.
+tests/analytics_extension_contract_test.js — synthetic KPI parity, query canonicalization, grouping/time/comparison, budget, fail-closed/property/pure-boundary regressions.
+tests/analytics_query_edge_contract_test.js — fail-closed comparison+grain/time-bucket-sort semantics, bounded truncation and input-order determinism.
+tests/analytics_documentation_contract_test.js — ANL-010 docs/current-context/llms/privacy/authority truth contract.
+
+# MIG-010 historical verified migration boundary
+docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md — owner-confirmed `PRESERVE_ALL` uses deterministic `CONTENT_FINGERPRINT_OCCURRENCE_V1` without implicit write authority.
+docs/adr/ADR-MIG-010-PROPOSAL-COMPATIBILITY.md — bounded carry-forward exact owner proposal v1.0/v1.1; unknown versions fail closed.
+docs/operations/MIG010_FULL_HISTORY_MIGRATION.md — deterministic full-history migration runbook.
+docs/operations/MIG010_REPAIR_POLICY.md — private legacy-slice rebuild/quarantine/duplicate-decision policy.
+docs/operations/MIG010_AUTHORIZED_EXECUTION.md — exact owner authorization, staging/readback/adaptive type preservation/finalize/rollback/fresh-backup reconciliation; private execution OWNER_VERIFIED.
 lib/migration/full_history_migration.v1.json — machine-readable `PRH_FULL_HISTORY_MIGRATION_V1` plan/batch/resume/backup/reconciliation policy.
-lib/migration/full_history_migration.js — deterministic dry-run, bounded batch/resume/pre-write/reconciliation engine; plan object не возвращает source records.
+lib/migration/full_history_migration.js — deterministic dry-run, bounded batch/resume/pre-write/reconciliation engine.
 lib/migration/mig010_repair_policy.v1.json — machine-readable `MIG010_REPAIR_POLICY_V1@1.1.0`.
-lib/migration/mig010_repair_policy.js — deterministic repair proposal + owner-bound duplicate resolution; `PRESERVE_ALL` creates occurrence-aware canonical rebuild candidate; exact proposal v1.0/v1.1 carry-forward only.
+lib/migration/mig010_repair_policy.js — deterministic repair proposal + owner-bound duplicate resolution.
 lib/migration/mig010_execution_policy.v1.json — `MIG010_EXECUTION_POLICY_V1@1.0.0`, stage-verify-replace-with-rollback and exact irreversible authorization boundary.
 Mig010ExecutionGateway.js — migration-specific Apps Script staging/finalize/rollback gateway; does not grant generic repository write authority.
 Mig010ExecutionDiagnostics.js — privacy-safe read-only execution/session state diagnostics.
 Mig010ExecutionResume.js — read-only existing-session resume preflight.
 Mig010ExecutionReadbackProbe.js — staging-only privacy-safe readback/type-coercion diagnostics.
-Mig010ExecutionTypedWrite.js — adaptive exact-type staging writer; preserves package-declared string/date semantics under Google Sheets format coercion and retains exact hash readback.
+Mig010ExecutionTypedWrite.js — adaptive exact-type staging writer under Google Sheets format coercion.
 tools/mig010-owner.js — owner-local encrypted-backup snapshot/dry-run/state/diagnose CLI; generic write disabled.
 tools/mig010-repair.js — owner-local private repair proposal/offline duplicate review/resolve CLI.
-tools/mig010-rebuild-dry-run.js — owner-local resolved repair verifier: exact recomputation, canonical/fingerprint validation, technical candidate revision.
-tools/mig010-execution-package.js — owner-local read-only execution-package builder; preserves non-scoped target rows, deterministic <=100 batches, raw-table hashes, no write command.
-tools/mig010-authorized-executor.js — owner-local API executor; authorization request is read-only; execute/rollback require exact private `IRREVERSIBLE_ACTION_AUTHORIZED` + fresh backup binding.
-tools/mig010-inspect.js — owner-local read-only execution/session inspector; no financial payload stdout.
-tools/mig010-readback-probe.js — owner-local staging-only coercion probe wrapper; no financial payload stdout.
-tools/mig010-resume.js — owner-local exact existing-session recovery executor using server-authoritative progress and typed staging writer.
-tools/mig010-post-reconcile.js — read-only fresh-encrypted-backup post-write reconciliation; requires source/candidate/final raw hash parity and `unexplainedMismatch=0`.
-tools/mig010-private-mapper.example.js — public-safe intentionally unconfigured mapper template; рабочая copy только вне repository.
-tools/mig010-private-mapper-leading-columns.example.js — strict compatibility mapper for bounded empty leading columns/timestamp aliases plus fail-closed target-date diagnostics.
+tools/mig010-rebuild-dry-run.js — owner-local resolved repair verifier.
+tools/mig010-execution-package.js — owner-local read-only execution-package builder; no write command.
+tools/mig010-authorized-executor.js — exact private `IRREVERSIBLE_ACTION_AUTHORIZED` executor/rollback boundary.
+tools/mig010-inspect.js — owner-local read-only execution/session inspector.
+tools/mig010-readback-probe.js — owner-local staging-only coercion probe wrapper.
+tools/mig010-resume.js — owner-local exact existing-session recovery executor.
+tools/mig010-post-reconcile.js — read-only fresh-encrypted-backup post-write reconciliation.
+tools/mig010-private-mapper.example.js — public-safe intentionally unconfigured mapper template.
+tools/mig010-private-mapper-leading-columns.example.js — strict compatibility mapper for bounded legacy leading columns/timestamp aliases.
 tests/full_history_migration_contract_test.js — synthetic interruption/resume/idempotency/full reconciliation contract.
-tests/mig010_plan_privacy_contract_test.js — migration plan не возвращает private source records/payload.
+tests/mig010_plan_privacy_contract_test.js — migration plan excludes private source records/payload.
 tests/mig010_occurrence_identity_contract_test.js — occurrence identity determinism + FIN parity.
-tests/mig010_repair_policy_contract_test.js — target rebuild, invalid quarantine, duplicate owner decision, DEDUPLICATE/PRESERVE_ALL behavior.
-tests/mig010_repair_policy_compatibility_contract_test.js — previous exact owner proposal v1.0 remains resolvable under v1.1; unknown/tampered proposal fails closed.
+tests/mig010_repair_policy_contract_test.js — rebuild/quarantine/owner duplicate decision behavior.
+tests/mig010_repair_policy_compatibility_contract_test.js — exact v1.0/v1.1 proposal compatibility and unknown/tampered fail-closed.
 tests/mig010_repair_tool_contract_test.js — private proposal/offline review/resolution/stdout privacy.
-tests/mig010_rebuild_dry_run_contract_test.js — resolved/proposal/resolution exact binding, canonical occurrence/fingerprint verification.
-tests/mig010_execution_package_contract_test.js — scoped rebuild raw package, non-scoped target preservation, <=100 batching, hash bindings, writeAuthorized=false.
-tests/mig010_execution_gateway_contract_test.js — explicit authorization, staging-before-live, batch readback/idempotency, finalize hash, rollback verification.
-tests/mig010_authorized_executor_contract_test.js — exact private authorization/freshness/API allowlist/finalize-pending-reconciliation/rollback contract.
-tests/mig010_execution_diagnostics_contract_test.js — privacy-safe session/live/rollback diagnostic contract.
-tests/mig010_resume_recovery_contract_test.js — existing-session-only recovery with server-authoritative progress.
-tests/mig010_readback_probe_contract_test.js — staging-only type-coercion diagnostic/probe safety contract.
-tests/mig010_typed_staging_write_contract_test.js — adaptive exact-type staging transport regression contract.
-tests/mig010_post_reconcile_contract_test.js — fresh-backup source revision/resolved candidate/final raw hash parity, `unexplainedMismatch=0`, idempotent rerun.
-tests/mig010_owner_tool_contract_test.js — private-path, backup-binding, stdout-privacy и pre-authorization boundary contract.
-tests/mig010_owner_diagnostics_contract_test.js — exact-plan-bound private blocker diagnostics; public stdout reason codes/hashes only.
-tests/mig010_documentation_contract_test.js — current MIG-010 lifecycle/occurrence/compatibility/execution/irreversible-action/public-safe truth contract.
-tests/mig010_execution_documentation_contract_test.js — owner-authorized execution/reconciliation docs truth contract.
+tests/mig010_rebuild_dry_run_contract_test.js — resolved exact binding/canonical/fingerprint verification.
+tests/mig010_execution_package_contract_test.js — scoped raw package, non-scoped preservation, <=100 batching, hash bindings.
+tests/mig010_execution_gateway_contract_test.js — explicit authorization, staging/readback/idempotency/finalize/rollback.
+tests/mig010_authorized_executor_contract_test.js — exact authorization/freshness/API/finalize/rollback contract.
+tests/mig010_execution_diagnostics_contract_test.js — privacy-safe session/live/rollback diagnostics.
+tests/mig010_resume_recovery_contract_test.js — existing-session recovery with server-authoritative progress.
+tests/mig010_readback_probe_contract_test.js — staging-only type-coercion probe safety.
+tests/mig010_typed_staging_write_contract_test.js — adaptive exact-type staging transport regression.
+tests/mig010_post_reconcile_contract_test.js — fresh-backup source/candidate/final parity, `unexplainedMismatch=0`, idempotent rerun.
+tests/mig010_owner_tool_contract_test.js — private-path/backup/stdout/pre-authorization contract.
+tests/mig010_owner_diagnostics_contract_test.js — exact-plan private blocker diagnostics.
+tests/mig010_documentation_contract_test.js — MIG-010 completed/historical occurrence/repair/privacy truth contract.
+tests/mig010_execution_documentation_contract_test.js — owner-authorized execution/reconciliation historical truth contract.
 
-docs/PROJECT_STATUS.md — R0 complete + MIG-010 OWNER_VERIFIED private evidence; live GitHub lifecycle stays IN_PROGRESS until merge/Main Verification.
-docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + owner-verified migration boundary + target architecture.
-docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline и Main Verification close path.
-docs/data-model.md — canonical data model, financial truth, migration, write и public-data boundaries.
+docs/PROJECT_STATUS.md — current R1 writer/status summary: MIG-010 DONE, ANL-010 IN_PROGRESS.
+docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + verified migration boundary + target architecture.
+docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline and Main Verification close path.
+docs/data-model.md — canonical data model, financial truth, migration, write and public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
 docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe bounded observability contract.
 docs/operations/FINOPS001_FREE_ONLY_GUARD.md — executable FREE_ONLY/cost circuit-breaker contract.
-docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md — public-history privacy remediation state; destructive rewrite не authorized/executed.
+docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md — public-history privacy remediation state; destructive rewrite not authorized/executed.
 
 Внешний canonical context, когда явно предоставлен task: `Master Audit v2.1` и `AI Development Playbook v1.0`. Executable GitHub Roadmap берётся только из repository `docs/ROADMAP.md`. Chat history/memory и stale Roadmap copies не authority. Никогда не помещайте сюда private household finance/runtime/credential/backup/authorization data.

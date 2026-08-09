@@ -19,6 +19,7 @@ const docs = {
   dataModel: read('docs/data-model.md'),
   userGuide: read('docs/user-guide.md'),
   status: read('docs/PROJECT_STATUS.md'),
+  projectContext: read('.ai-context/PROJECT_CONTEXT.md'),
   kpiDictionary: read('docs/finance/KPI_DICTIONARY.md'),
   canonicalSchema: read('docs/data/CANONICAL_TRANSACTION_SCHEMA.md'),
   dr: read('docs/operations/DR001_DIRECT_OWNER_BACKUP.md'),
@@ -41,6 +42,47 @@ function forbidMatch(ruleId, text, pattern, description) {
   if (pattern.test(text)) failures.push({ ruleId, description });
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function statusInProgressIds() {
+  const ids = [];
+  const pattern = /^- `([A-Z]+-\d+)`[^\n]*(?:\*\*IN_PROGRESS\*\*|\bIN_PROGRESS\b)/gmi;
+  let match;
+  while ((match = pattern.exec(docs.status)) !== null) ids.push(match[1]);
+  return Array.from(new Set(ids));
+}
+
+function branchRoadmapId() {
+  const branch = String(process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '');
+  const match = /^agent\/([A-Z]+-\d+)-/.exec(branch);
+  return match ? match[1] : '';
+}
+
+const liveStatusIds = statusInProgressIds();
+const branchItem = branchRoadmapId();
+const currentRoadmapItem = branchItem || (liveStatusIds.length === 1 ? liveStatusIds[0] : '');
+
+if (liveStatusIds.length !== 1) {
+  failures.push({
+    ruleId: 'DOC_STATUS_SINGLE_CURRENT_WRITER',
+    description: `Project status must contain exactly one IN_PROGRESS Roadmap item, got ${liveStatusIds.join(',') || 'none'}`
+  });
+}
+if (branchItem && liveStatusIds.length === 1 && liveStatusIds[0] !== branchItem) {
+  failures.push({
+    ruleId: 'DOC_STATUS_BRANCH_WRITER_MISMATCH',
+    description: `Branch writer ${branchItem} must match documented current writer ${liveStatusIds[0]}`
+  });
+}
+if (currentRoadmapItem) {
+  const escaped = escapeRegExp(currentRoadmapItem);
+  requireMatch('DOC_CONTEXT_CURRENT_WRITER', docs.projectContext,
+    new RegExp(`${escaped}[^\\n]{0,220}(?:current|текущ)[^\\n]{0,120}writer`, 'i'),
+    `AI context must identify ${currentRoadmapItem} as current writer`);
+}
+
 const currentOperationalDocs = [
   ['README.md', docs.readme],
   ['docs/RELEASE_PROCESS.md', docs.release],
@@ -51,6 +93,7 @@ const currentOperationalDocs = [
   ['docs/data-model.md', docs.dataModel],
   ['docs/user-guide.md', docs.userGuide],
   ['docs/PROJECT_STATUS.md', docs.status],
+  ['.ai-context/PROJECT_CONTEXT.md', docs.projectContext],
   ['docs/finance/KPI_DICTIONARY.md', docs.kpiDictionary],
   ['docs/data/CANONICAL_TRANSACTION_SCHEMA.md', docs.canonicalSchema]
 ];
@@ -150,9 +193,12 @@ requireMatch('DOC_REPOSITORY_PORT_ROW_NOT_IDENTITY', docs.repositoryPort, /sourc
 
 requireMatch('DOC_DATA_REAL_DERIVED_FORBIDDEN', docs.dataModel, /real-derived/,
   'Data model must explicitly forbid real-derived public financial data');
-requireMatch('DOC_DATA_FULL_HISTORY_NOT_DONE', docs.dataModel,
-  /(?:full[- ]history|full history|полный history) migration[^\n]{0,120}(?:не считается заверш|not)/i,
-  'Data model must not claim full-history migration complete');
+requireMatch('DOC_DATA_MIG010_DONE', docs.dataModel,
+  /MIG-010[^\n]{0,180}(?:full-history migration )?DONE/i,
+  'Data model must preserve proven MIG-010 completion');
+requireMatch('DOC_DATA_MIG010_RECONCILIATION', docs.dataModel,
+  /MIG010_OWNER_POST_RECONCILIATION_V1[^\n]{0,180}PASS/i,
+  'Data model must preserve private reconciliation PASS without payload');
 requireMatch('DOC_DATA_CANONICAL_V1', docs.dataModel,
   /PRH_CANONICAL_TRANSACTION_V1|Canonical Transaction v1/i,
   'Data model must reference Canonical Transaction v1');
@@ -180,8 +226,10 @@ requireMatch('DOC_STATUS_DATA010_DONE', docs.status, /DATA-010[^\n]{0,180}(?:DON
   'Project status must identify DATA-010 as DONE');
 requireMatch('DOC_STATUS_ARCH010_DONE', docs.status, /ARCH-010[^\n]{0,180}DONE/i,
   'Project status must identify ARCH-010 as DONE');
-requireMatch('DOC_STATUS_ARCH011_CURRENT', docs.status, /ARCH-011[^\n]{0,220}IN_PROGRESS/i,
-  'Project status must identify ARCH-011 as current R1 item');
+requireMatch('DOC_STATUS_ARCH011_DONE', docs.status, /ARCH-011[^\n]{0,220}DONE/i,
+  'Project status must preserve ARCH-011 DONE');
+requireMatch('DOC_STATUS_MIG010_DONE', docs.status, /MIG-010[^\n]{0,260}DONE/i,
+  'Project status must preserve MIG-010 DONE');
 requireMatch('DOC_STATUS_G3_OPEN', docs.status, /MASTER-G3[\s\S]{0,120}open/i,
   'Project status must expose open MASTER-G3');
 
@@ -209,7 +257,7 @@ requireMatch('DOC_CANONICAL_FINGERPRINT_STRATEGY', docs.canonicalSchema, /CONTEN
   'Canonical transaction doc must document DATA-001 fingerprint identity strategy');
 requireMatch('DOC_CANONICAL_NO_MIGRATION_CLAIM', docs.canonicalSchema,
   /не выполняет migration\/cutover|не выполняет[^\n]{0,100}migration/i,
-  'Canonical transaction doc must not claim migration/cutover');
+  'Canonical transaction doc must not itself claim migration/cutover authority');
 requireMatch('DOC_CANONICAL_PRIVACY', docs.canonicalSchema, /independently generated synthetic/i,
   'Canonical transaction doc must preserve synthetic-only public-data boundary');
 
@@ -258,8 +306,9 @@ if (failures.length > 0) {
     operationalDocs: currentOperationalDocs.length,
     currentReleaseModel: 'EXACT_SHA_AUTONOMOUS',
     currentRoadmapWave: 'R1',
-    currentRoadmapItem: 'ARCH-011',
+    currentRoadmapItem,
     repositoryPort: 'PRH_TRANSACTION_REPOSITORY_V1',
+    mig010: 'DONE_OWNER_VERIFIED',
     publicRuntimeLocator: false,
     r0MasterGatesComplete: true,
     historicalChangelogExcludedFromInstructionScan: true
