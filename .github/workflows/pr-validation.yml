@@ -63,6 +63,8 @@ jobs:
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
         run: node tests/roadmap_task_protocol_contract_test.js
+      - name: Multi-AI review protocol
+        run: node tests/multi_ai_review_protocol_contract_test.js
       - name: Financial reconcile synthetic
         run: node tests/financial_reconciliation_contract_test.js
       - name: Migration reconcile synthetic
