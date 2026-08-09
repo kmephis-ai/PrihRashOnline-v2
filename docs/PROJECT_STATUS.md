@@ -1,59 +1,56 @@
-# PrihRashOnline-v2 — current project status
+# PrihRashOnline-v2 — текущий статус проекта
 
-This file is a public-safe human summary. Authoritative execution state remains GitHub Roadmap Issues + exact-SHA code/tests/workflows + machine evidence. Never use this file to override a red gate.
+Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Этот файл не может отменять красный gate.
 
-## R0 capabilities already DONE
+## R0 — завершён
 
-- `TEST-001`, `SEC-001`, `SEC-002`;
-- `FIN-001`, `DATA-001`;
-- `SEC-003`, `CI-001`, `CI-002`, `CI-003`;
-- `DR-001`, `OBS-001`, `FINOPS-001`;
-- `DOC-001` documentation truth reset;
-- `AIENG-001` root machine-enforced repository AI contract;
-- `AIENG-002` executable Roadmap-to-agent task protocol.
+### MASTER-G0 / Truth — **complete**
 
-## R0 master gates
+`TEST-001 + SEC-001 + FIN-001 + DATA-001 + DOC-001 = DONE`.
 
-### MASTER-G0 / Truth
+### MASTER-G1 / Autonomous delivery + AI engineering — **complete**
 
-`TEST-001 + SEC-001 + FIN-001 + DATA-001 + DOC-001` — **complete**.
+`SEC-003 + CI-001 + CI-002 + CI-003 + AIENG-001 + AIENG-002 + AIENG-003 = DONE`.
 
-### MASTER-G1 / Autonomous delivery + AI engineering
+AIENG chain:
 
-Delivery engine (`SEC-003 + CI-001 + CI-002 + CI-003`) is complete.
+- `AIENG-001` — **DONE**;
+- `AIENG-002` — **DONE**;
+- `AIENG-003` — **DONE**, Main Verification Issue #72 PASS.
 
-AIENG chain state:
+### MASTER-G2 / Recoverability — **complete**
 
-- `AIENG-001` — repository AI contract: **DONE**;
-- `AIENG-002` — Roadmap-to-agent executable task protocol: **DONE**;
-- `AIENG-003` — exact-candidate read-only multi-AI review: final R0 item; it becomes **DONE only after its own Main Verification**.
+`DR-001 + OBS-001 + FINOPS-001 = DONE`.
 
-Until AIENG-003 Main Verification closes Issue #72, `MASTER-G1` remains open. After that close, `MASTER-G1` and the full R0 exit condition are complete.
+## R1 / Canonical Financial Platform — текущая волна
 
-### MASTER-G2 / Recoverability
+Первый P0 item R1 — `FIN-010` Versioned KPI Dictionary. Live lifecycle хранится в Issue #85; пока он `IN_PROGRESS`, `DATA-010` остаётся dependency-blocked.
 
-`DR-001 + OBS-001 + FINOPS-001` — **complete**.
+FIN-010 формализует существующую FIN-001 financial truth и не создаёт новую Dashboard/Sheets-specific семантику:
+
+- Income;
+- Expense;
+- Cash Flow;
+- Savings;
+- Budget variance;
+- transfer/refund/reversal policy;
+- exact minor-unit money/currency/rounding policy;
+- explicit partial-period policy.
+
+Канонические FIN-010 machine contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `tests/kpi_dictionary_contract_test.js`. Human-readable contract: `docs/finance/KPI_DICTIONARY.md`.
+
+### MASTER-G3 / Canonical platform — **open**
+
+Exit требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`, а также private full-history reconciliation и synthetic performance PASS.
 
 ## Executable AI engineering baseline
 
 Root `AGENTS.md` is the public-safe repository AI operating contract.
 
-- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` resolve continuation, one-writer ownership and lifecycle.
-- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review.
-- required reviewer roles: architecture, security/privacy, financial/data, test/operations;
-- reviewers are `READ_ONLY`, `writer_authority=false` and cannot mark Roadmap DONE;
-- unresolved P0/P1 blocks review evidence; P2/P3 remains advisory;
-- conflict resolution follows policy/spec/tests/ADR, never model voting;
-- required review contracts are deterministic local Node checks and require no paid AI/API provider.
-
-## R1 entry condition
-
-Do not treat R1 feature/platform expansion as current priority until all R0 master gates are complete. When Issue #72 is machine-closed, dependency-ordered R1 starts with:
-
-1. `FIN-010` — versioned KPI Dictionary;
-2. `DATA-010` — canonical transaction schema v1;
-3. pure domain/application core and repository adapters;
-4. deterministic full-history migration only after recovery/reconciliation dependencies.
+- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` задают continuation, one-writer ownership и lifecycle.
+- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` задают supplementary exact-candidate review.
+- reviewers всегда `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks review evidence, P2/P3 advisory.
+- required AI checks deterministic/local и не требуют paid AI/API provider.
 
 ## Current runtime truth
 
@@ -62,27 +59,26 @@ Do not treat R1 feature/platform expansion as current priority until all R0 mast
 - public GitHub finance content: independently generated synthetic only;
 - DEV delivery: exact-SHA autonomous pipeline;
 - PROD/cutover/destructive data actions: separate policy gates;
-- paid-by-usage provider activation: blocked unless a future reviewed provider policy remains inside `FREE_ONLY`;
-- billable provider allowlist: empty at FINOPS-001 baseline.
+- `FREE_ONLY` обязателен; paid-by-usage provider activation не разрешён автоматически.
 
-## What is deliberately not claimed
+## Что намеренно не утверждается
 
-- full-history migration is **not** complete;
-- Google -> Yandex cutover is **not** performed;
-- private Dashboard is **not** made public for CI;
-- public Git history rewrite is **not authorized/executed**;
-- paid cloud/AI/OCR provider is **not** enabled;
-- old RC/release snapshot mechanics are **not** current delivery policy;
-- AI review does **not** replace machine gates or create reviewer write authority.
+- full-history migration **не** завершена;
+- Google -> Yandex cutover **не** выполнен;
+- private Dashboard **не** сделан публичным;
+- public Git history rewrite **не authorized/executed**;
+- paid cloud/AI/OCR provider **не** включён;
+- DATA-010 и последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
 
 ## Source precedence
 
 1. security/privacy/cost/irreversible boundaries;
-2. canonical Master Audit / Executable Roadmap / AI Development Playbook when supplied;
-3. active Roadmap Issue/task packet;
-4. executable exact-SHA code/tests/workflows;
-5. architecture/ADR/operations docs;
-6. README/user docs;
-7. historical changelog/release notes.
+2. repository `docs/ROADMAP.md` v2.3;
+3. external Master Audit / AI Development Playbook, когда явно предоставлены;
+4. active Roadmap Issue/task packet;
+5. executable exact-SHA code/tests/workflows;
+6. architecture/ADR/operations docs;
+7. README/user docs;
+8. historical changelog/release notes.
 
-A stale lower-priority document never authorizes bypassing a current machine gate.
+Stale lower-priority документ никогда не разрешает bypass current machine gate.
