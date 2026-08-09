@@ -67,7 +67,6 @@ function thresholdObservations(sli, field, count, badCount, threshold, start = 1
   }));
 }
 
-// Availability: 0.2% bad consumes 40% of a 0.5% budget -> healthy/PASS.
 let result = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY', telemetry_state: 'PASS',
   observations: booleanObservations('AVAILABILITY', 1000, 2)
@@ -82,7 +81,6 @@ assert.strictEqual(result.budget_state, 'HEALTHY');
 assert.strictEqual(result.status, 'PASS');
 assert.strictEqual(result.reason_code, 'OK');
 
-// 0.3% bad consumes 60% -> WATCH without objective breach.
 result = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY',
   observations: booleanObservations('AVAILABILITY', 1000, 3)
@@ -93,7 +91,6 @@ assert.strictEqual(result.budget_state, 'WATCH');
 assert.strictEqual(result.status, 'WATCH');
 assert.strictEqual(result.reason_code, 'ERROR_BUDGET_WATCH');
 
-// Exactly 100% of availability budget is CRITICAL but not silently PASS.
 result = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY',
   observations: booleanObservations('AVAILABILITY', 1000, 5)
@@ -103,7 +100,6 @@ assert.strictEqual(result.budget_consumed_bps, 10000);
 assert.strictEqual(result.budget_state, 'CRITICAL');
 assert.strictEqual(result.status, 'CRITICAL');
 
-// Above availability budget becomes BREACHED.
 result = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY',
   observations: booleanObservations('AVAILABILITY', 1000, 6)
@@ -114,7 +110,6 @@ assert.strictEqual(result.budget_consumed_bps, 12000);
 assert.strictEqual(result.budget_state, 'BREACHED');
 assert.strictEqual(result.status, 'BREACHED');
 
-// Latency threshold semantics: 1/20 above 2000 ms consumes the complete 5% budget.
 result = evaluateSli({
   service: 'EXECUTION_API', window, sli: 'LATENCY',
   observations: thresholdObservations('LATENCY', 'latency_ms', 20, 1, 2000)
@@ -125,7 +120,6 @@ assert.strictEqual(result.threshold_ms, 2000);
 assert.strictEqual(result.observed_good_ppm, 950000);
 assert.strictEqual(result.status, 'CRITICAL');
 
-// Freshness uses technical age, not transaction timestamps or amounts.
 result = evaluateSli({
   service: 'CANONICAL_READ', window, sli: 'FRESHNESS',
   observations: thresholdObservations('FRESHNESS', 'age_ms', 100, 1, 900000)
@@ -134,7 +128,6 @@ assert.strictEqual(result.threshold_ms, 900000);
 assert.strictEqual(result.observed_good_ppm, 990000);
 assert.strictEqual(result.status, 'CRITICAL');
 
-// Correctness is zero-tolerance and requires allowlisted machine evidence source.
 result = evaluateSli({
   service: 'CANONICAL_READ', window, sli: 'CORRECTNESS',
   observations: booleanObservations('CORRECTNESS', 1000, 0, 1000, 'CANONICAL_SCHEMA')
@@ -151,7 +144,6 @@ assert.strictEqual(result.observed_good_ppm, 999000);
 assert.strictEqual(result.budget_consumed_bps, 10001);
 assert.strictEqual(result.status, 'BREACHED');
 
-// Migration errors are zero-tolerance technical reconciliation evidence.
 result = evaluateSli({
   service: 'MIGRATION', window, sli: 'MIGRATION_ERRORS',
   observations: errorObservations(1000, 1)
@@ -160,7 +152,6 @@ assert.strictEqual(result.observed_good_ppm, 999000);
 assert.strictEqual(result.allowed_bad_ppm, 0);
 assert.strictEqual(result.status, 'BREACHED');
 
-// Half-open window: out-of-window failures do not contaminate scoped SLI.
 const scoped = booleanObservations('AVAILABILITY', 20, 0);
 scoped.push({ sli: 'AVAILABILITY', ts_ms: 999, ok: false });
 scoped.push({ sli: 'AVAILABILITY', ts_ms: 2000, ok: false });
@@ -169,7 +160,6 @@ assert.strictEqual(result.sample_count, 20);
 assert.strictEqual(result.bad_sample_count, 0);
 assert.strictEqual(result.status, 'PASS');
 
-// Insufficient telemetry is UNKNOWN, never implicit green.
 result = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY', observations: booleanObservations('AVAILABILITY', 19, 0)
 });
@@ -178,7 +168,6 @@ assert.strictEqual(result.reason_code, 'INSUFFICIENT_SAMPLES');
 assert.strictEqual(result.observed_good_ppm, null);
 assert.strictEqual(result.budget_consumed_bps, null);
 
-// OBS-001 failure isolation: telemetry WARN/FAIL changes observability state only.
 result = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY', telemetry_state: 'WARN',
   observations: booleanObservations('AVAILABILITY', 20, 0)
@@ -193,7 +182,6 @@ result = evaluateSli({
 assert.strictEqual(result.status, 'UNKNOWN');
 assert.strictEqual(result.reason_code, 'TELEMETRY_UNAVAILABLE');
 
-// Composite service state is worst-of-SLI and contains no raw observation payload.
 const observations = [
   ...booleanObservations('AVAILABILITY', 1000, 3),
   ...thresholdObservations('LATENCY', 'latency_ms', 20, 0, 2000),
@@ -209,7 +197,6 @@ assert.strictEqual(serviceState.sli_results.length, 5);
 assert(!JSON.stringify(serviceState).includes('observations'));
 assert(!JSON.stringify(serviceState).includes('FINANCIAL_RECONCILIATION'));
 
-// Input is strict and cannot smuggle financial/user payload or unauthorized correctness authority.
 for (const bad of [
   () => evaluateSli({ service: 'WEB_APP', window, sli: 'AVAILABILITY', observations: [{ sli: 'AVAILABILITY', ts_ms: 1100, ok: true, amount: 1 }] }),
   () => evaluateSli({ service: 'WEB_APP', window, sli: 'LATENCY', observations: [{ sli: 'LATENCY', ts_ms: 1100, latency_ms: -1 }] }),
@@ -221,7 +208,6 @@ for (const bad of [
   () => evaluateSli({ service: 'WEB_APP', window, sli: 'AVAILABILITY', telemetry_state: 'GREEN', observations: [] })
 ]) assert.throws(bad);
 
-// Audit integration maps only bounded technical SLO metadata; sanitizer still strips financial fields.
 const auditResult = evaluateSli({
   service: 'WEB_APP', window, sli: 'AVAILABILITY',
   observations: booleanObservations('AVAILABILITY', 1000, 2)
@@ -235,7 +221,7 @@ assert.deepStrictEqual(auditMetadata, {
   sloSampleCount: 1000,
   sloBadSampleCount: 2,
   sloRemainingBudgetPpm: 3000,
-  sloBudgetConsumedBps: 4000,
+  sloBudgetBurnBps: 4000,
   sloBudgetState: 'HEALTHY',
   sloReasonCode: 'OK'
 });
@@ -252,12 +238,11 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(sanitized)), {
   sloSampleCount: 1000,
   sloBadSampleCount: 2,
   sloRemainingBudgetPpm: 3000,
-  sloBudgetConsumedBps: 4000,
+  sloBudgetBurnBps: 4000,
   sloBudgetState: 'HEALTHY',
   sloReasonCode: 'OK'
 });
 
-// Pure boundary: no platform/network/write API in evaluator.
 const source = fs.readFileSync(path.join(__dirname, '..', 'lib/observability/slo_error_budget.js'), 'utf8');
 for (const forbidden of ['SpreadsheetApp.', 'UrlFetchApp.', 'HtmlService.', 'fetch(', 'writeBatch(', 'setValues(', 'appendRow(']) {
   assert(!source.includes(forbidden), `SLO evaluator contains forbidden authority: ${forbidden}`);
