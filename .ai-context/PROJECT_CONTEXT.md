@@ -21,7 +21,7 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `FIN-010` — DONE.
 - `DATA-010` — DONE.
 - `ARCH-010` — DONE, Issue #89 Main Verification PASS.
-- `ARCH-011` — DONE, Issue #91 Main Verification PASS.
+- `ARCH-011` — DONE; historical lifecycle: `ARCH-011` was the current writer before MIG-010, Issue #91 Main Verification PASS.
 - `MIG-010` — current P0 writer, Issue #96, draft PR #97; owner-private stage = `OWNER_VERIFIED`. Private full-history write + fresh-backup reconciliation = PASS. GitHub lifecycle remains IN_PROGRESS until final candidate gates, merge and Main Verification.
 
 `PRH_TRANSACTION_REPOSITORY_V1` — storage-neutral repository port. Generic Google adapter read/query работает, canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
