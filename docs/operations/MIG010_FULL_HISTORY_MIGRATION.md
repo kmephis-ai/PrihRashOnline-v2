@@ -6,7 +6,7 @@
 
 ## Назначение
 
-MIG-010 переносит полную историю только через deterministic, resumable и idempotent protocol поверх `PRH_TRANSACTION_REPOSITORY_V1`. Публичный репозиторий содержит код, synthetic tests и privacy-safe evidence contract; реальные household-finance строки остаются только в owner-private execution environment.
+MIG-010 переносит полную историю только через deterministic, resumable и idempotent protocol поверх `PRH_TRANSACTION_REPOSITORY_V1`. Публичный репозиторий содержит code, synthetic tests и privacy-safe evidence contract; реальные household-finance строки остаются только в owner-private execution environment.
 
 **Merge кода MIG-010 не является разрешением на массовую запись.** Первый real write — отдельное irreversible action и требует явного owner authorization после успешного private dry-run и свежего DR-001 backup evidence.
 
@@ -22,15 +22,19 @@ CODE_READY
   -> OWNER_VERIFIED
 ```
 
-Любой `BLOCK`, stale target revision, stale/mismatched backup, повреждённый resume token или `unexplainedMismatch != 0` останавливает процесс fail-closed.
+Любой `BLOCK`, existing-target core/provenance drift, stale target revision, stale/mismatched backup, повреждённый resume token или `unexplainedMismatch != 0` останавливает процесс fail-closed.
 
 ## Public machine contracts
 
 - `lib/migration/full_history_migration.v1.json` — versioned policy.
 - `lib/migration/full_history_migration.js` — plan/resume/pre-write/reconciliation engine.
 - `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill.
+- `tests/mig010_existing_target_preflight_contract_test.js` — existing target `CORE_MISMATCH`/provenance drift blocks accidental INSERT.
+- `tests/mig010_plan_privacy_contract_test.js` — plan object не возвращает raw source records.
 - `tools/mig010-owner.js` — owner-local privacy boundary.
-- `tests/mig010_owner_tool_contract_test.js` — stdout/private-path/write-disabled contract.
+- `tools/mig010-private-mapper.example.js` — public-safe functional template без private selectors.
+- `tests/mig010_private_mapper_example_contract_test.js` — split expense/income mapping + provenance preflight на synthetic backup.
+- `tests/mig010_owner_tool_contract_test.js` — encrypted-backup binding/stdout/private-path/write-disabled contract.
 
 ## Owner-private files
 
@@ -38,7 +42,7 @@ CODE_READY
 
 - encrypted `.prhbackup`;
 - backup encryption key;
-- private mapper module;
+- настроенная private mapper copy;
 - generated private snapshot;
 - migration resume secret;
 - migration private state;
@@ -46,6 +50,25 @@ CODE_READY
 - private reconciliation details.
 
 Owner tool технически отклоняет private mapper/snapshot/state/secret внутри repository tree.
+
+## Functional private mapper template
+
+Tracked `tools/mig010-private-mapper.example.js` не содержит owner-private sheet names, values или dimension mappings. Перед запуском он копируется **вне repo**. Настроенная копия получает selectors только через локальные environment variables:
+
+- `MIG010_REPO_ROOT` — exact local checkout текущей MIG-010 ветки;
+- `MIG010_SOURCE_SHEET` — private legacy source sheet selector;
+- `MIG010_TARGET_SHEET` — private current target selector;
+- `MIG010_SOURCE_LABEL` — optional provenance label; default = source selector;
+- `MIG010_CURRENCY` — ISO-4217 currency; default `RUB`.
+
+Значения этих variables не публикуются в GitHub evidence. Template:
+
+- проверяет generic legacy split-form headers без owner-specific personal fields;
+- расход читает из expense field group, доход — из income field group;
+- строит private deterministic account/category IDs из normalized labels только внутри snapshot;
+- восстанавливает DATA-001 source provenance из current target source/reference fields;
+- использует `CONTENT_FINGERPRINT_V1` canonical identity;
+- не выводит labels/amounts/descriptions в stdout.
 
 ## Создание private snapshot
 
@@ -66,7 +89,7 @@ module.exports = {
 };
 ```
 
-Реальный mapper не коммитится. Он обязан преобразовать source history в существующий DATA-001 `SOURCE-TRANSFORM-v1` record contract и current canonical target в `PRH_CANONICAL_TRANSACTION_V1`. Header/sheet names, resolvers и реальные значения остаются внутри private mapper.
+Рабочая copy mapper не коммитится. Source history преобразуется в DATA-001 `SOURCE-TRANSFORM-v1`, current target — в `PRH_CANONICAL_TRANSACTION_V1` с исходной migration provenance, а не с storage provenance Google row.
 
 ## Dry-run
 
@@ -77,13 +100,17 @@ Dry-run требует:
 3. локальный 32-byte resume secret;
 4. owner-private state path.
 
-Snapshot содержит encrypted backup SHA-256. Dry-run разрешён только если этот SHA совпадает с DR evidence. Затем строится deterministic plan:
+Snapshot содержит encrypted backup SHA-256. Dry-run разрешён только если этот SHA совпадает с DR evidence.
 
-- `REUSE` — source уже представлен ровно одним canonical fingerprint;
+Перед построением INSERT batch выполняется **existing-target preflight**: каждая уже существующая target запись, относящаяся к migrating source, должна точно совпасть с source core/provenance. `CORE_MISMATCH`, `SOURCE_MISSING`, `SOURCE_ROW_MOVED`, duplicate/ref ambiguity блокируют весь plan. Это не позволяет ошибочно превратить уже существующую, но искажённую строку в новый INSERT.
+
+Затем deterministic plan классифицирует:
+
+- `REUSE` — source уже представлен ровно одним clean canonical fingerprint;
 - `INSERT` — новый однозначный source;
 - `BLOCK` — duplicate/invalid/mismatch/provenance ambiguity.
 
-Если существует хотя бы один `BLOCK`, write batches не создаются.
+Invalid source quality прерывает plan до создания batch. Если существует любой blocking reason, write batches не создаются.
 
 ## Deterministic batching
 
@@ -95,6 +122,8 @@ Snapshot содержит encrypted backup SHA-256. Dry-run разрешён т�
 - каждый batch требует exact `expected_revision`;
 - resume token = HMAC-SHA256 over `plan_hash + next_batch + expected_revision`;
 - изменение target между batches блокирует resume.
+
+Plan object не содержит `source_records`/`private_source_records`; raw input остаётся только в owner-private snapshot, а private batch payload — только в owner-private state.
 
 ## Irreversible-action gate
 
