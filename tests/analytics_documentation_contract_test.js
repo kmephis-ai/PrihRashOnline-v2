@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { currentRoadmapWriters, parseProjectStatusEntries } = require('../lib/testing/structured_contract_parsers');
 
 const root = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
@@ -45,10 +46,15 @@ match(doc, /financial write authority|financial-write authority/i, 'doc must den
 match(doc, /independently generated synthetic/i, 'doc must enforce synthetic-only public tests');
 match(doc, /ChartSpec|WidgetSpec/, 'doc must keep visualization spec out of ANL-010');
 
-match(status, /MIG-010[^\n]{0,260}DONE/i, 'status must keep MIG-010 DONE');
-match(status, /ANL-010[^\n]{0,260}IN_PROGRESS[^\n]{0,160}Issue #98/i, 'status must identify ANL-010 current lifecycle');
+const statusEntries = parseProjectStatusEntries(status);
+const statusById = new Map(statusEntries.map((entry) => [entry.id, entry.lifecycle]));
+assert.strictEqual(statusById.get('MIG-010'), 'DONE', 'status must keep MIG-010 DONE');
+assert.strictEqual(statusById.get('ANL-010'), 'DONE', 'ANL-010 must remain DONE after handoff');
+const currentWriters = currentRoadmapWriters(status);
+assert.strictEqual(currentWriters.length, 1, 'status must expose exactly one current writer');
+assert.notStrictEqual(currentWriters[0], 'ANL-010', 'completed ANL-010 must not remain lifecycle authority');
 match(status, /PRH_ANALYTICS_CONTRACT_V1@1\.0\.0/, 'status must expose analytics contract');
-match(context, /ANL-010[^\n]{0,180}current P1 writer[^\n]{0,120}Issue #98/i, 'AI context must identify current writer');
+match(context, /ANL-010[^\n]{0,220}DONE/i, 'AI context must preserve ANL-010 completion');
 match(context, /MIG-010[^\n]{0,220}DONE/i, 'AI context must preserve predecessor completion');
 match(context, /financial_write=false/, 'AI context must deny analytics financial write authority');
 
@@ -74,8 +80,10 @@ for (const [name, value] of [['doc', doc], ['status', status], ['context', conte
 console.log('analytics_documentation_contract_test: OK', {
   roadmapId: 'ANL-010',
   contract: 'PRH_ANALYTICS_CONTRACT_V1@1.0.0',
-  currentWriter: 'ANL-010',
+  lifecycle: 'DONE',
+  currentWriter: currentWriters[0],
   predecessorMigration: 'DONE',
+  structuredLifecycleState: true,
   rendererNeutral: true,
   storageNeutral: true,
   financialWriteAuthority: false,
