@@ -19,7 +19,7 @@ docs/data/CANONICAL_TRANSACTION_SCHEMA.md — normative Canonical Transaction v1
 lib/domain/canonical_transaction.v1.schema.json — strict machine-readable `PRH_CANONICAL_TRANSACTION_V1` JSON Schema.
 lib/domain/canonical_transaction.js — canonical validator, source identity, FIN-TRUTH и migration compatibility helpers.
 tests/canonical_transaction_schema_contract_test.js — schema/identity/DATA-001/FIN/KPI compatibility contracts.
-docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md — normative pure domain/application boundary и ARCH-011 handoff.
+docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md — normative pure domain/application boundary.
 lib/application/application_core.v1.json — `PRH_APPLICATION_CORE_V1` use-case/authority/dependency contract.
 lib/application/financial_core.js — pure canonical validation/KPI/migration application facade без I/O authority.
 tests/pure_domain_application_core_contract_test.js — local behavior/property + platform/UI dependency-boundary contract.
@@ -27,10 +27,16 @@ docs/architecture/TRANSACTION_REPOSITORY_PORT.md — normative `PRH_TRANSACTION_
 docs/adr/ADR-ARCH-011-TRANSACTION-REPOSITORY.md — ARCH-011 architecture decision for repository port + Google Sheets adapter.
 lib/repository/transaction_repository.v1.json — machine-readable storage-neutral transaction repository contract.
 lib/repository/transaction_repository.js — deterministic query/revision + in-memory synthetic fake repository.
-lib/adapters/google_sheets_operations_mapping.v1.json — versioned current `01 Операции` → canonical mapping policy.
+lib/adapters/google_sheets_operations_mapping.v1.json — versioned current-store → canonical mapping policy.
 lib/adapters/google_sheets_transaction_repository.js — Google Sheets canonical transaction adapter with explicit currency/dimension resolvers.
 GoogleTransactionRepositoryGateway.js — Apps Script current-store read gateway; canonical financial writes independently fail-closed.
 tests/repository_adapter_contract_test.js — synthetic fake/Google mapping/gateway/financial parity + write-guard contract.
+docs/operations/MIG010_FULL_HISTORY_MIGRATION.md — current owner-private deterministic full-history migration runbook и irreversible-action boundary.
+lib/migration/full_history_migration.v1.json — machine-readable `PRH_FULL_HISTORY_MIGRATION_V1` plan/batch/resume/backup/reconciliation policy.
+lib/migration/full_history_migration.js — deterministic dry-run, bounded batch/resume/pre-write/reconciliation engine.
+tests/full_history_migration_contract_test.js — synthetic interruption/resume/idempotency/full reconciliation contract.
+tools/mig010-owner.js — owner-local encrypted-backup snapshot/dry-run/state CLI; real write commands intentionally disabled pending explicit authorization stage.
+tests/mig010_owner_tool_contract_test.js — private-path, backup-binding, stdout-privacy и write-disabled contract.
 docs/PROJECT_STATUS.md — R0 complete + current R1/MASTER-G3 state; live lifecycle сверяется с GitHub Issues.
 docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + target architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline и Main Verification close path.
