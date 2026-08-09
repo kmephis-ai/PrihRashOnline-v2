@@ -6,13 +6,14 @@
  * Copy this file OUTSIDE the repository and use it as the owner-private mapper.
  * It accepts only 0..3 EMPTY leading technical columns before the strict legacy
  * header block and delegates all real mapping to mig010-private-mapper.example.js.
+ * The timestamp header is limited to the known aliases `Дата` or `Отметка времени`.
  */
 
 const path = require('path');
 
 const SCHEMA = 'MIG010_OWNER_PRIVATE_MAPPER_V1';
 const HEADER = [
-  ['Дата'],
+  ['Дата', 'Отметка времени'],
   ['Тип операции'],
   ['Счет', 'Счёт'],
   ['Категория'],
@@ -72,10 +73,24 @@ function detectOffset(sheet, cellValue) {
   fail('MIG010_PRIVATE_SOURCE_HEADER_BLOCK_NOT_FOUND');
 }
 
+function canonicalDateHeaderCell(cell) {
+  if (!cell || typeof cell !== 'object') fail('MIG010_PRIVATE_SOURCE_DATE_HEADER_INVALID');
+  return { ...cell, t: 's', v: 'Дата' };
+}
+
 function normalizedPackage(pkg, sourceName, cellValue) {
   const source = findSourceSheet(pkg, sourceName);
   const offset = detectOffset(source, cellValue);
-  if (offset === 0) return pkg;
+
+  const normalizedRows = source.rows.map((row, rowIndex) => {
+    if (!Array.isArray(row) || row.length < offset) fail('MIG010_PRIVATE_SOURCE_ROW_INVALID');
+    const sliced = row.slice(offset);
+    if (rowIndex === 0) {
+      if (!sliced[0]) fail('MIG010_PRIVATE_SOURCE_DATE_HEADER_INVALID');
+      sliced[0] = canonicalDateHeaderCell(sliced[0]);
+    }
+    return sliced;
+  });
 
   const normalizedSource = {
     ...source,
@@ -83,10 +98,7 @@ function normalizedPackage(pkg, sourceName, cellValue) {
       ...source.metadata,
       lastColumn: source.metadata.lastColumn - offset
     },
-    rows: source.rows.map((row) => {
-      if (!Array.isArray(row) || row.length < offset) fail('MIG010_PRIVATE_SOURCE_ROW_INVALID');
-      return row.slice(offset);
-    })
+    rows: normalizedRows
   };
 
   return {
@@ -100,7 +112,7 @@ function normalizedPackage(pkg, sourceName, cellValue) {
 
 module.exports = {
   schema: SCHEMA,
-  mappingVersion: 'LEGACY-SPLIT-FORM-TO-CANONICAL-v1+LEADING-EMPTY-COLUMNS-v1',
+  mappingVersion: 'LEGACY-SPLIT-FORM-TO-CANONICAL-v1+LEADING-EMPTY-COLUMNS-v1+TIMESTAMP-HEADER-ALIASES-v1',
 
   buildSnapshot({ backupPackage, cellValue }) {
     if (!backupPackage || backupPackage.format !== 'PRH_PORTABLE_BACKUP_V1') {
