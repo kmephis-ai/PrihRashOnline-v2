@@ -69,7 +69,7 @@ Supported grain:
 - `MONTH`;
 - `YEAR`.
 
-Любой grain кроме `NONE` требует explicit `time_range`. Time bucket является result dimension `time_bucket`, но не частью Canonical Transaction schema.
+Любой grain кроме `NONE` требует explicit `time_range`. Time bucket является result dimension `time_bucket`, но не частью Canonical Transaction schema. Sort по `time_bucket` разрешён только при активном grain; при `grain=NONE` такой sort fail-closed.
 
 ## Comparison v1
 
@@ -79,6 +79,8 @@ Supported mode:
 - `PREVIOUS_PERIOD`.
 
 `PREVIOUS_PERIOD` требует explicit current range и строит непосредственно предшествующий interval с тем же количеством календарных дней. Никакой implicit month/year normalization или proration в v1 нет.
+
+В v1 comparison намеренно поддерживается только при `grain=NONE`. Совмещать `PREVIOUS_PERIOD` с `DAY/MONTH/YEAR` без versioned relative-bucket alignment policy запрещено и даёт `ANALYTICS_COMPARISON_GRAIN_UNSUPPORTED`; это лучше, чем неявно сопоставлять разные calendar bucket keys.
 
 Comparison result хранится отдельно в `comparison_measures`, чтобы current financial value не смешивался с comparison semantics.
 
@@ -92,7 +94,7 @@ Comparison result хранится отдельно в `comparison_measures`, ч
 
 ## Sort и limits
 
-Sort может ссылаться только на выбранную measure/dimension; неизвестный/невыбранный key fail-closed. Stable fallback ordering строится по canonical dimension key.
+Sort может ссылаться только на выбранную measure/dimension; `time_bucket` считается выбранной dimension только при активном time grain. Неизвестный/невыбранный key fail-closed. Numeric measures сравниваются без subtraction-based comparator, поэтому safe-integer ordering не зависит от промежуточной разности. Stable fallback ordering строится по canonical dimension key.
 
 Result rows bounded `max_rows=5000`; превышение обозначается `truncated=true`, а `total_rows` сохраняет deterministic full row count.
 
@@ -118,7 +120,7 @@ Provenance v1 связывает result с:
 - `FIN-TRUTH-v1`;
 - deterministic canonical input revision.
 
-`legacy_total_cells_used=false`, `ui_logic_used=false` являются machine truth, а не advisory metadata.
+Input transaction order не должен менять normalized analytics result/input revision. `legacy_total_cells_used=false`, `ui_logic_used=false` являются machine truth, а не advisory metadata.
 
 ## Pure boundary
 
@@ -149,9 +151,10 @@ ANL-010 отвергает:
 - invalid currency/time range;
 - grain без time range;
 - comparison без time range;
+- comparison + time grain без relative-bucket alignment policy;
 - budget parameter без `BUDGET_VARIANCE`;
 - grouped/grained budget variance без allocation policy;
-- sort по невыбранному field;
+- sort по невыбранному field или `time_bucket` при `grain=NONE`;
 - unknown query field.
 
 ## Non-goals v1
@@ -159,6 +162,7 @@ ANL-010 отвергает:
 ANL-010 не реализует:
 
 - `ChartSpec`/`WidgetSpec` и renderer selection — это VIZ-020;
+- relative-bucket comparative time-series alignment;
 - pivot engine, window metrics, formula AST, semantic registry — это более поздние R7 items;
 - forecast/scenario/AI insight semantics;
 - real financial writes;
