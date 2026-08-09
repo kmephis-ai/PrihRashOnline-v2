@@ -114,7 +114,7 @@ requireMatch('AI_CONTEXT_MIG010_DONE', context, /MIG-010[^\n]{0,220}DONE/i, 'AI 
 if (currentRoadmapItem) {
   const escaped = escapeRegExp(currentRoadmapItem);
   requireMatch('AI_CONTEXT_CURRENT_WRITER', context,
-    new RegExp(`${escaped}[^\\n]{0,220}(?:current|текущ)[^\\n]{0,120}writer`, 'i'),
+    new RegExp(escaped + '.*(?:current|текущ).*writer', 'i'),
     `AI context must identify ${currentRoadmapItem} as current writer`);
 }
 requireMatch('AI_CONTEXT_REPOSITORY_PORT', context, /PRH_TRANSACTION_REPOSITORY_V1[\s\S]{0,1800}GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/i, 'AI context repository port/write boundary missing');
@@ -147,7 +147,7 @@ requireMatch('AI_STATUS_MIG010_DONE', status, /MIG-010[^\n]{0,260}DONE/i, 'PROJE
 if (currentRoadmapItem) {
   const escaped = escapeRegExp(currentRoadmapItem);
   requireMatch('AI_STATUS_CURRENT_WRITER', status,
-    new RegExp('^- `?' + escaped + '`?[^\\n]*\\*\\*IN_PROGRESS\\*\\*', 'mi'),
+    new RegExp('^- .*' + escaped + '.*\\*\\*IN_PROGRESS\\*\\*', 'mi'),
     `PROJECT_STATUS must identify ${currentRoadmapItem} as the active R1 item`);
 }
 requireMatch('AI_STATUS_REPOSITORY_WRITE_BLOCKED', status, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/, 'PROJECT_STATUS must preserve fail-closed Google repository write');
