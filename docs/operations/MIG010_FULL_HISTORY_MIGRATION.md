@@ -8,7 +8,7 @@
 
 MIG-010 переносит полную историю только через deterministic, resumable и idempotent protocol поверх `PRH_TRANSACTION_REPOSITORY_V1`. Публичный репозиторий содержит code, synthetic tests и privacy-safe evidence contract; реальные household-finance строки остаются только в owner-private execution environment.
 
-**Merge кода MIG-010 не является разрешением на массовую запись.** Первый real write — отдельное irreversible action и требует явного owner authorization после успешного private dry-run и свежего DR-001 backup evidence.
+**Merge кода MIG-010 не является разрешением на массовую запись.** Первый real write — отдельное irreversible action и требует явного owner authorization после успешного private dry-run/rebuild verification и свежего DR-001 backup evidence.
 
 ## State machine
 
@@ -16,27 +16,41 @@ MIG-010 переносит полную историю только через d
 CODE_READY
   -> OWNER_PRIVATE_SNAPSHOT
   -> OWNER_DRY_RUN
-       -> BLOCKED -> OWNER_PRIVATE_DIAGNOSTICS -> REPAIR_POLICY_REQUIRED -> OWNER_DRY_RUN
-       -> READY   -> AUTHORIZATION_REQUIRED
+       -> BLOCKED
+            -> OWNER_PRIVATE_DIAGNOSTICS
+            -> REPAIR_PROPOSAL
+            -> DUPLICATE_OWNER_REVIEW (если требуется)
+            -> REPAIR_RESOLVE
+            -> RESOLVED_REBUILD_DRY_RUN
+            -> AUTHORIZATION_REQUIRED
+       -> READY
+            -> AUTHORIZATION_REQUIRED
   -> BATCHING (<=100)
   -> PRIVATE_RECONCILIATION
   -> OWNER_VERIFIED
 ```
 
-Любой `BLOCK`, existing-target core/provenance drift, stale target revision, stale/mismatched backup, повреждённый resume token или `unexplainedMismatch != 0` останавливает процесс fail-closed.
+Любой `BLOCK`, existing-target core/provenance drift, unresolved duplicate decision, stale target revision, stale/mismatched backup, повреждённый resume/resolution binding или `unexplainedMismatch != 0` останавливает процесс fail-closed.
 
 ## Public machine contracts
 
 - `lib/migration/full_history_migration.v1.json` — versioned policy.
 - `lib/migration/full_history_migration.js` — plan/resume/pre-write/reconciliation engine.
+- `lib/migration/mig010_repair_policy.v1.json` — owner-private repair/rebuild policy.
+- `lib/migration/mig010_repair_policy.js` — deterministic proposal/resolution/occurrence candidate engine.
 - `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill.
 - `tests/mig010_existing_target_preflight_contract_test.js` — existing target `CORE_MISMATCH`/provenance drift blocks accidental INSERT.
 - `tests/mig010_plan_privacy_contract_test.js` — plan object не возвращает raw source records.
+- `tests/mig010_occurrence_identity_contract_test.js` — owner-confirmed identical operations сохраняются через `CONTENT_FINGERPRINT_OCCURRENCE_V1` без изменения FIN-TRUTH.
+- `tests/mig010_repair_policy_compatibility_contract_test.js` — exact-bound owner proposal v1.0/v1.1 compatibility.
 - `tools/mig010-owner.js` — owner-local privacy boundary: snapshot/dry-run/state/diagnostics; write disabled.
+- `tools/mig010-repair.js` — owner-local repair proposal/review/resolve; write disabled.
+- `tools/mig010-rebuild-dry-run.js` — owner-local resolved candidate verification; write disabled.
 - `tools/mig010-private-mapper.example.js` — public-safe functional template без private selectors.
 - `tests/mig010_private_mapper_example_contract_test.js` — split expense/income mapping + provenance preflight на synthetic backup.
 - `tests/mig010_owner_tool_contract_test.js` — encrypted-backup binding/stdout/private-path/write-disabled contract.
 - `tests/mig010_owner_diagnostics_contract_test.js` — exact-plan-bound private diagnostic report; public stdout содержит только reason codes/hashes.
+- `tests/mig010_rebuild_dry_run_contract_test.js` — resolved/proposal/resolution exact binding + canonical/fingerprint verification.
 
 ## Owner-private files
 
@@ -49,10 +63,11 @@ CODE_READY
 - migration resume secret;
 - migration private state;
 - private blocker diagnostic report;
+- private repair proposal/review/resolution/resolved candidate;
 - future irreversible authorization file;
 - private reconciliation details.
 
-Owner tool технически отклоняет private mapper/snapshot/state/diagnostic/secret внутри repository tree.
+Owner tools технически отклоняют private mapper/snapshot/state/diagnostic/repair files/secret внутри repository tree.
 
 ## Functional private mapper template
 
@@ -70,7 +85,7 @@ Tracked `tools/mig010-private-mapper.example.js` не содержит owner-pri
 - расход читает из expense field group, доход — из income field group;
 - строит private deterministic account/category IDs из normalized labels только внутри snapshot;
 - восстанавливает DATA-001 source provenance из current target source/reference fields;
-- использует `CONTENT_FINGERPRINT_V1` canonical identity;
+- использует обычный `CONTENT_FINGERPRINT_V1` для недублированных source records;
 - не выводит labels/amounts/descriptions в stdout.
 
 Compatibility wrapper `tools/mig010-private-mapper-leading-columns.example.js` принимает только известные timestamp aliases и bounded empty leading columns. Legacy target row с migrating provenance, но пустым timestamp, не чинится автоматически: только внутри dry-run mapper подставляет diagnostic RFC3339 sentinel, чтобы reconciliation мог классифицировать anomaly и заблокировать write. Workbook/backup не изменяются.
@@ -96,7 +111,7 @@ module.exports = {
 
 Рабочая copy mapper не коммитится. Source history преобразуется в DATA-001 `SOURCE-TRANSFORM-v1`, current target — в `PRH_CANONICAL_TRANSACTION_V1` с исходной migration provenance, а не с storage provenance Google row.
 
-## Dry-run
+## Initial dry-run
 
 Dry-run требует:
 
@@ -138,66 +153,92 @@ Private diagnostic file `MIG010_OWNER_PRIVATE_DIAGNOSTIC_V1` может соде
 
 Diagnostic mode не является repair/write mode. Он не изменяет Google Sheets, backup, snapshot или migration state.
 
+## Repair proposal / owner resolution
+
+`tools/mig010-repair.js propose` строит только owner-private proposal и при необходимости offline duplicate review HTML. `CORE_MISMATCH`/legacy `SOURCE_MISSING`/`SOURCE_ROW_MOVED` предлагаются к scoped legacy-slice rebuild; `SOURCE_INVALID` остаётся explained quarantine.
+
+`SOURCE_DUPLICATE` требует owner decision:
+
+- `DEDUPLICATE_KEEP_ONE` — подтверждённая повторная отправка;
+- `PRESERVE_ALL` — подтверждённые разные реальные операции;
+- `UNRESOLVED` — fail-closed.
+
+При `PRESERVE_ALL` текущая repair policy v1.1 создаёт `CONTENT_FINGERPRINT_OCCURRENCE_V1`: content fingerprint сохраняется, а distinct immutable source/transaction identities строятся из deterministic occurrence ordinal. CI/AI не имеют authority выбрать `PRESERVE_ALL` самостоятельно.
+
+Owner proposal, созданный policy v1.0, не требует повторного review: current engine принимает только exact-bound proposal policy `1.0.0` или `1.1.0` при совпадении `schema + strategy + proposal_hash + source_revision`; неизвестная версия fail-closed.
+
+`tools/mig010-repair.js resolve` создаёт `MIG010_OWNER_PRIVATE_REPAIR_RESOLVED_V1`. Даже статус `READY_FOR_REBUILD_DRY_RUN` означает только готовность к следующей read-only проверке, не разрешение записи.
+
+## Resolved rebuild dry-run
+
+Перед `AUTHORIZATION_REQUIRED` обязателен:
+
+```text
+node tools/mig010-rebuild-dry-run.js verify \
+  --snapshot <private> \
+  --proposal <private> \
+  --resolution <private> \
+  --resolved <private>
+```
+
+Verifier:
+
+- повторно вычисляет resolved state из exact snapshot + owner resolution;
+- проверяет `resolved_hash`, proposal/source/target binding;
+- валидирует весь canonical rebuild candidate как `PRH_CANONICAL_TRANSACTION_V1`;
+- для migration identities проверяет content fingerprint parity;
+- для occurrence identities доказывает distinct source identities без изменения финансовых core fields;
+- вычисляет только technical candidate revision hash;
+- не выводит transaction count, quarantine count или financial payload;
+- не имеет `execute/write/apply` authority.
+
+Только `MIG010_OWNER_REBUILD_DRY_RUN_V1 status=PASS`, `reconciliationReady=true`, `writeAuthorized=false` позволяет перейти к разработке/подготовке irreversible-action gate. Сам PASS **не авторизует** real write.
+
 ## Deterministic batching
 
-Для READY plan:
+Для будущего authorized READY plan/rebuild:
 
-- порядок: `source_fingerprint ASC`;
 - batch size `1..100`;
-- idempotency key: `MIG010:<plan_hash>:<batch_index>`;
+- deterministic order;
+- idempotency key связан с exact plan/rebuild hash и batch ordinal;
 - каждый batch требует exact `expected_revision`;
-- resume token = HMAC-SHA256 over `plan_hash + next_batch + expected_revision`;
+- resume token криптографически связан с exact state;
 - изменение target между batches блокирует resume.
 
-Plan object не содержит `source_records`/`private_source_records`; raw input остаётся только в owner-private snapshot, а private batch payload — только в owner-private state.
+Raw source input остаётся только owner-private; public plan/evidence не содержит source records.
 
 ## Irreversible-action gate
 
-На текущем этапе owner tool **не содержит активной команды write**. `execute`, `write` и `apply` возвращают:
+На текущем этапе owner/repair/rebuild tools **не содержат активной команды write**. `execute`, `write` и `apply` возвращают:
 
 `MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED`
 
-Это намеренная policy boundary. Перед включением real write должны одновременно существовать:
+Перед включением real write должны одновременно существовать:
 
-- private dry-run `READY`;
+- owner-private rebuild dry-run `PASS`;
 - fresh verified encrypted backup не старше 24 часов;
 - backup SHA совпадает со snapshot/plan;
-- explicit owner action `IRREVERSIBLE_ACTION_AUTHORIZED`, привязанный к exact `plan_hash`;
-- migration-specific write adapter с idempotency, expected revision, readback и rollback semantics;
+- explicit owner action `IRREVERSIBLE_ACTION_AUTHORIZED`, привязанный к exact plan/rebuild hash;
+- migration-specific scoped-rebuild write adapter с idempotency, expected revision, readback и rollback semantics;
 - готовность остановиться после любого batch при mismatch.
 
 Ни GitHub Actions, ни merge PR, ни AI-agent не могут создать это разрешение автоматически.
 
 ## Reconciliation
 
-После последнего batch и до признания migration успешной обязательно:
+После последнего future authorized batch и до признания migration успешной обязательно:
 
 - повторно прочитать canonical target;
-- выполнить DATA-001 source-to-canonical reconciliation;
+- выполнить source-to-canonical reconciliation с учётом approved occurrence identities и explained quarantine;
 - `unexplainedMismatch = 0`;
-- source/canonical history полностью покрыта provenance;
-- повторный full dry-run даёт только `REUSE`, без новых `INSERT`;
+- все non-quarantined source events покрыты canonical provenance;
+- explained quarantine привязана к exact source/rebuild revision;
+- повторный full verification не предлагает новые необъяснённые writes;
 - partial/ambiguous result остаётся fail-closed.
 
 ## Public-safe evidence
 
-В GitHub допускаются только:
-
-```json
-{
-  "schema": "MIG-010-EVIDENCE-v1",
-  "status": "PASS",
-  "planHash": "<sha256>",
-  "sourceRevisionHash": "<sha256>",
-  "initialTargetRevisionHash": "<sha256>",
-  "finalTargetRevisionHash": "<sha256>",
-  "backupCipherSha256": "<sha256>",
-  "unexplainedMismatch": 0,
-  "durationMs": 0
-}
-```
-
-Не публикуются counts, dates/period distributions, amounts, categories, descriptions, source positions, sheet names, mapper configuration, resume token/secret или private reconciliation/diagnostic rows.
+В GitHub допускаются только technical schema/status/hashes/PASS-FAIL/reason codes/timing. Не публикуются counts, dates/period distributions, amounts, categories, descriptions, source positions, sheet names, mapper configuration, duplicate payload, owner resolution, resume token/secret или private reconciliation/diagnostic/repair rows.
 
 ## Rollback
 
