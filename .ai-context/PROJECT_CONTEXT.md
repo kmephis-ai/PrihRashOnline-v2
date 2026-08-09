@@ -77,7 +77,7 @@ Normative runbook: `docs/operations/PERF011_REVISION_AWARE_CACHE.md`. Named cano
 
 ## MIG-010 historical verified boundary
 
-Owner-private full-history migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. This one-time authorization/evidence never grants later generic write authority. GitHub/AI cannot create or reuse `IRREVERSIBLE_ACTION_AUTHORIZED` for later mutations.
+Owner-private full-history migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. This one-time authorization/evidence never grants later generic write authority. GitHub Actions and AI cannot create or reuse `IRREVERSIBLE_ACTION_AUTHORIZED` for later mutations.
 
 ## Current delivery
 
