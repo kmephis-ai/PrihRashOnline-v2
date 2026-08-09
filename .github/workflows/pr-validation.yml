@@ -65,6 +65,8 @@ jobs:
         run: node tests/roadmap_task_protocol_contract_test.js
       - name: Multi-AI review protocol
         run: node tests/multi_ai_review_protocol_contract_test.js
+      - name: Layered test architecture
+        run: node tests/test_architecture_contract_test.js
       - name: Financial reconcile synthetic
         run: node tests/financial_reconciliation_contract_test.js
       - name: KPI Dictionary
@@ -105,12 +107,7 @@ jobs:
       - name: Prepare dashboard bundle
         run: npm run prepare:web
       - name: Run all contract tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t TEST_FILES < <(find tests -maxdepth 1 -type f -name '*contract_test.js' -print | sort -u)
-          [[ "${#TEST_FILES[@]}" -gt 0 ]] || { echo '::error::No contract tests found'; exit 1; }
-          for test_file in "${TEST_FILES[@]}"; do node "${test_file}"; done
+        run: node tools/run-layered-tests.js full
       - name: Install Playwright browser
         run: npx --no-install playwright install --with-deps chromium
       - name: Responsive visual gate
