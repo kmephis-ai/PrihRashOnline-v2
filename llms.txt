@@ -31,14 +31,16 @@ lib/adapters/google_sheets_operations_mapping.v1.json — versioned current-stor
 lib/adapters/google_sheets_transaction_repository.js — Google Sheets canonical transaction adapter with explicit currency/dimension resolvers.
 GoogleTransactionRepositoryGateway.js — Apps Script current-store read gateway; canonical financial writes independently fail-closed.
 tests/repository_adapter_contract_test.js — synthetic fake/Google mapping/gateway/financial parity + write-guard contract.
-docs/operations/MIG010_FULL_HISTORY_MIGRATION.md — current owner-private deterministic full-history migration runbook и irreversible-action boundary.
+docs/operations/MIG010_FULL_HISTORY_MIGRATION.md — current owner-private deterministic full-history migration runbook, blocked-diagnostics path и irreversible-action boundary.
 lib/migration/full_history_migration.v1.json — machine-readable `PRH_FULL_HISTORY_MIGRATION_V1` plan/batch/resume/backup/reconciliation policy.
 lib/migration/full_history_migration.js — deterministic dry-run, bounded batch/resume/pre-write/reconciliation engine; plan object не возвращает source records.
 tests/full_history_migration_contract_test.js — synthetic interruption/resume/idempotency/full reconciliation contract.
 tests/mig010_plan_privacy_contract_test.js — migration plan не возвращает private source records/payload.
-tools/mig010-owner.js — owner-local encrypted-backup snapshot/dry-run/state CLI; real write commands intentionally disabled pending explicit authorization stage.
+tools/mig010-owner.js — owner-local encrypted-backup snapshot/dry-run/state/diagnose CLI; detailed blocker diagnostics write only to private file; real write commands intentionally disabled pending explicit authorization stage.
 tools/mig010-private-mapper.example.js — public-safe intentionally unconfigured template; рабочая копия создаётся только вне repository и содержит owner-private mapping.
+tools/mig010-private-mapper-leading-columns.example.js — strict compatibility mapper for bounded empty leading columns/timestamp aliases plus fail-closed target-date diagnostics.
 tests/mig010_owner_tool_contract_test.js — private-path, backup-binding, stdout-privacy и write-disabled contract.
+tests/mig010_owner_diagnostics_contract_test.js — exact-plan-bound private blocker diagnostics; public stdout exposes reason codes/hashes only.
 tests/mig010_documentation_contract_test.js — current MIG-010 lifecycle/irreversible-action/public-safe truth contract.
 docs/PROJECT_STATUS.md — R0 complete + current R1/MASTER-G3 state; live lifecycle сверяется с GitHub Issues.
 docs/architecture.md — current Google runtime/control plane + pure core + repository port/adapter + target architecture.
