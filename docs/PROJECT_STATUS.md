@@ -24,33 +24,62 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS; previous lifecycle state was `IN_PROGRESS`.
-- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97.
+- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97; current owner-private stage = **AUTHORIZATION_REQUIRED**.
 - `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после текущего P0 writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/domain/canonical_transaction.js`, `docs/data/CANONICAL_TRANSACTION_SCHEMA.md`.
 ARCH-010: `PRH_APPLICATION_CORE_V1`, pure use-cases без I/O/network/financial-write authority.
-ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`, deterministic fake + Google adapter; current Google canonical write fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`, deterministic fake + Google adapter; generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-MIG-010 current candidate:
+## MIG-010 current truth
 
-- `lib/migration/full_history_migration.v1.json` — `PRH_FULL_HISTORY_MIGRATION_V1`;
-- `lib/migration/full_history_migration.js` — deterministic dry-run, bounded batches, HMAC resume, backup/authorization gate, reconciliation;
-- `lib/migration/mig010_repair_policy.v1.json` + `.js` — `MIG010_REPAIR_POLICY_V1@1.1.0`, scoped legacy rebuild/quarantine/duplicate owner decision;
-- `PRH_CANONICAL_TRANSACTION_V1` additive identity capability `CONTENT_FINGERPRINT_OCCURRENCE_V1` для owner-confirmed identical real operations;
-- `tests/mig010_occurrence_identity_contract_test.js` — distinct occurrence identity + FIN-TRUTH parity + row-position separation;
-- `tests/mig010_repair_policy_compatibility_contract_test.js` — exact owner proposal v1.0/v1.1 carry-forward, unknown versions fail closed;
-- `tools/mig010-owner.js` — owner-local encrypted-backup snapshot/dry-run/state/diagnostics boundary; write commands intentionally disabled;
-- `tools/mig010-repair.js` — private repair proposal + offline duplicate review + owner-bound resolution; write commands disabled;
-- `tools/mig010-rebuild-dry-run.js` — resolved candidate recomputation/canonical/fingerprint verification; write commands disabled;
-- `tests/mig010_rebuild_dry_run_contract_test.js` — exact resolved binding + read-only rebuild verification;
-- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md`, `docs/operations/MIG010_REPAIR_POLICY.md`, `docs/adr/ADR-MIG-010-OCCURRENCE-IDENTITY.md` — owner runbooks/architecture decision.
+MIG-010 implementation включает:
 
-Owner-private checkpoint достигнут без публикации financial payload: encrypted-backup snapshot создан, full-history dry-run корректно вернул `BLOCKED`, private state verify = PASS, diagnostics созданы owner-local. Набор public-safe blocker classes: `CORE_MISMATCH`, `SOURCE_DUPLICATE`, `SOURCE_INVALID`, `SOURCE_MISSING`. `writeAuthorized=false`; ни один real migration batch не выполнялся.
+- `PRH_FULL_HISTORY_MIGRATION_V1` — deterministic dry-run, bounded batches, HMAC resume, backup/authorization gate, reconciliation;
+- `MIG010_REPAIR_POLICY_V1@1.1.0` + `REBUILD_LEGACY_SLICE_V1`;
+- additive Canonical v1 identity `CONTENT_FINGERPRINT_OCCURRENCE_V1` для owner-confirmed identical real operations;
+- owner-local encrypted-backup snapshot/dry-run/private diagnostics;
+- offline duplicate owner review + exact-bound resolution;
+- independent resolved rebuild dry-run;
+- `MIG010_EXECUTION_POLICY_V1@1.0.0` + `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`;
+- owner-private execution-package builder;
+- separate authorization-gated `Mig010ExecutionGateway.js` с staging/readback/rollback;
+- owner-local authorized executor, который без private `IRREVERSIBLE_ACTION_AUTHORIZED` fail-closed;
+- fresh-backup post-write reconciliation verifier.
 
-Repair stage намеренно не угадывает смысл `SOURCE_DUPLICATE`. `CORE_MISMATCH`/legacy `SOURCE_MISSING` покрываются proposal на scoped rebuild старого legacy-derived target slice; `SOURCE_INVALID` сохраняется в private explained quarantine; duplicate groups требуют owner decision. При owner-confirmed `PRESERVE_ALL` repair использует `CONTENT_FINGERPRINT_OCCURRENCE_V1`: одинаковый content fingerprint сохраняется, но occurrences получают distinct deterministic source/transaction identities. Exact proposal policy v1.0 может быть продолжен current v1.1 только при полном schema/strategy/hash/source binding; неизвестная версия блокируется.
+Owner-private checkpoint достигнут без публикации financial payload:
 
-После repair `resolve` обязателен owner-local `RESOLVED_REBUILD_DRY_RUN`: он повторно вычисляет candidate, проверяет canonical collection/fingerprint parity и technical revision hash. Этот PASS всё ещё означает только готовность к следующему authorization stage, а не разрешение записи.
+- encrypted-backup snapshot — PASS;
+- initial full-history dry-run — корректно `BLOCKED`, что выявило legacy anomalies;
+- private diagnostics — PASS;
+- duplicate semantics — решены владельцем private review;
+- repair resolve — `READY_FOR_REBUILD_DRY_RUN`, blockers cleared;
+- independent resolved rebuild dry-run — **PASS**, `reconciliationReady=true`;
+- current real write authorization — **false**;
+- ни один real migration batch ещё не выполнялся.
+
+`SOURCE_INVALID` остаётся explained private quarantine. Owner-confirmed identical operations используют `CONTENT_FINGERPRINT_OCCURRENCE_V1`: content fingerprint не искажается, а отдельные реальные occurrences получают deterministic distinct identities.
+
+### Current irreversible boundary
+
+```text
+RESOLVED_REBUILD_DRY_RUN = PASS
+-> EXECUTION_PACKAGE
+-> AUTHORIZATION_REQUEST
+-> AUTHORIZATION_REQUIRED
+-> (только после owner IRREVERSIBLE_ACTION_AUTHORIZED)
+   STAGING -> READBACK -> FINALIZED_PENDING_RECONCILIATION
+-> FRESH ENCRYPTED BACKUP
+-> POST-WRITE RECONCILIATION, unexplainedMismatch=0
+-> OWNER_VERIFIED
+```
+
+Execution package/authorization request не являются разрешением. GitHub Actions, merge PR и AI-agent не могут создать `IRREVERSIBLE_ACTION_AUTHORIZED`.
+
+`Mig010ExecutionGateway.js` не ослабляет ARCH-011: generic Google repository mutation остаётся запрещённой. MIG gateway — отдельный narrowly scoped owner-authorized path, связанный exact hashes, fresh backup и private session.
+
+Finalize выполняется только после полного staging hash verification. При finalize failure live target восстанавливается из hidden rollback copy. После успешного finalize rollback сохраняется до fresh-backup reconciliation PASS.
 
 **Private full-history migration пока не выполнена и не разрешена.**
 
@@ -62,9 +91,9 @@ Exit требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-01
 
 `lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` — pure boundary. Application core не имеет I/O/network/financial-write authority.
 
-ARCH-011 добавил storage-neutral repository port и Google Sheets adapter снаружи pure core. Наличие `writeBatch()` interface не создаёт permission: current Google adapter возвращает `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+ARCH-011 добавил storage-neutral repository port и Google Sheets adapter снаружи pure core. Наличие `writeBatch()` interface не создаёт permission: current generic Google adapter возвращает `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-MIG-010 добавляет migration/repair/rebuild-verification protocol, но merge/CI/owner dry-run не создают write authority. Реальный первый batch требует owner-private `IRREVERSIBLE_ACTION_AUTHORIZED`, exact plan/rebuild hash и свежий DR-001 backup evidence.
+MIG-010 execution gateway является отдельной policy boundary и не меняет generic repository authority.
 
 ## Executable AI engineering baseline
 
@@ -88,8 +117,10 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 ## Что намеренно не утверждается
 
 - full-history migration **не** завершена;
-- owner-private repair proposal/resolution/resolved/rebuild verification **не** является authorization на real financial writes;
-- MIG-010 code readiness **не** является authorization на real financial writes;
+- owner-private repair/rebuild verification **не** является authorization на real financial writes;
+- execution package/request **не** является authorization;
+- authorized migration **не** выполнялась;
+- `unexplainedMismatch=0` на post-write real workbook **ещё не доказан**;
 - Google -> Yandex cutover **не** выполнен;
 - private Dashboard **не** сделан публичным;
 - public Git history rewrite **не authorized/executed**;
