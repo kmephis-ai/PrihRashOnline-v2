@@ -89,6 +89,7 @@ jobs:
           node tests/mig010_target_blank_date_contract_test.js
           node tests/mig010_owner_tool_contract_test.js
           node tests/mig010_owner_diagnostics_contract_test.js
+          node tests/mig010_occurrence_identity_contract_test.js
           node tests/mig010_repair_policy_contract_test.js
           node tests/mig010_repair_tool_contract_test.js
           node tests/mig010_documentation_contract_test.js
