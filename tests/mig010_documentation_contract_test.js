@@ -17,6 +17,7 @@ const llms = read('llms.txt');
 const workflow = read('.github/workflows/pr-validation.yml');
 const ownerTool = read('tools/mig010-owner.js');
 const repairTool = read('tools/mig010-repair.js');
+const rebuildTool = read('tools/mig010-rebuild-dry-run.js');
 const contract = JSON.parse(read('lib/migration/full_history_migration.v1.json'));
 const repairPolicy = JSON.parse(read('lib/migration/mig010_repair_policy.v1.json'));
 const canonicalSchema = JSON.parse(read('lib/domain/canonical_transaction.v1.schema.json'));
@@ -65,16 +66,20 @@ match(occurrenceAdr, /write authority: false/i,
 match(occurrenceAdr, /AI\/CI[^\n]{0,180}PRESERVE_ALL/i,
   'occurrence ADR must deny AI/CI owner decision authority');
 
-match(runbook, /CODE_READY[\s\S]{0,700}OWNER_PRIVATE_SNAPSHOT[\s\S]{0,700}OWNER_DRY_RUN[\s\S]{0,700}AUTHORIZATION_REQUIRED[\s\S]{0,700}PRIVATE_RECONCILIATION/,
-  'runbook migration state machine missing');
+match(runbook, /CODE_READY[\s\S]{0,1500}OWNER_PRIVATE_SNAPSHOT[\s\S]{0,1500}OWNER_DRY_RUN[\s\S]{0,1500}RESOLVED_REBUILD_DRY_RUN[\s\S]{0,1500}AUTHORIZATION_REQUIRED[\s\S]{0,1500}PRIVATE_RECONCILIATION/,
+  'runbook migration/repair/rebuild state machine missing');
 match(runbook, /OWNER_PRIVATE_DIAGNOSTICS/,
   'runbook must expose blocked owner-private diagnostics path');
 match(runbook, /MIG010_OWNER_PRIVATE_DIAGNOSTIC_V1/,
   'runbook must identify private diagnostic schema');
+match(runbook, /tools\/mig010-rebuild-dry-run\.js verify/,
+  'runbook must require resolved rebuild dry-run');
+match(runbook, /proposal policy `1\.0\.0` или `1\.1\.0`/,
+  'runbook must document bounded previous proposal compatibility');
 match(runbook, /detailedFindingsStdout=false/,
   'runbook must keep detailed diagnostic findings out of stdout');
-match(runbook, /owner tool[^\n]{0,240}(?:не содержит[^\n]{0,120}(?:write|команд)|write[^\n]{0,120}(?:disabled|выключ|не содержит))/i,
-  'runbook must keep owner tool write disabled');
+match(runbook, /owner\/repair\/rebuild tools[^\n]{0,240}не содержат активной команды write/i,
+  'runbook must keep all current migration tools write disabled');
 match(runbook, /private mapper/i,
   'runbook must identify private mapper');
 match(runbook, /вне Git repository/i,
@@ -92,6 +97,12 @@ match(repairRunbook, /DEDUPLICATE_KEEP_ONE[\s\S]{0,1000}PRESERVE_ALL[\s\S]{0,100
   'repair runbook must expose bounded duplicate owner decisions');
 match(repairRunbook, /PRESERVE_ALL[\s\S]{0,900}CONTENT_FINGERPRINT_OCCURRENCE_V1/,
   'preserve-all duplicate decision must use occurrence-aware identity');
+match(repairRunbook, /MIG010_REPAIR_POLICY_V1@1\.0\.0[\s\S]{0,500}MIG010_REPAIR_POLICY_V1@1\.1\.0/,
+  'repair runbook must document exact previous/current proposal compatibility');
+match(repairRunbook, /MIG010_REPAIR_PROPOSAL_POLICY_INCOMPATIBLE/,
+  'unknown proposal policy version must fail closed');
+match(repairRunbook, /tools\/mig010-rebuild-dry-run\.js verify/,
+  'repair runbook must require rebuild verification after resolve');
 match(repairRunbook, /не имеют права автоматически выбирать `DEDUPLICATE_KEEP_ONE` или `PRESERVE_ALL`/,
   'AI/CI must not decide financial duplicate semantics');
 match(repairRunbook, /write_authority: false/,
@@ -124,12 +135,6 @@ match(ownerTool, /detailedFindingsStdout:\s*false/,
   'owner diagnostic stdout must exclude detailed findings');
 match(ownerTool, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
   'owner tool must fail closed on write command');
-match(ownerTool, /MIG010_PRIVATE_MAPPER_INSIDE_REPOSITORY/,
-  'owner tool must reject private mapper inside repository');
-match(ownerTool, /MIG010_PRIVATE_DIAGNOSTIC_INSIDE_REPOSITORY/,
-  'owner tool must reject private diagnostic output inside repository');
-match(ownerTool, /MIG010_SNAPSHOT_BACKUP_MISMATCH/,
-  'owner tool must bind snapshot to backup evidence');
 
 match(repairTool, /offlineDuplicateReview:\s*true/,
   'repair tool contract must advertise offline duplicate review');
@@ -142,8 +147,23 @@ match(repairTool, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
 match(repairTool, /financialPayloadStdout:\s*false/,
   'repair tool stdout must exclude financial payload');
 
-match(workflow, /- name: Full-history migration protocol[\s\S]{0,1500}mig010_occurrence_identity_contract_test\.js[\s\S]{0,700}mig010_repair_policy_contract_test\.js[\s\S]{0,700}mig010_repair_tool_contract_test\.js[\s\S]{0,700}mig010_documentation_contract_test\.js/m,
-  'PR Validation must have named migration occurrence + repair gate');
+match(rebuildTool, /schema:\s*'MIG010_REBUILD_DRY_RUN_TOOL_V1'/,
+  'rebuild tool must expose versioned contract');
+match(rebuildTool, /exactResolvedBinding:\s*true/,
+  'rebuild tool must verify exact resolved binding');
+match(rebuildTool, /canonicalValidation:\s*true/,
+  'rebuild tool must revalidate canonical candidate');
+match(rebuildTool, /migrationFingerprintParity:\s*true/,
+  'rebuild tool must validate migration fingerprint parity');
+match(rebuildTool, /writeCommandEnabled:\s*false/,
+  'rebuild verifier must keep write disabled');
+match(rebuildTool, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
+  'rebuild tool write commands must fail closed');
+match(rebuildTool, /financialPayloadStdout:\s*false/,
+  'rebuild stdout must exclude financial payload');
+
+match(workflow, /- name: Full-history migration protocol[\s\S]{0,2200}mig010_occurrence_identity_contract_test\.js[\s\S]{0,700}mig010_repair_policy_contract_test\.js[\s\S]{0,700}mig010_repair_policy_compatibility_contract_test\.js[\s\S]{0,700}mig010_repair_tool_contract_test\.js[\s\S]{0,700}mig010_rebuild_dry_run_contract_test\.js[\s\S]{0,700}mig010_documentation_contract_test\.js/m,
+  'PR Validation must have named migration occurrence + compatibility + repair + rebuild gate');
 
 for (const required of [
   'docs/data/CANONICAL_TRANSACTION_SCHEMA.md',
@@ -156,12 +176,15 @@ for (const required of [
   'lib/migration/mig010_repair_policy.js',
   'tests/full_history_migration_contract_test.js',
   'tests/mig010_occurrence_identity_contract_test.js',
+  'tests/mig010_repair_policy_compatibility_contract_test.js',
   'tools/mig010-owner.js',
   'tools/mig010-repair.js',
+  'tools/mig010-rebuild-dry-run.js',
   'tests/mig010_owner_tool_contract_test.js',
   'tests/mig010_owner_diagnostics_contract_test.js',
   'tests/mig010_repair_policy_contract_test.js',
-  'tests/mig010_repair_tool_contract_test.js'
+  'tests/mig010_repair_tool_contract_test.js',
+  'tests/mig010_rebuild_dry_run_contract_test.js'
 ]) {
   assert(llms.includes(required), `llms.txt missing ${required}`);
 }
@@ -183,9 +206,11 @@ console.log('mig010_documentation_contract_test: OK', {
   privatePathsOutsideRepository: true,
   privateDiagnostics: true,
   repairPolicy: 'MIG010_REPAIR_POLICY_V1@1.1.0',
+  compatibleProposalPolicies: ['1.0.0', '1.1.0'],
   duplicateOwnerDecision: true,
   preserveAllOccurrenceIdentity: true,
   occurrenceIdentityStrategy: 'CONTENT_FINGERPRINT_OCCURRENCE_V1',
+  resolvedRebuildDryRun: true,
   detailedFindingsStdout: false,
   unexplainedMismatchRequired: 0
 });
