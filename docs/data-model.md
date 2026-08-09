@@ -80,7 +80,7 @@ DATA-010 разделяет:
 
 Stored legacy status не переопределяет computed reconciliation result.
 
-Full-history migration **owner-verified**: owner-authorized staging/readback/finalize завершены, создан fresh encrypted post-write backup, а `MIG010_OWNER_POST_RECONCILIATION_V1` доказал exact final target parity, `unexplainedMismatch=0`, полную provenance и idempotent rerun. Это не означает открытие generic write authority или выполнение Google -> Yandex cutover.
+До отдельного deterministic Roadmap item + `OWNER_VERIFIED` gate full-history migration **не считается завершённым**. Этот gate теперь пройден: owner-authorized staging/readback/finalize завершены, создан fresh encrypted post-write backup, а `MIG010_OWNER_POST_RECONCILIATION_V1` доказал exact final target parity, `unexplainedMismatch=0`, полную provenance и idempotent rerun. Это не означает открытие generic write authority или выполнение Google -> Yandex cutover.
 
 ## Dashboard transaction fields
 
