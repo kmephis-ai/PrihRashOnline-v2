@@ -22,9 +22,10 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
-- `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS; предыдущий lifecycle state был `IN_PROGRESS`.
-- `ARCH-011` Repository interfaces + Google Sheets adapter — **IN_PROGRESS**, Issue #91, active PR #95.
-- `ANL-010`, `TEST-010`, `OBS-010` и другие dependent items остаются blocked до выполнения своих declared dependencies; ARCH-011 ещё не считается DONE до Main Verification.
+- `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
+- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
+- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97.
+- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после текущего P0 writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
 
@@ -32,20 +33,30 @@ DATA-010 contracts: `lib/domain/canonical_transaction.v1.schema.json`, `lib/doma
 
 ARCH-010 contracts:
 
-- `lib/application/application_core.v1.json` — `PRH_APPLICATION_CORE_V1` purity/authority/use-case contract;
+- `lib/application/application_core.v1.json` — `PRH_APPLICATION_CORE_V1`;
 - `lib/application/financial_core.js` — pure canonical validation/KPI/migration use-cases;
-- `tests/pure_domain_application_core_contract_test.js` — behavior + dependency-boundary contracts;
-- `docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md` — normative architecture boundary.
+- `tests/pure_domain_application_core_contract_test.js` — behavior + dependency boundary;
+- `docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md` — normative pure-core boundary.
 
-ARCH-011 candidate contracts:
+ARCH-011 contracts:
 
 - `lib/repository/transaction_repository.v1.json` — `PRH_TRANSACTION_REPOSITORY_V1` storage-neutral port;
-- `lib/repository/transaction_repository.js` — deterministic query/revision + in-memory fake repository;
-- `lib/adapters/google_sheets_operations_mapping.v1.json` — versioned current-sheet mapping;
-- `lib/adapters/google_sheets_transaction_repository.js` — Google Sheets adapter над canonical transactions;
+- `lib/repository/transaction_repository.js` — deterministic query/revision + in-memory fake;
+- `lib/adapters/google_sheets_operations_mapping.v1.json` + `lib/adapters/google_sheets_transaction_repository.js` — versioned Google adapter;
 - `GoogleTransactionRepositoryGateway.js` — Apps Script read boundary; canonical financial write fail-closed;
-- `tests/repository_adapter_contract_test.js` — synthetic repository/fake/Google mapping/gateway parity gate;
-- `docs/architecture/TRANSACTION_REPOSITORY_PORT.md` + `docs/adr/ADR-ARCH-011-TRANSACTION-REPOSITORY.md` — normative boundary/decision.
+- `tests/repository_adapter_contract_test.js` — synthetic repository/fake/Google parity;
+- `docs/architecture/TRANSACTION_REPOSITORY_PORT.md` + ADR — normative boundary.
+
+MIG-010 current candidate:
+
+- `lib/migration/full_history_migration.v1.json` — `PRH_FULL_HISTORY_MIGRATION_V1`;
+- `lib/migration/full_history_migration.js` — deterministic dry-run, bounded batches, HMAC resume, backup/authorization gate, reconciliation;
+- `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill;
+- `tools/mig010-owner.js` — owner-local snapshot/dry-run/state boundary; write commands intentionally disabled;
+- `tests/mig010_owner_tool_contract_test.js` — encrypted-backup binding, private-path and no-payload-stdout contract;
+- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md` — owner runbook.
+
+Первый behavioral PR Validation #162 и последующий owner-tool contract run прошли на synthetic data. **Private full-history migration пока не выполнена и не разрешена.**
 
 ### MASTER-G3 / Canonical platform — **open**
 
@@ -55,7 +66,9 @@ Exit требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-01
 
 `lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` являются локально исполняемым pure boundary. Application core принимает plain data, не имеет I/O/network/financial-write authority и не зависит от `SpreadsheetApp`, Apps Script UI, DOM или Google Sheet layout.
 
-ARCH-011 добавляет storage-neutral repository port и Google Sheets adapter **снаружи** pure core. Наличие `writeBatch()` interface не создаёт permission: current Google adapter возвращает `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`, а Apps Script gateway не содержит operation-write primitives.
+ARCH-011 добавил storage-neutral repository port и Google Sheets adapter снаружи pure core. Наличие `writeBatch()` interface не создаёт permission: current Google adapter возвращает `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`, а Apps Script gateway не содержит operation-write primitives.
+
+MIG-010 добавляет отдельный migration protocol, но merge/CI не создают write authority. Реальный первый batch требует owner-private `IRREVERSIBLE_ACTION_AUTHORIZED`, exact plan hash и свежий DR-001 backup evidence.
 
 ## Executable AI engineering baseline
 
@@ -79,12 +92,11 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 ## Что намеренно не утверждается
 
 - full-history migration **не** завершена;
+- MIG-010 code readiness **не** является authorization на real financial writes;
 - Google -> Yandex cutover **не** выполнен;
 - private Dashboard **не** сделан публичным;
 - public Git history rewrite **не authorized/executed**;
 - paid cloud/AI/OCR provider **не** включён;
-- ARCH-010 не предоставляет repository I/O и не разрешает financial writes;
-- ARCH-011 пока не DONE и не разрешает canonical Google financial writes;
 - последующие R1 items не считаются DONE до собственных machine gates/Main Verification.
 
 ## Source precedence
