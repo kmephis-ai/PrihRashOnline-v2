@@ -75,6 +75,26 @@
       "budget": { "max_files": 48, "max_seconds": 60 }
     }
   ],
+  "exact_overrides": {
+    "application_menu_contract_test.js": "UI_E2E",
+    "autonomous_merge_contract_test.js": "POLICY_GOVERNANCE",
+    "income_sidebar_validation_test.js": "UI_E2E",
+    "secret_scan_contract_test.js": "POLICY_GOVERNANCE",
+    "synthetic_finance_fixture_contract_test.js": "PURE_DOMAIN_APPLICATION",
+    "v1_rc_contract_test.js": "UI_E2E",
+    "dashboard_web_runtime_smoke_contract_test.js": "RUNTIME_INTEGRATION",
+    "mig010_documentation_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_execution_documentation_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_execution_gateway_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_leading_columns_mapper_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_plan_privacy_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_private_mapper_example_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_repair_policy_compatibility_contract_test.js": "MIGRATION_RECOVERY",
+    "mig010_repair_policy_contract_test.js": "MIGRATION_RECOVERY",
+    "trusted_dev_deploy_observability_contract_test.js": "RUNTIME_INTEGRATION",
+    "trusted_dev_deploy_runtime_contract_test.js": "RUNTIME_INTEGRATION",
+    "trusted_runtime_health_workflow_contract_test.js": "RUNTIME_INTEGRATION"
+  },
   "suites": {
     "pure": {
       "layers": ["PURE_DOMAIN_APPLICATION"],
