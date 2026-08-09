@@ -14,6 +14,7 @@ const docs = {
   release: read('docs/RELEASE_PROCESS.md'),
   architecture: read('docs/architecture.md'),
   pureCore: read('docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md'),
+  repositoryPort: read('docs/architecture/TRANSACTION_REPOSITORY_PORT.md'),
   dashboard: read('docs/dashboard.md'),
   dataModel: read('docs/data-model.md'),
   userGuide: read('docs/user-guide.md'),
@@ -45,6 +46,7 @@ const currentOperationalDocs = [
   ['docs/RELEASE_PROCESS.md', docs.release],
   ['docs/architecture.md', docs.architecture],
   ['docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md', docs.pureCore],
+  ['docs/architecture/TRANSACTION_REPOSITORY_PORT.md', docs.repositoryPort],
   ['docs/dashboard.md', docs.dashboard],
   ['docs/data-model.md', docs.dataModel],
   ['docs/user-guide.md', docs.userGuide],
@@ -121,6 +123,8 @@ requireMatch('DOC_ARCH_PUBLIC_REAL_DERIVED_FORBIDDEN', docs.architecture, /real-
   'Architecture must forbid real-derived public financial data');
 requireMatch('DOC_ARCH_PURE_CORE', docs.architecture, /PRH_APPLICATION_CORE_V1[\s\S]{0,900}io_authority: false/i,
   'Architecture must expose the pure application core authority boundary');
+requireMatch('DOC_ARCH_REPOSITORY_PORT', docs.architecture, /PRH_TRANSACTION_REPOSITORY_V1[\s\S]{0,1200}GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/i,
+  'Architecture must expose repository port and fail-closed Google write boundary');
 
 requireMatch('DOC_PURE_CORE_SCHEMA', docs.pureCore, /PRH_APPLICATION_CORE_V1/,
   'Pure core doc must identify application core contract');
@@ -134,6 +138,15 @@ requireMatch('DOC_PURE_CORE_PLATFORM_FORBIDDEN', docs.pureCore, /SpreadsheetApp[
   'Pure core doc must identify platform/UI dependencies as forbidden');
 requireMatch('DOC_PURE_CORE_ARCH011_HANDOFF', docs.pureCore, /ARCH-011[\s\S]{0,300}repository adapter/i,
   'Pure core doc must preserve repository-adapter handoff');
+
+requireMatch('DOC_REPOSITORY_PORT_SCHEMA', docs.repositoryPort, /PRH_TRANSACTION_REPOSITORY_V1/,
+  'Repository port doc must identify machine schema');
+requireMatch('DOC_REPOSITORY_PORT_CANONICAL', docs.repositoryPort, /PRH_CANONICAL_TRANSACTION_V1/,
+  'Repository port doc must bind to canonical transactions');
+requireMatch('DOC_REPOSITORY_PORT_WRITE_BLOCKED', docs.repositoryPort, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/,
+  'Repository port doc must keep Google canonical writes fail-closed');
+requireMatch('DOC_REPOSITORY_PORT_ROW_NOT_IDENTITY', docs.repositoryPort, /source_position[\s\S]{0,180}(?:не|not)[^\n]{0,80}(?:identity|logical)/i,
+  'Repository port doc must keep source position separate from logical identity');
 
 requireMatch('DOC_DATA_REAL_DERIVED_FORBIDDEN', docs.dataModel, /real-derived/,
   'Data model must explicitly forbid real-derived public financial data');
@@ -165,8 +178,10 @@ requireMatch('DOC_STATUS_FIN010_DONE', docs.status, /FIN-010[^\n]{0,180}(?:DONE|
   'Project status must identify FIN-010 as DONE');
 requireMatch('DOC_STATUS_DATA010_DONE', docs.status, /DATA-010[^\n]{0,180}(?:DONE|заверш)/i,
   'Project status must identify DATA-010 as DONE');
-requireMatch('DOC_STATUS_ARCH010_CURRENT', docs.status, /ARCH-010[^\n]{0,180}IN_PROGRESS/i,
-  'Project status must identify ARCH-010 as current R1 item');
+requireMatch('DOC_STATUS_ARCH010_DONE', docs.status, /ARCH-010[^\n]{0,180}DONE/i,
+  'Project status must identify ARCH-010 as DONE');
+requireMatch('DOC_STATUS_ARCH011_CURRENT', docs.status, /ARCH-011[^\n]{0,220}IN_PROGRESS/i,
+  'Project status must identify ARCH-011 as current R1 item');
 requireMatch('DOC_STATUS_G3_OPEN', docs.status, /MASTER-G3[\s\S]{0,120}open/i,
   'Project status must expose open MASTER-G3');
 
@@ -229,6 +244,9 @@ requireMatch('WORKFLOW_CANONICAL_SCHEMA_GATE', docs.prValidation,
 requireMatch('WORKFLOW_PURE_CORE_GATE', docs.prValidation,
   /- name: Pure domain\/application core\s+run: node tests\/pure_domain_application_core_contract_test\.js/m,
   'PR Validation must run named Pure domain/application core gate');
+requireMatch('WORKFLOW_REPOSITORY_ADAPTER_GATE', docs.prValidation,
+  /- name: Transaction repository adapter\s+run: node tests\/repository_adapter_contract_test\.js/m,
+  'PR Validation must run named Transaction repository adapter gate');
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -240,7 +258,8 @@ if (failures.length > 0) {
     operationalDocs: currentOperationalDocs.length,
     currentReleaseModel: 'EXACT_SHA_AUTONOMOUS',
     currentRoadmapWave: 'R1',
-    currentRoadmapItem: 'ARCH-010',
+    currentRoadmapItem: 'ARCH-011',
+    repositoryPort: 'PRH_TRANSACTION_REPOSITORY_V1',
     publicRuntimeLocator: false,
     r0MasterGatesComplete: true,
     historicalChangelogExcludedFromInstructionScan: true
