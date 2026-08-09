@@ -27,19 +27,21 @@ R0 machine-proven complete: TEST/SEC/FIN/DATA truth, reproducible supply chain, 
 - `FIN-010` KPI Dictionary v1 — DONE, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical Transaction v1 — DONE, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — DONE, Issue #89 Main Verification PASS.
-- `ARCH-011` Transaction Repository Port + Google Sheets adapter — current writer, Issue #91, active PR #95.
+- `ARCH-011` Transaction Repository Port + Google Sheets adapter — DONE, Issue #91 Main Verification PASS.
+- `MIG-010` deterministic full-history migration — current P0 writer, Issue #96, draft PR #97.
 
-ARCH-011 candidate:
+ARCH-011 established `PRH_TRANSACTION_REPOSITORY_V1`: storage-neutral read/query/write-interface contract. Current Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`; adapter existence is not financial-write authority.
 
-- `lib/repository/transaction_repository.v1.json` — `PRH_TRANSACTION_REPOSITORY_V1` storage-neutral capabilities/query/write-interface contract;
-- `lib/repository/transaction_repository.js` — deterministic query/revision + fake in-memory repository;
-- `lib/adapters/google_sheets_operations_mapping.v1.json` — versioned mapping from current `01 Операции` representation;
-- `lib/adapters/google_sheets_transaction_repository.js` — Google mapping/query adapter with explicit currency/dimension resolvers;
-- `GoogleTransactionRepositoryGateway.js` — Apps Script current-store read boundary;
-- `tests/repository_adapter_contract_test.js` — independently generated synthetic fake/Google/gateway parity contract;
-- `docs/architecture/TRANSACTION_REPOSITORY_PORT.md` + ADR — normative repository boundary.
+MIG-010 current candidate:
 
-Pure core не имеет I/O/network/financial-write authority. Repository port находится снаружи pure core. Наличие generic `writeBatch()` interface не является authorization: current Google adapter fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`, legacy operation-write guards не ослаблены.
+- `lib/migration/full_history_migration.v1.json` — `PRH_FULL_HISTORY_MIGRATION_V1` policy;
+- `lib/migration/full_history_migration.js` — deterministic dry-run, <=100 batches, HMAC resume, target revision precondition, DR backup binding, irreversible-action authorization check, private reconciliation;
+- `tests/full_history_migration_contract_test.js` — interruption/resume/idempotency synthetic drill;
+- `tools/mig010-owner.js` — owner-local encrypted-backup snapshot/dry-run/state CLI;
+- `tests/mig010_owner_tool_contract_test.js` — private-path/outside-repo, encrypted-backup binding, stdout privacy and write-disabled contracts;
+- `docs/operations/MIG010_FULL_HISTORY_MIGRATION.md` — owner-private runbook.
+
+Public CI uses independently generated synthetic data. Private mapper/snapshot/state/resume secret/backup remain outside repository. `execute/write/apply` in owner tool intentionally fail closed until an explicit irreversible-action stage is approved.
 
 ## Current delivery
 
@@ -79,8 +81,9 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 - Public finance data — independently generated synthetic only.
 - Real or real-derived household finance data/aggregates/screenshots/exports stay private.
 - Private deployment identifiers, authenticated responses, OAuth, backups/keys stay private.
-- Full-history migration не объявлена завершённой.
-- New canonical mutation требует отдельный Roadmap contract с idempotency/preconditions/readback/reconciliation/rollback.
+- Full-history migration **не объявлена завершённой**.
+- MIG-010 merge/code readiness не разрешает real write.
+- New canonical mutation требует idempotency/preconditions/readback/reconciliation/rollback и отдельный irreversible-action authorization.
 - `FREE_ONLY` обязателен; required checks не требуют paid provider.
 
 ## FIN-010 financial semantics boundary
@@ -91,23 +94,21 @@ UI, chart renderer и legacy total cells не являются источник�
 
 ## DATA-010 canonical data boundary
 
-Canonical Transaction v1 отделяет portable domain fields от Google Sheet layout. Stable `transaction_id` и logical source identity обязательны; `source_position` — mutable locator, не identity. Money остаётся integer `amount_minor` + explicit currency. Account/category/member/project/tags — domain dimensions, а не spreadsheet headers.
+Canonical Transaction v1 отделяет portable domain fields от Google Sheet layout. Stable `transaction_id` и logical source identity обязательны; `source_position` — mutable locator, не identity. Money остаётся integer `amount_minor` + explicit currency.
 
 Для DATA-001 legacy compatibility используется `CONTENT_FINGERPRINT_V1`, stable при row movement. Изменение imported source fingerprint/record identity после canonical import fail-closed.
 
-## ARCH-010 pure application boundary
+## ARCH-010 / ARCH-011 boundaries
 
-`lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` — pure in-process boundary. Application use-cases принимают plain data и переиспользуют canonical/KPI/migration contracts; они не должны обращаться к `SpreadsheetApp`, Apps Script UI, DOM, storage или network.
+`lib/domain/**`, `lib/finance/**`, `lib/migration/**`, `lib/application/**` — pure in-process boundary без `SpreadsheetApp`, DOM/storage/network authority. `PRH_APPLICATION_CORE_V1` фиксирует `io_authority=false`, `financial_write_authority=false`, `network_authority=false`.
 
-`PRH_APPLICATION_CORE_V1` фиксирует `io_authority=false`, `financial_write_authority=false`, `network_authority=false`. Static CI contract блокирует imports из pure core в top-level runtime/UI modules.
+`PRH_TRANSACTION_REPOSITORY_V1` находится снаружи pure semantics. Fake repository даёт synthetic-only optimistic/idempotent write contract для tests. Google adapter read/query работает через versioned mapping; Google row остаётся mutable `source_position`. Real canonical mutation в current Google adapter блокируется.
 
-## ARCH-011 repository boundary
+## MIG-010 irreversible boundary
 
-`PRH_TRANSACTION_REPOSITORY_V1` вводит read/query/write-interface abstraction над canonical transactions. Query deterministic: explicit filters, `[period_start, period_end)`, stable `occurred_at ASC, transaction_id ASC` ordering, bounded pagination. Repository revision — deterministic technical identity внутри private process.
+State machine: `CODE_READY -> OWNER_PRIVATE_SNAPSHOT -> OWNER_DRY_RUN -> AUTHORIZATION_REQUIRED -> BATCHING -> PRIVATE_RECONCILIATION -> OWNER_VERIFIED`.
 
-Fake repository полностью реализует read/query и synthetic-only optimistic/idempotent write contract для локальных tests. Google adapter читает current sheet через явный mapping, не угадывает currency/domain IDs и сохраняет Google row только как mutable `source_position`.
-
-Current Google canonical mutation не разрешена: adapter возвращает bounded `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`, а Apps Script gateway не содержит `setValue/setValues/appendRow/deleteRow` operation-write primitives.
+До `AUTHORIZATION_REQUIRED` никакие реальные financial writes не выполняются. GitHub Actions, merge PR и AI-agent не могут автоматически создать `IRREVERSIBLE_ACTION_AUTHORIZED`. Перед будущим first write нужны exact plan hash, свежий DR-001 backup evidence и migration-specific write adapter/readback/rollback semantics.
 
 ## Start-reading order
 
@@ -115,22 +116,23 @@ Current Google canonical mutation не разрешена: adapter возвра�
 2. `/docs/ROADMAP.md`
 3. active GitHub Roadmap Issue
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
-6. `/lib/repository/transaction_repository.v1.json`
-7. `/docs/finance/KPI_DICTIONARY.md`
-8. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
-9. `/docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md`
-10. `/lib/application/application_core.v1.json`
-11. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
-12. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
-13. `/docs/architecture.md`
-14. `/docs/RELEASE_PROCESS.md`
-15. `/docs/data-model.md`
-16. exact candidate code/tests/workflows
+5. `/docs/operations/MIG010_FULL_HISTORY_MIGRATION.md`
+6. `/lib/migration/full_history_migration.v1.json`
+7. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
+8. `/lib/repository/transaction_repository.v1.json`
+9. `/docs/finance/KPI_DICTIONARY.md`
+10. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
+11. `/docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md`
+12. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
+13. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
+14. `/docs/architecture.md`
+15. `/docs/RELEASE_PROCESS.md`
+16. `/docs/data-model.md`
+17. exact candidate code/tests/workflows
 
 ## Не выводить из контекста
 
-Не считать автоматически завершёнными full-history migration, ARCH-011, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Repository interface/adapter existence не является financial-write authority.
+Не считать автоматически завершёнными full-history migration, MIG-010, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification и требуемого private evidence. Repository/migration protocol existence не является financial-write authority.
 
 ## Scope handoff
 
@@ -140,5 +142,6 @@ Current Google canonical mutation не разрешена: adapter возвра�
 - `FIN-010` — DONE.
 - `DATA-010` — DONE.
 - `ARCH-010` — DONE.
-- `ARCH-011` — current R1 writer.
-- `ANL-010`, `TEST-010`, `OBS-010` — dependency-gated после required predecessors.
+- `ARCH-011` — DONE.
+- `MIG-010` — current R1 P0 writer.
+- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` — dependency/priority-gated после current writer.
