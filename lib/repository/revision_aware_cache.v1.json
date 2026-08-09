@@ -7,11 +7,14 @@
     "components": [
       "cache_schema_version",
       "repository_schema",
+      "repository_adapter_namespace",
+      "projection_identity",
       "repository_revision",
       "operation",
       "normalized_operation_identity"
     ],
     "hash": "SHA256_HEX",
+    "projection_identity_required_when_projection_capability": true,
     "raw_query_in_telemetry": false,
     "raw_transaction_id_in_telemetry": false
   },
@@ -20,6 +23,7 @@
     "unknown_revision": "FAIL_CLOSED",
     "revision_change": "INVALIDATE_ALL",
     "schema_change": "MISS",
+    "projection_change": "MISS",
     "ttl_expired": "MISS"
   },
   "bounds": {
