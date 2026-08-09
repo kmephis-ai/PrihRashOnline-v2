@@ -24,7 +24,7 @@ AIENG chain: `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS; previous lifecycle state was `IN_PROGRESS`.
-- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, draft PR #97; owner-private stage = **OWNER_VERIFIED**. Private full-history write завершён и post-write reconciliation = **PASS**; lifecycle остаётся `IN_PROGRESS` только до PR machine gates, merge и Main Verification.
+- `MIG-010` Deterministic full-history migration — **IN_PROGRESS**, Issue #96, PR #97 ready-for-review; owner-private stage = **OWNER_VERIFIED**. Private full-history write завершён и post-write reconciliation = **PASS**; lifecycle остаётся `IN_PROGRESS` только до exact-head CI-003 merge и Main Verification.
 - `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` и другие items продолжаются только по declared dependencies/priority после завершения текущего P0 writer.
 
 FIN-010 contracts: `lib/finance/kpi_dictionary.v1.json`, `lib/finance/kpi_dictionary.js`, `docs/finance/KPI_DICTIONARY.md`.
@@ -87,7 +87,7 @@ Execution package/authorization request сами по себе не являют
 
 Finalize выполняется только после полного staging hash verification. При finalize failure live target восстанавливается из hidden rollback copy. Успешный owner-private reconciliation доказал exact final raw-table parity; rollback может быть освобождён только отдельной безопасной cleanup-процедурой, но не удаляется автоматически.
 
-**Private full-history migration выполнена и owner-verified. MIG-010 ещё не `DONE` только до завершения GitHub lifecycle: final exact-head gates -> merge -> Main Verification -> Issue #96 close.**
+**Private full-history migration выполнена и owner-verified. MIG-010 ещё не `DONE` только до завершения GitHub lifecycle: exact-head gates -> CI-003 merge -> Main Verification -> Issue #96 close.**
 
 ### MASTER-G3 / Canonical platform — **open**
 
