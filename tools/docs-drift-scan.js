@@ -13,6 +13,7 @@ const docs = {
   readme: read('README.md'),
   release: read('docs/RELEASE_PROCESS.md'),
   architecture: read('docs/architecture.md'),
+  pureCore: read('docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md'),
   dashboard: read('docs/dashboard.md'),
   dataModel: read('docs/data-model.md'),
   userGuide: read('docs/user-guide.md'),
@@ -43,6 +44,7 @@ const currentOperationalDocs = [
   ['README.md', docs.readme],
   ['docs/RELEASE_PROCESS.md', docs.release],
   ['docs/architecture.md', docs.architecture],
+  ['docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md', docs.pureCore],
   ['docs/dashboard.md', docs.dashboard],
   ['docs/data-model.md', docs.dataModel],
   ['docs/user-guide.md', docs.userGuide],
@@ -58,7 +60,6 @@ for (const [name, text] of currentOperationalDocs) {
     `${name}: public runtime/deployment locator`);
 }
 
-// Historical/retired mechanism names may appear only as explicit negative guidance.
 requireMatch('DOC_RELEASE_SNAPSHOT_RETIRED', docs.release,
   /Штатная модель \*\*не использует\*\* release snapshot branches, ограничения по числу commits/i,
   'Release process must explicitly retire release-snapshot/commit-count gates');
@@ -110,7 +111,7 @@ requireMatch('DOC_RELEASE_NO_MANUAL_MARKER', docs.release, /manual runtime marke
 
 requireMatch('DOC_ARCH_GITHUB_CONTROL_PLANE', docs.architecture, /GitHub[^\n]{0,100}control plane/i,
   'Architecture must identify GitHub control plane');
-requireMatch('DOC_ARCH_ADAPTER_TARGET', docs.architecture, /Google Sheets adapter[\s\S]{0,140}(?:future )?YDB adapter/i,
+requireMatch('DOC_ARCH_ADAPTER_TARGET', docs.architecture, /Google Sheets adapter[\s\S]{0,180}(?:future )?YDB adapter/i,
   'Architecture must state adapter-based target');
 requireMatch('DOC_ARCH_FINANCIAL_TRUTH', docs.architecture, /Legacy[^\n]{0,100}(?:golden truth|authoritative)/i,
   'Architecture must reject legacy totals as financial truth');
@@ -118,6 +119,21 @@ requireMatch('DOC_ARCH_TRUST_CHAIN', docs.architecture, /PR Validation[\s\S]*Tru
   'Architecture must match exact delivery trust chain');
 requireMatch('DOC_ARCH_PUBLIC_REAL_DERIVED_FORBIDDEN', docs.architecture, /real-derived/,
   'Architecture must forbid real-derived public financial data');
+requireMatch('DOC_ARCH_PURE_CORE', docs.architecture, /PRH_APPLICATION_CORE_V1[\s\S]{0,900}io_authority: false/i,
+  'Architecture must expose the pure application core authority boundary');
+
+requireMatch('DOC_PURE_CORE_SCHEMA', docs.pureCore, /PRH_APPLICATION_CORE_V1/,
+  'Pure core doc must identify application core contract');
+requireMatch('DOC_PURE_CORE_NO_IO', docs.pureCore, /io_authority: false/,
+  'Pure core doc must deny I/O authority');
+requireMatch('DOC_PURE_CORE_NO_WRITE', docs.pureCore, /financial_write_authority: false/,
+  'Pure core doc must deny financial write authority');
+requireMatch('DOC_PURE_CORE_NO_NETWORK', docs.pureCore, /network_authority: false/,
+  'Pure core doc must deny network authority');
+requireMatch('DOC_PURE_CORE_PLATFORM_FORBIDDEN', docs.pureCore, /SpreadsheetApp[\s\S]{0,500}window[\s\S]{0,120}document/,
+  'Pure core doc must identify platform/UI dependencies as forbidden');
+requireMatch('DOC_PURE_CORE_ARCH011_HANDOFF', docs.pureCore, /ARCH-011[\s\S]{0,300}repository adapter/i,
+  'Pure core doc must preserve repository-adapter handoff');
 
 requireMatch('DOC_DATA_REAL_DERIVED_FORBIDDEN', docs.dataModel, /real-derived/,
   'Data model must explicitly forbid real-derived public financial data');
@@ -145,10 +161,12 @@ requireMatch('DOC_STATUS_R0_COMPLETE', docs.status, /R0[^\n]{0,100}(?:завер
   'Project status must state proven R0 completion');
 requireMatch('DOC_STATUS_AIENG_CHAIN', docs.status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/,
   'Project status must preserve the completed AIENG chain');
-requireMatch('DOC_STATUS_FIN010_DONE', docs.status, /FIN-010[^\n]{0,160}(?:DONE|заверш)/i,
+requireMatch('DOC_STATUS_FIN010_DONE', docs.status, /FIN-010[^\n]{0,180}(?:DONE|заверш)/i,
   'Project status must identify FIN-010 as DONE');
-requireMatch('DOC_STATUS_DATA010_CURRENT', docs.status, /DATA-010[^\n]{0,180}IN_PROGRESS/i,
-  'Project status must identify DATA-010 as current R1 item');
+requireMatch('DOC_STATUS_DATA010_DONE', docs.status, /DATA-010[^\n]{0,180}(?:DONE|заверш)/i,
+  'Project status must identify DATA-010 as DONE');
+requireMatch('DOC_STATUS_ARCH010_CURRENT', docs.status, /ARCH-010[^\n]{0,180}IN_PROGRESS/i,
+  'Project status must identify ARCH-010 as current R1 item');
 requireMatch('DOC_STATUS_G3_OPEN', docs.status, /MASTER-G3[\s\S]{0,120}open/i,
   'Project status must expose open MASTER-G3');
 
@@ -208,6 +226,9 @@ requireMatch('WORKFLOW_KPI_DICTIONARY_GATE', docs.prValidation, /- name: KPI Dic
 requireMatch('WORKFLOW_CANONICAL_SCHEMA_GATE', docs.prValidation,
   /- name: Canonical transaction schema\s+run: node tests\/canonical_transaction_schema_contract_test\.js/m,
   'PR Validation must run named Canonical transaction schema gate');
+requireMatch('WORKFLOW_PURE_CORE_GATE', docs.prValidation,
+  /- name: Pure domain\/application core\s+run: node tests\/pure_domain_application_core_contract_test\.js/m,
+  'PR Validation must run named Pure domain/application core gate');
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -219,7 +240,7 @@ if (failures.length > 0) {
     operationalDocs: currentOperationalDocs.length,
     currentReleaseModel: 'EXACT_SHA_AUTONOMOUS',
     currentRoadmapWave: 'R1',
-    currentRoadmapItem: 'DATA-010',
+    currentRoadmapItem: 'ARCH-010',
     publicRuntimeLocator: false,
     r0MasterGatesComplete: true,
     historicalChangelogExcludedFromInstructionScan: true
