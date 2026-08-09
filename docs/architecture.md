@@ -124,7 +124,7 @@ Machine contract: `lib/migration/full_history_migration.v1.json` (`PRH_FULL_HIST
 
 MIG-010 DONE после exact owner authorization, bounded staging/readback/finalize, fresh encrypted backup, private reconciliation и Main Verification.
 
-Private reconciliation доказала `unexplainedMismatch=0`, full provenance, exact final raw-table parity и idempotent rerun. **Current write authority = false** для generic Google repository и owner/repair/rebuild tools. One-time migration authorization не создаёт постоянного generic permission.
+Owner-verified MIG-010 private full-history reconciliation доказала `unexplainedMismatch=0`, full provenance, exact final raw-table parity и idempotent rerun. **Current write authority = false** для generic Google repository и owner/repair/rebuild tools. One-time migration authorization не создаёт постоянного generic permission.
 
 Hidden rollback/staging cleanup остаётся отдельной bounded operation и не выполняется автоматически.
 
