@@ -27,7 +27,7 @@ assert(!appsSource.includes('sessionId: sessionId'), 'diagnostic stdout must not
 assert(!appsSource.includes('finalRawTableHash:'), 'diagnostic stdout must not expose private hashes');
 assert(!appsSource.includes('currentRawTableHash:'), 'diagnostic stdout must not expose private hashes');
 
-const noSession = normalizeDiagnostic({
+const noSessionInput = {
   schema: REMOTE_SCHEMA,
   status: 'NO_SESSION',
   sessionStatus: '',
@@ -41,13 +41,14 @@ const noSession = normalizeDiagnostic({
   failureReason: '',
   financialPayloadStdout: false,
   writeAuthorized: false
-});
+};
+const noSession = normalizeDiagnostic(noSessionInput);
 assert.strictEqual(noSession.schema, TOOL_SCHEMA);
 assert.strictEqual(noSession.status, 'NO_SESSION');
 assert.strictEqual(noSession.liveTargetState, 'INITIAL');
 assert.strictEqual(noSession.writeAuthorized, false);
 
-const partial = normalizeDiagnostic({
+const partialInput = {
   schema: REMOTE_SCHEMA,
   status: 'SESSION_FOUND',
   sessionStatus: 'STAGING',
@@ -61,14 +62,15 @@ const partial = normalizeDiagnostic({
   failureReason: '',
   financialPayloadStdout: false,
   writeAuthorized: false
-});
+};
+const partial = normalizeDiagnostic(partialInput);
 assert.strictEqual(partial.status, 'SESSION_FOUND');
 assert.strictEqual(partial.nextBatch, 3);
 assert.strictEqual(partial.batchCount, 10);
 assert.strictEqual(partial.rollbackMatchesInitial, true);
 assert.strictEqual(partial.writeAuthorized, false);
 
-const rolledBack = normalizeDiagnostic({
+const rolledBackInput = {
   schema: REMOTE_SCHEMA,
   status: 'SESSION_FOUND',
   sessionStatus: 'ROLLED_BACK_AFTER_FAILURE',
@@ -82,20 +84,21 @@ const rolledBack = normalizeDiagnostic({
   failureReason: 'MIG010_EXECUTION_FINAL_HASH_MISMATCH',
   financialPayloadStdout: false,
   writeAuthorized: false
-});
+};
+const rolledBack = normalizeDiagnostic(rolledBackInput);
 assert.strictEqual(rolledBack.failureReason, 'MIG010_EXECUTION_FINAL_HASH_MISMATCH');
 assert.strictEqual(rolledBack.liveTargetState, 'INITIAL');
 
 assert.throws(
-  () => normalizeDiagnostic({ ...partial, liveTargetState: 'PRIVATE_VALUE' }),
+  () => normalizeDiagnostic({ ...partialInput, liveTargetState: 'PRIVATE_VALUE' }),
   /MIG010_INSPECT_REMOTE_STATE_INVALID/
 );
 assert.throws(
-  () => normalizeDiagnostic({ ...partial, nextBatch: 11, batchCount: 10 }),
+  () => normalizeDiagnostic({ ...partialInput, nextBatch: 11, batchCount: 10 }),
   /MIG010_INSPECT_REMOTE_PROGRESS_INVALID/
 );
 assert.throws(
-  () => normalizeDiagnostic({ ...partial, failureReason: 'private row content' }),
+  () => normalizeDiagnostic({ ...partialInput, failureReason: 'private row content' }),
   /MIG010_INSPECT_REMOTE_REASON_INVALID/
 );
 
