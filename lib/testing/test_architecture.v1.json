@@ -119,6 +119,7 @@
     { "name": "Roadmap task protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Multi-AI review protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Layered test architecture", "layer": "POLICY_GOVERNANCE" },
+    { "name": "SLO error budget", "layer": "POLICY_GOVERNANCE" },
     { "name": "Financial reconcile synthetic", "layer": "PURE_DOMAIN_APPLICATION" },
     { "name": "KPI Dictionary", "layer": "PURE_DOMAIN_APPLICATION" },
     { "name": "Canonical transaction schema", "layer": "PURE_DOMAIN_APPLICATION" },
