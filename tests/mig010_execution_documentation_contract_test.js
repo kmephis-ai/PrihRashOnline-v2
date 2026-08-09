@@ -57,6 +57,12 @@ match(runbook, /EXECUTION_PACKAGE[\s\S]{0,900}AUTHORIZATION_REQUEST[\s\S]{0,900}
   'authorized execution runbook state machine incomplete');
 match(runbook, /IRREVERSIBLE_ACTION_AUTHORIZED/,
   'runbook must require literal irreversible authorization');
+match(runbook, /manifest\.createdAt[\s\S]{0,260}24 часов/i,
+  'runbook must enforce creation age of encrypted backup copy');
+match(runbook, /MIG010_EXECUTOR_BACKUP_COPY_STALE/,
+  'runbook must expose stale-copy reason');
+match(runbook, /backup_created_at[\s\S]{0,500}backup_verified_at/,
+  'runbook must bind backup creation and verification timestamps separately');
 match(runbook, /hidden rollback copy/i,
   'runbook must require rollback copy');
 match(runbook, /hidden staging/i,
@@ -65,6 +71,8 @@ match(runbook, /<=100|не превышает 100|максимум 100/i,
   'runbook must bound batches to 100');
 match(runbook, /SpreadsheetApp\.flush\(\)[\s\S]{0,160}readback hash/i,
   'runbook must require staging readback');
+match(runbook, /contentsOnly:true[\s\S]{0,220}formulas/i,
+  'runbook must document formula-preserving finalize/rollback semantics');
 match(runbook, /FINALIZED_PENDING_RECONCILIATION/,
   'runbook must not equate finalize with DONE');
 match(runbook, /unexplainedMismatch = 0/,
@@ -87,10 +95,18 @@ match(gateway, /prhMig010RollbackAuthorizedExecution/,
   'gateway missing rollback');
 match(gateway, /MIG010_EXECUTION_TARGET_CHANGED_SINCE_BACKUP/,
   'gateway must detect target drift');
+match(gateway, /MIG010_EXECUTION_BACKUP_COPY_STALE/,
+  'gateway must reject stale backup copy');
+match(gateway, /MIG010_EXECUTION_BACKUP_VERIFICATION_STALE/,
+  'gateway must reject stale backup verification');
 match(gateway, /MIG010_EXECUTION_BATCH_READBACK_MISMATCH/,
   'gateway must fail on batch readback mismatch');
 match(gateway, /prhMig010RestoreFromRollback_/,
   'gateway must implement verified rollback');
+match(gateway, /fresh_backup_copy_required:\s*true/,
+  'gateway metadata must expose fresh backup copy requirement');
+match(gateway, /fresh_backup_verification_required:\s*true/,
+  'gateway metadata must expose fresh backup verification requirement');
 match(gateway, /generic_repository_write_authorized:\s*false/,
   'migration gateway must not grant generic repository authority');
 
@@ -100,6 +116,12 @@ match(executor, /IRREVERSIBLE_ACTION_AUTHORIZED/,
   'executor must require literal owner authorization');
 match(executor, /MAX_BACKUP_AGE_MS = 24 \* 60 \* 60 \* 1000/,
   'executor must enforce fresh backup');
+match(executor, /MIG010_EXECUTOR_BACKUP_COPY_STALE/,
+  'executor must reject old backup copy independently of verify time');
+match(executor, /freshEncryptedBackupCopyRequired:\s*true/,
+  'executor contract must advertise fresh backup-copy requirement');
+match(executor, /freshEncryptedBackupVerifyRequired:\s*true/,
+  'executor contract must advertise fresh verification requirement');
 match(executor, /publicCiCanAuthorize:\s*false/,
   'executor contract must deny public CI authorization');
 match(executor, /FINALIZED_PENDING_RECONCILIATION/,
@@ -145,6 +167,9 @@ console.log('mig010_execution_documentation_contract_test: OK', {
   genericRepositoryWriteAuthorized: false,
   publicCiCanAuthorize: false,
   staging: true,
+  formulasPreserved: true,
+  freshBackupCopyRequired: true,
+  freshBackupVerificationRequired: true,
   rollback: true,
   postWriteFreshBackup: true,
   unexplainedMismatchRequired: 0,
