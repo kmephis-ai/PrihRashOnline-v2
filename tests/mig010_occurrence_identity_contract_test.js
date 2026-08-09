@@ -60,8 +60,12 @@ assert.notStrictEqual(first.provenance.source_position, movedFirst.provenance.so
 assert.strictEqual(assertSourceIdentityImmutable(first, movedFirst), true);
 
 const aggregate = aggregateTransactions(collection.map(toFinTruthTransaction));
-assert.strictEqual(aggregate.expense_minor, 2500,
-  'PRESERVE_ALL must preserve both real operations in financial truth');
+assert.strictEqual(aggregate.gross_expense_minor, 2500,
+  'PRESERVE_ALL must preserve both real operations in gross expense truth');
+assert.strictEqual(aggregate.external_expense_minor, 2500,
+  'PRESERVE_ALL must preserve both real operations in external expense truth');
+assert.strictEqual(aggregate.cash_flow_minor, -2500,
+  'PRESERVE_ALL must preserve FIN-TRUTH cash-flow semantics');
 
 assert.strictEqual(canonicalFingerprint({ ...migration(10), transaction_id: first.transaction_id }), first.provenance.source_fingerprint);
 assert.throws(() => fromMigrationCanonicalOccurrenceRecord(migration(10), 0), /CANONICAL_OCCURRENCE_ORDINAL_INVALID/);
