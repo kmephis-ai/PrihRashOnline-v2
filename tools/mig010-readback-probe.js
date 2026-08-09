@@ -72,19 +72,36 @@ async function readJsonResponse(response) {
   try { return { text, json: JSON.parse(text) }; } catch (_) { return { text, json: null }; }
 }
 
+function normalizeClasses(value, reason) {
+  if (!Array.isArray(value) ||
+      value.some((item) => !ALLOWED_CLASSES.has(String(item))) ||
+      new Set(value.map(String)).size !== value.length) {
+    fail(reason);
+  }
+  return value.map(String).sort();
+}
+
 function normalizeProbe(value) {
   if (!value || value.schema !== REMOTE_SCHEMA || !['MISMATCH_CLASSIFIED', 'MATCHED'].includes(value.status)) {
     fail('MIG010_READBACK_PROBE_REMOTE_RESULT_INVALID');
   }
-  if (!Array.isArray(value.mismatchClasses) ||
-      value.mismatchClasses.some((item) => !ALLOWED_CLASSES.has(String(item))) ||
-      new Set(value.mismatchClasses).size !== value.mismatchClasses.length) {
+  const mismatchClasses = normalizeClasses(value.mismatchClasses, 'MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
+  const beforeFormatRestore = normalizeClasses(
+    value.beforeFormatRestore == null ? value.mismatchClasses : value.beforeFormatRestore,
+    'MIG010_READBACK_PROBE_REMOTE_LIFECYCLE_INVALID'
+  );
+  const afterFormatRestore = normalizeClasses(
+    value.afterFormatRestore == null ? value.mismatchClasses : value.afterFormatRestore,
+    'MIG010_READBACK_PROBE_REMOTE_LIFECYCLE_INVALID'
+  );
+  const combined = Array.from(new Set([...beforeFormatRestore, ...afterFormatRestore])).sort();
+  if (JSON.stringify(combined) !== JSON.stringify(mismatchClasses)) {
+    fail('MIG010_READBACK_PROBE_REMOTE_LIFECYCLE_INVALID');
+  }
+  if (value.status === 'MISMATCH_CLASSIFIED' && mismatchClasses.length < 1) {
     fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
   }
-  if (value.status === 'MISMATCH_CLASSIFIED' && value.mismatchClasses.length < 1) {
-    fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
-  }
-  if (value.status === 'MATCHED' && value.mismatchClasses.length !== 0) {
+  if (value.status === 'MATCHED' && mismatchClasses.length !== 0) {
     fail('MIG010_READBACK_PROBE_REMOTE_CLASSES_INVALID');
   }
   if (value.rangeCleared !== true || value.liveTargetMutated !== false || value.financialPayloadStdout !== false) {
@@ -93,7 +110,9 @@ function normalizeProbe(value) {
   return Object.freeze({
     schema: TOOL_SCHEMA,
     status: value.status,
-    mismatchClasses: value.mismatchClasses.map(String).sort(),
+    mismatchClasses,
+    beforeFormatRestore,
+    afterFormatRestore,
     rangeCleared: true,
     liveTargetMutated: false,
     financialPayloadStdout: false
