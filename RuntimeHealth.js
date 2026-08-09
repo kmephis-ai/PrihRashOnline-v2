@@ -46,6 +46,17 @@ function prhReleaseHealthCheck(expectedBuild) {
   // No worksheet contents are returned or logged by this function.
   sheets[0].getRange(1, 1).getValue();
 
+  // Web App entry-path proof. This compiles DashboardWebDataService and evaluates the
+  // HTML template with a synthetic technical payload only. No workbook rows are read
+  // by the smoke function and no private Web App locator is returned or logged.
+  if (typeof prhWebAppSmokeToken !== 'function') {
+    throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING');
+  }
+  var webAppSmoke = prhWebAppSmokeToken();
+  if (webAppSmoke !== 'PRH_WEBAPP_SMOKE_V1|OK') {
+    throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED');
+  }
+
   return {
     ok: true,
     status: 'OK',
