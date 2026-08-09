@@ -112,7 +112,7 @@ function normalizedPackage(pkg, sourceName, cellValue) {
 
 module.exports = {
   schema: SCHEMA,
-  mappingVersion: 'LEGACY-SPLIT-FORM-TO-CANONICAL-v1+LEADING-EMPTY-COLUMNS-v1+TIMESTAMP-HEADER-ALIASES-v1',
+  mappingVersion: 'LEGACY-SPLIT-FORM-v1+LEADING-COLS-v1+TIME-ALIASES-v1',
 
   buildSnapshot({ backupPackage, cellValue }) {
     if (!backupPackage || backupPackage.format !== 'PRH_PORTABLE_BACKUP_V1') {
