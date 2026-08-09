@@ -6,9 +6,9 @@
 
 ## Текущая граница
 
-Owner-private repair уже может подготовить exact rebuild candidate, но это **не разрешение на запись**. До отдельного owner action `IRREVERSIBLE_ACTION_AUTHORIZED` все реальные financial writes запрещены.
+Owner-private migration прошла полный irreversible flow и получила `OWNER_VERIFIED`. Это не создаёт постоянного write permission: любое новое real financial write требует нового exact-bound owner action `IRREVERSIBLE_ACTION_AUTHORIZED` и новых свежих preconditions.
 
-Текущий pre-authorization flow:
+Нормативный flow остаётся:
 
 ```text
 RESOLVED_REBUILD_DRY_RUN = PASS
@@ -19,7 +19,7 @@ RESOLVED_REBUILD_DRY_RUN = PASS
        -> IRREVERSIBLE_ACTION_AUTHORIZED
             -> STAGING
             -> STAGE READBACK
-            -> FINALIZE
+            -> FINALIZE = FINALIZED_PENDING_RECONCILIATION
             -> FRESH ENCRYPTED BACKUP
             -> POST-WRITE RECONCILIATION
                  -> PASS: OWNER_VERIFIED
@@ -32,167 +32,95 @@ GitHub Actions, merge PR, AI-agent, execution-package builder и authorization-r
 
 `tools/mig010-execution-package.js prepare` работает только локально и создаёт private `MIG010_OWNER_EXECUTION_PACKAGE_V1` вне Git repository.
 
-Package связан с:
+Package связан с exact resolved rebuild hash, source revision, canonical candidate revision, verified encrypted backup SHA-256, initial target revision, initial/final raw table hashes, target header hash и deterministic batch hashes. Пакет сохраняет target rows вне migrating legacy-source scope; batch size не превышает 100.
 
-- exact resolved rebuild hash;
-- source revision;
-- canonical candidate revision;
-- verified encrypted backup SHA-256;
-- initial target canonical revision;
-- initial raw `01 Операции` table hash;
-- expected final raw table hash;
-- target header hash;
-- deterministic batch hashes.
-
-Пакет сохраняет target rows вне migrating legacy-source scope. Legacy slice пересобирается только из owner-confirmed canonical candidate. Batch size не превышает 100.
-
-Raw target representation для текущего DEV schema строится детерминированно. Формулы derived date/month columns пересчитываются под итоговый номер строки. Любая formula-like строка из source text, начинающаяся с `=`, блокируется вместо интерпретации как Google Sheets formula.
-
-`prepare` не обращается к Google Sheets и возвращает `writeAuthorized=false`.
+Формулы derived date/month columns пересчитываются под итоговый номер строки. Любая formula-like source string, начинающаяся с `=`, блокируется вместо интерпретации как Google Sheets formula. `prepare` не обращается к Google Sheets и возвращает `writeAuthorized=false`.
 
 ## 2. Authorization request
 
-`tools/mig010-authorized-executor.js request` повторно расшифровывает encrypted backup локально, проверяет его exact SHA against execution package и создаёт private `MIG010_OWNER_AUTHORIZATION_REQUEST_V1`.
+`tools/mig010-authorized-executor.js request` повторно расшифровывает encrypted backup, проверяет exact SHA against execution package и создаёт private `MIG010_OWNER_AUTHORIZATION_REQUEST_V1`.
 
-Request создаётся только если одновременно:
+Request создаётся только если `manifest.createdAt` самой backup-копии существует и backup была создана не более 24 часов назад, decrypt/checksum verification успешна и cipher SHA совпадает package. Старый backup нельзя сделать свежим простым повторным verify: stale `manifest.createdAt` даёт `MIG010_EXECUTOR_BACKUP_COPY_STALE`.
 
-- `manifest.createdAt` самой encrypted backup-копии существует и backup была **создана не более 24 часов назад**;
-- текущая decrypt/checksum verification успешна;
-- exact backup cipher SHA-256 совпадает execution package.
-
-Старый backup нельзя сделать «свежим» простым повторным `verify`: stale `manifest.createdAt` даёт `MIG010_EXECUTOR_BACKUP_COPY_STALE`.
-
-Request содержит только технические bindings:
-
-- `request_hash`;
-- `package_hash`;
-- `resolved_hash`;
-- `candidate_revision_hash`;
-- backup cipher SHA-256;
-- current/final raw table hashes;
-- target header hash;
-- random owner-private `session_id`;
-- `backup_created_at`;
-- `backup_verified_at`;
-- literal required action `IRREVERSIBLE_ACTION_AUTHORIZED`.
-
-Request сам имеет `write_authorized=false`. И возраст самой backup copy, и возраст её последней verification должны оставаться не более 24 часов на момент каждого authorized call.
+Request отдельно связывает `backup_created_at` и `backup_verified_at`; оба timestamp должны оставаться не старше 24 часов на момент authorized call.
 
 ## 3. Owner authorization
 
 Только владелец может создать private `MIG010_OWNER_IRREVERSIBLE_AUTHORIZATION_V1`.
 
-Authorization считается действительным только когда одновременно:
+Authorization действителен только когда одновременно:
 
 - `authorization = IRREVERSIBLE_ACTION_AUTHORIZED`;
 - `write_authorized=true`;
-- `request_hash` совпадает exact authorization request;
-- `session_id` совпадает;
-- package/resolved/candidate/backup/current/final/header hashes совпадают request и execution package;
-- `backup_created_at` exact-match request и backup copy не старше 24 часов;
-- `backup_verified_at` exact-match request и verification не старше 24 часов.
+- request/session/package/resolved/candidate/backup/current/final/header bindings exact-match;
+- `backup_created_at` и `backup_verified_at` exact-match request и находятся в freshness window.
 
 Любое расхождение fail-closed. Public CI не может создать или подменить этот файл.
 
 ## 4. Separate Apps Script gateway
 
-`Mig010ExecutionGateway.js` — отдельный migration-specific boundary. Он **не** разблокирует generic ARCH-011 Google repository adapter: `GoogleTransactionRepositoryGateway.js` по-прежнему не имеет canonical mutation primitives и generic `writeBatch()` остаётся `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+`Mig010ExecutionGateway.js` — отдельный migration-specific boundary. Он **не** разблокирует generic ARCH-011 Google repository adapter: generic `writeBatch()` остаётся `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-Authorized gateway использует только четыре mutation entry points:
-
-- `prhMig010BeginAuthorizedExecution`;
-- `prhMig010WriteAuthorizedBatch`;
-- `prhMig010FinalizeAuthorizedExecution`;
-- `prhMig010RollbackAuthorizedExecution`.
-
-Каждый call получает literal authorization и exact technical bindings. Gateway сам независимо проверяет свежесть `backup_created_at` и `backup_verified_at`; прямой Execution API вызов не может обойти freshness rule. Apps Script session хранит только hashes/timestamps/status/batch ordinals/sheet technical names; real financial payload в Script Properties не записывается.
+Authorized path использует begin, batch, finalize и rollback entry points. Apps Script session хранит только technical binding/status/progress metadata; financial payload в Script Properties не записывается.
 
 ## 5. Begin: live target пока неизменен
 
-`begin` под `ScriptLock`:
+`begin` под `ScriptLock` проверяет authorization freshness/bindings, header и exact live raw table hash, после чего создаёт hidden rollback copy и hidden staging. Data rows очищаются только в staging; live target на этой стадии не меняется.
 
-1. проверяет authorization freshness/bindings;
-2. проверяет header и exact live raw table hash against execution package;
-3. если target изменился после backup — `MIG010_EXECUTION_TARGET_CHANGED_SINCE_BACKUP`;
-4. создаёт hidden rollback copy текущего target;
-5. создаёт hidden staging как full copy текущего target, чтобы сохранить schema/format/formula semantics;
-6. очищает только data rows staging, оставляя header/структуру;
-7. сохраняет technical session.
+## 6. Staging batches и exact-type preservation
 
-На этой стадии `01 Операции` не меняется.
+Каждый batch строго sequential/idempotent, максимум `<=100` rows, имеет exact batch hash и expected staging start row. После write выполняется `SpreadsheetApp.flush()` + readback hash; mismatch не может продвинуть session.
 
-## 6. Staging batches
+Owner execution выявила реальный Google Sheets transport edge case: legacy number format мог изменить explicit package cell type после `setValues`. Staging-only probes доказали, что package/value semantics корректны, а coercion появлялась из-за несовместимого format lifecycle.
 
-Каждый batch:
+`Mig010ExecutionTypedWrite.js` поэтому использует adaptive existing-format-first strategy:
 
-- строго sequential;
-- максимум 100 rows;
-- exact `batch_hash`;
-- exact expected staging start row;
-- повтор того же batch idempotent (`ALREADY_APPLIED`);
-- другой payload на уже применённом batch блокируется;
-- formulas разрешены только для derived columns C/D и обязаны ссылаться на exact final row;
-- после `setValues` выполняется `SpreadsheetApp.flush()` + readback hash.
+1. пишет с существующими formats;
+2. если exact readback совпал — ничего не меняет;
+3. если обнаружена format-induced type coercion, минимально исправляет только соответствующие `t:s` / `t:d` cells compatible format;
+4. повторяет write и exact hash readback;
+5. при любом FAIL очищает failed batch и восстанавливает original formats.
 
-Несовпадение readback останавливает процесс до live mutation.
+Financial/package значения при этом не переписываются и не нормализуются. Exact package hash/readback остаётся единственной authority.
 
 ## 7. Finalize и rollback
 
-Finalize разрешён только если:
+Finalize разрешён только если все batches staged, full staging hash = expected final raw table hash и live target всё ещё имеет initial raw table hash.
 
-- все batches staged;
-- full staging hash = expected final raw table hash;
-- live target всё ещё имеет initial raw table hash.
+Staging переносится в live chunks <=100 с сохранением formulas. `contentsOnly:true` намеренно не используется для data copy: иначе formulas могли бы быть заменены вычисленными values. Regression-test требует formula preservation.
 
-После этого staging переносится в live target chunks <=100 **с сохранением formulas**, readback каждого chunk и final full-table hash. `contentsOnly:true` намеренно не используется для data copy: иначе Apps Script заменил бы formulas вычисленными values. Regression-test явно моделирует это поведение и требует exact formula preservation.
+Если finalize падает после начала live mutation, gateway автоматически восстанавливает target из hidden rollback copy и проверяет initial raw hash. Успешный finalize возвращает только `FINALIZED_PENDING_RECONCILIATION`; это не `DONE`.
 
-Если finalize падает после начала live mutation, gateway автоматически восстанавливает target из hidden rollback copy **с formulas** и проверяет initial raw hash. Успешный finalize возвращает только:
-
-`FINALIZED_PENDING_RECONCILIATION`
-
-Это **не** `DONE`.
-
-Rollback copy сохраняется до owner-private reconciliation PASS. Владелец также может явно вызвать `rollback` тем же exact authorization/session binding.
+Rollback copy сохраняется до owner-private reconciliation PASS. После PASS `rollbackCanBeReleased=true` означает возможность отдельной cleanup-процедуры, а не автоматическое удаление hidden resources.
 
 ## 8. Post-write reconciliation
 
-После finalize обязательно создаётся **новый encrypted DR-001 backup уже изменённой книги**. Старый backup не считается post-write evidence.
+После finalize обязательно создаётся **новый encrypted DR-001 backup изменённой книги**.
 
-`tools/mig010-post-reconcile.js verify` локально проверяет:
+`tools/mig010-post-reconcile.js verify` локально проверяет fresh backup decrypt/checksum, unchanged source revision, exact resolved rebuild, candidate revision, final raw target hash, explained quarantine и `unexplainedMismatch = 0`. Повторный deterministic rebuild обязан быть no-op/idempotent.
 
-- fresh backup decrypt/checksum;
-- source revision не изменилась;
-- owner proposal/resolution повторно даёт тот же resolved rebuild hash;
-- canonical candidate revision совпадает execution package;
-- raw target table hash exact-match expected final hash;
-- explained quarantine остаётся частью owner repair evidence;
-- `unexplainedMismatch = 0`;
-- повторный deterministic rebuild не меняет target (`idempotentRerunNoop=true`).
-
-Только `MIG010_OWNER_POST_RECONCILIATION_V1 status=PASS` позволяет считать private migration verified. При любом FAIL rollback остаётся доступным и MIG-010 не может стать DONE.
+Только `MIG010_OWNER_POST_RECONCILIATION_V1 status=PASS` позволяет считать private migration verified.
 
 ## 9. Privacy-safe evidence
 
-В public GitHub допустимы только schema/status/reason codes/PASS-FAIL и cryptographic hashes, необходимые для machine binding. Не публикуются:
+В public GitHub допустимы только schema/status/reason codes/PASS-FAIL и cryptographic hashes, необходимые для machine binding. Не публикуются execution package rows, private authorization/request files, financial rows/amounts/categories/descriptions, source positions, OAuth/deployment identifiers, backup bytes/key или reconciliation detail rows.
 
-- execution package rows;
-- private authorization/request files;
-- source/target rows;
-- amounts/categories/descriptions;
-- source positions;
-- session-private payload;
-- backup bytes/key;
-- OAuth/deployment identifiers;
-- reconciliation detail rows.
+## 10. Verified owner execution checkpoint
 
-## 10. Current code-state
+Owner-private run достиг machine evidence:
 
-До фактического owner authorization:
+- exact-bound owner authorization — accepted;
+- staging + readback — complete;
+- adaptive type-preservation probe — `MATCHED`;
+- finalize — `FINALIZED_PENDING_RECONCILIATION`;
+- fresh encrypted post-write backup — `BACKUP_CREATED`;
+- post-write reconciliation — `PASS`;
+- `unexplainedMismatch = 0`;
+- `provenanceComplete=true`;
+- `idempotentRerunNoop=true`;
+- `rollbackCanBeReleased=true`;
+- financial payload не публиковался.
 
-- execution package builder: available, no write command;
-- authorization request builder: available, `writeAuthorized=false`, stale backup copy rejected;
-- staging gateway: authorization-gated, backup-copy + verification freshness checked server-side;
-- authorized executor: существует, но без private authorization fail-closed;
-- post-reconcile verifier: read-only;
-- generic Google repository writes: still blocked;
-- actual full-history migration: **not executed**.
+Следовательно private migration = `OWNER_VERIFIED`. MIG-010 всё ещё не считается GitHub `DONE`, пока PR #97 не пройдёт финальные exact-head gates, merge и Main Verification/Issue close.
+
+Generic Google repository writes остаются blocked; owner/repair/rebuild package tools по-прежнему не имеют generic active write command.
