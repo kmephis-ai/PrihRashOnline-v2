@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { currentRoadmapWriters, branchRoadmapId } = require('../lib/testing/structured_contract_parsers');
 
 const root = path.join(__dirname, '..');
 
@@ -46,22 +47,8 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function statusInProgressIds() {
-  const ids = [];
-  const pattern = /^- `([A-Z]+-\d+)`[^\n]*(?:\*\*IN_PROGRESS\*\*|\bIN_PROGRESS\b)/gmi;
-  let match;
-  while ((match = pattern.exec(docs.status)) !== null) ids.push(match[1]);
-  return Array.from(new Set(ids));
-}
-
-function branchRoadmapId() {
-  const branch = String(process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '');
-  const match = /^agent\/([A-Z]+-\d+)-/.exec(branch);
-  return match ? match[1] : '';
-}
-
-const liveStatusIds = statusInProgressIds();
-const branchItem = branchRoadmapId();
+const liveStatusIds = currentRoadmapWriters(docs.status);
+const branchItem = branchRoadmapId(process.env);
 const currentRoadmapItem = branchItem || (liveStatusIds.length === 1 ? liveStatusIds[0] : '');
 
 if (liveStatusIds.length !== 1) {
