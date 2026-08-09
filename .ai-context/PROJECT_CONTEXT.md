@@ -31,21 +31,25 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 ## OBS-010 SLO/error-budget boundary
 
-`PRH_SLO_CONTRACT_V1@1.0.0` defines local deterministic SLI/error-budget semantics on top of OBS-001 privacy-safe telemetry.
+`PRH_SLO_ERROR_BUDGET_V1@1.0.0` is the single versioned OBS-010 authority on top of OBS-001 privacy-safe telemetry.
 
 SLI v1:
 
-- `availability`;
-- `latency`;
-- `correctness`;
-- `freshness`;
-- `migration_errors`.
+- `AVAILABILITY` — 995000 ppm objective;
+- `LATENCY` — 950000 ppm objective, 2000 ms threshold;
+- `CORRECTNESS` — zero-tolerance 1000000 ppm objective;
+- `FRESHNESS` — 990000 ppm objective, 900000 ms technical-age threshold;
+- `MIGRATION_ERRORS` — zero-tolerance 1000000 ppm objective.
 
-The evaluator consumes only a deny-by-default technical observation schema. Unknown fields fail closed. It has no `SpreadsheetApp`, DOM, network, external monitoring provider or financial-write authority. Tests supply explicit timestamps/durations; wall-clock state is not implicit.
+Ratios/budget burn use deterministic integer ppm/bps. Evaluation windows are half-open `[start_ms,end_ms)` with explicit integer timestamps. The evaluator does not read wall clock and has no `SpreadsheetApp`, DOM, network, external monitoring provider or financial-write authority.
 
-`correctness` does not recompute financial truth. It accepts only bounded PASS/FAIL evidence from allowlisted existing machine authorities (`FINANCIAL_RECONCILIATION`, `CANONICAL_SCHEMA`, `ANALYTICS_PARITY`, `MIGRATION_RECONCILIATION`, `RUNTIME_HEALTH`).
+Observation shapes are per-SLI and deny-by-default. Unknown fields fail closed. `CORRECTNESS` requires an allowlisted machine-evidence source: `FINANCIAL_RECONCILIATION`, `CANONICAL_SCHEMA`, `ANALYTICS_PARITY`, `MIGRATION_RECONCILIATION`, or `RUNTIME_HEALTH`. It never accepts or recomputes financial values.
 
-Public SLO evidence is technical metadata only: SLI/status/objective/threshold/count/error-budget/reason fields. Real or real-derived amounts, descriptions, categories, accounts, transactions and raw payload stay forbidden. Runtime serialization remains governed by `SecurityPrivacyPolicy.js`.
+Budget states are `HEALTHY`, `WATCH`, `CRITICAL`, `BREACHED`; insufficient or unavailable telemetry is `UNKNOWN`, never implicit green. Zero-tolerance correctness/migration SLI breach on any confirmed bad observation.
+
+Public SLO evidence is technical metadata only: SLI/status/objective ppm/threshold ms/sample counts/budget ppm+bps/state/reason. Real or real-derived amounts, descriptions, categories, accounts, transactions and raw payload stay forbidden. `toAuditMetadata()` maps only bounded technical fields into the existing `SecurityPrivacyPolicy.js` allowlist and does not emit raw observations or correctness source.
+
+Named machine gate: `SLO error budget` -> `tests/slo_error_budget_policy_contract_test.js`; full layered suite must also run the same contract test. No paid provider is required; `FREE_ONLY` remains mandatory.
 
 Normative runbook: `docs/operations/OBS010_SLO_ERROR_BUDGET.md`.
 
@@ -127,7 +131,7 @@ ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; pure query/evaluation boundary, renderer/s
 
 TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test execution/classification authority only, no product/business/write authority.
 
-OBS-010: `PRH_SLO_CONTRACT_V1`; technical SLI/error-budget authority only, no financial truth/write authority.
+OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLI/error-budget authority only, no financial truth/write authority.
 
 ## Start-reading order
 
@@ -136,11 +140,12 @@ OBS-010: `PRH_SLO_CONTRACT_V1`; technical SLI/error-budget authority only, no fi
 3. active GitHub Issue #103
 4. `/docs/PROJECT_STATUS.md`
 5. `/docs/operations/OBS010_SLO_ERROR_BUDGET.md`
-6. `/lib/observability/slo.v1.json`
-7. `/lib/observability/slo.js`
-8. `/tests/telemetry_slo_contract_test.js`
-9. `/docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md`
-10. exact candidate code/tests/workflows
+6. `/lib/observability/slo_error_budget.v1.json`
+7. `/lib/observability/slo_error_budget.js`
+8. `/tests/slo_error_budget_policy_contract_test.js`
+9. `/SecurityPrivacyPolicy.js`
+10. `/docs/operations/TEST010_LAYERED_TEST_ARCHITECTURE.md`
+11. exact candidate code/tests/workflows
 
 ## Scope handoff
 
