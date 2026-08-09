@@ -54,6 +54,14 @@ Raw target representation для текущего DEV schema строится д
 
 `tools/mig010-authorized-executor.js request` повторно расшифровывает encrypted backup локально, проверяет его exact SHA against execution package и создаёт private `MIG010_OWNER_AUTHORIZATION_REQUEST_V1`.
 
+Request создаётся только если одновременно:
+
+- `manifest.createdAt` самой encrypted backup-копии существует и backup была **создана не более 24 часов назад**;
+- текущая decrypt/checksum verification успешна;
+- exact backup cipher SHA-256 совпадает execution package.
+
+Старый backup нельзя сделать «свежим» простым повторным `verify`: stale `manifest.createdAt` даёт `MIG010_EXECUTOR_BACKUP_COPY_STALE`.
+
 Request содержит только технические bindings:
 
 - `request_hash`;
@@ -64,10 +72,11 @@ Request содержит только технические bindings:
 - current/final raw table hashes;
 - target header hash;
 - random owner-private `session_id`;
+- `backup_created_at`;
 - `backup_verified_at`;
 - literal required action `IRREVERSIBLE_ACTION_AUTHORIZED`.
 
-Request сам имеет `write_authorized=false`. Backup verification должен оставаться свежим не более 24 часов на момент первого authorized call.
+Request сам имеет `write_authorized=false`. И возраст самой backup copy, и возраст её последней verification должны оставаться не более 24 часов на момент каждого authorized call.
 
 ## 3. Owner authorization
 
@@ -80,7 +89,8 @@ Authorization считается действительным только ко�
 - `request_hash` совпадает exact authorization request;
 - `session_id` совпадает;
 - package/resolved/candidate/backup/current/final/header hashes совпадают request и execution package;
-- `backup_verified_at` exact-match request и не старше 24 часов.
+- `backup_created_at` exact-match request и backup copy не старше 24 часов;
+- `backup_verified_at` exact-match request и verification не старше 24 часов.
 
 Любое расхождение fail-closed. Public CI не может создать или подменить этот файл.
 
@@ -95,7 +105,7 @@ Authorized gateway использует только четыре mutation entry
 - `prhMig010FinalizeAuthorizedExecution`;
 - `prhMig010RollbackAuthorizedExecution`.
 
-Каждый call получает literal authorization и exact technical bindings. Apps Script session хранит только hashes/status/batch ordinals/sheet technical names; real financial payload в Script Properties не записывается.
+Каждый call получает literal authorization и exact technical bindings. Gateway сам независимо проверяет свежесть `backup_created_at` и `backup_verified_at`; прямой Execution API вызов не может обойти freshness rule. Apps Script session хранит только hashes/timestamps/status/batch ordinals/sheet technical names; real financial payload в Script Properties не записывается.
 
 ## 5. Begin: live target пока неизменен
 
@@ -105,8 +115,8 @@ Authorized gateway использует только четыре mutation entry
 2. проверяет header и exact live raw table hash against execution package;
 3. если target изменился после backup — `MIG010_EXECUTION_TARGET_CHANGED_SINCE_BACKUP`;
 4. создаёт hidden rollback copy текущего target;
-5. создаёт hidden staging sheet;
-6. копирует только header в staging;
+5. создаёт hidden staging как full copy текущего target, чтобы сохранить schema/format/formula semantics;
+6. очищает только data rows staging, оставляя header/структуру;
 7. сохраняет technical session.
 
 На этой стадии `01 Операции` не меняется.
@@ -134,9 +144,9 @@ Finalize разрешён только если:
 - full staging hash = expected final raw table hash;
 - live target всё ещё имеет initial raw table hash.
 
-После этого staging переносится в live target chunks <=100 с readback каждого chunk и final full-table hash.
+После этого staging переносится в live target chunks <=100 **с сохранением formulas**, readback каждого chunk и final full-table hash. `contentsOnly:true` намеренно не используется для data copy: иначе Apps Script заменил бы formulas вычисленными values. Regression-test явно моделирует это поведение и требует exact formula preservation.
 
-Если finalize падает после начала live mutation, gateway автоматически восстанавливает target из hidden rollback copy и проверяет initial raw hash. Успешный finalize возвращает только:
+Если finalize падает после начала live mutation, gateway автоматически восстанавливает target из hidden rollback copy **с formulas** и проверяет initial raw hash. Успешный finalize возвращает только:
 
 `FINALIZED_PENDING_RECONCILIATION`
 
@@ -180,8 +190,8 @@ Rollback copy сохраняется до owner-private reconciliation PASS. В�
 До фактического owner authorization:
 
 - execution package builder: available, no write command;
-- authorization request builder: available, `writeAuthorized=false`;
-- staging gateway: authorization-gated;
+- authorization request builder: available, `writeAuthorized=false`, stale backup copy rejected;
+- staging gateway: authorization-gated, backup-copy + verification freshness checked server-side;
 - authorized executor: существует, но без private authorization fail-closed;
 - post-reconcile verifier: read-only;
 - generic Google repository writes: still blocked;
