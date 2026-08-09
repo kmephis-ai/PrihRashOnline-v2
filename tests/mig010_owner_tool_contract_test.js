@@ -1,16 +1,21 @@
 'use strict';
 
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { defaultSourceToCanonical } = require('../lib/migration/full_history_migration');
+const { buildPortablePackage, writeEncryptedBackup } = require('../tools/private-backup');
 
 const root = path.join(__dirname, '..');
 const tool = path.join(root, 'tools', 'mig010-owner.js');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'mig010-owner-contract-'));
 const secretPath = path.join(temp, 'resume.secret');
+const backupKeyPath = path.join(temp, 'backup.key');
+const backupPath = path.join(temp, 'owner-backup.prhbackup');
+const mapperPath = path.join(temp, 'private-mapper.js');
 const snapshotPath = path.join(temp, 'snapshot.private.json');
 const backupEvidencePath = path.join(temp, 'backup-evidence.private.json');
 const statePath = path.join(temp, 'migration-state.private.json');
@@ -50,9 +55,16 @@ try {
   let result = run(['contract']);
   assert.strictEqual(result.status, 0);
   assert.strictEqual(result.payload.schema, 'MIG010_OWNER_TOOL_V1');
+  assert.strictEqual(result.payload.snapshotFromEncryptedBackup, true);
+  assert.strictEqual(result.payload.privatePathsOutsideRepository, true);
   assert.strictEqual(result.payload.writeCommandEnabled, false);
   assert.strictEqual(result.payload.irreversibleActionRequired, true);
   assert.strictEqual(result.payload.realFinancialPayloadStdout, false);
+
+  result = run(['init-secret', '--out', path.join(root, '.mig010-must-not-exist')]);
+  assert.notStrictEqual(result.status, 0);
+  assert.strictEqual(result.payload.reason, 'MIG010_RESUME_SECRET_INSIDE_REPOSITORY');
+  assert.strictEqual(fs.existsSync(path.join(root, '.mig010-must-not-exist')), false);
 
   result = run(['init-secret', '--out', secretPath]);
   assert.strictEqual(result.status, 0);
@@ -60,17 +72,57 @@ try {
   assert.strictEqual(fs.existsSync(secretPath), true);
 
   const sources = [source(0), source(1), source(2)];
-  fs.writeFileSync(snapshotPath, `${JSON.stringify({
-    schema: 'MIG010_OWNER_PRIVATE_SNAPSHOT_V1',
-    mapping_version: 'SYN-PRIVATE-MAPPER-v1',
-    source_records: sources,
-    canonical_records: [defaultSourceToCanonical(sources[0])]
-  }, null, 2)}\n`, { mode: 0o600 });
+  const canonicalRecords = [defaultSourceToCanonical(sources[0])];
+
+  const backupKey = crypto.randomBytes(32);
+  fs.writeFileSync(backupKeyPath, `${backupKey.toString('base64')}\n`, { mode: 0o600 });
+  const pkg = buildPortablePackage({
+    format: 'PRH_BACKUP_SOURCE_V1',
+    schemaVersion: 1,
+    sheetCount: 1,
+    sourceBuildSha: 'a'.repeat(40),
+    sourceTreeHash: 'c'.repeat(64)
+  }, [{
+    metadata: { name: 'SYN-SHEET', index: 0, lastRow: 1, lastColumn: 1 },
+    rows: [[{ t: 's', v: 'synthetic-cell' }]]
+  }], '2026-08-09T07:30:00.000Z');
+  const encrypted = writeEncryptedBackup(backupPath, pkg, backupKey);
+
+  fs.writeFileSync(mapperPath, `'use strict';\n` +
+    `module.exports = {\n` +
+    `  schema: 'MIG010_OWNER_PRIVATE_MAPPER_V1',\n` +
+    `  mappingVersion: 'SYN-PRIVATE-MAPPER-v1',\n` +
+    `  buildSnapshot({ backupPackage, cellValue }) {\n` +
+    `    if (backupPackage.format !== 'PRH_PORTABLE_BACKUP_V1') throw new Error('MAPPER_BACKUP_INVALID');\n` +
+    `    if (cellValue(backupPackage.content.sheets[0].rows[0][0]) !== 'synthetic-cell') throw new Error('MAPPER_CELL_INVALID');\n` +
+    `    return ${JSON.stringify({ source_records: sources, canonical_records: canonicalRecords })};\n` +
+    `  }\n` +
+    `};\n`, { mode: 0o600 });
+
+  result = run([
+    'snapshot-from-backup', '--backup', backupPath,
+    '--key', backupKeyPath,
+    '--mapper', mapperPath,
+    '--out', snapshotPath
+  ]);
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.payload.schema, 'MIG010_OWNER_SNAPSHOT_V1');
+  assert.strictEqual(result.payload.status, 'SNAPSHOT_CREATED');
+  assert.strictEqual(result.payload.backupCipherSha256, encrypted.cipherSha256);
+  assert.strictEqual(result.payload.financialPayloadStdout, false);
+  assert(!result.stdout.includes(PRIVATE_DESCRIPTION));
+  assert.strictEqual(fs.existsSync(snapshotPath), true);
+
+  const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+  assert.strictEqual(snapshot.schema, 'MIG010_OWNER_PRIVATE_SNAPSHOT_V1');
+  assert.strictEqual(snapshot.backup_cipher_sha256, encrypted.cipherSha256);
+  assert.strictEqual(snapshot.source_records[0].name.includes(PRIVATE_DESCRIPTION), true);
+
   fs.writeFileSync(backupEvidencePath, `${JSON.stringify({
     schema: 'DR-001-EVIDENCE-v1',
     status: 'PASS',
     checksum: 'PASS',
-    backupCipherSha256: 'b'.repeat(64)
+    backupCipherSha256: encrypted.cipherSha256
   }, null, 2)}\n`, { mode: 0o600 });
 
   result = run([
@@ -85,6 +137,7 @@ try {
   assert.strictEqual(result.payload.status, 'READY');
   assert.strictEqual(result.payload.writeAuthorized, false);
   assert.strictEqual(result.payload.stateWritten, true);
+  assert.strictEqual(result.payload.backupCipherSha256, encrypted.cipherSha256);
   assert(/^[0-9a-f]{64}$/.test(result.payload.planHash));
   assert(!result.stdout.includes(PRIVATE_DESCRIPTION), 'stdout must not expose private source descriptions');
   assert(!result.stdout.includes('source_records'), 'stdout must not expose private source records');
@@ -105,6 +158,19 @@ try {
   assert.strictEqual(result.payload.writeAuthorized, false);
   assert(!result.stdout.includes(PRIVATE_DESCRIPTION));
 
+  const mismatchedEvidencePath = path.join(temp, 'mismatch-evidence.private.json');
+  fs.writeFileSync(mismatchedEvidencePath, JSON.stringify({
+    schema: 'DR-001-EVIDENCE-v1', status: 'PASS', checksum: 'PASS', backupCipherSha256: 'd'.repeat(64)
+  }), { mode: 0o600 });
+  result = run([
+    'dry-run', '--snapshot', snapshotPath,
+    '--backup-evidence', mismatchedEvidencePath,
+    '--secret', secretPath,
+    '--state', path.join(temp, 'must-not-write.private.json')
+  ]);
+  assert.notStrictEqual(result.status, 0);
+  assert.strictEqual(result.payload.reason, 'MIG010_SNAPSHOT_BACKUP_MISMATCH');
+
   for (const command of ['execute', 'write', 'apply']) {
     result = run([command]);
     assert.notStrictEqual(result.status, 0);
@@ -122,8 +188,11 @@ try {
   assert(['MIGRATION_RESUME_TOKEN_TAMPERED', 'MIGRATION_RESUME_TOKEN_INVALID'].includes(result.payload.reason));
 
   console.log('mig010_owner_tool_contract_test: OK', {
+    snapshotFromEncryptedBackup: true,
+    backupSnapshotBound: true,
+    privateMapperOutsideRepository: true,
+    privateStateOutsideRepository: true,
     dryRunOnly: true,
-    privateStateLocal: true,
     stdoutPayload: false,
     resumeStateBound: true,
     writeCommandsEnabled: false,
