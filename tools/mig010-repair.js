@@ -15,7 +15,8 @@ const {
   applyRepairResolution,
   PROPOSAL_SCHEMA,
   RESOLUTION_SCHEMA,
-  RESOLVED_SCHEMA
+  RESOLVED_SCHEMA,
+  OCCURRENCE_IDENTITY
 } = require('../lib/migration/mig010_repair_policy');
 
 const STATE_SCHEMA = 'MIG010_OWNER_PRIVATE_STATE_V1';
@@ -148,7 +149,7 @@ body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background
 <body><main>
 <h1>MIG-010 — приватная проверка дублей</h1>
 <p class="muted">Файл работает полностью локально. Ничего не отправляется в сеть. Выберите решение для каждой группы и скачайте resolution JSON.</p>
-<div class="warn">«Сохранить все как отдельные операции» намеренно оставит MIG-010 заблокированным: Canonical v1 не поддерживает две одинаковые CONTENT_FINGERPRINT_V1 identities.</div>
+<div class="warn">«Сохранить все как отдельные операции» использует versioned occurrence identity ${OCCURRENCE_IDENTITY}. Это создаёт только private rebuild candidate и не разрешает запись в Google Sheets.</div>
 <div id="groups"></div>
 <div class="card"><button class="primary" id="download">Скачать MIG010 repair resolution</button> <span id="status" class="muted"></span></div>
 <script id="model" type="application/json">${data}</script>
@@ -222,6 +223,7 @@ function commandResolve(args) {
     blockers: resolved.blockers,
     targetRebuild: true,
     quarantinePresent: resolved.quarantine.length > 0,
+    occurrenceIdentityStrategy: resolved.occurrence_identity_strategy,
     resolvedWritten: true,
     financialPayloadStdout: false,
     writeAuthorized: false
@@ -237,7 +239,7 @@ function commandContract() {
     strategy: 'REBUILD_LEGACY_SLICE_V1',
     offlineDuplicateReview: true,
     invalidSourceQuarantine: true,
-    preserveAllFailsClosed: true,
+    preserveAllOccurrenceIdentity: OCCURRENCE_IDENTITY,
     writeCommandEnabled: false,
     financialPayloadStdout: false
   };
