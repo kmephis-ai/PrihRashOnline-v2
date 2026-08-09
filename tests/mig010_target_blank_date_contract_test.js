@@ -55,7 +55,7 @@ try {
   const snapshot = mapper.buildSnapshot({ backupPackage: pkg, cellValue: cv });
   assert.strictEqual(snapshot.source_records.length, 0, 'blank legacy source row must remain absent');
   assert.strictEqual(snapshot.canonical_records.length, 1, 'malformed existing target must remain visible to reconciliation');
-  assert.strictEqual(snapshot.canonical_records[0].occurred_at, '1900-01-01T00:00:00Z');
+  assert.strictEqual(snapshot.canonical_records[0].occurred_at, '1900-01-01T00:00:00.000Z');
 
   const plan = buildMigrationPlan({
     source_records: snapshot.source_records,
