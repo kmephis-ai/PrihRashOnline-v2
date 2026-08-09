@@ -147,7 +147,7 @@ requireMatch('AI_STATUS_MIG010_DONE', status, /MIG-010[^\n]{0,260}DONE/i, 'PROJE
 if (currentRoadmapItem) {
   const escaped = escapeRegExp(currentRoadmapItem);
   requireMatch('AI_STATUS_CURRENT_WRITER', status,
-    new RegExp(`^- \\`${escaped}\\`[^\\n]*\\*\\*IN_PROGRESS\\*\\*`, 'mi'),
+    new RegExp('^- `?' + escaped + '`?[^\\n]*\\*\\*IN_PROGRESS\\*\\*', 'mi'),
     `PROJECT_STATUS must identify ${currentRoadmapItem} as the active R1 item`);
 }
 requireMatch('AI_STATUS_REPOSITORY_WRITE_BLOCKED', status, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/, 'PROJECT_STATUS must preserve fail-closed Google repository write');
