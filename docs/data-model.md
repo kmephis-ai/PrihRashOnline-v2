@@ -4,13 +4,13 @@
 
 Google Sheets остаётся private primary store/current adapter. Web Dashboard не копирует финансовую историю в GitHub и не создаёт public shadow database.
 
-R0 отделил **financial truth rules** от legacy spreadsheet totals. FIN-010 зафиксировал versioned KPI Dictionary v1. DATA-010 вводит portable canonical transaction schema v1 независимо от Google Sheet headers/UI. Full-history migration и repository adapter остаются отдельными последующими Roadmap items.
+R0 отделил **financial truth rules** от legacy spreadsheet totals. R1 уже закрепил FIN-010 KPI Dictionary v1, DATA-010 portable Canonical Transaction v1, ARCH-010 pure core и ARCH-011 repository adapter. MIG-010 private full-history migration выполнена через отдельный owner-authorized boundary и подтверждена fresh-backup post-write reconciliation; generic repository write authority при этом не открыта.
 
 ## Основные private sheets
 
 | Лист | Текущая роль | Типичный write boundary |
 |---|---|---|
-| `01 Операции` | transaction surface / source for Dashboard and reconciliation | Dashboard read-only; canonical mutations only via separately proven write policy |
+| `01 Операции` | canonical transaction surface / source for Dashboard and reconciliation | Dashboard read-only; future canonical mutations only via separately proven write policy |
 | `09 Настройки` | technical settings/status | bounded technical values |
 | `10 Контроль` | private KPI/control snapshots | append + readback where supported |
 | `11 Предпросмотр` | quality proposal staging/review | bounded proposal state |
@@ -58,7 +58,7 @@ Schema v1 содержит explicit:
 
 Unknown canonical fields, duplicate transaction identity, invalid money/currency, invalid transfer/refund semantics и duplicate logical source identity отклоняются fail-closed.
 
-Canonical schema не разрешает writes сама по себе. Она задаёт portable record contract, который будущие application/repository adapters обязаны соблюдать.
+Canonical schema не разрешает writes сама по себе. Она задаёт portable record contract, который application/repository adapters обязаны соблюдать.
 
 ## Source-to-canonical provenance
 
@@ -76,17 +76,17 @@ DATA-010 разделяет:
 - imported source snapshot fingerprint: `source_fingerprint`;
 - mutable physical locator: `source_position`.
 
-`source_position` не является logical identity. Изменение row position не должно менять logical source identity. Для DATA-001 legacy shape используется `CONTENT_FINGERPRINT_V1`, поскольку DATA-001 fingerprint не зависит от row movement. Для providers со stable external ID предусмотрен `EXTERNAL_ID`.
+`source_position` не является logical identity. Изменение row position не должно менять logical source identity. Для DATA-001 legacy shape используется `CONTENT_FINGERPRINT_V1`, поскольку DATA-001 fingerprint не зависит от row movement. Для owner-confirmed identical occurrences MIG-010 использует `CONTENT_FINGERPRINT_OCCURRENCE_V1` без изменения financial fields ради uniqueness. Для providers со stable external ID предусмотрен `EXTERNAL_ID`.
 
 Stored legacy status не переопределяет computed reconciliation result.
 
-Full-history migration **не считается завершённым** до отдельного deterministic migration Roadmap item с backup/restore/private reconciliation evidence.
+Full-history migration **owner-verified**: owner-authorized staging/readback/finalize завершены, создан fresh encrypted post-write backup, а `MIG010_OWNER_POST_RECONCILIATION_V1` доказал exact final target parity, `unexplainedMismatch=0`, полную provenance и idempotent rerun. Это не означает открытие generic write authority или выполнение Google -> Yandex cutover.
 
 ## Dashboard transaction fields
 
 Текущие services распознают transaction fields по Sheet headers where possible. Эта compatibility — adapter concern, не canonical domain contract.
 
-DATA-010 canonical fields не определяются порядком/названием Google columns. Будущий Google repository adapter (`ARCH-011`) обязан преобразовывать Sheet representation в portable schema, а не протаскивать Spreadsheet layout в domain layer.
+DATA-010 canonical fields не определяются порядком/названием Google columns. Google repository adapter (`ARCH-011`) преобразует Sheet representation в portable schema, а не протаскивает Spreadsheet layout в domain layer.
 
 ## Quality queue — `11 Предпросмотр`
 
@@ -160,13 +160,13 @@ Cost Guard:
 
 ## R1 canonical model
 
-Dependency order:
+Dependency order / live truth:
 
 1. versioned KPI Dictionary (`FIN-010`) — DONE;
-2. canonical transaction schema (`DATA-010`) — current item;
-3. pure domain/application core (`ARCH-010`);
-4. repository contracts + Google adapter (`ARCH-011`);
-5. analytics contract (`ANL-010`);
-6. deterministic full-history migration only after backup/reconciliation dependencies (`MIG-010`).
+2. canonical transaction schema (`DATA-010`) — DONE;
+3. pure domain/application core (`ARCH-010`) — DONE;
+4. repository contracts + Google adapter (`ARCH-011`) — DONE;
+5. deterministic full-history migration (`MIG-010`) — private `OWNER_VERIFIED`, GitHub lifecycle завершается PR/Main Verification;
+6. analytics contract (`ANL-010`) и дальнейшие dependency-ready items — по canonical Roadmap.
 
 UI не должен знать, какой storage adapter является primary; financial truth живёт в versioned domain rules/contracts.
