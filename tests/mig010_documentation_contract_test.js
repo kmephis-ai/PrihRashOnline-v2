@@ -42,8 +42,14 @@ match(architecture, /Current write authority = false/i,
 match(architecture, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
   'architecture must expose disabled real-write command');
 
-match(runbook, /CODE_READY[\s\S]{0,500}OWNER_PRIVATE_SNAPSHOT[\s\S]{0,500}OWNER_DRY_RUN[\s\S]{0,500}AUTHORIZATION_REQUIRED[\s\S]{0,500}PRIVATE_RECONCILIATION/,
+match(runbook, /CODE_READY[\s\S]{0,700}OWNER_PRIVATE_SNAPSHOT[\s\S]{0,700}OWNER_DRY_RUN[\s\S]{0,700}AUTHORIZATION_REQUIRED[\s\S]{0,700}PRIVATE_RECONCILIATION/,
   'runbook migration state machine missing');
+match(runbook, /OWNER_PRIVATE_DIAGNOSTICS/,
+  'runbook must expose blocked owner-private diagnostics path');
+match(runbook, /MIG010_OWNER_PRIVATE_DIAGNOSTIC_V1/,
+  'runbook must identify private diagnostic schema');
+match(runbook, /detailedFindingsStdout=false/,
+  'runbook must keep detailed diagnostic findings out of stdout');
 match(runbook, /owner tool[^\n]{0,240}(?:не содержит[^\n]{0,120}(?:write|команд)|write[^\n]{0,120}(?:disabled|выключ|не содержит))/i,
   'runbook must keep owner tool write disabled');
 match(runbook, /private mapper/i,
@@ -62,15 +68,23 @@ assert.strictEqual(contract.reconciliation.required_unexplained_mismatch, 0);
 
 match(ownerTool, /writeCommandEnabled:\s*false/,
   'owner tool contract must advertise write disabled');
+match(ownerTool, /privateDiagnostics:\s*true/,
+  'owner tool contract must advertise private diagnostics');
+match(ownerTool, /MIG010_OWNER_PRIVATE_DIAGNOSTIC_V1/,
+  'owner tool must define private diagnostic schema');
+match(ownerTool, /detailedFindingsStdout:\s*false/,
+  'owner diagnostic stdout must exclude detailed findings');
 match(ownerTool, /MIGRATION_IRREVERSIBLE_ACTION_TOOL_NOT_ENABLED/,
   'owner tool must fail closed on write command');
 match(ownerTool, /MIG010_PRIVATE_MAPPER_INSIDE_REPOSITORY/,
   'owner tool must reject private mapper inside repository');
+match(ownerTool, /MIG010_PRIVATE_DIAGNOSTIC_INSIDE_REPOSITORY/,
+  'owner tool must reject private diagnostic output inside repository');
 match(ownerTool, /MIG010_SNAPSHOT_BACKUP_MISMATCH/,
   'owner tool must bind snapshot to backup evidence');
 
-match(workflow, /- name: Full-history migration protocol[\s\S]{0,450}full_history_migration_contract_test\.js[\s\S]{0,450}mig010_owner_tool_contract_test\.js[\s\S]{0,450}mig010_documentation_contract_test\.js/m,
-  'PR Validation must have named full-history migration gate');
+match(workflow, /- name: Full-history migration protocol[\s\S]{0,700}full_history_migration_contract_test\.js[\s\S]{0,700}mig010_owner_diagnostics_contract_test\.js[\s\S]{0,700}mig010_documentation_contract_test\.js/m,
+  'PR Validation must have named full-history migration + diagnostics gate');
 
 for (const required of [
   'docs/operations/MIG010_FULL_HISTORY_MIGRATION.md',
@@ -78,7 +92,8 @@ for (const required of [
   'lib/migration/full_history_migration.js',
   'tests/full_history_migration_contract_test.js',
   'tools/mig010-owner.js',
-  'tests/mig010_owner_tool_contract_test.js'
+  'tests/mig010_owner_tool_contract_test.js',
+  'tests/mig010_owner_diagnostics_contract_test.js'
 ]) {
   assert(llms.includes(required), `llms.txt missing ${required}`);
 }
@@ -96,5 +111,7 @@ console.log('mig010_documentation_contract_test: OK', {
   realWriteAuthority: false,
   publicCiCanAuthorizeWrite: false,
   privatePathsOutsideRepository: true,
+  privateDiagnostics: true,
+  detailedFindingsStdout: false,
   unexplainedMismatchRequired: 0
 });
