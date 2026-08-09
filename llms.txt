@@ -11,14 +11,18 @@ tools/roadmap-task-protocol.js — executable Roadmap continuation resolver.
 .ai-context/multi-ai-review-report.schema.json — bounded specialist reviewer report schema.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — reviewer roles, read-only boundary, severity/arbitration и machine-gate authority.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid/external model dependency.
-docs/finance/KPI_DICTIONARY.md — normative human-readable KPI Dictionary v1: Income/Expense/Cash Flow/Savings/Budget variance, transfer/refund, period/currency/rounding semantics.
-lib/finance/kpi_dictionary.v1.json — machine-readable `PRH_KPI_DICTIONARY_V1` definitions bound to `FIN-TRUTH-v1`.
-lib/finance/kpi_dictionary.js — deterministic KPI evaluator и fail-closed reason codes.
-tests/kpi_dictionary_contract_test.js — FIN-001 parity/property contract для KPI Dictionary.
+docs/finance/KPI_DICTIONARY.md — normative KPI Dictionary v1.
+lib/finance/kpi_dictionary.v1.json — machine-readable `PRH_KPI_DICTIONARY_V1` bound to `FIN-TRUTH-v1`.
+lib/finance/kpi_dictionary.js — deterministic KPI evaluator.
+tests/kpi_dictionary_contract_test.js — FIN-001 parity/property contract.
+docs/data/CANONICAL_TRANSACTION_SCHEMA.md — normative Canonical Transaction v1 contract и DATA-001 compatibility boundary.
+lib/domain/canonical_transaction.v1.schema.json — strict machine-readable `PRH_CANONICAL_TRANSACTION_V1` JSON Schema.
+lib/domain/canonical_transaction.js — canonical validator, source identity, FIN-TRUTH и migration compatibility helpers.
+tests/canonical_transaction_schema_contract_test.js — schema/identity/DATA-001/FIN/KPI compatibility contracts.
 docs/PROJECT_STATUS.md — R0 complete + current R1/MASTER-G3 state; live lifecycle сверяется с GitHub Issues.
 docs/architecture.md — current Google runtime/control plane и target domain/repository-adapter architecture.
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery pipeline и Main Verification close path.
-docs/data-model.md — financial truth, migration, write и public-data boundaries.
+docs/data-model.md — canonical data model, financial truth, migration, write и public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
 docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe bounded observability contract.
 docs/operations/FINOPS001_FREE_ONLY_GUARD.md — executable FREE_ONLY/cost circuit-breaker contract.
