@@ -159,11 +159,13 @@ assert.strictEqual(rerunPlan.batches.length, 0);
 assert(rerunPlan.dry_run.every((item) => item.action === 'REUSE'));
 
 // A duplicate source fingerprint blocks the entire plan before writes.
-const duplicateSources = [source(500), source(501, {
-  occurred_at: source(500).occurred_at,
-  amount_minor: source(500).amount_minor,
-  category_id: source(500).category_id,
-  name: source(500).name
+const duplicateBase = source(500);
+const duplicateSources = [duplicateBase, source(501, {
+  occurred_at: duplicateBase.occurred_at,
+  type: duplicateBase.type,
+  amount_minor: duplicateBase.amount_minor,
+  category_id: duplicateBase.category_id,
+  name: duplicateBase.name
 })];
 const blockedPlan = buildMigrationPlan({
   source_records: duplicateSources,
