@@ -10,6 +10,7 @@ const context = read('.ai-context/PROJECT_CONTEXT.md');
 const llms = read('llms.txt');
 const roadmap = read('docs/ROADMAP.md');
 const status = read('docs/PROJECT_STATUS.md');
+const repositoryPort = read('docs/architecture/TRANSACTION_REPOSITORY_PORT.md');
 const workflow = read('.github/workflows/pr-validation.yml');
 const reviewContext = read('.ai-context/MULTI_AI_REVIEW_CONTEXT.md');
 const reviewDoc = read('docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md');
@@ -81,6 +82,14 @@ requireMatch('AI_CONTEXT_PRIVATE_BOUNDARY', context, /Real or real-derived house
 requireMatch('AI_CONTEXT_GATE_CHAIN', context, gateOrder, 'AI context machine chain drifted');
 requireMatch('AI_CONTEXT_SCOPE_HANDOFF', context, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/, 'AIENG scope handoff missing');
 requireMatch('AI_CONTEXT_MULTI_REVIEW', context, /Read-only multi-AI review[\s\S]*ARCHITECTURE[\s\S]*TEST_OPERATIONS/, 'AI context review map missing');
+requireMatch('AI_CONTEXT_ARCH010_DONE', context, /ARCH-010[^\n]{0,180}DONE[^\n]{0,180}Issue #89/i, 'AI context must identify ARCH-010 as DONE with Main Verification issue');
+requireMatch('AI_CONTEXT_ARCH011_CURRENT', context, /ARCH-011[^\n]{0,220}current writer[^\n]{0,180}Issue #91/i, 'AI context must identify ARCH-011 as current writer');
+requireMatch('AI_CONTEXT_REPOSITORY_PORT', context, /PRH_TRANSACTION_REPOSITORY_V1[\s\S]{0,1800}GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/i, 'AI context repository port/write boundary missing');
+requireMatch('AI_CONTEXT_WEB_SMOKE_V2', context, /Web App render smoke v2/i, 'AI context must preserve post-incident Web App runtime gate');
+
+requireMatch('AI_REPOSITORY_PORT_SCHEMA', repositoryPort, /PRH_TRANSACTION_REPOSITORY_V1/, 'repository port machine schema missing');
+requireMatch('AI_REPOSITORY_PORT_CANONICAL', repositoryPort, /PRH_CANONICAL_TRANSACTION_V1/, 'repository port canonical binding missing');
+requireMatch('AI_REPOSITORY_PORT_WRITE_BLOCKED', repositoryPort, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/, 'repository port Google write fail-closed rule missing');
 
 requireMatch('AI_REVIEW_CONTEXT_READ_ONLY', reviewContext, /READ_ONLY[\s\S]*writer_authority/i, 'review context not read-only');
 requireMatch('AI_REVIEW_DOC_MACHINE_AUTHORITY', reviewDoc, /supplementary evidence[\s\S]*Main Verification/i, 'review doc machine authority missing');
@@ -89,7 +98,9 @@ for (const required of [
   'AGENTS.md', 'docs/ROADMAP.md', '.ai-context/PROJECT_CONTEXT.md', '.ai-context/roadmap-task-packet.schema.json',
   '.ai-context/MULTI_AI_REVIEW_CONTEXT.md', '.ai-context/multi-ai-review-packet.schema.json',
   '.ai-context/multi-ai-review-report.schema.json', 'docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md',
-  'docs/PROJECT_STATUS.md', 'docs/architecture.md', 'docs/RELEASE_PROCESS.md', 'docs/data-model.md'
+  'docs/PROJECT_STATUS.md', 'docs/architecture.md', 'docs/architecture/TRANSACTION_REPOSITORY_PORT.md',
+  'lib/repository/transaction_repository.v1.json', 'tests/repository_adapter_contract_test.js',
+  'docs/RELEASE_PROCESS.md', 'docs/data-model.md'
 ]) {
   if (!llms.includes(required)) failures.push({ id: 'AI_LLMS_INDEX', message: `llms.txt missing ${required}` });
 }
@@ -98,9 +109,13 @@ requireMatch('AI_STATUS_CONTRACT', status,
   /Root `AGENTS\.md` is the public-safe repository AI operating contract|Root `AGENTS\.md`[^\n]{0,80}public-safe[^\n]{0,80}(?:AI|ИИ)/i,
   'PROJECT_STATUS must acknowledge root AI contract');
 requireMatch('AI_STATUS_CHAIN', status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/, 'PROJECT_STATUS AIENG chain missing');
+requireMatch('AI_STATUS_ARCH010_DONE', status, /ARCH-010[^\n]{0,180}DONE/i, 'PROJECT_STATUS must identify ARCH-010 as DONE');
+requireMatch('AI_STATUS_ARCH011_CURRENT', status, /ARCH-011[^\n]{0,220}IN_PROGRESS/i, 'PROJECT_STATUS must identify ARCH-011 as current R1 item');
+requireMatch('AI_STATUS_REPOSITORY_WRITE_BLOCKED', status, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/, 'PROJECT_STATUS must preserve fail-closed Google repository write');
 requireMatch('AI_WORKFLOW_GATE', workflow, /- name: AI contract\s+run: node tools\/ai-contract-scan\.js/m, 'AI contract PR gate missing');
 requireMatch('AI_WORKFLOW_TASK_GATE', workflow, /- name: Roadmap task protocol\s+run: node tests\/roadmap_task_protocol_contract_test\.js/m, 'Roadmap task PR gate missing');
 requireMatch('AI_WORKFLOW_REVIEW_GATE', workflow, /- name: Multi-AI review protocol\s+run: node tests\/multi_ai_review_protocol_contract_test\.js/m, 'Multi-AI review PR gate missing');
+requireMatch('AI_WORKFLOW_REPOSITORY_GATE', workflow, /- name: Transaction repository adapter\s+run: node tests\/repository_adapter_contract_test\.js/m, 'Transaction repository adapter PR gate missing');
 
 for (const [name, text] of [
   ['AGENTS.md', agents], ['.ai-context/PROJECT_CONTEXT.md', context], ['llms.txt', llms],
@@ -117,6 +132,8 @@ if (failures.length) {
 } else {
   console.log('ai-contract: PASS', {
     roadmap: 'repository-v2.3', autonomyContract: 'v2', privacySafeContext: true,
+    currentRoadmapItem: 'ARCH-011', repositoryPort: 'PRH_TRANSACTION_REPOSITORY_V1',
+    googleCanonicalWriteAuthorized: false, webAppRenderSmoke: 'V2',
     freeOnly: true, exactMachineGates: true, roadmapTaskProtocol: true,
     multiAiReview: 'READ_ONLY_EXACT_CANDIDATE', reviewerWriterAuthority: false
   });

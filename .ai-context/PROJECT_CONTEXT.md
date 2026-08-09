@@ -26,16 +26,20 @@ R0 machine-proven complete: TEST/SEC/FIN/DATA truth, reproducible supply chain, 
 
 - `FIN-010` KPI Dictionary v1 — DONE, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical Transaction v1 — DONE, Issue #87 Main Verification PASS.
-- `ARCH-010` Pure domain/application core — current writer, Issue #89.
+- `ARCH-010` Pure domain/application core — DONE, Issue #89 Main Verification PASS.
+- `ARCH-011` Transaction Repository Port + Google Sheets adapter — current writer, Issue #91, active PR #95.
 
-ARCH-010 candidate:
+ARCH-011 candidate:
 
-- `lib/application/application_core.v1.json` — `PRH_APPLICATION_CORE_V1` authority/use-case/dependency contract;
-- `lib/application/financial_core.js` — pure canonical validation/KPI/migration use-cases;
-- `tests/pure_domain_application_core_contract_test.js` — behavior + static dependency boundary;
-- `docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md` — normative architecture boundary.
+- `lib/repository/transaction_repository.v1.json` — `PRH_TRANSACTION_REPOSITORY_V1` storage-neutral capabilities/query/write-interface contract;
+- `lib/repository/transaction_repository.js` — deterministic query/revision + fake in-memory repository;
+- `lib/adapters/google_sheets_operations_mapping.v1.json` — versioned mapping from current `01 Операции` representation;
+- `lib/adapters/google_sheets_transaction_repository.js` — Google mapping/query adapter with explicit currency/dimension resolvers;
+- `GoogleTransactionRepositoryGateway.js` — Apps Script current-store read boundary;
+- `tests/repository_adapter_contract_test.js` — independently generated synthetic fake/Google/gateway parity contract;
+- `docs/architecture/TRANSACTION_REPOSITORY_PORT.md` + ADR — normative repository boundary.
 
-Pure core не имеет I/O/network/financial-write authority. ARCH-011 repository adapter запускается только после ARCH-010 Main Verification.
+Pure core не имеет I/O/network/financial-write authority. Repository port находится снаружи pure core. Наличие generic `writeBatch()` interface не является authorization: current Google adapter fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`, legacy operation-write guards не ослаблены.
 
 ## Current delivery
 
@@ -45,10 +49,12 @@ Roadmap Issue IN_PROGRESS
 -> PR Validation
 -> immutable exact candidate
 -> Trusted DEV Deploy
--> Trusted Runtime Health
+-> Trusted Runtime Health + Web App render smoke v2
 -> CI-003 autonomous squash merge
 -> Main Verification -> Issue DONE/closed
 ```
+
+После INC-001 Dashboard render не использует `HtmlTemplate.evaluate()` для `DashboardWebApp`; raw `HtmlOutput` placeholder injection проверяется privacy-safe authenticated Web render smoke v2. Это обязательная часть runtime health, а не ручной deployment marker.
 
 ## Executable continuation protocol
 
@@ -95,26 +101,36 @@ Canonical Transaction v1 отделяет portable domain fields от Google She
 
 `PRH_APPLICATION_CORE_V1` фиксирует `io_authority=false`, `financial_write_authority=false`, `network_authority=false`. Static CI contract блокирует imports из pure core в top-level runtime/UI modules.
 
+## ARCH-011 repository boundary
+
+`PRH_TRANSACTION_REPOSITORY_V1` вводит read/query/write-interface abstraction над canonical transactions. Query deterministic: explicit filters, `[period_start, period_end)`, stable `occurred_at ASC, transaction_id ASC` ordering, bounded pagination. Repository revision — deterministic technical identity внутри private process.
+
+Fake repository полностью реализует read/query и synthetic-only optimistic/idempotent write contract для локальных tests. Google adapter читает current sheet через явный mapping, не угадывает currency/domain IDs и сохраняет Google row только как mutable `source_position`.
+
+Current Google canonical mutation не разрешена: adapter возвращает bounded `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`, а Apps Script gateway не содержит `setValue/setValues/appendRow/deleteRow` operation-write primitives.
+
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
 3. active GitHub Roadmap Issue
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/finance/KPI_DICTIONARY.md`
-6. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
-7. `/docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md`
-8. `/lib/application/application_core.v1.json`
-9. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
-10. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
-11. `/docs/architecture.md`
-12. `/docs/RELEASE_PROCESS.md`
-13. `/docs/data-model.md`
-14. exact candidate code/tests/workflows
+5. `/docs/architecture/TRANSACTION_REPOSITORY_PORT.md`
+6. `/lib/repository/transaction_repository.v1.json`
+7. `/docs/finance/KPI_DICTIONARY.md`
+8. `/docs/data/CANONICAL_TRANSACTION_SCHEMA.md`
+9. `/docs/architecture/PURE_DOMAIN_APPLICATION_CORE.md`
+10. `/lib/application/application_core.v1.json`
+11. `/docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`
+12. `/docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md`
+13. `/docs/architecture.md`
+14. `/docs/RELEASE_PROCESS.md`
+15. `/docs/data-model.md`
+16. exact candidate code/tests/workflows
 
 ## Не выводить из контекста
 
-Не считать автоматически завершёнными full-history migration, ARCH-010, ARCH-011, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Pure application core не является repository adapter и не имеет write authority.
+Не считать автоматически завершёнными full-history migration, ARCH-011, PROD/Yandex cutover, public Web App, paid AI/API, Git history rewrite или Roadmap item без Main Verification. Repository interface/adapter existence не является financial-write authority.
 
 ## Scope handoff
 
@@ -123,5 +139,6 @@ Canonical Transaction v1 отделяет portable domain fields от Google She
 - `AIENG-003` — DONE.
 - `FIN-010` — DONE.
 - `DATA-010` — DONE.
-- `ARCH-010` — current R1 writer.
-- `ARCH-011` — dependency-blocked до ARCH-010 DONE.
+- `ARCH-010` — DONE.
+- `ARCH-011` — current R1 writer.
+- `ANL-010`, `TEST-010`, `OBS-010` — dependency-gated после required predecessors.

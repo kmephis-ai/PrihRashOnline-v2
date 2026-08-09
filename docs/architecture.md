@@ -10,7 +10,8 @@ R1 уже закрепил:
 
 - FIN-010 — versioned KPI Dictionary v1;
 - DATA-010 — portable Canonical Transaction v1;
-- ARCH-010 — текущий pure application boundary над этими contract'ами.
+- ARCH-010 — pure application boundary над этими contract'ами;
+- ARCH-011 — current storage-neutral transaction repository port + Google Sheets adapter candidate.
 
 ## Компоненты
 
@@ -28,6 +29,9 @@ R1 уже закрепил:
 | `lib/finance/**` | pure FIN-TRUTH/KPI semantics |
 | `lib/migration/**` | pure deterministic migration reconciliation/planning |
 | `lib/application/**` | pure use-cases без storage/UI/network authority |
+| `lib/repository/**` | storage-neutral transaction repository port + deterministic fake |
+| `lib/adapters/**` | platform/storage mapping adapters вне pure core |
+| `GoogleTransactionRepositoryGateway.js` | current Apps Script Google operations read boundary; canonical writes blocked |
 | HTML Web Dashboard | current family UI |
 | GitHub | source/policy/tests/docs/Roadmap control plane; synthetic-only financial content |
 | GitHub Actions | zero-secret validation + trusted default-branch deploy/runtime/merge control plane |
@@ -37,9 +41,13 @@ R1 уже закрепил:
 ```text
 private Google Sheets
         ↓
-Apps Script / future repository adapter
+Apps Script Google repository gateway
         ↓
-plain canonical transactions
+Google Sheets transaction adapter
+        ↓
+PRH_TRANSACTION_REPOSITORY_V1
+        ↓
+plain PRH_CANONICAL_TRANSACTION_V1
         ↓
 pure application core
         ↓
@@ -71,7 +79,30 @@ Use-cases:
 
 `SpreadsheetApp`, Apps Script services, DOM/UI и network calls не допускаются внутри `lib/domain|finance|migration|application`. Static dependency contract проверяет это в CI.
 
-ARCH-011 должен подключить Google Sheets как внешний repository adapter; storage mapping/locks/ranges/readback не должны проникать обратно в pure semantics.
+ARCH-010 завершён Main Verification; он намеренно не содержит repository I/O и не даёт write authority.
+
+## Transaction repository boundary — ARCH-011
+
+Machine contract: `lib/repository/transaction_repository.v1.json` (`PRH_TRANSACTION_REPOSITORY_V1`).  
+Common implementation/fake: `lib/repository/transaction_repository.js`.  
+Google mapping adapter: `lib/adapters/google_sheets_transaction_repository.js`.  
+Apps Script gateway: `GoogleTransactionRepositoryGateway.js`.  
+Normative detail: `docs/architecture/TRANSACTION_REPOSITORY_PORT.md`.
+
+Repository port предоставляет storage-neutral read/query/write-interface contract над canonical transactions. Query semantics deterministic и bounded: explicit filters, stable ordering `occurred_at ASC, transaction_id ASC`, `[period_start, period_end)` и pagination limits.
+
+In-memory fake разрешает synthetic-only writes при explicit authority для проверки optimistic revision/idempotency/readback. Это тестовый contract, не production permission.
+
+Google adapter:
+
+- преобразует current operation headers в DATA-010 canonical transactions через versioned mapping;
+- требует explicit currency и explicit resolvers для domain dimensions;
+- не превращает Google row number в logical identity — row остаётся только `source_position`;
+- использует deterministic versioned fingerprint projection;
+- поддерживает read/query;
+- сохраняет generic write interface, но всегда fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+
+Apps Script gateway остаётся вне pure core и может использовать `SpreadsheetApp`, но в нём отсутствуют `setValue`, `setValues`, `appendRow`, `deleteRow` operation-write primitives. Legacy operation write guard не ослабляется.
 
 ## Financial truth
 
@@ -84,9 +115,11 @@ Legacy итоговые ячейки не являются golden truth. Фин�
 - FIN-010 KPI Dictionary parity;
 - DATA-001 source-to-canonical provenance/idempotency/mismatch detection;
 - DATA-010 strict canonical schema/source identity;
+- ARCH-010 pure application boundary;
+- ARCH-011 synthetic fake/Google adapter parity candidate;
 - public tree synthetic-only boundary.
 
-Полный history migration/cutover остаётся отдельным MIG-010; наличие canonical contracts не означает, что full history уже мигрирована.
+Полный history migration/cutover остаётся отдельным MIG-010; наличие canonical/repository contracts не означает, что full history уже мигрирована.
 
 ## Trust boundaries
 
@@ -105,6 +138,8 @@ Legacy итоговые ячейки не являются golden truth. Фин�
 
 Apps Script имеет доступ к приватной книге. Web App остаётся `MYSELF`; его private deployment locator не публикуется как README/release artifact.
 
+Dashboard render path использует raw `HtmlOutput` placeholder injection вместо `HtmlTemplate.evaluate()` для `DashboardWebApp`; privacy-safe Web App render smoke v2 является обязательной частью authenticated runtime health.
+
 ### GitHub Actions trust split
 
 ```text
@@ -116,14 +151,14 @@ immutable candidate bound to exact PR SHA
   ↓
 default-branch Trusted DEV Deploy
   ↓
-authenticated Trusted Runtime Health
+authenticated Trusted Runtime Health + Web App render smoke v2
   ↓
 CI-003 autonomous squash merge
   ↓
 Main Verification -> Roadmap Issue DONE
 ```
 
-Secret-bearing workflow policy берётся из default branch. Candidate artifact независимо реконструируется из exact candidate Git tree перед deployment. Runtime health доказывает exact deployed candidate SHA/source-tree через authenticated owner-only Execution API.
+Secret-bearing workflow policy берётся из default branch. Candidate artifact независимо реконструируется из exact candidate Git tree перед deployment. Runtime health доказывает exact deployed candidate SHA/source-tree через authenticated owner-only Execution API и отдельно рендерит Dashboard с synthetic technical payload.
 
 ## R0 cross-cutting safety layers
 
@@ -164,7 +199,7 @@ Owner-local portable backup:
 
 Web Dashboard read paths не изменяют `01 Операции`. Текущие поддерживаемые bounded writes относятся к staging/control/config/reporting surfaces и имеют собственные guards/readback where applicable.
 
-Pure application core также не имеет write authority. Любой будущий mutation path в canonical operations должен иметь отдельную write policy: idempotency, bounded scope, preconditions, audit, readback, rollback/snapshot и private reconciliation. Наличие schema/core/adapter не является разрешением такого write path.
+Pure application core также не имеет write authority. ARCH-011 repository interface не меняет это: current Google adapter canonical write всегда blocked. Любой будущий mutation path в canonical operations должен иметь отдельную write policy: idempotency, bounded scope, preconditions, audit, readback, rollback/snapshot и private reconciliation. Наличие schema/core/adapter не является разрешением такого write path.
 
 ## DEV и PROD
 
@@ -181,7 +216,7 @@ Application services (pure use-cases)
         ↓
 Pure canonical domain + KPI/migration rules
         ↓
-Repository contracts
+PRH_TRANSACTION_REPOSITORY_V1
         ↓
 Google Sheets adapter  <->  future YDB adapter
 ```
