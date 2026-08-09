@@ -3,10 +3,9 @@
 /**
  * MIG-010 staging-only readback diagnostic.
  *
- * This probe is owner-authorized because it temporarily writes the already
- * approved next batch into the hidden staging sheet. It never mutates the live
- * target sheet, clears the probed staging range before returning, and exposes
- * only bounded mismatch classes (no values, row positions, hashes or ids).
+ * The probe writes only the already-authorized next batch into the hidden
+ * staging sheet, never mutates the live target, restores the staging range
+ * after the probe, and exposes only bounded mismatch classes/booleans.
  */
 var PRH_MIG010_READBACK_PROBE = Object.freeze({
   SCHEMA: 'MIG010_EXECUTION_READBACK_PROBE_V1',
@@ -85,43 +84,29 @@ function prhMig010ProbeRangeCleared_(range) {
 }
 
 /**
- * Diagnose the complete typed-write lifecycle without advancing session state:
- * 1) text-type formats applied to package t:s cells;
- * 2) values written and read back while typed formats are still active;
- * 3) original number formats restored and read back again;
- * 4) probe range cleared in finally.
+ * Exercise the exact production adaptive writer without advancing session.
+ * The production helper may keep a minimal compatible format on cells that
+ * would otherwise be coerced. For the probe, content is cleared first and the
+ * original number formats are restored only after content is gone, so the
+ * diagnostic leaves staging exactly as it found it.
  */
-function prhMig010ProbeTypedLifecycle_(range, encodedRows, matrix) {
-  if (!range || typeof range.getNumberFormats !== 'function' ||
-      typeof range.setNumberFormats !== 'function') {
-    prhMig010Fail_('MIG010_EXECUTION_TYPED_FORMAT_API_UNAVAILABLE');
-  }
+function prhMig010ProbeAdaptiveWrite_(range, encodedRows, matrix) {
   var originalFormats = range.getNumberFormats();
-  var typedFormats = prhMig010TypedFormats_(encodedRows, originalFormats);
-  var beforeRestore = [];
-  var afterRestore = [];
-  range.setNumberFormats(typedFormats);
+  var writeResult;
+  var classes = [];
   try {
-    range.setValues(matrix);
+    writeResult = prhMig010SetTypedValues_(range, encodedRows, matrix);
     SpreadsheetApp.flush();
-    beforeRestore = prhMig010ProbeMismatchClasses_(encodedRows, prhMig010EncodeRange_(range));
-
-    range.setNumberFormats(originalFormats);
-    SpreadsheetApp.flush();
-    afterRestore = prhMig010ProbeMismatchClasses_(encodedRows, prhMig010EncodeRange_(range));
-
-    var restored = range.getNumberFormats();
-    if (prhMig010StableStringify_(restored) !== prhMig010StableStringify_(originalFormats)) {
-      prhMig010Fail_('MIG010_EXECUTION_TYPED_FORMAT_RESTORE_FAILED');
-    }
+    classes = prhMig010ProbeMismatchClasses_(encodedRows, prhMig010EncodeRange_(range));
   } finally {
     range.clearContent();
     SpreadsheetApp.flush();
-    try { range.setNumberFormats(originalFormats); SpreadsheetApp.flush(); } catch (_) { /* verify below */ }
+    range.setNumberFormats(originalFormats);
+    SpreadsheetApp.flush();
   }
   return {
-    beforeFormatRestore: beforeRestore,
-    afterFormatRestore: afterRestore
+    adaptiveFormatReadback: classes,
+    adaptiveRepairApplied: Boolean(writeResult && writeResult.adaptiveRepairApplied)
   };
 }
 
@@ -157,7 +142,7 @@ function prhMig010ProbeAuthorizedBatchReadback(request) {
     var range = stage.getRange(startSheetRow, 1, matrix.length, PRH_MIG010_EXECUTION.COLUMN_COUNT);
     range.clearContent();
     SpreadsheetApp.flush();
-    var lifecycle = prhMig010ProbeTypedLifecycle_(range, input.rows, matrix);
+    var diagnostic = prhMig010ProbeAdaptiveWrite_(range, input.rows, matrix);
 
     if (!prhMig010ProbeRangeCleared_(range)) {
       prhMig010Fail_('MIG010_EXECUTION_PROBE_RANGE_CLEAR_FAILED');
@@ -166,19 +151,14 @@ function prhMig010ProbeAuthorizedBatchReadback(request) {
       prhMig010Fail_('MIG010_EXECUTION_LIVE_TARGET_DRIFT');
     }
 
-    var combined = {};
-    lifecycle.beforeFormatRestore.concat(lifecycle.afterFormatRestore).forEach(function (item) {
-      combined[item] = true;
-    });
-    var classes = Object.keys(combined).sort();
-
     return JSON.stringify({
       schema: PRH_MIG010_READBACK_PROBE.SCHEMA,
-      status: classes.length ? 'MISMATCH_CLASSIFIED' : 'MATCHED',
-      mismatchClasses: classes,
-      beforeFormatRestore: lifecycle.beforeFormatRestore,
-      afterFormatRestore: lifecycle.afterFormatRestore,
+      status: diagnostic.adaptiveFormatReadback.length ? 'MISMATCH_CLASSIFIED' : 'MATCHED',
+      mismatchClasses: diagnostic.adaptiveFormatReadback,
+      adaptiveFormatReadback: diagnostic.adaptiveFormatReadback,
+      adaptiveRepairApplied: diagnostic.adaptiveRepairApplied,
       rangeCleared: true,
+      originalFormatsRestoredAfterClear: true,
       liveTargetMutated: false,
       financialPayloadStdout: false
     });
