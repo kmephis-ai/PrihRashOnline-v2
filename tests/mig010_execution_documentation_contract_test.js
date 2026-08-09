@@ -12,6 +12,7 @@ const runbook = read('docs/operations/MIG010_AUTHORIZED_EXECUTION.md');
 const llms = read('llms.txt');
 const packageTool = read('tools/mig010-execution-package.js');
 const gateway = read('Mig010ExecutionGateway.js');
+const typedWriter = read('Mig010ExecutionTypedWrite.js');
 const executor = read('tools/mig010-authorized-executor.js');
 const post = read('tools/mig010-post-reconcile.js');
 const genericGateway = read('GoogleTransactionRepositoryGateway.js');
@@ -19,25 +20,27 @@ const policy = JSON.parse(read('lib/migration/mig010_execution_policy.v1.json'))
 
 function match(text, pattern, message) { assert(pattern.test(text), message); }
 
-match(status, /MIG-010[^\n]{0,260}IN_PROGRESS[^\n]{0,260}AUTHORIZATION_REQUIRED/i,
-  'project status must identify MIG-010 AUTHORIZATION_REQUIRED while still IN_PROGRESS');
+match(status, /MIG-010[^\n]{0,300}IN_PROGRESS[^\n]{0,300}OWNER_VERIFIED/i,
+  'project status must identify OWNER_VERIFIED while GitHub lifecycle remains IN_PROGRESS');
 match(status, /repair resolve[^\n]{0,180}READY_FOR_REBUILD_DRY_RUN/i,
   'project status must preserve owner repair resolve checkpoint');
 match(status, /resolved rebuild dry-run[^\n]{0,120}PASS/i,
   'project status must preserve owner rebuild verification PASS');
-match(status, /real migration batch[^\n]{0,120}(?:не выполнялся|not)/i,
-  'status must not claim authorized migration executed');
-match(status, /unexplainedMismatch=0[^\n]{0,180}(?:ещё не доказан|not)/i,
-  'status must not claim post-write reconciliation before execution');
+match(status, /staging\/readback\/finalize[^\n]{0,120}PASS/i,
+  'status must record authorized migration execution');
+match(status, /MIG010_OWNER_POST_RECONCILIATION_V1[^\n]{0,100}PASS/i,
+  'status must record post-write reconciliation PASS');
+match(status, /unexplainedMismatch=0/,
+  'status must record zero unexplained mismatch');
 
-match(context, /owner-private stage = `AUTHORIZATION_REQUIRED`/,
+match(context, /owner-private stage = `OWNER_VERIFIED`/,
   'AI context must identify current irreversible stage');
 match(context, /MIG010_EXECUTION_POLICY_V1@1\.0\.0/,
   'AI context must identify execution policy');
 match(context, /FINALIZED_PENDING_RECONCILIATION/,
   'AI context must keep finalize separate from DONE');
-match(context, /new encrypted backup after finalize|нов[^\n]{0,120}encrypted backup/i,
-  'AI context must require post-write backup');
+match(context, /fresh encrypted post-write backup[^\n]{0,80}PASS/i,
+  'AI context must record post-write backup PASS');
 match(context, /Generic|generic[\s\S]{0,300}GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/i,
   'AI context must keep generic repository write blocked');
 
@@ -71,10 +74,14 @@ match(runbook, /<=100|не превышает 100|максимум 100/i,
   'runbook must bound batches to 100');
 match(runbook, /SpreadsheetApp\.flush\(\)[\s\S]{0,160}readback hash/i,
   'runbook must require staging readback');
+match(runbook, /adaptive existing-format-first/i,
+  'runbook must document adaptive type preservation');
 match(runbook, /contentsOnly:true[\s\S]{0,220}formulas/i,
   'runbook must document formula-preserving finalize/rollback semantics');
 match(runbook, /FINALIZED_PENDING_RECONCILIATION/,
   'runbook must not equate finalize with DONE');
+match(runbook, /OWNER_VERIFIED/,
+  'runbook must record verified owner execution');
 match(runbook, /unexplainedMismatch = 0/,
   'runbook must require zero unexplained mismatch');
 
@@ -109,6 +116,19 @@ match(gateway, /fresh_backup_verification_required:\s*true/,
   'gateway metadata must expose fresh backup verification requirement');
 match(gateway, /generic_repository_write_authorized:\s*false/,
   'migration gateway must not grant generic repository authority');
+
+match(typedWriter, /MIG010_TYPED_STAGING_WRITE_V2/,
+  'typed writer must expose adaptive v2 contract');
+match(typedWriter, /adaptiveExistingFormatFirst:\s*true/,
+  'typed writer must prefer existing formats when exact');
+match(typedWriter, /explicitStringTypePreservation:\s*true/,
+  'typed writer must preserve strings');
+match(typedWriter, /explicitDateTypePreservation:\s*true/,
+  'typed writer must preserve dates');
+match(typedWriter, /exactReadbackStillRequired:\s*true/,
+  'typed writer must keep exact readback mandatory');
+match(typedWriter, /genericRepositoryWriteAuthorized:\s*false/,
+  'typed writer must not grant generic authority');
 
 match(executor, /MIG010_OWNER_IRREVERSIBLE_AUTHORIZATION_V1/,
   'executor must require private authorization schema');
@@ -145,12 +165,14 @@ for (const required of [
   'docs/operations/MIG010_AUTHORIZED_EXECUTION.md',
   'lib/migration/mig010_execution_policy.v1.json',
   'Mig010ExecutionGateway.js',
+  'Mig010ExecutionTypedWrite.js',
   'tools/mig010-execution-package.js',
   'tools/mig010-authorized-executor.js',
   'tools/mig010-post-reconcile.js',
   'tests/mig010_execution_package_contract_test.js',
   'tests/mig010_execution_gateway_contract_test.js',
   'tests/mig010_authorized_executor_contract_test.js',
+  'tests/mig010_typed_staging_write_contract_test.js',
   'tests/mig010_post_reconcile_contract_test.js'
 ]) {
   assert(llms.includes(required), `llms.txt missing ${required}`);
@@ -162,16 +184,19 @@ for (const [name, value] of [['status', status], ['context', context], ['runbook
 }
 
 console.log('mig010_execution_documentation_contract_test: OK', {
-  stage: 'AUTHORIZATION_REQUIRED',
+  privateStage: 'OWNER_VERIFIED',
+  githubLifecycle: 'IN_PROGRESS',
   executionPolicy: 'MIG010_EXECUTION_POLICY_V1@1.0.0',
   genericRepositoryWriteAuthorized: false,
   publicCiCanAuthorize: false,
   staging: true,
+  adaptiveTypePreservation: true,
   formulasPreserved: true,
   freshBackupCopyRequired: true,
   freshBackupVerificationRequired: true,
   rollback: true,
   postWriteFreshBackup: true,
   unexplainedMismatchRequired: 0,
-  realMigrationExecuted: false
+  realMigrationExecuted: true,
+  realMigrationVerified: true
 });
