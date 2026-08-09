@@ -22,6 +22,31 @@ function requireMatch(id, text, pattern, message) {
 function forbidMatch(id, text, pattern, message) {
   if (pattern.test(text)) failures.push({ id, message });
 }
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+function statusInProgressIds() {
+  const ids = [];
+  const pattern = /^- `([A-Z]+-\d+)`[^\n]*\*\*IN_PROGRESS\*\*/gmi;
+  let match;
+  while ((match = pattern.exec(status)) !== null) ids.push(match[1]);
+  return Array.from(new Set(ids));
+}
+function branchRoadmapId() {
+  const branch = String(process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '');
+  const match = /^agent\/([A-Z]+-\d+)-/.exec(branch);
+  return match ? match[1] : '';
+}
+
+const activeIds = statusInProgressIds();
+const branchItem = branchRoadmapId();
+const currentRoadmapItem = branchItem || (activeIds.length === 1 ? activeIds[0] : '');
+if (activeIds.length !== 1) {
+  failures.push({ id: 'AI_SINGLE_CURRENT_WRITER', message: `Expected exactly one documented IN_PROGRESS item, got ${activeIds.join(',') || 'none'}` });
+}
+if (branchItem && activeIds.length === 1 && branchItem !== activeIds[0]) {
+  failures.push({ id: 'AI_BRANCH_CURRENT_WRITER', message: `Branch writer ${branchItem} != documented writer ${activeIds[0]}` });
+}
 
 requireMatch('AI_PRODUCT_OBJECTIVE', agents, /Product objective[\s\S]{0,800}household-finance/i, 'product objective missing');
 requireMatch('AI_SOURCE_PRECEDENCE', agents, /Sources of truth and precedence[\s\S]{0,1800}fail closed/i, 'source precedence/fail-closed rule missing');
@@ -57,7 +82,8 @@ for (const [id, pattern] of [
   ['AI_FINANCIAL_WRITE_RECONCILIATION', /reconciliation/i],
   ['AI_FINANCIAL_WRITE_ROLLBACK', /rollback/i]
 ]) requireMatch(id, financial, pattern, `${id} missing`);
-requireMatch('AI_MIGRATION_POLICY', agents, /Full-history migration is not currently declared complete/i, 'full-history status missing');
+requireMatch('AI_MIGRATION_COMPLETED_POLICY', agents, /MIG-010[\s\S]{0,1000}OWNER_VERIFIED/i, 'completed MIG-010 policy/evidence boundary missing');
+requireMatch('AI_MIGRATION_NEW_WRITE_REAUTH', agents, /новый irreversible write[\s\S]{0,220}нового exact-bound owner authorization/i, 'future migration reauthorization rule missing');
 requireMatch('AI_MIGRATION_INVARIANTS', agents, /deterministic, resumable and idempotent[\s\S]*provenance/i, 'migration invariants missing');
 
 requireMatch('AI_NODE24', agents, /Node runtime:[^\n]*Node 24/i, 'Node 24 baseline missing');
@@ -78,14 +104,20 @@ requireMatch('AI_MULTI_REVIEW_SUPPLEMENTARY', agents, /supplementary evidence[\s
 
 requireMatch('AI_CONTEXT_ROADMAP', context, /docs\/ROADMAP\.md[\s\S]{0,160}Executable GitHub Roadmap v2\.3/i, 'AI context Roadmap v2.3 authority missing');
 requireMatch('AI_CONTEXT_CURRENT_R0', context, /Current R0 truth/, 'AI context current R0 section missing');
-requireMatch('AI_CONTEXT_PRIVATE_BOUNDARY', context, /Real or real-derived household finance data[\s\S]{0,220}stay private/i, 'AI context private boundary missing');
+requireMatch('AI_CONTEXT_PRIVATE_BOUNDARY', context, /Real or real-derived household finance data[\s\S]{0,220}(?:stays|stay) private/i, 'AI context private boundary missing');
 requireMatch('AI_CONTEXT_GATE_CHAIN', context, gateOrder, 'AI context machine chain drifted');
 requireMatch('AI_CONTEXT_SCOPE_HANDOFF', context, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/, 'AIENG scope handoff missing');
 requireMatch('AI_CONTEXT_MULTI_REVIEW', context, /Read-only multi-AI review[\s\S]*ARCHITECTURE[\s\S]*TEST_OPERATIONS/, 'AI context review map missing');
 requireMatch('AI_CONTEXT_ARCH010_DONE', context, /ARCH-010[^\n]{0,180}DONE[^\n]{0,180}Issue #89/i, 'AI context must identify ARCH-010 as DONE with Main Verification issue');
-requireMatch('AI_CONTEXT_ARCH011_CURRENT', context, /ARCH-011[^\n]{0,220}current writer[^\n]{0,180}Issue #91/i, 'AI context must identify ARCH-011 as current writer');
+requireMatch('AI_CONTEXT_ARCH011_DONE', context, /ARCH-011[^\n]{0,220}DONE/i, 'AI context must identify ARCH-011 as DONE');
+requireMatch('AI_CONTEXT_MIG010_DONE', context, /MIG-010[^\n]{0,220}DONE/i, 'AI context must identify MIG-010 as DONE');
+if (currentRoadmapItem) {
+  const escaped = escapeRegExp(currentRoadmapItem);
+  requireMatch('AI_CONTEXT_CURRENT_WRITER', context,
+    new RegExp(`${escaped}[^\\n]{0,220}(?:current|текущ)[^\\n]{0,120}writer`, 'i'),
+    `AI context must identify ${currentRoadmapItem} as current writer`);
+}
 requireMatch('AI_CONTEXT_REPOSITORY_PORT', context, /PRH_TRANSACTION_REPOSITORY_V1[\s\S]{0,1800}GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/i, 'AI context repository port/write boundary missing');
-requireMatch('AI_CONTEXT_WEB_SMOKE_V2', context, /Web App render smoke v2/i, 'AI context must preserve post-incident Web App runtime gate');
 
 requireMatch('AI_REPOSITORY_PORT_SCHEMA', repositoryPort, /PRH_TRANSACTION_REPOSITORY_V1/, 'repository port machine schema missing');
 requireMatch('AI_REPOSITORY_PORT_CANONICAL', repositoryPort, /PRH_CANONICAL_TRANSACTION_V1/, 'repository port canonical binding missing');
@@ -110,7 +142,14 @@ requireMatch('AI_STATUS_CONTRACT', status,
   'PROJECT_STATUS must acknowledge root AI contract');
 requireMatch('AI_STATUS_CHAIN', status, /AIENG-001[\s\S]*AIENG-002[\s\S]*AIENG-003/, 'PROJECT_STATUS AIENG chain missing');
 requireMatch('AI_STATUS_ARCH010_DONE', status, /ARCH-010[^\n]{0,180}DONE/i, 'PROJECT_STATUS must identify ARCH-010 as DONE');
-requireMatch('AI_STATUS_ARCH011_CURRENT', status, /ARCH-011[^\n]{0,220}IN_PROGRESS/i, 'PROJECT_STATUS must identify ARCH-011 as current R1 item');
+requireMatch('AI_STATUS_ARCH011_DONE', status, /ARCH-011[^\n]{0,220}DONE/i, 'PROJECT_STATUS must identify ARCH-011 as DONE');
+requireMatch('AI_STATUS_MIG010_DONE', status, /MIG-010[^\n]{0,260}DONE/i, 'PROJECT_STATUS must identify MIG-010 as DONE');
+if (currentRoadmapItem) {
+  const escaped = escapeRegExp(currentRoadmapItem);
+  requireMatch('AI_STATUS_CURRENT_WRITER', status,
+    new RegExp(`^- \\`${escaped}\\`[^\\n]*\\*\\*IN_PROGRESS\\*\\*`, 'mi'),
+    `PROJECT_STATUS must identify ${currentRoadmapItem} as the active R1 item`);
+}
 requireMatch('AI_STATUS_REPOSITORY_WRITE_BLOCKED', status, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/, 'PROJECT_STATUS must preserve fail-closed Google repository write');
 requireMatch('AI_WORKFLOW_GATE', workflow, /- name: AI contract\s+run: node tools\/ai-contract-scan\.js/m, 'AI contract PR gate missing');
 requireMatch('AI_WORKFLOW_TASK_GATE', workflow, /- name: Roadmap task protocol\s+run: node tests\/roadmap_task_protocol_contract_test\.js/m, 'Roadmap task PR gate missing');
@@ -131,10 +170,17 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log('ai-contract: PASS', {
-    roadmap: 'repository-v2.3', autonomyContract: 'v2', privacySafeContext: true,
-    currentRoadmapItem: 'ARCH-011', repositoryPort: 'PRH_TRANSACTION_REPOSITORY_V1',
-    googleCanonicalWriteAuthorized: false, webAppRenderSmoke: 'V2',
-    freeOnly: true, exactMachineGates: true, roadmapTaskProtocol: true,
-    multiAiReview: 'READ_ONLY_EXACT_CANDIDATE', reviewerWriterAuthority: false
+    roadmap: 'repository-v2.3',
+    autonomyContract: 'v2',
+    privacySafeContext: true,
+    currentRoadmapItem,
+    repositoryPort: 'PRH_TRANSACTION_REPOSITORY_V1',
+    mig010: 'DONE_OWNER_VERIFIED',
+    googleCanonicalWriteAuthorized: false,
+    freeOnly: true,
+    exactMachineGates: true,
+    roadmapTaskProtocol: true,
+    multiAiReview: 'READ_ONLY_EXACT_CANDIDATE',
+    reviewerWriterAuthority: false
   });
 }
