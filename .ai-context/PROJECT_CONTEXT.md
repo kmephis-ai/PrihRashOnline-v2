@@ -31,13 +31,30 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `PERF-012` — DONE, Issue #110 Main Verification PASS.
 - `PERF-013` — DONE, Issue #112 Main Verification PASS.
 - `PERF-014` — DONE, Issue #114 Main Verification PASS.
-- `DOC-010` — **current P1 writer**, Issue #116, branch `agent/DOC-010-r1-documentation-contract`.
+- `DOC-010` — DONE, Issue #116 Main Verification PASS.
+
+`MASTER-G3` — **complete**: все обязательные R1 dependencies DONE, private full-history reconciliation PASS, synthetic 20k/50k performance PASS.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## DOC-010 documentation-coherence boundary
+## Current R2 truth
 
-`PRH_R1_DOCUMENTATION_V1@1.0.0` maps required human docs to versioned machine contracts, source files, contract tests and named PR Validation gates. Documentation is descriptive/verifiable authority below Roadmap/live lifecycle/exact-SHA machine evidence and can never override a red gate.
+- `DESIGN-020` — **current R2 writer**, Issue #118, branch `agent/DESIGN-020-design-system-shell`, IN_PROGRESS до Main Verification.
+- `VIZ-020` dependency-gated до DESIGN-020 DONE.
+
+`PRH_DESIGN_SYSTEM_V1@1.0.0` — presentation-only contract: semantic typography/spacing/radius/elevation/colors/focus/motion tokens, explicit light/dark `html[data-theme]`, system dark preference при отсутствии explicit theme, `:focus-visible`, `prefers-reduced-motion`, responsive breakpoints 760/1250 px. Он не имеет financial/query/storage/write authority, не содержит financial payload и не требует external CDN/font/design provider. `FREE_ONLY` сохраняется.
+
+Canonical DESIGN-020 entry points:
+
+- `docs/design/DESIGN_SYSTEM.md`;
+- `lib/design/design_system.v1.json`;
+- `tests/design_system_contract_test.js`;
+- `DashboardWebApp.html` — presentation consumer;
+- named PR gate `Design system`.
+
+## DOC-010 verified documentation-coherence boundary
+
+`PRH_R1_DOCUMENTATION_V1@1.0.0` maps required human docs to versioned machine contracts, source files, contract tests and named PR Validation gates. DOC-010 завершён Main Verification; documentation остаётся descriptive/verifiable authority ниже Roadmap/live lifecycle/exact-SHA machine evidence и не может override red gate.
 
 Canonical DOC-010 entry points:
 
@@ -47,7 +64,7 @@ Canonical DOC-010 entry points:
 - `tests/r1_documentation_contract_test.js` — path/link/named-gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector;
 - named PR gate `R1 documentation contract`.
 
-README, architecture and data-model are synchronized to the verified R1 lifecycle. Private runtime locators, real/real-derived financial payload, OAuth, backup/private evidence remain forbidden. `FREE_ONLY` remains mandatory. Generic Google financial write remains blocked.
+Private runtime locators, real/real-derived financial payload, OAuth, backup/private evidence remain forbidden. `FREE_ONLY` remains mandatory. Generic Google financial write remains blocked.
 
 ## PERF-014 verified scale boundary
 
@@ -75,7 +92,7 @@ README, architecture and data-model are synchronized to the verified R1 lifecycl
 
 ## TEST-010 verified testing boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed. DESIGN-020 contract test belongs to UI_E2E and is exposed as named `Design system` gate.
 
 ## ANL-010 verified analytics boundary
 
@@ -98,11 +115,11 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-DOC-010 remains IN_PROGRESS until documentation map/docs/tests are green and Main Verification closes Issue #116.
+DESIGN-020 remains IN_PROGRESS until design contract/shell/docs/tests are green, trusted runtime evidence passes and Main Verification closes Issue #118.
 
 ## MASTER-G3 state
 
-Private full-history reconciliation = PASS. Synthetic PERF-014 20k/50k performance = PASS. Required FIN/DATA/ARCH/ANL/MIG/PERF dependencies = DONE. `MASTER-G3` remains open only until DOC-010 reaches DONE/Main Verification.
+`MASTER-G3 / Canonical platform` complete. Private full-history reconciliation = PASS. Synthetic PERF-014 20k/50k performance = PASS. FIN/DATA/ARCH/ANL/MIG/PERF/DOC dependencies = DONE. R2 is therefore dependency-ready.
 
 ## Executable continuation protocol
 
@@ -130,22 +147,24 @@ PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.
 PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1`; bounded refresh snapshot reuse authority only.  
 PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1`; affected-bucket materialization authority only.  
 PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1`; synthetic CI performance-gate authority only.  
-DOC-010: `PRH_R1_DOCUMENTATION_V1`; documentation coherence authority only.
+DOC-010: `PRH_R1_DOCUMENTATION_V1`; documentation coherence authority only.  
+DESIGN-020: `PRH_DESIGN_SYSTEM_V1`; presentation-token/theme/accessibility authority only.
 
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #116
+3. active GitHub Issue #118
 4. `/docs/PROJECT_STATUS.md`
-5. `/lib/documentation/r1_documentation.v1.json`
-6. `/docs/architecture/R1_C4_CONTEXT.md`
-7. `/docs/data/R1_DATA_LINEAGE.md`
-8. `/tests/r1_documentation_contract_test.js`
-9. `/docs/architecture.md`
-10. `/docs/data-model.md`
-11. exact candidate code/tests/workflows
+5. `/docs/design/DESIGN_SYSTEM.md`
+6. `/lib/design/design_system.v1.json`
+7. `/tests/design_system_contract_test.js`
+8. `/DashboardWebApp.html`
+9. `/lib/documentation/r1_documentation.v1.json`
+10. `/docs/architecture/R1_C4_CONTEXT.md`
+11. `/docs/data/R1_DATA_LINEAGE.md`
+12. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014` = DONE. `DOC-010` = current R1 writer. R2 `DESIGN-020` remains dependency-gated until MASTER-G3 is proven complete.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` = DONE. `MASTER-G3 = complete`. `DESIGN-020` = current R2 writer. `VIZ-020` remains dependency-gated until DESIGN-020 Main Verification.
