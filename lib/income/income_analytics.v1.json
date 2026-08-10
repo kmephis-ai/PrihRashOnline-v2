@@ -14,7 +14,8 @@
     "drill_envelope": "PRH_INCOME_DRILL_ENVELOPE_V1"
   },
   "measure": "INCOME",
-  "source_dimension": "counterparty",
+  "source_dimension": "category_id",
+  "source_semantics": "CANONICAL_INCOME_CATEGORY_AS_SOURCE",
   "unknown_source_label": "UNSPECIFIED_SOURCE",
   "period": {
     "bounds": "START_INCLUSIVE_END_EXCLUSIVE",
@@ -42,7 +43,7 @@
   "drill": {
     "target": "TRANSACTION_EXPLORER",
     "context": "PRH_DRILL_CONTEXT_V1",
-    "source_filter_field": "counterparty",
+    "source_filter_field": "category_id",
     "navigation_financial_payload": false
   },
   "authority": {
