@@ -44,27 +44,29 @@ Google остаётся authoritative; cloud blockers не создают billin
 
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`.
-- `ANL-071` Universal period/comparison engine — **IN_PROGRESS**, Issue #153; current writer, branch `agent/ANL-071-period-comparison`.
+- `ANL-071` — **DONE**, Issue #153 Main Verification PASS, merge `136fa66ea5752c96b789e92911d75ce37226b62f`.
+- `ANL-074` Exploration state model — **IN_PROGRESS**, Issue #155; current writer, branch `agent/ANL-074-exploration-state`.
 
-ANL-070 authority остаётся `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`; SCOPE-070 authority — `PRH_ANALYTICS_SCOPE_V1@1.0.0`. Они не переопределяют FIN-TRUTH и не имеют financial-write authority.
+ANL-070 authority остаётся `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`; SCOPE-070 authority — `PRH_ANALYTICS_SCOPE_V1@1.0.0`; ANL-071 authority — `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`. Они не переопределяют FIN-TRUTH и не имеют financial-write authority.
 
-ANL-071 machine contract: `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`. Core: `lib/analytics/period_engine.js`. Normative doc: `docs/analytics/PERIOD_COMPARISON_ENGINE.md`. Test: `tests/period_comparison_engine_contract_test.js`.
+ANL-074 machine contract: `PRH_EXPLORATION_STATE_V1@1.0.0`. Core: `lib/analytics/exploration_state.js`. Normative doc: `docs/analytics/EXPLORATION_STATE.md`. Test: `tests/exploration_state_contract_test.js`.
 
-ANL-071 boundary:
+ANL-074 boundary:
 
-- Gregorian UTC date-only и half-open `[start,end)` semantics;
-- selectors: explicit range, rolling 7/30/90/365, MTD/QTD/YTD с explicit `as_of`;
-- grains: NONE/DAY/ISO-Monday WEEK/MONTH/QUARTER/YEAR;
-- boundary buckets clip к range и получают partial metadata;
-- previous comparable period использует exact day count либо explicit clipping к предыдущему natural period;
-- YoY calendar-shifts на -1 year с deterministic leap-day clamp;
-- ANL-010 v1 enum не мутируется: каждый bucket выполняется существующим evaluator через `grain=NONE`, `comparison=NONE`;
-- WEEK/QUARTER являются orchestration semantics, а не новым скрытым KPI evaluator;
-- `BUDGET_VARIANCE` temporal series/comparison fail-closed до явной budget comparison semantics;
-- period serialization/telemetry не содержит financial payload или private IDs;
-- `financial_write=false`, canonical mutation=false, storage/network authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
+- переиспользует VIZ-020 `PRH_FILTER_CONTEXT_V1` и `PRH_DRILL_CONTEXT_V1`, не создавая второй filter DSL;
+- global context содержит FilterContext + exact SCOPE-070 ScopeSpec;
+- widget context содержит FilterContext и `INHERIT_GLOBAL` либо explicit `OVERRIDE`; implicit scope merge запрещён;
+- INCLUDE одного field пересекаются, EXCLUDE объединяются, exclusion применяется после include; пустой effective INCLUDE fail-closed;
+- widget/filter ordering не влияет на SHA-256 canonical state hash;
+- effective drill объединяет global + source-widget + drill filters через те же правила и повторно валидируется VIZ-020;
+- session history bounded до 32 состояний; no-op не создаёт history; RESET и BACK детерминированны;
+- private-app URL-state = canonical JSON + base64url `prh1.` с byte/length limit и canonical revalidation; history не сериализуется;
+- URL-state не public-shareable: filter IDs/values могут быть private configuration даже без financial payload;
+- financial datasets/results/rows/measures и SCOPE assignment overlay в state запрещены;
+- telemetry содержит только action/hash/count/global-scope/drill metadata, без filter values;
+- `financial_write=false`, query execution=false, canonical mutation=false, storage/network authority=false; `FREE_ONLY` mandatory.
 
-ANL-072/BENCH-070/ANL-073/ANL-074 не считаются реализованными ANL-071.
+ANL-072/BENCH-070/ANL-073 и downstream DASH cross-filter/drill-through/saved-view items не считаются реализованными ANL-074.
 
 ## MIG-010 historical safety boundary
 
@@ -97,7 +99,7 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. ANL-071 добавляет pure temporal orchestration и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. ANL-074 добавляет pure configuration/state layer и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
