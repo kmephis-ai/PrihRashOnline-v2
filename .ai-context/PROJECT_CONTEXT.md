@@ -41,32 +41,30 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `INC-020` — **DONE**, Issue #128 Main Verification PASS.
 - `CF-020` — **DONE**, Issue #130 Main Verification PASS.
 - `BUD-020` — **DONE**, Issue #132 Main Verification PASS.
-- `OBL-020` — **DONE**, Issue #134 Main Verification PASS, merge `a97bc3d3cdce104bc21150e56ea53adccdc308ac`.
-- `DQ-020` — **current R2 writer**, Issue #136, branch `agent/DQ-020-data-quality-center`; IN_PROGRESS до Main Verification.
-- `PWA-020` — BACKLOG; prematurely opened PR #138 is closed unmerged until DQ completes.
+- `OBL-020` — **DONE**, Issue #134 Main Verification PASS.
+- `DQ-020` — **DONE**, Issue #136 Main Verification PASS, merge `e02ea53a35ec6a15828f4961d3ab2895bb7e7d4e`.
+- `PWA-020` — **current R2 writer**, Issue #137, branch `agent/PWA-020-installable-pwa`; IN_PROGRESS до Main Verification.
 
-## DQ-020 Data Quality boundary
+## PWA-020 boundary
 
-Machine contract: `lib/data_quality/data_quality_center.v1.json` (`PRH_DATA_QUALITY_CENTER_V1@1.0.0`). Core: `lib/data_quality/data_quality_center.js`. Human contract: `docs/data/DATA_QUALITY_CENTER.md`. Browser evidence: `DataQualityWebApp.html`. Tests: `tests/data_quality_center_contract_test.js`, `tests/data_quality_visual_test.js`.
+Machine contract: `lib/pwa/pwa_baseline.v1.json` (`PRH_PWA_BASELINE_V1@1.0.0`). Bundle: `pwa/`. Human contract: `docs/architecture/PWA_BASELINE.md`. Tests: `tests/pwa_baseline_contract_test.js`, `tests/pwa_offline_visual_test.js`.
 
 Rules:
 
-- DQ consumes DATA-010/OBS-010 and does not redefine canonical schema or FIN-TRUTH.
-- Canonical validation is fail-closed; missing required fields are reported without coercive writes.
-- Exact duplicate uses `SHA256_CANONICAL_BUSINESS_PAYLOAD_V1`; fuzzy/similarity duplicate detection is forbidden in v1.
-- Same amount/date alone is not duplicate evidence; full versioned business payload must match.
-- Suspicious/provenance findings use explicit reason codes, not opaque scores.
-- Repair preview is deterministic `REVIEW_REQUIRED / NO_AUTOFIX`, `write_performed=false`.
-- Mutation evidence requires exact plan hash, fresh backup binding, idempotency key, rollback PASS and readback PASS.
-- Complete evidence yields only `READY_FOR_SEPARATE_AUTHORIZATION`; DQ-020 still has `write_authorized=false` and no repair write authority.
-- Historical MIG-010 `IRREVERSIBLE_ACTION_AUTHORIZED` is non-reusable for DQ repair. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`.
-- Generic Google financial write remains blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
-- Public telemetry/evidence excludes raw rows, amounts, descriptions and private transaction/source IDs; independently generated synthetic only.
-- `FREE_ONLY` mandatory; no external provider required.
+- PWA consumes HOME-020/TX-020/DESIGN-020 and does not redefine financial/canonical semantics.
+- Supported host requirement = `SECURE_ORIGIN_OR_LOCALHOST`; current Apps Script HtmlService service-worker activation remains `NOT_PROVEN_CURRENT_HOST`.
+- No private Apps Script deployment locator is published; family runtime remains private `MYSELF`.
+- Cache version = `prh-pwa-shell-v1`; only five explicit static shell URLs are cacheable.
+- Default same-origin behavior is `NETWORK_ONLY`; private tokens `/api/`, `/private/`, `/finance/`, `/dashboard/`, `/transactions/`, `/analytics/`, `/home/`, `/explorer/` use `NETWORK_ONLY_NO_CACHE_FALLBACK`.
+- Cross-origin and non-GET requests are never cached. Authenticated/financial response cache is forbidden.
+- Activate deletes non-current `prh-pwa-shell-*` caches then calls `clients.claim()`; stale financial cache migration is forbidden.
+- Real Chromium localhost evidence must prove service-worker control, exactly five shell cache entries, zero private cache entries, offline shell success and offline private-request failure.
+- Offline shell is public-safe static UI, not financial truth and not private runtime data.
+- `FREE_ONLY` mandatory; no external CDN/provider required.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DQ contract is `PURE_DOMAIN_APPLICATION`; DQ browser visual test is `UI_E2E`. Unknown or ambiguous classification fails.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. PWA static/runtime contract is `RUNTIME_INTEGRATION`; real Chromium offline test is `UI_E2E`. Unknown or ambiguous classification fails.
 
 ## MIG-010 historical verified boundary
 
@@ -86,7 +84,7 @@ PR Validation
 -> Main Verification
 ```
 
-DQ-020 remains open until detector/preview/mutation-boundary/full layered/visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #136.
+PWA-020 remains open until manifest/SW/cache-policy/real-browser/full layered evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #137.
 
 ## Read-only multi-AI review
 
@@ -94,12 +92,12 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Private deployment identifiers, authenticated responses, OAuth, backups/keys and real DQ/financial records stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Private deployment identifiers, authenticated responses, OAuth, backups/keys and financial runtime responses are forbidden in PWA public evidence/cache. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
-FIN-010: `FIN-TRUTH-v1`. DATA-010: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. DQ-020 is read-only quality/preview authority only; `financial_write=false`, `repair_write=false`.
+FIN-010: `FIN-TRUTH-v1`. DATA-010: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. PWA-020 owns only static shell/install/cache policy evidence; `financial_write=false`, `private_runtime_publication=false`.
 
 ## Scope handoff
 
-All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020/CF-020/BUD-020/OBL-020 are DONE. `MASTER-G3 = complete`. `DQ-020` is the single current R2 writer.
+All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020/CF-020/BUD-020/OBL-020/DQ-020 are DONE. `MASTER-G3 = complete`. `PWA-020` is the single current R2 writer.
