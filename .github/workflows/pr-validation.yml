@@ -90,6 +90,10 @@ jobs:
         run: node tests/visualization_foundation_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
+      - name: R2 Financial runtime parity
+        run: node tests/r2_financial_runtime_parity_contract_test.js
+      - name: Canonical R2 cutover
+        run: node tests/canonical_r2_web_app_contract_test.js
       - name: Transaction Explorer
         run: node tests/transaction_explorer_contract_test.js
       - name: Expense Analytics
@@ -195,6 +199,8 @@ jobs:
         run: node tests/dashboard_web_visual_test.js
       - name: Financial Home visual gate
         run: node tests/financial_home_visual_test.js
+      - name: Canonical R2 navigation visual gate
+        run: node tests/canonical_r2_navigation_visual_test.js
       - name: Transaction Explorer visual gate
         run: node tests/transaction_explorer_visual_test.js
       - name: Expense Analytics visual gate
