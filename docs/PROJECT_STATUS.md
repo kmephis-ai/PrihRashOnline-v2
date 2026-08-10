@@ -41,11 +41,12 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 ## R3 / Planning, Wealth, Decision Intelligence — текущий writer
 
 - `TREND-030` — **DONE**, Issue #164 Main Verification PASS, candidate `676dddc9d6cfd23a9c57cca4b7a12a27fee31140`, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
-- `PROJ-030` Cash-flow Projection — **IN_PROGRESS**, Issue #166, branch `agent/PROJ-030-cash-flow-projection`.
+- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, candidate `f0fb557783960342db931488d2de97116c518b30`, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
+- `GOAL-030` Goals & Wish-list — **IN_PROGRESS**, Issue #168, branch `agent/GOAL-030-goals-wishlist`.
 
-TREND-030 authority `PRH_LONG_TERM_TRENDS_V1@1.0.0` остаётся observed long-term analytics boundary и не переопределяет FIN-TRUTH.
+TREND-030 authority `PRH_LONG_TERM_TRENDS_V1@1.0.0` остаётся observed long-term analytics boundary и не переопределяет FIN-TRUTH. PROJ-030 authority `PRH_CASH_FLOW_PROJECTION_V1@1.0.0` остаётся deterministic projection baseline с `financial_truth=false`, `projection_not_observation=true` и `future_fact_access=false`.
 
-PROJ-030 authority = `PRH_CASH_FLOW_PROJECTION_V1@1.0.0`. Observed facts принимаются только как complete monthly ungrouped `CASH_FLOW` из TREND-030; partial months не используются. Deterministic baseline `ROLLING_MEAN_3_COMPLETE_MONTHS_V1` использует три предыдущих complete observed months, exact integer rounding `INTEGER_DIVISION_HALF_AWAY_FROM_ZERO` и `future_fact_access=false`. Walk-forward backtest использует только предыдущие факты и публикует private-result sample count/MAE/mean error. Uncertainty = `BACKTEST_MAE_SYMMETRIC`, `statistical_confidence_interval=false`. Scenario inputs хранятся отдельно от observed facts; forecast row раздельно хранит baseline/scenario adjustment/projected value/band. `financial_truth=false`, `projection_not_observation=true`, `canonical_mutation=false`, `financial_write=false`, storage/network/model-provider authority=false; public evidence synthetic-only; `FREE_ONLY` mandatory.
+GOAL-030 authority = `PRH_GOAL_PLANNING_V1@1.0.0`. Goal target/currency/deadline/priority/status и funding events относятся к planning domain. Funding provenance строго `DECLARED_PLANNING`; event не является canonical transaction и не подтверждает account balance. Progress и required monthly contribution вычисляются детерминированно в exact integer minor units; recommendation имеет `model_kind=DETERMINISTIC_RULE`, `hidden_forecast=false`, `financial_truth=false`. Budget semantics не переопределяются, PROJ/ML не используются, canonical/budget mutation=false, `financial_write=false`, storage/network/runtime authority=false; public evidence synthetic-only; `FREE_ONLY` mandatory.
 
 ## R4 / Yandex Cloud shadow platform
 
@@ -89,11 +90,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-PROJ-030 остаётся открытым до `Cash-flow projection` + TREND/FIN/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+GOAL-030 остаётся открытым до `Goals and wish-list` + BUD/PROJ/TREND/FIN/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. PROJ-030 — pure deterministic planning/model layer и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. GOAL-030 — pure planning-domain layer и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
