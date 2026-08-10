@@ -118,6 +118,8 @@ Machine contracts:
 - `MIG010_EXECUTION_POLICY_V1@1.0.0`;
 - owner-confirmed `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
 
+Historical machine anchors: **Current write authority = false**. The **owner-verified MIG-010 private full-history reconciliation** remains the completed private correctness proof; it does not grant later generic write authority.
+
 `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound: GitHub Actions не могут создать её и GitHub Actions/AI не могут повторно использовать её для later mutations. Generic repository write authority не изменился.
 
 Recovery runbook: `docs/operations/DR001_DIRECT_OWNER_BACKUP.md`.
