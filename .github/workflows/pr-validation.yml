@@ -63,6 +63,8 @@ jobs:
         run: node tests/r1_documentation_contract_test.js
       - name: Design system
         run: node tests/design_system_contract_test.js
+      - name: Visualization foundation
+        run: node tests/visualization_foundation_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
