@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; PERF-010..013 DONE, PERF-014 current writer.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; PERF-010..014 DONE, DOC-010 current writer.
 docs/PROJECT_STATUS.md — human-readable current R1 state; GitHub Issue lifecycle и machine evidence имеют приоритет.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task packet.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/one-writer lifecycle protocol.
@@ -13,12 +13,21 @@ tools/roadmap-task-protocol.js — executable Roadmap resolver.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — supplementary multi-AI review protocol.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid model dependency.
 
-# PERF-014 synthetic scale performance gate
+# DOC-010 R1 documentation coherence
+lib/documentation/r1_documentation.v1.json — machine-readable `PRH_R1_DOCUMENTATION_V1@1.0.0`; required docs/contracts/sources/tests/named checks and privacy/FREE_ONLY/write invariants.
+docs/architecture/R1_C4_CONTEXT.md — normative public-safe system/container C4 context, trust/mutation/cost/future-provider boundaries.
+docs/data/R1_DATA_LINEAGE.md — normative source -> repository/canonical -> FIN/KPI -> analytics -> PERF-010..014 -> private UI lineage plus migration/recovery/SLO/delivery.
+tests/r1_documentation_contract_test.js — path/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector.
+README.md — current R0/R1 status and canonical documentation entry points.
+docs/architecture.md — current architecture synchronized with verified R1 lifecycle.
+docs/data-model.md — canonical model/write boundaries synchronized with verified R1 lifecycle.
+.github/workflows/pr-validation.yml — canonical named `R1 documentation contract` gate plus full layered regression.
+
+# PERF-014 verified synthetic scale performance gate
 docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md — normative 20k/50k synthetic CI guardrails, read/write budgets, correctness-first policy, privacy and rollback.
 lib/performance/synthetic_scale_gate.v1.json — machine-readable `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0`; versioned profiles/ceilings and evidence boundary.
 lib/testing/synthetic_scale_fixture.js — deterministic in-memory `PRH_SYNTHETIC_SCALE_FIXTURE_V1` generator + bounded delta mutation; no production-derived input.
 tests/synthetic_scale_performance_contract_test.js — blocking 20k/50k revision/analytics/single-scan/full-aggregate/incremental/parity benchmark contract.
-.github/workflows/pr-validation.yml — canonical named `Synthetic scale performance` gate plus full layered regression.
 
 # PERF-013 verified incremental analytics aggregates
 docs/operations/PERF013_INCREMENTAL_AGGREGATES.md — normative exact-revision state/delta/affected-bucket recompute/privacy/rollback semantics.
@@ -121,7 +130,6 @@ tests/mig010_execution_documentation_contract_test.js — authorized execution/r
 
 # Delivery / operations
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery and Main Verification close path.
-docs/data-model.md — canonical financial/migration/write/public-data boundaries.
 docs/operations/DR001_DIRECT_OWNER_BACKUP.md — owner-local encrypted recovery contract.
 docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe observability baseline.
 docs/operations/FINOPS001_FREE_ONLY_GUARD.md — executable FREE_ONLY circuit breaker.
