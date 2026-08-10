@@ -77,6 +77,8 @@ HOME-020 вводит `PRH_FINANCIAL_HOME_V1@1.0.0` и `PRH_FINANCIAL_HOME_VIEW_
 
 Owner-private MIG-010 evidence: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority не изменилась.
 
+Owner-confirmed duplicate-preservation capability remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это public-safe имя identity strategy без private resolution payload.
+
 Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound и не переносится: GitHub Actions/AI не могут создать или повторно использовать её для future mutations. Новый irreversible financial write требует нового exact-bound owner authorization.
 
 ## Executable AI engineering baseline
