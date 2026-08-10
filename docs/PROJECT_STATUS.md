@@ -55,28 +55,32 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 
 ## R4 / Yandex Cloud shadow platform — текущий P1 writer
 
-AIENG-002 resolver рассмотрел dependency-ready P1 candidates `YC-040` и `AUTH-040` и по priority/wave/Roadmap order выбрал `YC-040` первым.
+AIENG-002 resolver сначала выбрал `YC-040`, затем после его Main Verification выбрал следующий dependency-ready P1 item `AUTH-040`.
 
-- `YC-040` YDB Serverless PoC + cost envelope — **IN_PROGRESS**, Issue #141; current writer, branch `agent/YC-040-ydb-serverless-poc`.
-- `AUTH-040` — **READY**, Issue #142; writer authority отсутствует до следующего resolver selection.
+- `YC-040` YDB Serverless PoC + cost envelope — **DONE**, Issue #141 Main Verification PASS, PR #143 merge `924a44f4cb01e6add6c7fd9a0b166d7a7743b96a`.
+- `AUTH-040` Family authentication/authorization — **IN_PROGRESS**, Issue #142; current writer, branch `agent/AUTH-040-family-auth`.
 
-### YC-040 current boundary
+### YC-040 verified boundary
 
-`PRH_YDB_SERVERLESS_POC_V1@1.0.0` — offline schema/adapter/cost-guard PoC, не cloud cutover.
+`PRH_YDB_SERVERLESS_POC_V1@1.0.0` остаётся offline schema/adapter/cost-guard PoC, а не cloud cutover. Google остаётся authoritative runtime/store; YDB canonical write owner = false; real replication = false; production `PR_CONFIG.FINOPS.PROVIDERS` не получает YDB runtime authority. `FREE_ONLY` mandatory.
 
-- YQL row-table PoC: `canonical_transactions_v1`, primary key `transaction_id`;
-- DATA-010 money остаётся integer minor units; canonical RFC3339 timestamp сохраняется lossless как exact `Utf8`;
-- canonical ↔ YDB row mapping обязан давать exact normalized round-trip;
-- required CI uses only independently generated synthetic records, без YDB credentials/endpoints/resources;
-- current official YDB Serverless free-tier reference checked 2026-08-10: 1,000,000 RU/month and 1 GiB storage; excess use is billable and cloud quota is not a billing cap;
-- PoC safety envelope строже reference: 250,000 RU/month, 256 MiB storage, 100,000 requests/month internal guard, 5 RU/s peak guard;
-- `paidOverageAllowed=false`; unknown/stale billing state = BLOCK;
-- public telemetry содержит только RU/storage/request counts/utilization/status/reason metadata, без financial payload/private cloud locators;
-- Google remains authoritative; YDB canonical write owner = false; real replication = false;
-- production `PR_CONFIG.FINOPS.PROVIDERS` остаётся пустым: PoC не создаёт runtime cloud authority;
-- `FREE_ONLY` mandatory.
+### AUTH-040 current boundary
 
-Normative doc: `docs/architecture/YDB_SERVERLESS_POC.md`. Core: `lib/ydb/ydb_serverless_poc.js`. YQL: `lib/ydb/canonical_transactions_v1.yql`. Test: `tests/ydb_serverless_poc_contract_test.js`.
+`PRH_FAMILY_AUTH_V1@1.0.0` задаёт provider-neutral reference policy для будущего семейного auth boundary:
+
+- raw identity assertion не доверяется; требуется injected verified-identity adapter;
+- signed session использует runtime-injected HMAC-SHA256 key, version binding, idle/absolute lifetime и constant-time signature compare;
+- roles/capabilities работают по explicit least-privilege allowlist;
+- cross-household access всегда DENY;
+- mutating application capabilities требуют single-use session/version/capability-bound nonce;
+- authorization `ALLOW` не открывает backend financial write: `backend_financial_write_granted=false`;
+- generic Google canonical write по-прежнему требует `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`;
+- public telemetry запрещает financial payload, raw identity/session/token/key material и private runtime locators;
+- current Apps Script Web App остаётся `MYSELF`; `public_exposure_change=false`;
+- live IdP/Yandex IAM provisioning в AUTH-040 отсутствует;
+- required CI использует independently generated synthetic identities only; `FREE_ONLY` mandatory.
+
+Normative doc: `docs/security/FAMILY_AUTHORIZATION.md`. Contract/core: `lib/auth/family_auth.v1.json`, `lib/auth/family_auth.js`. Test: `tests/family_auth_contract_test.js`.
 
 ## MIG-010 historical safety boundary
 
@@ -107,11 +111,11 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. Google remains current canonical runtime authority. YC-040 creates no Yandex Cloud resource and performs no real cloud/data write. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. Google remains current canonical runtime authority. AUTH-040 не меняет current runtime exposure и не выполняет real-data mutation. `FREE_ONLY` mandatory.
 
 ## Что намеренно не утверждается
 
-YC-040 не считается DONE до autonomous merge + Main Verification/Issue close. YDB PoC не означает YDB production readiness, live parity, shadow replication или cutover. Free-tier documented package не означает guaranteed remaining billing-account allowance. YC-040 не разрешает paid overage или Google/YDB financial write. Historical MIG-010 authorization не переносится на cloud cutover.
+AUTH-040 не считается DONE до autonomous merge + Main Verification/Issue close. Reference auth policy не означает live identity-provider integration или публичный семейный endpoint. YC-040 не означает YDB production readiness/cutover. AUTH-040 не разрешает Google/YDB financial write. Historical MIG-010 authorization не переносится на future mutation/cutover.
 
 ## Source precedence
 
