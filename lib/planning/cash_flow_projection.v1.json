@@ -1,0 +1,73 @@
+{
+  "schema": "PRH_CASH_FLOW_PROJECTION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PROJ-030",
+  "schemas": {
+    "scenario": "PRH_CASH_FLOW_SCENARIO_V1",
+    "result": "PRH_CASH_FLOW_PROJECTION_RESULT_V1",
+    "telemetry": "PRH_CASH_FLOW_PROJECTION_TELEMETRY_V1"
+  },
+  "upstream": {
+    "trend": "PRH_LONG_TERM_TRENDS_V1@1.0.0",
+    "period_engine": "PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0",
+    "analytics_contract": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "observed_input": {
+    "schema": "PRH_LONG_TERM_TREND_RESULT_V1",
+    "required_measure": "CASH_FLOW",
+    "required_grain": "MONTH",
+    "required_dimension": null,
+    "required_comparison": "NONE",
+    "minimum_complete_months": 6,
+    "partial_months_used_for_model": false
+  },
+  "baseline": {
+    "model_id": "ROLLING_MEAN_3_COMPLETE_MONTHS_V1",
+    "model_kind": "DETERMINISTIC_BASELINE",
+    "window_months": 3,
+    "future_policy": "FIXED_ORIGIN_MEAN",
+    "rounding": "INTEGER_DIVISION_HALF_AWAY_FROM_ZERO",
+    "future_fact_access": false,
+    "ml_required": false
+  },
+  "backtest": {
+    "mode": "WALK_FORWARD_OBSERVED_ONLY",
+    "window_months": 3,
+    "metrics": ["SAMPLE_COUNT", "MEAN_ABSOLUTE_ERROR_MINOR", "MEAN_ERROR_MINOR"],
+    "minimum_samples": 3
+  },
+  "uncertainty": {
+    "method": "BACKTEST_MAE_SYMMETRIC",
+    "statistical_confidence_interval": false,
+    "minimum_half_width_minor": 0
+  },
+  "scenario": {
+    "horizon_months": {"minimum":1,"maximum":12},
+    "monthly_adjustment_minor": "SIGNED_SAFE_INTEGER",
+    "one_off_adjustments": {"maximum":24,"month_format":"YYYY-MM-01","delta_minor":"SIGNED_SAFE_INTEGER"},
+    "observed_fact_mutation": false,
+    "canonical_mutation": false
+  },
+  "result": {
+    "separate_fields": ["baseline_cash_flow_minor", "scenario_adjustment_minor", "projected_cash_flow_minor", "uncertainty_lower_minor", "uncertainty_upper_minor"],
+    "financial_truth": false,
+    "projection_not_observation": true
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "model_id", "model_kind", "observed_complete_months", "backtest_samples",
+    "horizon_months", "scenario_one_off_count", "uncertainty_method", "status", "reason_code"
+  ],
+  "authorities": {
+    "financial_truth": false,
+    "financial_write": false,
+    "canonical_mutation": false,
+    "storage": false,
+    "network": false,
+    "runtime": false,
+    "model_provider": false
+  },
+  "public_evidence": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+  "free_only": true
+}
