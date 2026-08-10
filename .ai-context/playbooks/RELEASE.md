@@ -12,7 +12,7 @@ Playbook сопровождает уже открытый Roadmap PR через 
 
 `PR Validation → Trusted DEV Deploy → Trusted Runtime Health → CI-003 autonomous squash merge → Main Verification`.
 
-Ручной merge запрещён. Manual marker, review approval или текстовый комментарий не заменяют red required check.
+**ручной merge запрещён**. Manual marker, review approval или текстовый комментарий не заменяют red required check.
 
 ## Порядок
 
