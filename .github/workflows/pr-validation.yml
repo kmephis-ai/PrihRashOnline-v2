@@ -18,6 +18,7 @@ on:
       - '.clasp.json.example'
       - '.gitignore'
       - 'lib/**'
+      - 'pwa/**'
       - 'tests/**'
       - 'tools/**'
       - 'docs/**'
@@ -81,6 +82,8 @@ jobs:
         run: node tests/obligations_contract_test.js
       - name: Data Quality
         run: node tests/data_quality_center_contract_test.js
+      - name: PWA baseline
+        run: node tests/pwa_baseline_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
@@ -162,6 +165,8 @@ jobs:
         run: node tests/obligations_visual_test.js
       - name: Data Quality visual gate
         run: node tests/data_quality_visual_test.js
+      - name: PWA offline visual gate
+        run: node tests/pwa_offline_visual_test.js
       - name: Build immutable Apps Script candidate
         run: |
           node tools/build-apps-script-candidate.js \

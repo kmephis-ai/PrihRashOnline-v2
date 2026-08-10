@@ -46,27 +46,26 @@ FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA-010 auth
 - `INC-020` — **DONE**, Issue #128 Main Verification PASS.
 - `CF-020` — **DONE**, Issue #130 Main Verification PASS.
 - `BUD-020` — **DONE**, Issue #132 Main Verification PASS.
-- `OBL-020` — **DONE**, Issue #134 Main Verification PASS, merge `a97bc3d3cdce104bc21150e56ea53adccdc308ac`.
-- `DQ-020` Data Quality Center — **IN_PROGRESS**, Issue #136; current R2 writer, branch `agent/DQ-020-data-quality-center`.
-- `PWA-020` — BACKLOG до завершения DQ-020; преждевременно открытый PR #138 закрыт без merge.
+- `OBL-020` — **DONE**, Issue #134 Main Verification PASS.
+- `DQ-020` — **DONE**, Issue #136 Main Verification PASS, merge `e02ea53a35ec6a15828f4961d3ab2895bb7e7d4e`.
+- `PWA-020` Installable PWA baseline — **IN_PROGRESS**, Issue #137; current R2 writer, branch `agent/PWA-020-installable-pwa`.
 
-### DQ-020 current boundary
+### PWA-020 current boundary
 
-`PRH_DATA_QUALITY_CENTER_V1@1.0.0` — read-only quality layer для canonical/candidate records.
+`PRH_PWA_BASELINE_V1@1.0.0` — host-neutral installable/offline shell capability поверх HOME-020/TX-020 без финансового cache authority.
 
-- canonical validation fail-closed; missing required fields не coercятся;
-- exact duplicate detector = versioned SHA-256 business-payload fingerprint; fuzzy/similarity detector отсутствует;
-- same amount/date не считается duplicate без совпадения полного versioned business payload;
-- suspicious/provenance detectors возвращают явные reason codes;
-- repair preview всегда `REVIEW_REQUIRED / NO_AUTOFIX`, `write_performed=false`;
-- mutation gate требует plan hash + fresh backup binding + idempotency + rollback/readback PASS;
-- даже полный evidence даёт только `READY_FOR_SEPARATE_AUTHORIZATION`, `write_authorized=false`;
-- historical MIG-010 `IRREVERSIBLE_ACTION_AUTHORIZED` не reusable для DQ repair;
-- generic Google mutation остаётся `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`;
-- public telemetry содержит только hashes/counts/reasons/status, без rows/amounts/private IDs;
-- public evidence — independently generated synthetic only; `FREE_ONLY` mandatory.
+- manifest содержит local name/start/scope/standalone/theme/background + local 192/512 icons;
+- service worker работает только на supported secure origin/localhost; current Apps Script HtmlService activation = `NOT_PROVEN_CURRENT_HOST`;
+- shell cache = explicit allowlist из пяти static URLs, cache version `prh-pwa-shell-v1`;
+- private/API/finance/dashboard/transactions/analytics/home/explorer routes = `NETWORK_ONLY_NO_CACHE_FALLBACK`;
+- cross-origin и non-GET никогда не кэшируются;
+- authenticated/financial response cache запрещён;
+- activate удаляет old `prh-pwa-shell-*` caches и claims clients;
+- real Chromium localhost test доказывает SW control, offline shell, 5 shell cache entries, 0 private cache entries и offline private request failure;
+- private Apps Script deployment locator не публикуется, `MYSELF` runtime boundary не меняется;
+- public evidence — independently generated synthetic/public-safe metadata only; `FREE_ONLY` mandatory.
 
-Normative doc: `docs/data/DATA_QUALITY_CENTER.md`. Core: `lib/data_quality/data_quality_center.js`. Tests: `tests/data_quality_center_contract_test.js`, `tests/data_quality_visual_test.js`.
+Normative doc: `docs/architecture/PWA_BASELINE.md`. Bundle: `pwa/`. Tests: `tests/pwa_baseline_contract_test.js`, `tests/pwa_offline_visual_test.js`.
 
 ## MIG-010 historical safety boundary
 
@@ -101,7 +100,7 @@ Private primary store/runtime: Google Sheets + Apps Script; family UI: private `
 
 ## Что намеренно не утверждается
 
-DQ-020 не считается DONE до autonomous merge + Main Verification/Issue close. DQ repair preview не разрешает Google write. Exact duplicate не означает automatic delete. Historical MIG-010 authorization не переносится на DQ repair. Private Dashboard не сделан публичным.
+PWA-020 не считается DONE до autonomous merge + Main Verification/Issue close. `NOT_PROVEN_CURRENT_HOST` означает, что текущий Apps Script HtmlService не объявлен доказанным SW host. Offline shell не содержит и не кэширует financial truth. PWA-020 не публикует private runtime и не разрешает Google write. Historical MIG-010 authorization не переносится на future mutation.
 
 ## Source precedence
 
