@@ -48,7 +48,8 @@ DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`; documentation coherence only.
 
 - `DESIGN-020` Design system + responsive shell — **DONE**, Issue #118 Main Verification PASS, PR #119 autonomous merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
 - `VIZ-020` Versioned visualization foundation — **DONE**, Issue #120 Main Verification PASS, PR #121 autonomous merge `66139972b1fc910fc7bc0e614ecfdc7d5b754adf`.
-- `HOME-020` Financial Home dashboard — **IN_PROGRESS**, Issue #122; current R2 writer, branch `agent/HOME-020-financial-home`.
+- `HOME-020` Financial Home dashboard — **DONE**, Issue #122 Main Verification PASS, PR #123 autonomous merge `24e6e57e1b2b803dd0d2176376207fd524674dd3`.
+- `TX-020` Transaction Explorer — **IN_PROGRESS**, Issue #124; current R2 writer, branch `agent/TX-020-transaction-explorer`.
 
 ### DESIGN-020 verified boundary
 
@@ -58,20 +59,26 @@ DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`; documentation coherence only.
 
 `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` определяет configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`, chart registry (`BAR`, `LINE`, `DONUT`), deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`, transient runtime render dataset и replaceable `ECHARTS_6` adapter. Specs не содержат financial rows/amount payload. Real renderer data/options остаются private runtime data. Renderer не имеет query/network/storage/persistence/financial-write authority; external CDN не требуется; `FREE_ONLY` mandatory.
 
-### HOME-020 current boundary
+### HOME-020 verified boundary
 
-HOME-020 вводит `PRH_FINANCIAL_HOME_V1@1.0.0` и `PRH_FINANCIAL_HOME_VIEW_V1` поверх FIN-010 + VIZ-020 + DESIGN-020.
+`PRH_FINANCIAL_HOME_V1@1.0.0` / `PRH_FINANCIAL_HOME_VIEW_V1` прошёл Main Verification. Home использует один FIN-010 `evaluateKpis()` result, explicit budget или `NOT_CONFIGURED`, liquidity `UNAVAILABLE_PENDING_BALANCE_SOURCE` до BAL-030, explainable alerts и VIZ drill/filter context без financial payload в navigation state. Home не имеет financial-write/storage/network authority.
 
-- Income / Expense / Cash Flow / Savings / Budget variance происходят из одного FIN-010 `evaluateKpis()` result; Home/UI не дублируют KPI formulas.
-- Budget требует explicit `budget_minor` того же периода/валюты; без плана state = `NOT_CONFIGURED`.
-- Liquidity **не** подменяется cash flow. Пока versioned balance-observation source отсутствует, state = `UNAVAILABLE_PENDING_BALANCE_SOURCE`, future dependency = `BAL-030`.
-- Alerts используют versioned explainable predicates над already-evaluated FIN outputs/capability states: `NEGATIVE_CASH_FLOW`, `BUDGET_OVERRUN`, `BUDGET_NOT_CONFIGURED`, `LIQUIDITY_SOURCE_UNAVAILABLE`.
-- Drill navigation использует `PRH_HOME_DRILL_ENVELOPE_V1` + VIZ `PRH_DRILL_CONTEXT_V1`; period и FilterContext сохраняются, financial values в navigation state не помещаются.
-- Home WidgetSpecs остаются configuration-only; real Home view/render data private, public tests independently generated synthetic only.
-- `FinancialHomeWebApp.html` — responsive synthetic/browser UI evidence; existing private Dashboard остаётся совместимым до explicit navigation/runtime integration.
-- named gates: `Financial Home` + `Financial Home visual gate`.
+### TX-020 current boundary
 
-Следующие R2 dashboards (`EXP-020`, `INC-020` и другие зависимые work items) не берутся этим writer и остаются dependency-gated канонической Roadmap.
+TX-020 вводит `PRH_TRANSACTION_EXPLORER_V1@1.0.0` поверх `PRH_CANONICAL_TRANSACTION_V1`.
+
+- deterministic search/filter/sort по date/account/category/member/type/status и bounded text search по allowlisted display fields;
+- normalized query имеет SHA-256 identity, stable sorting всегда использует `transaction_id` tie-breaker;
+- offset/limit pagination bounded: default 50, max 200;
+- Explorer rows являются projection canonical transaction fields и не вычисляют KPI/financial truth;
+- edit draft становится `VALID` только после полного DATA-010 `normalizeCanonicalTransaction()` и immutable source-identity check;
+- generic runtime save остаётся `WRITE_BLOCKED` с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`; Explorer не обходит financial-write policy;
+- independently generated synthetic 20k/50k scale test проверяет bounded page/search/filter/sort path;
+- `TransactionExplorerWebApp.html` даёт responsive desktop/laptop/mobile synthetic UI с filters/sort/pagination/edit drawer;
+- public telemetry allowlist содержит только schema/version/query-hash/count/timing/edit-state/reason-code metadata, без private transaction values/IDs;
+- named gates: `Transaction Explorer` + `Transaction Explorer visual gate`.
+
+EXP-020/INC-020/CF-020/PWA-020 и другие соседние items не входят в scope текущего writer.
 
 ## MIG-010 historical safety boundary
 
@@ -108,19 +115,18 @@ active Roadmap Issue
 
 - private primary store/runtime: Google Sheets + Apps Script;
 - family UI: private `MYSELF` Apps Script Web Dashboard;
-- existing Dashboard native SVG renderer остаётся рабочим; VIZ-020 foundation не означал silent cutover;
-- HOME-020 browser surface пока является new responsive view contract/synthetic gate и не объявляет новый private runtime route без отдельной integration boundary;
+- existing Dashboard and verified Home surface remain compatible;
+- TX-020 browser surface is synthetic contract/UI evidence and does not silently create a new private runtime route;
 - public GitHub finance/render evidence: independently generated synthetic only;
 - DEV delivery exact-SHA autonomous;
-- PROD/cutover/destructive data actions — отдельные policy gates;
+- PROD/cutover/destructive data actions — separate policy gates;
 - `FREE_ONLY` mandatory; paid-by-usage provider activation не автоматический.
 
 ## Что намеренно не утверждается
 
-- HOME-020 не считается DONE до autonomous merge + Main Verification/Issue close;
-- liquidity value не существует без versioned balance source;
-- budget plan не выводится из истории автоматически;
-- HOME-020 не даёт financial write/storage/network authority;
+- TX-020 не считается DONE до autonomous merge + Main Verification/Issue close;
+- Explorer save не разрешён: generic Google write остаётся blocked до separate versioned write policy;
+- Explorer row projection не является новой canonical/financial truth;
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
 - public Git history rewrite не authorized/executed;

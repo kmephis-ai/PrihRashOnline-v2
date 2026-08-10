@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrihRashOnline — Transaction Explorer</title>
+  <style>
+    :root {
+      --ds-bg:#f6f7fb; --ds-surface:#ffffff; --ds-surface-2:#f1f5f9; --ds-text:#172033;
+      --ds-muted:#5d687a; --ds-border:#d8dee9; --ds-accent:#2563eb; --ds-focus:#1d4ed8;
+      --ds-good:#166534; --ds-warn:#92400e; --ds-danger:#b91c1c; --ds-radius:14px;
+      --ds-shadow:0 8px 28px rgba(15,23,42,.08); --ds-gap:16px;
+    }
+    html[data-theme="dark"] {
+      --ds-bg:#0f172a; --ds-surface:#172033; --ds-surface-2:#1e293b; --ds-text:#f8fafc;
+      --ds-muted:#cbd5e1; --ds-border:#475569; --ds-accent:#93c5fd; --ds-focus:#bfdbfe;
+      --ds-good:#86efac; --ds-warn:#fcd34d; --ds-danger:#fca5a5; --ds-shadow:none;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--ds-bg); color:var(--ds-text); font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button,input,select { font:inherit; color:inherit; }
+    button,input,select { border:1px solid var(--ds-border); border-radius:10px; background:var(--ds-surface); min-height:42px; }
+    button { cursor:pointer; padding:8px 14px; }
+    button.primary { background:var(--ds-accent); color:#fff; border-color:var(--ds-accent); }
+    html[data-theme="dark"] button.primary { color:#0f172a; }
+    button:disabled { opacity:.65; cursor:not-allowed; }
+    :focus-visible { outline:3px solid var(--ds-focus); outline-offset:2px; }
+    .shell { max-width:1500px; margin:0 auto; padding:22px; }
+    .topbar { display:flex; gap:14px; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+    .eyebrow { color:var(--ds-muted); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+    h1 { margin:3px 0 4px; font-size:clamp(25px,3vw,36px); line-height:1.15; }
+    .subtitle { color:var(--ds-muted); margin:0; max-width:760px; }
+    .badge { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--ds-border); border-radius:999px; padding:7px 10px; background:var(--ds-surface); white-space:nowrap; }
+    .panel { background:var(--ds-surface); border:1px solid var(--ds-border); border-radius:var(--ds-radius); box-shadow:var(--ds-shadow); }
+    .filters { padding:16px; display:grid; grid-template-columns:minmax(220px,2fr) repeat(5,minmax(120px,1fr)); gap:12px; align-items:end; }
+    .field { display:grid; gap:6px; min-width:0; }
+    .field label { color:var(--ds-muted); font-size:12px; font-weight:700; }
+    .field input,.field select { width:100%; padding:8px 10px; min-width:0; }
+    .stats { display:flex; flex-wrap:wrap; gap:10px; padding:13px 16px; border-top:1px solid var(--ds-border); color:var(--ds-muted); }
+    .stat strong { color:var(--ds-text); }
+    .list { margin-top:16px; overflow:hidden; }
+    .tx-head,.tx-row { display:grid; grid-template-columns:150px 92px minmax(160px,1.25fr) minmax(130px,1fr) 120px 140px 104px; gap:12px; align-items:center; }
+    .tx-head { padding:11px 16px; color:var(--ds-muted); font-size:12px; font-weight:800; border-bottom:1px solid var(--ds-border); background:var(--ds-surface-2); }
+    .tx-row { width:100%; text-align:left; padding:13px 16px; border:0; border-bottom:1px solid var(--ds-border); border-radius:0; background:var(--ds-surface); min-height:64px; }
+    .tx-row:last-child { border-bottom:0; }
+    .tx-row:hover { background:var(--ds-surface-2); }
+    .cell { min-width:0; overflow-wrap:anywhere; }
+    .cell .mobile-label { display:none; color:var(--ds-muted); font-size:11px; font-weight:700; margin-bottom:2px; }
+    .money { font-variant-numeric:tabular-nums; font-weight:800; text-align:right; }
+    .type,.status { display:inline-flex; width:max-content; max-width:100%; border-radius:999px; padding:4px 8px; background:var(--ds-surface-2); font-size:12px; font-weight:700; }
+    .status.pending { color:var(--ds-warn); } .status.posted { color:var(--ds-good); }
+    .empty { padding:38px 20px; text-align:center; color:var(--ds-muted); }
+    .pager { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:14px 16px; border-top:1px solid var(--ds-border); }
+    .pager-buttons { display:flex; gap:8px; }
+    .drawer-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.34); display:none; z-index:9; }
+    .drawer-backdrop.open { display:block; }
+    .drawer { position:fixed; z-index:10; top:0; right:0; height:100dvh; width:min(480px,100%); transform:translateX(105%); transition:transform .18s ease; background:var(--ds-surface); border-left:1px solid var(--ds-border); box-shadow:-10px 0 36px rgba(15,23,42,.15); padding:20px; overflow:auto; }
+    .drawer.open { transform:translateX(0); }
+    .drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .drawer h2 { margin:2px 0 4px; }
+    .drawer-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0; }
+    .drawer-grid .wide { grid-column:1/-1; }
+    .policy { padding:12px; border-radius:10px; background:var(--ds-surface-2); border:1px solid var(--ds-border); color:var(--ds-muted); }
+    .policy strong { color:var(--ds-danger); }
+    .drawer-actions { display:flex; gap:10px; margin-top:16px; }
+    @media (max-width:1250px) {
+      .filters { grid-template-columns:repeat(3,minmax(150px,1fr)); }
+      .tx-head,.tx-row { grid-template-columns:140px 90px minmax(150px,1.2fr) minmax(120px,1fr) 110px 130px 96px; gap:8px; }
+    }
+    @media (max-width:760px) {
+      .shell { padding:14px; }
+      .topbar { flex-direction:column; }
+      .filters { grid-template-columns:1fr 1fr; padding:14px; }
+      .filters .search-field { grid-column:1/-1; }
+      .tx-head { display:none; }
+      .tx-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 14px; padding:14px; }
+      .cell .mobile-label { display:block; }
+      .money { text-align:left; }
+      .pager { align-items:flex-start; flex-direction:column; }
+      .drawer-grid { grid-template-columns:1fr; }
+      .drawer-grid .wide { grid-column:auto; }
+    }
+    @media (max-width:430px) {
+      .filters { grid-template-columns:1fr; }
+      .filters .search-field { grid-column:auto; }
+      .tx-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+    }
+    @media (prefers-reduced-motion:reduce) { .drawer { transition:none; } }
+  </style>
+</head>
+<body data-privacy="PUBLIC_SYNTHETIC">
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Family Finance Center · TX-020</div>
+        <h1>Операции</h1>
+        <p class="subtitle">Быстрый поиск и фильтрация canonical transactions. Демонстрационный browser surface использует только synthetic fixture.</p>
+      </div>
+      <button id="theme-toggle" class="badge" type="button" aria-label="Переключить тему">◐ Тема</button>
+    </header>
+
+    <section class="panel" aria-label="Фильтры операций">
+      <div class="filters">
+        <div class="field search-field"><label for="search">Поиск</label><input id="search" type="search" placeholder="Описание или контрагент" autocomplete="off"></div>
+        <div class="field"><label for="type">Тип</label><select id="type"><option value="">Все</option><option value="income">Доход</option><option value="expense">Расход</option></select></div>
+        <div class="field"><label for="status">Статус</label><select id="status"><option value="">Все</option><option value="posted">Проведено</option><option value="pending">Ожидает</option></select></div>
+        <div class="field"><label for="account">Счёт</label><select id="account"><option value="">Все</option></select></div>
+        <div class="field"><label for="member">Член семьи</label><select id="member"><option value="">Все</option></select></div>
+        <div class="field"><label for="sort">Сортировка</label><select id="sort"><option value="date-desc">Сначала новые</option><option value="date-asc">Сначала старые</option><option value="amount-desc">Сумма ↓</option><option value="amount-asc">Сумма ↑</option></select></div>
+      </div>
+      <div class="stats"><span class="stat"><strong id="matched">0</strong> найдено</span><span>·</span><span>Query state: <strong id="query-state">synthetic</strong></span><span>·</span><span>Page size: <strong>20</strong></span></div>
+    </section>
+
+    <section class="panel list" aria-label="Список операций">
+      <div class="tx-head" aria-hidden="true"><span>Дата</span><span>Тип</span><span>Категория</span><span>Счёт</span><span>Участник</span><span style="text-align:right">Сумма</span><span>Статус</span></div>
+      <div id="rows"></div>
+      <div id="empty" class="empty" hidden>Ничего не найдено. Измените фильтры.</div>
+      <div class="pager"><span id="page-label">Страница 1</span><div class="pager-buttons"><button id="prev" type="button">← Назад</button><button id="next" type="button">Далее →</button></div></div>
+    </section>
+  </main>
+
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+  <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Редактирование операции">
+    <div class="drawer-head"><div><div class="eyebrow">Canonical edit draft</div><h2>Редактирование</h2><div id="edit-id" class="subtitle"></div></div><button id="drawer-close" type="button" aria-label="Закрыть">✕</button></div>
+    <div class="drawer-grid">
+      <div class="field"><label for="edit-date">Дата</label><input id="edit-date" type="date"></div>
+      <div class="field"><label for="edit-amount">Сумма, synthetic units</label><input id="edit-amount" type="number" min="0" step="1"></div>
+      <div class="field wide"><label for="edit-description">Описание</label><input id="edit-description" maxlength="1000"></div>
+    </div>
+    <div id="edit-validation" class="policy">Draft state: <strong>VALID</strong> — canonical schema validation required before any write.</div>
+    <div class="policy" style="margin-top:10px">Runtime save: <strong>WRITE_BLOCKED</strong><br><code>GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED</code></div>
+    <div class="drawer-actions"><button id="save" class="primary" type="button">Проверить сохранение</button><button id="cancel" type="button">Отмена</button></div>
+    <p id="save-result" class="subtitle" role="status" aria-live="polite"></p>
+  </aside>
+
+  <script>
+    (() => {
+      'use strict';
+      const PAGE_SIZE = 20;
+      const state = { page:0, rows:[], selected:null };
+      const $ = (id) => document.getElementById(id);
+      const labels = { income:'Доход', expense:'Расход', posted:'Проведено', pending:'Ожидает' };
+      const money = (minor) => new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}).format(minor/100) + ' ¤';
+      const pad = (n) => String(n).padStart(2,'0');
+      function makeRows() {
+        const rows=[];
+        for (let i=0;i<137;i+=1) {
+          const d=new Date(Date.UTC(2025,0,1+i));
+          const type=i%4===0?'income':'expense';
+          rows.push({
+            transaction_id:`SYN-TX-${String(i).padStart(4,'0')}`,
+            occurred_at:`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T12:00:00Z`,
+            type,
+            status:i%11===0?'pending':'posted',
+            amount_minor:12000+(i*731)%185000,
+            currency:'USD',
+            account_id:`SYN-ACCOUNT-${i%4}`,
+            category_id:type==='income'?`SYN-INCOME-${i%3}`:`SYN-EXPENSE-${i%8}`,
+            member_id:`SYN-MEMBER-${i%3}`,
+            counterparty:`Synthetic Counterparty ${i%9}`,
+            description:`Synthetic family transaction ${i}`
+          });
+        }
+        return rows;
+      }
+      const source=makeRows();
+      [...new Set(source.map(r=>r.account_id))].sort().forEach(v=>$('account').append(new Option(v,v)));
+      [...new Set(source.map(r=>r.member_id))].sort().forEach(v=>$('member').append(new Option(v,v)));
+      function filteredRows() {
+        const q=$('search').value.trim().toLowerCase(); const type=$('type').value; const status=$('status').value; const account=$('account').value; const member=$('member').value;
+        const sort=$('sort').value;
+        const rows=source.filter(r=>(!q||`${r.counterparty}\n${r.description}`.toLowerCase().includes(q))&&(!type||r.type===type)&&(!status||r.status===status)&&(!account||r.account_id===account)&&(!member||r.member_id===member));
+        rows.sort((a,b)=>{
+          let av,bv,dir=sort.endsWith('asc')?1:-1;
+          if(sort.startsWith('amount')) { av=a.amount_minor; bv=b.amount_minor; } else { av=a.occurred_at; bv=b.occurred_at; }
+          const primary=av<bv?-1:av>bv?1:0;
+          return primary?primary*dir:a.transaction_id.localeCompare(b.transaction_id);
+        });
+        return rows;
+      }
+      function render() {
+        state.rows=filteredRows();
+        const maxPage=Math.max(0,Math.ceil(state.rows.length/PAGE_SIZE)-1); state.page=Math.min(state.page,maxPage);
+        const page=state.rows.slice(state.page*PAGE_SIZE,(state.page+1)*PAGE_SIZE);
+        $('rows').innerHTML=''; $('empty').hidden=page.length!==0;
+        page.forEach(r=>{
+          const button=document.createElement('button'); button.type='button'; button.className='tx-row'; button.dataset.txId=r.transaction_id;
+          const cells=[
+            ['Дата',r.occurred_at.slice(0,10),''],['Тип',labels[r.type],`type ${r.type}`],['Категория',r.category_id,''],['Счёт',r.account_id,''],['Участник',r.member_id||'—',''],['Сумма',money(r.amount_minor),'money'],['Статус',labels[r.status],`status ${r.status}`]
+          ];
+          cells.forEach(([label,value,cls])=>{const cell=document.createElement('span');cell.className=`cell ${cls}`;cell.innerHTML=`<span class="mobile-label">${label}</span>${value}`;button.appendChild(cell);});
+          button.addEventListener('click',()=>openDrawer(r)); $('rows').appendChild(button);
+        });
+        $('matched').textContent=state.rows.length; $('page-label').textContent=`Страница ${state.page+1} из ${Math.max(1,Math.ceil(state.rows.length/PAGE_SIZE))}`;
+        $('prev').disabled=state.page===0; $('next').disabled=(state.page+1)*PAGE_SIZE>=state.rows.length;
+        $('query-state').textContent=`filters:${[$('type').value,$('status').value,$('account').value,$('member').value].filter(Boolean).length}; sort:${$('sort').value}`;
+      }
+      function openDrawer(row) {
+        state.selected=row; $('edit-id').textContent=row.transaction_id; $('edit-date').value=row.occurred_at.slice(0,10); $('edit-amount').value=row.amount_minor; $('edit-description').value=row.description;
+        $('save-result').textContent=''; $('drawer').classList.add('open'); $('drawer-backdrop').classList.add('open'); $('drawer').setAttribute('aria-hidden','false'); $('drawer-close').focus();
+      }
+      function closeDrawer(){ $('drawer').classList.remove('open'); $('drawer-backdrop').classList.remove('open'); $('drawer').setAttribute('aria-hidden','true'); state.selected=null; }
+      ['search','type','status','account','member','sort'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',()=>{state.page=0;render();}));
+      $('prev').addEventListener('click',()=>{if(state.page>0){state.page-=1;render();}}); $('next').addEventListener('click',()=>{if((state.page+1)*PAGE_SIZE<state.rows.length){state.page+=1;render();}});
+      $('drawer-close').addEventListener('click',closeDrawer); $('cancel').addEventListener('click',closeDrawer); $('drawer-backdrop').addEventListener('click',closeDrawer);
+      $('save').addEventListener('click',()=>{$('save-result').textContent='WRITE_BLOCKED · GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED · данные не изменены';});
+      $('theme-toggle').addEventListener('click',()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';});
+      render();
+    })();
+  </script>
+</body>
+</html>

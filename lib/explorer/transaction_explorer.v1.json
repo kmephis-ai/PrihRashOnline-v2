@@ -1,0 +1,58 @@
+{
+  "schema": "PRH_TRANSACTION_EXPLORER_V1",
+  "version": "1.0.0",
+  "roadmap_id": "TX-020",
+  "canonical_source": "PRH_CANONICAL_TRANSACTION_V1",
+  "query": {
+    "schema": "PRH_TRANSACTION_EXPLORER_QUERY_V1",
+    "filter_fields": ["occurred_at", "account_id", "category_id", "member_id", "type", "status"],
+    "text_search_fields": ["counterparty", "description", "tags"],
+    "text_max_chars": 120,
+    "sort_fields": ["occurred_at", "amount_minor", "type", "status", "account_id", "category_id", "member_id", "counterparty", "transaction_id"],
+    "sort_directions": ["ASC", "DESC"],
+    "stable_tie_breaker": "transaction_id",
+    "page": {
+      "mode": "OFFSET_LIMIT_V1",
+      "default_limit": 50,
+      "max_limit": 200,
+      "max_offset": 1000000
+    },
+    "identity": "SHA256_NORMALIZED_QUERY_V1"
+  },
+  "row_projection": {
+    "schema": "PRH_TRANSACTION_EXPLORER_ROW_V1",
+    "fields": ["transaction_id", "occurred_at", "type", "status", "amount_minor", "currency", "account_id", "destination_account_id", "category_id", "member_id", "project_id", "tags", "counterparty", "description"],
+    "financial_calculation": false
+  },
+  "edit": {
+    "schema": "PRH_TRANSACTION_EDIT_DRAFT_V1",
+    "states": ["VALID", "INVALID", "WRITE_BLOCKED"],
+    "editable_fields": ["occurred_at", "type", "status", "amount_minor", "currency", "account_id", "destination_account_id", "category_id", "member_id", "project_id", "tags", "counterparty", "description", "reverses_transaction_id", "adjustment_semantics"],
+    "immutable_fields": ["schema", "schema_version", "transaction_id", "provenance"],
+    "validator": "PRH_CANONICAL_TRANSACTION_V1",
+    "runtime_write_state": "WRITE_BLOCKED",
+    "runtime_write_reason": "GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED"
+  },
+  "performance": {
+    "profiles": [20000, 50000],
+    "max_result_page": 200,
+    "financial_writes": 0
+  },
+  "authority": {
+    "financial_truth": false,
+    "financial_calculation": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false,
+    "canonical_schema_override": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "public_telemetry_fields": ["schema", "version", "query_hash", "matched_count", "page_count", "offset", "limit", "elapsed_ms", "edit_state", "reason_code"],
+    "private_rows_in_public_telemetry": false
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false
+  }
+}
