@@ -41,28 +41,31 @@ AI regression eval remains local deterministic: synthetic golden baseline, no re
 
 DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020 and PROF-020 are DONE/Main Verification PASS.
 
-`PROF-020` Issue #162 — DONE/Main Verification PASS, candidate `1ba5d7e8e73c74c2195418cf2fb43aaafcf7c5a1`, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`; authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
+`PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`, authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
 
 `NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
 
 ## Current R3 truth
 
-`TREND-030` — **current writer**, Issue #164, branch `agent/TREND-030-long-term-trends`; IN_PROGRESS до Main Verification.
+- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, candidate `676dddc9d6cfd23a9c57cca4b7a12a27fee31140`, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`, authority `PRH_LONG_TERM_TRENDS_V1@1.0.0`.
+- `PROJ-030` — **current writer**, Issue #166, branch `agent/PROJ-030-cash-flow-projection`; IN_PROGRESS до Main Verification.
 
-TREND-030 machine authority: `lib/analytics/long_term_trends.v1.json` (`PRH_LONG_TERM_TRENDS_V1@1.0.0`). Core: `lib/analytics/long_term_trends.js`. Contract test: `tests/long_term_trends_contract_test.js`. Normative doc: `docs/analytics/LONG_TERM_TRENDS.md`. Named gate: `Long-term trends`.
+PROJ-030 machine authority: `lib/planning/cash_flow_projection.v1.json` (`PRH_CASH_FLOW_PROJECTION_V1@1.0.0`). Core: `lib/planning/cash_flow_projection.js`. Contract test: `tests/cash_flow_projection_contract_test.js`. Normative doc: `docs/planning/CASH_FLOW_PROJECTION.md`. Named gate: `Cash-flow projection`.
 
-TREND-030 rules:
+PROJ-030 rules:
 
-- financial truth остаётся `FIN-TRUTH-v1` / `PRH_KPI_DICTIONARY_V1@1.0.0`; TREND не определяет KPI formulas;
-- execution authority = `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`; bucket-level AnalyticsQuery остаётся `grain=NONE`, `comparison=NONE`;
-- selectors: `EXPLICIT_RANGE`, `ROLLING_90`, `ROLLING_365`, `YTD`; grains: `MONTH`, `QUARTER`, `YEAR`; comparison: `NONE|YEAR_OVER_YEAR`;
-- measures — additive semantic measures, `BUDGET_VARIANCE` temporal trend запрещён;
-- допускается 0..1 groupable semantic dimension; execution filters проходят через existing AnalyticsQuery, но public-safe definition serialization хранит только `filter_count`, не filter values;
-- partial bucket flags, YoY calendar alignment, leap adjustment и comparison quality передаются из ANL-071 без silent proration;
-- calculated/window metrics, CAGR, forecast/projection и benchmark logic отсутствуют; `formula_layer_added=false`;
-- result сохраняет period/analytics/semantic/KPI/FIN provenance и exact period bucket results;
-- telemetry содержит только selector/grain/comparison/counts/partial/comparison-quality/leap metadata без financial values/private IDs;
-- `financial_write=false`, canonical mutation=false, io/network/storage/renderer/ui authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
+- projection не является `FIN-TRUTH` или observation; `financial_truth=false`, `projection_not_observation=true`;
+- observed facts принимаются только из `PRH_LONG_TERM_TRENDS_V1@1.0.0`: ungrouped `CASH_FLOW`, `MONTH`, `comparison=NONE`;
+- partial monthly buckets не используются; требуется минимум шесть непрерывных complete months;
+- baseline model = `ROLLING_MEAN_3_COMPLETE_MONTHS_V1`, `model_kind=DETERMINISTIC_BASELINE`, `future_policy=FIXED_ORIGIN_MEAN`;
+- baseline/backtest работают в safe integer minor units с `INTEGER_DIVISION_HALF_AWAY_FROM_ZERO`;
+- walk-forward backtest каждого observed month использует только три предшествующих observed months; `future_fact_access=false`;
+- backtest metrics: sample count, MAE и mean error; они остаются private-result financial values и не попадают в public telemetry;
+- uncertainty = `BACKTEST_MAE_SYMMETRIC`; `statistical_confidence_interval=false`, это не probability guarantee;
+- scenario отдельно хранит monthly adjustment и dated one-off adjustments; observed history не мутируется;
+- forecast rows раздельно содержат baseline/scenario adjustment/projected value/uncertainty band;
+- DS-052 ML forecast, balance/net-worth projection, goals/risk и scenario-to-canonical mutation не входят в PROJ-030;
+- `canonical_mutation=false`, `financial_write=false`, storage/network/runtime/model-provider authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
 
 ## Current R4 truth
 
@@ -84,11 +87,11 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js` belongs to `PURE_DOMAIN_APPLICATION`; named `Long-term trends` runs after `Period/comparison engine`. `household_preferences_contract_test.js` remains PURE_DOMAIN_APPLICATION; AI playbook/eval tests remain POLICY_GOVERNANCE.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js` and `cash_flow_projection_contract_test.js` belong to `PURE_DOMAIN_APPLICATION`; named `Cash-flow projection` runs after `Long-term trends`. Household preferences remains PURE_DOMAIN_APPLICATION; AI playbook/eval tests remain POLICY_GOVERNANCE.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. TREND-030 requires no external provider.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. PROJ-030 requires no external model/provider.
 
 ## MIG-010 historical verified boundary
 
@@ -108,7 +111,7 @@ PR Validation
 -> Main Verification
 ```
 
-TREND-030 remains open until Long-term trends + Period/Semantic/KPI/AI/profile/LANG-RU/docs/privacy/FREE_ONLY/FIN/MIG/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #164.
+PROJ-030 remains open until Cash-flow projection + TREND/FIN/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #166.
 
 ## Read-only multi-AI review
 
@@ -116,8 +119,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. TREND-030 is pure analytics orchestration with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. PROJ-030 is pure deterministic planning/model logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `TREND-030` is the single active writer.
+All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, TREND-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `PROJ-030` is the single active writer.
