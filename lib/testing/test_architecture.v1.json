@@ -23,7 +23,7 @@
         "^analytics_(extension|query_edge)_contract_test\\.js$"
       ],
       "forbidden_source_tokens": ["SpreadsheetApp.", "UrlFetchApp.", "HtmlService.", "window.", "document."],
-      "budget": { "max_files": 24, "max_seconds": 30 }
+      "budget": { "max_files": 26, "max_seconds": 35 }
     },
     {
       "id": "MIGRATION_RECOVERY",
@@ -60,7 +60,7 @@
         "^dashboard_.*_test\\.js$",
         "^.*(visual|responsive|playwright|web_ui|ui_).*_test\\.js$"
       ],
-      "budget": { "max_files": 44, "max_seconds": 180 }
+      "budget": { "max_files": 48, "max_seconds": 210 }
     },
     {
       "id": "POLICY_GOVERNANCE",
@@ -85,6 +85,8 @@
     "transaction_explorer_visual_test.js": "UI_E2E",
     "expense_analytics_contract_test.js": "PURE_DOMAIN_APPLICATION",
     "expense_analytics_visual_test.js": "UI_E2E",
+    "income_analytics_contract_test.js": "PURE_DOMAIN_APPLICATION",
+    "income_analytics_visual_test.js": "UI_E2E",
     "income_sidebar_validation_test.js": "UI_E2E",
     "secret_scan_contract_test.js": "POLICY_GOVERNANCE",
     "synthetic_finance_fixture_contract_test.js": "PURE_DOMAIN_APPLICATION",
@@ -131,6 +133,7 @@
     { "name": "Financial Home", "layer": "UI_E2E" },
     { "name": "Transaction Explorer", "layer": "UI_E2E" },
     { "name": "Expense Analytics", "layer": "PURE_DOMAIN_APPLICATION" },
+    { "name": "Income Analytics", "layer": "PURE_DOMAIN_APPLICATION" },
     { "name": "AI contract", "layer": "POLICY_GOVERNANCE" },
     { "name": "Roadmap task protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Multi-AI review protocol", "layer": "POLICY_GOVERNANCE" },
@@ -152,6 +155,7 @@
     { "name": "Responsive visual gate", "layer": "UI_E2E" },
     { "name": "Financial Home visual gate", "layer": "UI_E2E" },
     { "name": "Transaction Explorer visual gate", "layer": "UI_E2E" },
-    { "name": "Expense Analytics visual gate", "layer": "UI_E2E" }
+    { "name": "Expense Analytics visual gate", "layer": "UI_E2E" },
+    { "name": "Income Analytics visual gate", "layer": "UI_E2E" }
   ]
 }

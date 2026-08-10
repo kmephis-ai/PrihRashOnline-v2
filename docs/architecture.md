@@ -4,14 +4,15 @@
 
 ПрихРасхOnline v2 — приватное household-finance приложение на Google Sheets + Apps Script. GitHub — инженерный **control plane** для code/tests/contracts/docs/policy и не является financial data store.
 
-R0 (`MASTER-G0..G2`) и R1 `MASTER-G3 / Canonical platform` завершены. R2 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020` DONE/Main Verification PASS. Текущий единственный R2 writer — `EXP-020`.
+R0 (`MASTER-G0..G2`) и R1 `MASTER-G3 / Canonical platform` завершены. R2 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020` DONE/Main Verification PASS. Текущий единственный R2 writer — `INC-020`.
 
 Канонические entry points:
 
 - `docs/ROADMAP.md` — executable order/dependencies;
 - `docs/architecture/R1_C4_CONTEXT.md` — R1 context/trust boundaries;
 - `docs/data/R1_DATA_LINEAGE.md` — end-to-end lineage;
-- `docs/analytics/EXPENSE_ANALYTICS.md` + `lib/expense/expense_analytics.v1.json` — EXP-020;
+- `docs/analytics/EXPENSE_ANALYTICS.md` — verified EXP-020;
+- `docs/analytics/INCOME_ANALYTICS.md` + `lib/income/income_analytics.v1.json` — current INC-020;
 - `docs/architecture/TRANSACTION_EXPLORER.md` — verified TX-020;
 - `docs/design/DESIGN_SYSTEM.md` — DESIGN-020;
 - `docs/architecture/VISUALIZATION_FOUNDATION.md` — VIZ-020.
@@ -31,7 +32,7 @@ FIN-TRUTH-v1 / PRH_KPI_DICTIONARY_V1
         ↓
 PRH_ANALYTICS_CONTRACT_V1
         ↓
-EXP-020 FIN-backed expense read model
+EXP/INC FIN-backed read models
         ↓
 VIZ / TX drill / UI presentation
 ```
@@ -42,7 +43,7 @@ Lower read/view layers не переопределяют canonical/FIN authority
 
 Canonical schema: `PRH_CANONICAL_TRANSACTION_V1`. Financial contract: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.
 
-**Legacy totals/cells не являются golden truth или authoritative financial source.** Financial calculations используют canonical records + FIN-010 evaluator. UI/VIZ/TX/EXP не создают альтернативную financial truth.
+**Legacy totals/cells не являются golden truth или authoritative financial source.** Financial calculations используют canonical records + FIN-010 evaluator. UI/VIZ/TX/EXP/INC не создают альтернативную financial truth.
 
 ## Pure application boundary — ARCH-010 — DONE
 
@@ -62,40 +63,55 @@ Canonical schema: `PRH_CANONICAL_TRANSACTION_V1`. Financial contract: `PRH_KPI_D
 
 Projection/cache/single-scan/incremental aggregates/synthetic scale optimize reads/recompute but do not create alternative FIN truth or write authority. PERF-014 timings are CI guardrails, not production SLA.
 
-## DESIGN / VIZ / HOME / TX — DONE
+## DESIGN / VIZ / HOME / TX / EXP — DONE
 
 `PRH_DESIGN_SYSTEM_V1@1.0.0` — presentation tokens/theme/a11y/responsive only.  
 `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — configuration-only ChartSpec/WidgetSpec, Filter/Drill contexts, transient render dataset and replaceable renderer adapter; no financial/query/storage/write authority.  
 `PRH_FINANCIAL_HOME_V1@1.0.0` — FIN-backed Home view composition.  
-`PRH_TRANSACTION_EXPLORER_V1@1.0.0` — canonical read/search/edit-draft layer; runtime save remains `WRITE_BLOCKED` with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+`PRH_TRANSACTION_EXPLORER_V1@1.0.0` — canonical read/search/edit-draft layer; runtime save remains `WRITE_BLOCKED` with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
+`PRH_EXPENSE_ANALYTICS_V1@1.0.0` — FIN-backed expense trend/category/comparison/drivers + exact TX drill; read-only.
 
 External CDN/paid provider не требуется; `FREE_ONLY` mandatory.
 
-## Expense Analytics boundary — EXP-020 — IN_PROGRESS
+## Income Analytics boundary — INC-020 — IN_PROGRESS
 
-Machine contract: `PRH_EXPENSE_ANALYTICS_V1@1.0.0`; human contract: `docs/analytics/EXPENSE_ANALYTICS.md`.
+Machine contract: `PRH_INCOME_ANALYTICS_V1@1.0.0`; human contract: `docs/analytics/INCOME_ANALYTICS.md`.
 
 ### Financial source
 
-Primary and comparison Expense totals come from FIN-010 `evaluateKpis()`. Trend buckets also use FIN-010, and their exact sum must equal period Expense. EXP-020 does not duplicate gross expense/refund/transfer formulas.
+Primary/comparison `INCOME` totals come from FIN-010 `evaluateKpis()`. Trend buckets also use FIN-010 and their exact sum must equal period INCOME. INC-020 does not duplicate income/refund/transfer financial semantics.
 
-### Category mix
+### Source mix
 
-Category partition uses FIN-TRUTH `aggregateTransactions()` / `by_expense_category_minor`: expense adds, refund reduces, transfer is neutral. Category sum must equal period EXPENSE and residual must be zero. A negative category bucket is fail-closed rather than silently coerced for DONUT rendering.
+Current exact source model = canonical income `category_id` (`CANONICAL_INCOME_CATEGORY_AS_SOURCE`). This is chosen so drill can map deterministically to TX-020 `category_ids`; no fuzzy description/counterparty search becomes identity.
 
-### Comparison / drivers
+Rows are grouped by canonical source category, but every group’s income is evaluated through FIN-TRUTH `aggregateTransactions()`. Source partition must equal period INCOME exactly and residual must be zero. Negative source bucket is fail-closed rather than silently coerced for DONUT rendering.
 
-Only explicit equal-day windows are comparable; implicit proration is forbidden. Driver per category = current FIN-backed category Expense − comparison FIN-backed category Expense. Sum of all drivers must equal total Expense delta.
+### Comparison / stability / source deltas
+
+Only explicit equal-day windows are comparable; implicit proration is forbidden.
+
+Stability is statistical metadata over FIN-backed trend buckets:
+
+- population variance;
+- standard deviation;
+- coefficient of variation = stddev / abs(mean);
+- stability score = `round(100 - min(100, CV*100))`;
+- zero mean → `NO_INCOME`, null CV/score.
+
+These metrics do not define or alter financial truth.
+
+Source delta = current FIN-backed source Income − comparison FIN-backed source Income. Sum of source deltas must equal total period Income delta.
 
 ### Visualization / drill
 
-EXP produces configuration-only VIZ WidgetSpecs: `LINE`, `DONUT`, `BAR`; runtime data remains separate. Drill uses `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` and maps to bounded `PRH_TRANSACTION_EXPLORER_QUERY_V1`. Navigation context contains no financial payload.
+INC produces configuration-only VIZ WidgetSpecs: `LINE`, `DONUT`, `BAR`; real runtime datasets remain separate/private. Drill uses `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`, target `TRANSACTION_EXPLORER`, and maps to bounded `PRH_TRANSACTION_EXPLORER_QUERY_V1`. Navigation context contains no financial/variance payload.
 
 ### Authority / privacy
 
-EXP has no storage/network/financial-write authority. Public tests/screenshots are independently generated synthetic only. Public telemetry is limited to hashes/counts/status/reason/timing metadata. `ExpenseAnalyticsWebApp.html` is synthetic browser evidence and does not silently create a private route.
+INC has no storage/network/financial-write authority. Public tests/screenshots are independently generated synthetic only. Public telemetry is limited to schema/version/hashes/counts/stability-state/status/reason/timing metadata. `IncomeAnalyticsWebApp.html` is synthetic browser evidence and does not silently create a private route.
 
-Named gates: `Expense Analytics`, `Expense Analytics visual gate`.
+Named gates: `Income Analytics`, `Income Analytics visual gate`.
 
 ## MIG-010 historical boundary — DONE
 
@@ -113,9 +129,9 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 ### Public GitHub
 
-Allowed: code/contracts/docs, independently generated synthetic finance/Home/TX/EXP/render fixtures, technical PASS/FAIL/hash/count/timing evidence.
+Allowed: code/contracts/docs, independently generated synthetic finance/Home/TX/EXP/INC/render fixtures, technical PASS/FAIL/hash/count/timing evidence.
 
-Forbidden: real or **real-derived** transaction rows/IDs/amounts/aggregates/distributions, real Explorer/Home/Expense/render payload, private screenshots/exports, authenticated responses, OAuth, backup bytes/keys and private deployment locators.
+Forbidden: real or **real-derived** transaction rows/IDs/amounts/aggregates/distributions, real Explorer/Home/Expense/Income/render payload, private screenshots/exports, authenticated responses, OAuth, backup bytes/keys and private deployment locators.
 
 ### Private runtime
 
@@ -146,7 +162,7 @@ Delivery PASS does not authorize financial mutation.
 ```text
 PWA / family clients
         ↓
-Home / Expense Analytics / Transaction Explorer / domain dashboards
+Home / Expense Analytics / Income Analytics / Transaction Explorer / domain dashboards
         ↓
 DESIGN + VIZ view adapters
         ↓

@@ -42,51 +42,55 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS.
 - `VIZ-020` — **DONE**, Issue #120 Main Verification PASS.
 - `HOME-020` — **DONE**, Issue #122 Main Verification PASS.
-- `TX-020` — **DONE**, Issue #124 Main Verification PASS, PR #125 merge `38a6d6bece459f61a2cf3d9af2cd8419274b258b`.
-- `EXP-020` — **current R2 writer**, Issue #126, branch `agent/EXP-020-expense-analytics`; IN_PROGRESS до Main Verification.
+- `TX-020` — **DONE**, Issue #124 Main Verification PASS.
+- `EXP-020` — **DONE**, Issue #126 Main Verification PASS, PR #127 merge `a3c938c08c3ae65a1f732aa024fa4001ca109883`.
+- `INC-020` — **current R2 writer**, Issue #128, branch `agent/INC-020-income-analytics`; IN_PROGRESS до Main Verification.
 
-## EXP-020 Expense Analytics boundary
+## INC-020 Income Analytics boundary
 
-Machine contract: `lib/expense/expense_analytics.v1.json` (`PRH_EXPENSE_ANALYTICS_V1@1.0.0`). Core: `lib/expense/expense_analytics.js`. Human contract: `docs/analytics/EXPENSE_ANALYTICS.md`. Browser evidence: `ExpenseAnalyticsWebApp.html`. Tests: `tests/expense_analytics_contract_test.js`, `tests/expense_analytics_visual_test.js`. Named gates: `Expense Analytics`, `Expense Analytics visual gate`.
+Machine contract: `lib/income/income_analytics.v1.json` (`PRH_INCOME_ANALYTICS_V1@1.0.0`). Core: `lib/income/income_analytics.js`. Human contract: `docs/analytics/INCOME_ANALYTICS.md`. Browser evidence: `IncomeAnalyticsWebApp.html`. Tests: `tests/income_analytics_contract_test.js`, `tests/income_analytics_visual_test.js`. Named gates: `Income Analytics`, `Income Analytics visual gate`.
 
 Rules:
 
-- EXP consumes FIN-010/ANL-010/VIZ-020/TX-020 and does not redefine their contracts.
-- Primary and comparison `EXPENSE` totals are sourced from FIN-010 `evaluateKpis()`.
-- Trend is explicit bounded DAY/MONTH/YEAR windows; every bucket is evaluated by FIN-010 and bucket sum must equal period EXPENSE.
-- MONTH trend requires month-boundary alignment; YEAR trend requires January-1 alignment; ambiguous windows fail closed.
-- Category mix uses FIN-TRUTH `aggregateTransactions()` / `by_expense_category_minor`: expense adds, refund reduces, transfer is neutral.
-- Category partition sum must equal FIN-010 EXPENSE exactly; residual must be zero. Negative category bucket is fail-closed for DONUT ambiguity.
+- INC consumes FIN-010/ANL-010/VIZ-020/TX-020 and does not redefine their contracts.
+- Primary/comparison `INCOME` totals are sourced from FIN-010 `evaluateKpis()`.
+- Trend uses explicit bounded DAY/MONTH/YEAR windows; each bucket is evaluated by FIN-010 and bucket sum must equal period INCOME.
+- MONTH trend requires first-day month boundaries; YEAR trend requires January-1 boundaries; ambiguous windows fail closed.
+- Current source dimension is canonical income `category_id` (`CANONICAL_INCOME_CATEGORY_AS_SOURCE`) so TX drill can use exact `category_ids`, not fuzzy text search.
+- Source mix groups canonical rows and evaluates each source through FIN-TRUTH `aggregateTransactions()`, so non-income rows do not become income by UI logic.
+- Source partition sum must equal FIN-010 INCOME exactly; residual must be zero; negative source bucket is fail-closed for DONUT ambiguity.
 - Comparison requires explicit equal-day windows through FIN-010 `assertComparablePeriods()`; implicit proration is forbidden.
-- Drivers are current category expense minus comparison category expense; their exact sum must equal total EXPENSE delta.
-- WidgetSpecs are configuration-only VIZ `LINE`, `DONUT`, `BAR`; financial render rows/amounts are separate transient runtime datasets.
-- Drill uses deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` target `TRANSACTION_EXPLORER`, then bounded TX-020 query; navigation state contains no financial values.
-- Expense Analytics has no storage/network/financial-write authority. TX save remains `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
-- Public telemetry/evidence contains only schema/version/query-hash/context-hash/bucket/category/driver counts/status/reason/timing metadata; real amounts/private IDs are forbidden.
+- Stability/variance use only FIN-backed trend bucket totals: population variance, stddev, coefficient of variation, bounded 0–100 stability score. These are explanatory derived metrics, not financial truth.
+- Source deltas are current source INCOME minus comparison source INCOME; exact sum must equal total INCOME delta.
+- WidgetSpecs are configuration-only VIZ `LINE`, `DONUT`, `BAR`; real render rows/amounts are separate transient private runtime datasets.
+- Drill uses deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` target `TRANSACTION_EXPLORER`, then bounded TX-020 query; navigation state contains no financial/variance values.
+- Income Analytics has no storage/network/financial-write authority. TX save remains `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+- Public telemetry/evidence contains only schema/version/query-hash/context-hash/bucket/source counts/stability-state/status/reason/timing metadata; real amounts/private IDs are forbidden.
 - Public browser/tests use independently generated synthetic data only.
 - `FREE_ONLY` mandatory; no external CDN/provider required.
 
-Canonical EXP-020 reading order:
+Canonical INC-020 reading order:
 
 1. `/docs/ROADMAP.md`
-2. live Issue #126
+2. live Issue #128
 3. `/docs/PROJECT_STATUS.md`
-4. `/lib/expense/expense_analytics.v1.json`
-5. `/lib/expense/expense_analytics.js`
-6. `/docs/analytics/EXPENSE_ANALYTICS.md`
-7. `/tests/expense_analytics_contract_test.js`
-8. `/ExpenseAnalyticsWebApp.html`
-9. `/tests/expense_analytics_visual_test.js`
+4. `/lib/income/income_analytics.v1.json`
+5. `/lib/income/income_analytics.js`
+6. `/docs/analytics/INCOME_ANALYTICS.md`
+7. `/tests/income_analytics_contract_test.js`
+8. `/IncomeAnalyticsWebApp.html`
+9. `/tests/income_analytics_visual_test.js`
 10. exact candidate workflows/evidence
 
-INC-020/CF-020/BUD-020/PWA-020 and other sibling scopes are not part of the current writer.
+CF-020/BUD-020/OBL-020/PWA-020 and other sibling scopes are not part of the current writer.
 
 ## Verified R2 upstream boundaries
 
 `PRH_DESIGN_SYSTEM_V1@1.0.0` remains presentation-only; no financial/query/storage/write authority.  
 `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` remains configuration/interaction/replaceable-renderer authority only; no financial/query/storage/write authority.  
 `PRH_FINANCIAL_HOME_V1@1.0.0` remains FIN-backed Home composition only.  
-`PRH_TRANSACTION_EXPLORER_V1@1.0.0` remains canonical exploration/edit-draft validation only; `financial_write=false`.
+`PRH_TRANSACTION_EXPLORER_V1@1.0.0` remains canonical exploration/edit-draft validation only; `financial_write=false`.  
+`PRH_EXPENSE_ANALYTICS_V1@1.0.0` remains FIN-backed Expense analysis/read model only; `financial_write=false`.
 
 ## DOC-010 verified documentation boundary
 
@@ -94,11 +98,11 @@ INC-020/CF-020/BUD-020/PWA-020 and other sibling scopes are not part of the curr
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. EXP core contract is `PURE_DOMAIN_APPLICATION`; EXP browser visual test is `UI_E2E`. Unknown/ambiguous test classification fails.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. INC core contract is `PURE_DOMAIN_APPLICATION`; INC browser visual test is `UI_E2E`. Unknown/ambiguous test classification fails.
 
 ## ANL / FIN / PERF authority
 
-`FIN-TRUTH-v1` / `PRH_KPI_DICTIONARY_V1` owns financial semantics. `PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute only. EXP-020 composes FIN-backed read models and never becomes financial truth authority.
+`FIN-TRUTH-v1` / `PRH_KPI_DICTIONARY_V1` owns financial semantics. `PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute only. INC-020 composes FIN-backed read models and never becomes financial truth authority.
 
 ## MIG-010 historical verified boundary
 
@@ -159,7 +163,7 @@ Roadmap Issue
 -> Main Verification -> Issue DONE/closed
 ```
 
-EXP-020 remains open until FIN/category/driver/drill contracts, full layered suite and visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #126.
+INC-020 remains open until FIN/source/stability/drill contracts, full layered suite and visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #128.
 
 ## Executable continuation protocol
 
@@ -171,7 +175,7 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Public finance/render/EXP fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts, real Analytics/Home/TX/EXP models and renderer options stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance/render/INC fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts, real Analytics/Home/TX/EXP/INC models and renderer options stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
@@ -188,8 +192,9 @@ DESIGN-020: `PRH_DESIGN_SYSTEM_V1`; presentation only.
 VIZ-020: `PRH_VISUALIZATION_FOUNDATION_V1`; visualization config/interaction/renderer adapter only.  
 HOME-020: `PRH_FINANCIAL_HOME_V1`; FIN-backed view composition only.  
 TX-020: `PRH_TRANSACTION_EXPLORER_V1`; canonical exploration/edit draft only.  
-EXP-020: `PRH_EXPENSE_ANALYTICS_V1`; FIN-backed expense analysis/read model only; `financial_write=false`.
+EXP-020: `PRH_EXPENSE_ANALYTICS_V1`; FIN-backed expense analysis/read model only.  
+INC-020: `PRH_INCOME_ANALYTICS_V1`; FIN-backed income source/trend/stability read model only; `financial_write=false`.
 
 ## Scope handoff
 
-All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020 are DONE. `MASTER-G3 = complete`. `EXP-020` is the single current R2 writer.
+All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020 are DONE. `MASTER-G3 = complete`. `INC-020` is the single current R2 writer.
