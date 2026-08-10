@@ -86,6 +86,23 @@ function prhR2InjectShell_(html, activeSurface) {
   return html.slice(0, bodyEnd + 1) + prhR2NavigationHtml_(activeSurface) + html.slice(bodyEnd + 1);
 }
 
+function prhR2HardenPrivateHome_(html) {
+  var legacyParser = "function parse(){try{const text=document.getElementById('initial-home-data').textContent.trim();if(!text||text.indexOf('<?')===0)return SYN;return JSON.parse(text);}catch(e){return SYN;}}";
+  var privateParser = "function parse(){const text=document.getElementById('initial-home-data').textContent.trim();if(!text||text.indexOf('<?')===0)throw new Error('R2_PRIVATE_HOME_PAYLOAD_REQUIRED');try{return JSON.parse(text);}catch(e){throw new Error('R2_PRIVATE_HOME_PAYLOAD_INVALID');}}";
+  if (html.indexOf(legacyParser) < 0) throw new Error('R2_HOME_SYNTHETIC_FALLBACK_SIGNATURE_MISSING');
+  html = html.replace(legacyParser, privateParser);
+  if (html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0 || html.indexOf(legacyParser) >= 0) {
+    throw new Error('R2_HOME_PRIVATE_FAIL_CLOSED_HARDENING_FAILED');
+  }
+  return html
+    .replace(/Synthetic cash-flow trend/g, 'Cash-flow trend')
+    .replace(/title="Synthetic"/g, 'title="Cash flow"')
+    .replace(
+      'До появления versioned balance-observation source (BAL-030) карточка остаётся явно недоступной.',
+      'До подключения private balance runtime source карточка ликвидности остаётся явно недоступной.'
+    );
+}
+
 function prhR2RenderFile_(surface, payload) {
   var spec = PRH_CANONICAL_R2_WEB.LIVE_SURFACES[surface];
   if (!spec) throw new Error('R2_LIVE_SURFACE_UNKNOWN');
@@ -94,15 +111,7 @@ function prhR2RenderFile_(surface, payload) {
   var placeholder = '<' + '?!= ' + spec.placeholder + ' ?' + '>';
   if (html.indexOf(placeholder) < 0) throw new Error('R2_SURFACE_PAYLOAD_PLACEHOLDER_MISSING');
   html = html.replace(placeholder, prhR2SerializeJson_(payload));
-  if (surface === 'home') {
-    html = html
-      .replace(/Synthetic cash-flow trend/g, 'Cash-flow trend')
-      .replace(/title="Synthetic"/g, 'title="Cash flow"')
-      .replace(
-        'До появления versioned balance-observation source (BAL-030) карточка остаётся явно недоступной.',
-        'До подключения private balance runtime source карточка ликвидности остаётся явно недоступной.'
-      );
-  }
+  if (surface === 'home') html = prhR2HardenPrivateHome_(html);
   html = prhR2InjectShell_(html, surface);
   var rendered = HtmlService.createHtmlOutput(html);
   rendered.setTitle('PrihRashOnline — ' + spec.title);
@@ -165,7 +174,8 @@ function prhCanonicalR2WebAppSmokeToken() {
   var html = output && typeof output.getContent === 'function' ? output.getContent() : '';
   if (!html || html.indexOf('data-prh-canonical-r2-shell="1"') < 0 ||
       html.indexOf('data-active-surface="home"') < 0 || html.indexOf('Financial Home') < 0 ||
-      html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0) {
+      html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0 ||
+      html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0) {
     throw new Error('R2_CANONICAL_RENDER_SMOKE_FAILED');
   }
   if (html.indexOf('<' + '?!= initialHomeData ?' + '>') >= 0) throw new Error('R2_CANONICAL_PAYLOAD_NOT_INJECTED');
