@@ -23,6 +23,7 @@
     {"path":"docs/operations/AIENG006_MODEL_COST_ROUTING.md","kind":"AI_OPERATIONS","min_cyrillic_letters":180},
     {"path":"docs/analytics/SEMANTIC_REGISTRY.md","kind":"ANALYTICS","min_cyrillic_letters":220},
     {"path":"docs/analytics/ANALYTICS_SCOPES.md","kind":"ANALYTICS","min_cyrillic_letters":220},
+    {"path":"docs/analytics/PERIOD_COMPARISON_ENGINE.md","kind":"ANALYTICS","min_cyrillic_letters":260},
     {"path":".github/ISSUE_TEMPLATE/roadmap.yml","kind":"ISSUE_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/PULL_REQUEST_TEMPLATE.md","kind":"PR_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/RELEASE_TEMPLATE.md","kind":"RELEASE_TEMPLATE","min_cyrillic_letters":40}
@@ -41,7 +42,8 @@
     "PRH_CANONICAL_TRANSACTION_V1", "PRH_TRANSACTION_REPOSITORY_V1", "GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED",
     "GitHub Actions", "Google Apps Script", "ECharts", "Playwright", "Node.js", "Sol", "Terra", "Luna",
     "ChatGPT", "OpenAI API", "AnalyticsQuery", "AnalyticsResult", "ALL_CANONICAL", "DEFAULT_ANALYSIS",
-    "EMERGENCY_FUND_ONLY", "EXCLUDE_FROM_ANALYSIS", "EMERGENCY_FUND"
+    "EMERGENCY_FUND_ONLY", "EXCLUDE_FROM_ANALYSIS", "EMERGENCY_FUND", "MTD", "QTD", "YTD",
+    "YEAR_OVER_YEAR", "PREVIOUS_COMPARABLE_PERIOD"
   ],
   "parallel_english_normative_path_patterns": [
     "(^|/)docs/en(/|$)",
