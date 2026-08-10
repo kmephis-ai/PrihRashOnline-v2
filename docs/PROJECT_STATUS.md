@@ -42,11 +42,10 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 
 - `TREND-030` — **DONE**, Issue #164 Main Verification PASS, candidate `676dddc9d6cfd23a9c57cca4b7a12a27fee31140`, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
 - `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, candidate `f0fb557783960342db931488d2de97116c518b30`, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
-- `GOAL-030` Goals & Wish-list — **IN_PROGRESS**, Issue #168, branch `agent/GOAL-030-goals-wishlist`.
+- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, candidate `6ca0c01510542323015d97795d8b007e048ded9a`, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
+- `BAL-030` Снимки остатков и сверка — **IN_PROGRESS**, Issue #76, branch `agent/BAL-030-balance-reconciliation`.
 
-TREND-030 authority `PRH_LONG_TERM_TRENDS_V1@1.0.0` остаётся observed long-term analytics boundary и не переопределяет FIN-TRUTH. PROJ-030 authority `PRH_CASH_FLOW_PROJECTION_V1@1.0.0` остаётся deterministic projection baseline с `financial_truth=false`, `projection_not_observation=true` и `future_fact_access=false`.
-
-GOAL-030 authority = `PRH_GOAL_PLANNING_V1@1.0.0`. Goal target/currency/deadline/priority/status и funding events относятся к planning domain. Funding provenance строго `DECLARED_PLANNING`; event не является canonical transaction и не подтверждает account balance. Progress и required monthly contribution вычисляются детерминированно в exact integer minor units; recommendation имеет `model_kind=DETERMINISTIC_RULE`, `hidden_forecast=false`, `financial_truth=false`. Budget semantics не переопределяются, PROJ/ML не используются, canonical/budget mutation=false, `financial_write=false`, storage/network/runtime authority=false; public evidence synthetic-only; `FREE_ONLY` mandatory.
+BAL-030 authority = `PRH_BALANCE_RECONCILIATION_V1@1.0.0`. Абсолютный calculated balance никогда не выводится от неявного нуля: required anchor `PRH_BALANCE_OBSERVATION_V1` того же account/currency задаёт signed exact-money baseline. Между anchor-exclusive и target-inclusive применяются только posted canonical account deltas: income/refund `+`, expense `-`, transfer source `-` / destination `+`, current adjustment `0`; pending/void игнорируются. Mismatch = observed minus calculated и создаёт только explainable review proposal. `mutation_authorized=false`, `canonical_mutation=false`, `observation_mutation=false`, `financial_write=false`; storage/network/runtime/bank-provider authority отсутствует. Public evidence synthetic-only; `FREE_ONLY` mandatory.
 
 ## R4 / Yandex Cloud shadow platform
 
@@ -90,11 +89,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-GOAL-030 остаётся открытым до `Goals and wish-list` + BUD/PROJ/TREND/FIN/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+BAL-030 остаётся открытым до `Balance reconciliation` + DATA/FIN/DR/GOAL/PROJ/TREND/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. GOAL-030 — pure planning-domain layer и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. BAL-030 — pure reconciliation-domain layer и не создаёт real balance observations, не меняет canonical history/backend storage и не получает financial-write authority. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
