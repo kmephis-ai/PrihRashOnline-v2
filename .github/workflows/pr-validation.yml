@@ -137,6 +137,8 @@ jobs:
         run: node tests/semantic_analytics_registry_contract_test.js
       - name: Analytics scopes
         run: node tests/analytics_scope_contract_test.js
+      - name: Period/comparison engine
+        run: node tests/period_comparison_engine_contract_test.js
       - name: Migration reconcile synthetic
         run: node tests/migration_reconciliation_contract_test.js
       - name: Full-history migration protocol

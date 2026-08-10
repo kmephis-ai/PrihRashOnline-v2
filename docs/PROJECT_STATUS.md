@@ -8,10 +8,10 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
 
-- `DOC-002` Русский нормативный контур — **DONE**, Issue #75 Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`.
-- `AIENG-006` Маршрутизация моделей/стоимости — **DONE**, Issue #146 Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`.
+- `DOC-002` — **DONE**, Issue #75 Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`.
+- `AIENG-006` — **DONE**, Issue #146 Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`.
 
-`LANG-RU` остаётся обязательным: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers, API/schema fields, library/protocol/standard names и технические пути сохраняются без перевода.
+`LANG-RU` остаётся обязательным: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers и названия стандартов не переводятся искусственно.
 
 ## R1 / Canonical Financial Platform — завершена
 
@@ -38,31 +38,33 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 - `YC-041` — **BLOCKED**, Issue #148, `OWNER_CLOUD_BOOTSTRAP_REQUIRED`; blocker не имеет writer authority.
 - `YC-042` — **BLOCKED**, Issue #149, `OWNER_YDB_TARGET_REQUIRED`; blocker не имеет writer authority.
 
-YC-040 остаётся offline YDB schema/adapter/cost-guard PoC: Google authoritative, YDB canonical write owner=false, real replication=false. AUTH-040 остаётся provider-neutral auth reference policy: current Apps Script access `MYSELF`, public exposure unchanged, backend financial write granted=false. Cloud blockers не меняют canonical ownership и не создают billing-backed resources автоматически.
+Google остаётся authoritative; cloud blockers не создают billing-backed resources и не меняют canonical write ownership.
 
 ## R7 / Semantic Analytics — текущий writer
 
-- `ANL-070` Semantic measure/dimension registry — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`.
-- `SCOPE-070` Области аналитики и системные теги — **IN_PROGRESS**, Issue #77; current writer, branch `agent/SCOPE-070-analytics-scopes`.
+- `ANL-070` — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`.
+- `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`.
+- `ANL-071` Universal period/comparison engine — **IN_PROGRESS**, Issue #153; current writer, branch `agent/ANL-071-period-comparison`.
 
-ANL-070 authority остаётся `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`: measure/dimension compatibility не переопределяет FIN-TRUTH и не имеет renderer/storage/network/financial-write authority.
+ANL-070 authority остаётся `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`; SCOPE-070 authority — `PRH_ANALYTICS_SCOPE_V1@1.0.0`. Они не переопределяют FIN-TRUTH и не имеют financial-write authority.
 
-SCOPE-070 machine contract: `PRH_ANALYTICS_SCOPE_V1@1.0.0`. Core: `lib/analytics/analytics_scope.js`. Normative doc: `docs/analytics/ANALYTICS_SCOPES.md`. Test: `tests/analytics_scope_contract_test.js`.
+ANL-071 machine contract: `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`. Core: `lib/analytics/period_engine.js`. Normative doc: `docs/analytics/PERIOD_COMPARISON_ENGINE.md`. Test: `tests/period_comparison_engine_contract_test.js`.
 
-SCOPE-070 boundary:
+ANL-071 boundary:
 
-- canonical `tags[]` остаётся свободным user-tag пространством и не является authority для protected system tags;
-- protected assignments живут в отдельном private overlay по stable account/transaction IDs;
-- account assignment применяется к source и destination account участиям transaction;
-- `ALL_CANONICAL` возвращает полный canonical dataset и служит ANL-010 parity proof;
-- `DEFAULT_ANALYSIS` исключает `EXCLUDE_FROM_ANALYSIS`;
-- `EMERGENCY_FUND_ONLY` включает `EMERGENCY_FUND`, но exclusion имеет deny-wins;
-- serialized scope spec содержит только policy IDs/system tags, без private account/transaction IDs или financial payload;
-- unknown/duplicate/overlapping policy tags и unknown assignment targets fail closed;
-- scope создаёт filtered analytic view и не меняет canonical transactions, provenance, user tags или FIN-TRUTH;
+- Gregorian UTC date-only и half-open `[start,end)` semantics;
+- selectors: explicit range, rolling 7/30/90/365, MTD/QTD/YTD с explicit `as_of`;
+- grains: NONE/DAY/ISO-Monday WEEK/MONTH/QUARTER/YEAR;
+- boundary buckets clip к range и получают partial metadata;
+- previous comparable period использует exact day count либо explicit clipping к предыдущему natural period;
+- YoY calendar-shifts на -1 year с deterministic leap-day clamp;
+- ANL-010 v1 enum не мутируется: каждый bucket выполняется существующим evaluator через `grain=NONE`, `comparison=NONE`;
+- WEEK/QUARTER являются orchestration semantics, а не новым скрытым KPI evaluator;
+- `BUDGET_VARIANCE` temporal series/comparison fail-closed до явной budget comparison semantics;
+- period serialization/telemetry не содержит financial payload или private IDs;
 - `financial_write=false`, canonical mutation=false, storage/network authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
 
-ANL-071/072/073/074 не считаются реализованными SCOPE-070.
+ANL-072/BENCH-070/ANL-073/ANL-074 не считаются реализованными ANL-071.
 
 ## MIG-010 historical safety boundary
 
@@ -78,7 +80,7 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
 
-`PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` сохраняет required machine gates на `LOCAL_DETERMINISTIC`; Sol/Terra/Luna являются internal workload lanes, а separately billed OpenAI API default disabled и не требуется для required checks.
+`PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` сохраняет required machine gates на `LOCAL_DETERMINISTIC`; separately billed OpenAI API default disabled и не требуется для required checks.
 
 ## Current delivery chain
 
@@ -95,7 +97,7 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. SCOPE-070 добавляет pure policy/view layer и не меняет runtime financial state или backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. ANL-071 добавляет pure temporal orchestration и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
