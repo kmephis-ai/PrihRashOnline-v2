@@ -4,13 +4,17 @@
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
-## R0 — завершённая платформа и текущий DOC-002 writer
+## R0 — завершён
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
 
-- `DOC-002` Русский нормативный контур документации — **IN_PROGRESS**, Issue #75; current writer, branch `agent/DOC-002-russian-normative-docs`.
+- `DOC-002` Русский нормативный контур — **DONE**, Issue #75 Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`.
 
-`LANG-RU` означает: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers, API/schema fields, library/protocol/standard names и технические пути сохраняются без перевода. Параллельный English source of truth запрещён.
+### Текущий governance writer
+
+- `AIENG-006` Маршрутизация моделей/стоимости — **IN_PROGRESS**, Issue #146; current writer, branch `agent/AIENG-006-model-cost-routing`.
+
+`LANG-RU` остаётся обязательным: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers, API/schema fields, library/protocol/standard names и технические пути сохраняются без перевода.
 
 ## R1 / Canonical Financial Platform — завершена
 
@@ -37,19 +41,18 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 
 YC-040 остаётся offline YDB schema/adapter/cost-guard PoC: Google authoritative, YDB canonical write owner=false, real replication=false. AUTH-040 остаётся provider-neutral auth reference policy: current Apps Script access `MYSELF`, public exposure unchanged, backend financial write granted=false.
 
-## DOC-002 current boundary
+## AIENG-006 current boundary
 
-Machine contract: `PRH_LANGUAGE_POLICY_V1@1.0.0`. Normative doc: `docs/operations/DOC002_LANGUAGE_POLICY.md`. Scanner: `tools/language-policy-scan.js`. Test: `tests/language_policy_contract_test.js`.
+Machine contract: `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0`. Core: `lib/ai/model_cost_routing.js`. Normative doc: `docs/operations/AIENG006_MODEL_COST_ROUTING.md`. Test: `tests/ai_model_cost_routing_contract_test.js`.
 
-DOC-002:
-
-- ведёт machine-readable inventory ключевых normative human-facing paths;
-- требует существенный русский human-facing текст после исключения code fences/inline code/URL;
-- сохраняет technical identifiers/standards без перевода;
-- блокирует `docs/en`, `docs/english`, `README_EN.md`, `README.en.md` как параллельные normative English sources;
-- требует `language: ru` в Issue/PR/Release templates;
-- не имеет financial/runtime/storage/network/deploy/write authority;
-- `FREE_ONLY` mandatory.
+- `SOL`, `TERRA`, `LUNA` — внутренние workload lanes, не vendor model IDs и не гарантированные entitlements.
+- `MACHINE_GATE` всегда выполняется через `LOCAL_DETERMINISTIC` и не зависит от model availability.
+- AI-assisted engineering использует только доступные subscription lanes по deterministic fallback order.
+- `UNKNOWN` не считается available; если required AI capacity отсутствует — `PAUSE_REQUIRED_WORK`, optional — `DEFER_OPTIONAL`.
+- OpenAI API рассматривается как separately billed surface, `enabled=false`; automatic API fallback/billing запрещены.
+- ChatGPT subscription и API billing не смешиваются; current account/model availability не hard-code'ится.
+- routing telemetry содержит только allowlisted техническую metadata, без prompts/responses/financial/account/billing-token payload.
+- machine gate bypass=false; paid API required=false; `FREE_ONLY` mandatory.
 
 ## MIG-010 historical safety boundary
 
@@ -63,7 +66,7 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` is the public-safe repository AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
+Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
 
 ## Current delivery chain
 
@@ -80,7 +83,7 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. DOC-002 не меняет runtime или financial state. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. AIENG-006 не делает API calls, не включает billing и не меняет financial/runtime state. `FREE_ONLY` mandatory.
 
 ## Source precedence
 

@@ -6,21 +6,23 @@
 
 Русский язык — единственный нормативный язык human-facing документации, GitHub metadata и AI instructions. Machine identifiers, API/schema fields, library/protocol/standard names, команды и технические пути сохраняются без перевода. Параллельный English source of truth запрещён.
 
-Для AI-агента это означает практическое правило: объяснения решений, описание причин изменений, критерии приёмки, ограничения, эксплуатационные инструкции и итоговые выводы должны быть понятны русскоязычному владельцу проекта без необходимости обращаться к параллельной английской версии. Английские технические термины допустимы там, где они являются устойчивыми именами интерфейсов, библиотек, стандартов, полей схемы или машинных кодов. Они не должны вытеснять русский смысловой текст и не создают отдельный нормативный документ. Если новый файл предназначен человеку и становится источником архитектурных, эксплуатационных или процессных правил, его основной поясняющий текст пишется по-русски.
+Для AI-агента это означает: причины решений, ограничения, критерии приёмки и эксплуатационные инструкции должны быть понятны русскоязычному владельцу. Английские технические термины допустимы как устойчивые machine/library/standard identifiers, но не заменяют русский смысловой текст.
 
 ## Канонические источники
 
 1. `/AGENTS.md` — AI operating contract.
-2. `/docs/ROADMAP.md` — **Executable GitHub Roadmap v2.3**.
+2. `/docs/ROADMAP.md` — Executable GitHub Roadmap v2.3.
 3. GitHub Issues — live lifecycle/status.
 4. Exact-SHA code/tests/workflows и machine evidence.
 5. Versioned contracts + architecture/ADR/operations docs.
 
 ## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`, `DOC-001 = DONE`, `FINOPS-001 = DONE`.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`, `DOC-001 = DONE`, `DOC-002 = DONE`, `FINOPS-001 = DONE`.
 
-`DOC-002` — **current writer**, Issue #75, branch `agent/DOC-002-russian-normative-docs`; IN_PROGRESS до Main Verification. Contract: `PRH_LANGUAGE_POLICY_V1@1.0.0`.
+`DOC-002` Issue #75 — DONE/Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`; `PRH_LANGUAGE_POLICY_V1@1.0.0` остаётся обязательным governance contract.
+
+`AIENG-006` — **current writer**, Issue #146, branch `agent/AIENG-006-model-cost-routing`; IN_PROGRESS до Main Verification.
 
 ## Current R1 truth
 
@@ -47,24 +49,27 @@ DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-02
 
 YC-040 remains offline YDB evidence only: `ydb_canonical_write_ownership=false`, real replication=false, billing enablement=false. AUTH-040 remains provider-neutral reference policy: current Apps Script access `MYSELF`, `backend_financial_write_granted=false`.
 
-## DOC-002 boundary
+## AIENG-006 model/cost routing boundary
 
-Machine contract: `lib/documentation/language_policy.v1.json`. Runtime: `lib/documentation/language_policy.js`. Scanner: `tools/language-policy-scan.js`. Human contract: `docs/operations/DOC002_LANGUAGE_POLICY.md`. Test: `tests/language_policy_contract_test.js`.
+Machine contract: `lib/ai/model_cost_routing.v1.json` (`PRH_AI_MODEL_COST_ROUTING_V1@1.0.0`). Core: `lib/ai/model_cost_routing.js`. Human contract: `docs/operations/AIENG006_MODEL_COST_ROUTING.md`. Test: `tests/ai_model_cost_routing_contract_test.js`. Named gate: `AI model/cost routing`.
 
 Rules:
 
-- normative human language = `ru`;
-- one human source of truth; parallel English normative tree/readme = FAIL;
-- explicit inventory covers project entry, Roadmap/status, AI instructions/context, release/security/architecture docs and Issue/PR/Release templates;
-- code fences, inline code and URL are excluded from human-language counting;
-- technical identifiers/standards are allowlisted and remain untranslated;
-- Issue/PR/Release templates declare `language: ru`;
-- policy has no financial truth/runtime/storage/network/deployment/write authority;
+- `SOL`, `TERRA`, `LUNA` — внутренние project workload lanes; `vendor_model_id=null`; они не описывают гарантированный entitlement конкретного OpenAI account.
+- `LOCAL_DETERMINISTIC` — единственный surface для required `MACHINE_GATE`; AI/model availability не является machine dependency.
+- `CHATGPT_SUBSCRIPTION` — interactive AI-assisted surface без machine authority; availability поступает как current account runtime state.
+- capability states: `AVAILABLE | EXHAUSTED | UNAVAILABLE | UNKNOWN`; UNKNOWN fail-closed и не считается available.
+- required AI-assisted workload выбирает первый доступный lane по versioned fallback order; если capacity нет — `PAUSE_REQUIRED_WORK`.
+- optional AI workload при отсутствии capacity — `DEFER_OPTIONAL`.
+- `OPENAI_API` — separately billed surface; `enabled=false`, required checks/required engineering запрещены, automatic billing/API fallback запрещён.
+- paid API не требуется для required checks; ChatGPT subscription и API billing остаются раздельными surfaces.
+- routing decision всегда `machine_gate_bypass=false`, `api_used=false` в v1.
+- telemetry содержит только workload/required/route/lane/state/reason/fallback metadata; prompts/responses/financial/account/billing-token payload запрещены.
 - `FREE_ONLY` mandatory.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DOC-002 language contract is `POLICY_GOVERNANCE`; named `Language policy` gate executes `tools/language-policy-scan.js` plus behavioral contract.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `ai_model_cost_routing_contract_test.js` = `POLICY_GOVERNANCE`; named `AI model/cost routing` gate обязан выполняться до downstream regression.
 
 ## MIG-010 historical verified boundary
 
@@ -84,7 +89,7 @@ PR Validation
 -> Main Verification
 ```
 
-DOC-002 remains open until language-policy/docs/privacy/FREE_ONLY/full layered evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #75.
+AIENG-006 remains open until model/cost routing + Language policy/docs/privacy/FREE_ONLY/full layered evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #146.
 
 ## Read-only multi-AI review
 
@@ -92,8 +97,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. DOC-002 uses documentation/governance metadata only and has `financial_write=false`, `runtime=false`, `network=false`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. AIENG-006 makes no provider/network/API calls and has `financial_write=false`, `runtime=false`, `network=false`. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R1 items, the R2 P1 baseline, YC-040 and AUTH-040 are DONE. `MASTER-G3 = complete`. `DOC-002` is the single active writer.
+All R1 items, the R2 P1 baseline, YC-040, AUTH-040 and DOC-002 are DONE. `MASTER-G3 = complete`. `AIENG-006` is the single active writer.
