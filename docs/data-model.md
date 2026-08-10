@@ -4,9 +4,9 @@
 
 Google Sheets остаётся private primary store/current adapter. Web Dashboard не копирует финансовую историю в GitHub и не создаёт public shadow database.
 
-R1 закрепил FIN-010 KPI Dictionary, DATA-010 Canonical Transaction, ARCH-010 pure core, ARCH-011 repository port/Google adapter, MIG-010 verified migration, ANL-010 analytics contract, TEST-010, OBS-010 и PERF-010..014. Все перечисленные work items прошли Main Verification; `DOC-010` — текущий writer, связывающий contracts/code/tests/runbooks в machine-proven documentation map.
+R1 закрепил FIN-010 KPI Dictionary, DATA-010 Canonical Transaction, ARCH-010 pure core, ARCH-011 repository port/Google adapter, MIG-010 verified migration, ANL-010 analytics contract, TEST-010, OBS-010, PERF-010..014 и DOC-010 documentation coherence. Все перечисленные work items прошли Main Verification; `MASTER-G3 / Canonical platform` complete. Текущий R2 writer `DESIGN-020` находится только на presentation boundary и не меняет data/write semantics.
 
-End-to-end lineage: `docs/data/R1_DATA_LINEAGE.md`. Machine documentation map: `lib/documentation/r1_documentation.v1.json` (`PRH_R1_DOCUMENTATION_V1@1.0.0`).
+End-to-end lineage: `docs/data/R1_DATA_LINEAGE.md`. Machine documentation map: `lib/documentation/r1_documentation.v1.json` (`PRH_R1_DOCUMENTATION_V1@1.0.0`). Design presentation contract: `lib/design/design_system.v1.json` (`PRH_DESIGN_SYSTEM_V1@1.0.0`).
 
 ## Основные private sheets
 
@@ -19,7 +19,7 @@ End-to-end lineage: `docs/data/R1_DATA_LINEAGE.md`. Machine documentation map: `
 | `13 Журнал` | privacy-safe technical audit | bounded rotating append |
 | `14 Аналитика` | existing spreadsheet analytics/fallback | not canonical analytics truth |
 
-Наличие sheet/service/query/read-model contract не является разрешением записи. Generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+Наличие sheet/service/query/read-model/design contract не является разрешением записи. Generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 ## Financial truth
 
@@ -57,6 +57,20 @@ Machine contract: `lib/analytics/analytics_contract.v1.json` (`PRH_ANALYTICS_CON
 `PRH_ANALYTICS_QUERY_V1` задаёт currency/measures/dimensions/filters/time/grain/comparison/sort/parameters/limit. `PRH_ANALYTICS_RESULT_V1` содержит deterministic rows, query hash, truncation and provenance.
 
 Analytics result — derived read model, а не новый financial source of truth или persistence authority. Real analytics results/aggregates остаются private.
+
+## R2 presentation boundary — DESIGN-020
+
+`PRH_DESIGN_SYSTEM_V1@1.0.0` описывает semantic visual tokens/themes/focus/motion/breakpoints и применяется к `DashboardWebApp.html`. Это presentation-only contract:
+
+- он не добавляет поля в `PRH_CANONICAL_TRANSACTION_V1`;
+- не меняет `FIN-TRUTH-v1` и `PRH_KPI_DICTIONARY_V1`;
+- не меняет `AnalyticsQuery/AnalyticsResult` и их provenance;
+- не создаёт persistence/cache/write authority;
+- theme/layout state не записывает и не сериализует financial rows/amounts;
+- public design tests используют только code/config и independently generated synthetic Dashboard fixture;
+- external CDN/font/design provider не требуется, `FREE_ONLY` сохраняется.
+
+Следовательно, откат DESIGN-020 не требует data migration или financial rollback: откатывается только presentation contract/CSS/test/docs layer.
 
 ## R1 performance/read-model layers
 
@@ -117,6 +131,6 @@ KPI/control snapshots могут содержать реальные household a
 7. `TEST-010` layered testing — DONE;
 8. `OBS-010` SLO/error budget — DONE;
 9. `PERF-010..014` read/performance foundation — DONE;
-10. `DOC-010` R1 documentation coherence — IN_PROGRESS.
+10. `DOC-010` R1 documentation coherence — DONE / Main Verification PASS.
 
-После DOC-010 Main Verification обязательные R1 `MASTER-G3` dependencies будут выполнены. UI/renderer по-прежнему не знает storage adapter и не владеет financial formulas.
+`MASTER-G3` complete. R2 `DESIGN-020` — текущий presentation writer; UI/renderer по-прежнему не знает storage adapter, не владеет financial formulas и не получает write authority.
