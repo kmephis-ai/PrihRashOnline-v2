@@ -86,6 +86,8 @@ jobs:
         run: node tests/pwa_baseline_contract_test.js
       - name: YDB Serverless PoC
         run: node tests/ydb_serverless_poc_contract_test.js
+      - name: Family Auth
+        run: node tests/family_auth_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
