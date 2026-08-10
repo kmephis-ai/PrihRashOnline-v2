@@ -28,28 +28,32 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic regression gate: synthetic golden tasks, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
 
-## R2 / Family Finance Center
+## R2 / Family Finance Center — текущий writer
 
 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020` — DONE/Main Verification PASS.
 
 - `PROF-020` — **DONE**, Issue #162 Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
-- `UI-MIG-020` — canonical P1 switch-over item, dependency-ready после завершения текущего NW-030; resolver обязан выбрать его раньше оставшихся P2 items.
+- `UI-MIG-020` — **IN_PROGRESS**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`.
 
-`PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0` остаётся configuration-domain authority; planner не выдаёт authorization и не выполняет financial write.
+`UI-MIG-020` authority = `PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`. Default private Web App route переключается на R2 `FinancialHomeWebApp`; primary navigation содержит Home / Transactions / Expenses / Income / Cash Flow / Budget / Obligations / Data Quality. Legacy Dashboard больше не default и остаётся только bounded rollback route `?surface=legacy` до post-cutover verification.
 
-PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются; private Web App остаётся `MYSELF`.
+Financial Home private binding использует `PRH_R2_FIN_RUNTIME_ADAPTER_V1`: read-only `01 Операции` через существующий Google gateway и explicit currency из `09 Настройки`. Adapter не является новым financial truth: gate `R2 Financial runtime parity` сравнивает его с canonical `evaluateKpis()` (`PRH_KPI_DICTIONARY_V1@1.0.0`) на synthetic adversarial fixtures. `legacy_total_cells_used=false`, `ui_financial_formula_authority=false`, `financial_write=false`.
 
-## R3 / Planning, Wealth, Decision Intelligence — текущий writer
+Остальные семь R2 destinations пока имеют `SAFE_UNBOUND_FAIL_CLOSED`: canonical navigation доступна, но private runtime не подставляет browser `SYN-*` fixture как household truth, пока binding не доказан отдельным machine gate. Это намеренная safety boundary, а не скрытая готовность.
 
-- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, candidate `676dddc9d6cfd23a9c57cca4b7a12a27fee31140`, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
-- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, candidate `f0fb557783960342db931488d2de97116c518b30`, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
-- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, candidate `6ca0c01510542323015d97795d8b007e048ded9a`, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
-- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, candidate `f091ef0079a259574e452f4dd3c26adab8f0e5f1`, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
-- `NW-030` Net Worth — **IN_PROGRESS**, Issue #171, branch `agent/NW-030-net-worth`.
+Authenticated technical smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`; он доказывает R2 shell + Home default + bounded legacy link без чтения financial rows. Private Web App остаётся `MYSELF`. `FREE_ONLY` обязателен.
 
-BAL-030 authority = `PRH_BALANCE_RECONCILIATION_V1@1.0.0`. Абсолютный calculated balance не выводится от неявного нуля: required anchor `PRH_BALANCE_OBSERVATION_V1` того же account/currency задаёт signed exact-money baseline. Mismatch остаётся explainable review state; `financial_write=false`.
+PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются.
 
-NW-030 authority = `PRH_NET_WORTH_V1@1.0.0`. Snapshot имеет explicit `valuation_date` и одну currency. Account positions допускаются только из BAL observation/reconciliation с явным source `OBSERVED_BALANCE` либо `CALCULATED_BALANCE`; `MISMATCH` не скрывается и сохраняется в provenance. Non-account assets/liabilities имеют positive exact integer valuation с versioned declared/synthetic provenance. Net Worth = signed account balances + declared assets - declared liabilities; negative account balance учитывается в gross liabilities. Silent FX, live market pricing, canonical/observation mutation, storage/runtime authority и financial write запрещены; `financial_truth=false`, public evidence synthetic-only, `FREE_ONLY` mandatory.
+## R3 / Planning, Wealth, Decision Intelligence
+
+- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
+- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
+- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
+- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
+- `NW-030` — **DONE**, Issue #171 Main Verification PASS, candidate `a2eefe5e9cb8d896e9f607486008901b40e50594`, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
+
+BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero balance. NW authority remains `PRH_NET_WORTH_V1@1.0.0`; no silent FX/market valuation and `financial_truth=false` for valuation layer.
 
 ## R4 / Yandex Cloud shadow platform
 
@@ -78,8 +82,6 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
 
-Required AI gates (`AI playbooks`, `AI regression eval`) и model/cost routing остаются local deterministic; separately billed OpenAI API не требуется для required checks.
-
 ## Current delivery chain
 
 ```text
@@ -93,11 +95,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-NW-030 остаётся открытым до `Net Worth` + BAL/DATA/FIN/DR/GOAL/PROJ/TREND/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+UI-MIG-020 остаётся открытым до `R2 Financial runtime parity` + `Canonical R2 cutover` + `Canonical R2 navigation visual gate` + existing FIN/DATA/ANL/DESIGN/VIZ/HOME/TX/EXP/INC/CF/BUD/OBL/DQ/PWA/MIG/privacy/FREE_ONLY/full layered PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. NW-030 — pure valuation-domain layer и не создаёт real balance observations/market prices, не меняет canonical history/backend storage и не получает financial-write authority. После NW-030 resolver должен выбрать dependency-ready P1 `UI-MIG-020` раньше P2. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. Current writer меняет только canonical UI routing/render path и read-only Home projection. Реальные financial/storage данные не мигрируют и не записываются. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
