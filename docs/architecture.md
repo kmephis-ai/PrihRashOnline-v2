@@ -4,13 +4,14 @@
 
 ПрихРасхOnline v2 — приватное домашнее финансовое приложение на Google Sheets + Apps Script с HTML Web Dashboard. GitHub является инженерным **control plane** для source/tests/contracts/docs/policy; он не является хранилищем финансовой базы.
 
-R0 platform baseline (`MASTER-G0..G2`) завершён. В R1 `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014` завершены Main Verification. `DOC-010` — текущий writer; его задача — machine-proven coherence документации перед закрытием `MASTER-G3`.
+R0 platform baseline (`MASTER-G0..G2`) завершён. R1 `MASTER-G3 / Canonical platform` завершён: `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` прошли Main Verification. Текущий R2 writer — `DESIGN-020`; он стандартизует presentation layer без изменения canonical/FIN/analytics/storage authority.
 
 Канонические архитектурные entry points:
 
 - `docs/architecture/R1_C4_CONTEXT.md` — C4/context + trust boundaries;
 - `docs/data/R1_DATA_LINEAGE.md` — end-to-end data lineage;
 - `lib/documentation/r1_documentation.v1.json` — machine-readable documentation map;
+- `docs/design/DESIGN_SYSTEM.md` + `lib/design/design_system.v1.json` — R2 presentation/design contract;
 - `docs/ROADMAP.md` — executable order/dependencies.
 
 Google Sheets/GAS — текущий adapter/runtime, а не вечный domain boundary. Целевая архитектура остаётся ports/adapters: **Google Sheets adapter** и future **YDB adapter** должны проходить одни canonical/query/financial contracts без big-bang migration.
@@ -28,6 +29,7 @@ Google Sheets/GAS — текущий adapter/runtime, а не вечный domai
 | `lib/analytics/**` | AnalyticsQuery/Result + incremental read models |
 | `lib/repository/**` | storage-neutral repository + cache/refresh layers |
 | `lib/adapters/**` | platform/storage projection/mapping adapters |
+| `lib/design/design_system.v1.json` | presentation-only semantic tokens/theme/a11y/responsive contract |
 | `GoogleTransactionRepositoryGateway.js` | Apps Script Google read gateway; generic canonical writes blocked |
 | `Mig010ExecutionGateway.js` | historical exact-bound migration-specific writer |
 | HTML Web Dashboard | private family UI/renderer consumer; financial semantics не authoritative |
@@ -53,9 +55,11 @@ PRH_ANALYTICS_CONTRACT_V1@1.0.0
 PERF-011 cache / PERF-012 refresh / PERF-013 aggregates as optional read optimizations
         ↓
 private MYSELF Web Dashboard
+        ↓ presentation only
+PRH_DESIGN_SYSTEM_V1@1.0.0
 ```
 
-Полный lineage с contract/code/test/check references: `docs/data/R1_DATA_LINEAGE.md`.
+Полный financial/data lineage с contract/code/test/check references: `docs/data/R1_DATA_LINEAGE.md`. Design system расположен на renderer boundary и не становится частью financial lineage.
 
 ## Pure domain/application boundary — ARCH-010
 
@@ -91,6 +95,23 @@ Machine contract: `lib/analytics/analytics_contract.v1.json` (`PRH_ANALYTICS_CON
 Analytics layer renderer/storage-neutral и не владеет financial formulas. Measures делегируются FIN-010 `evaluateKpis()`. Query/result provenance связывает analytics contract, canonical schema, KPI Dictionary, FIN-TRUTH и exact input revision.
 
 Authority: `io=false`, `network=false`, `financial_write=false`, `ui=false`.
+
+## R2 presentation boundary — DESIGN-020
+
+Machine contract: `lib/design/design_system.v1.json` (`PRH_DESIGN_SYSTEM_V1@1.0.0`). Human contract: `docs/design/DESIGN_SYSTEM.md`.
+
+DESIGN-020 задаёт только presentation semantics:
+
+- versioned typography/spacing/radius/elevation/semantic color/focus/motion tokens;
+- explicit `html[data-theme="light|dark"]` и system dark preference, не переопределяющий explicit theme;
+- WCAG-oriented normal-text contrast pairs >= 4.5:1;
+- единый `:focus-visible` и `prefers-reduced-motion` policy;
+- responsive shell с breakpoints 760/1250 px и сохранением 10 top-level tabs;
+- local/system font stack без external CDN/font/design provider.
+
+Design contract не содержит financial payload и не имеет authority над FIN-TRUTH, canonical schema, AnalyticsQuery/Result, repository, cache, migration или writes. Theme/layout state не изменяет финансовый результат. `FREE_ONLY` остаётся обязательным.
+
+Named machine gate: `Design system`; полный synthetic Playwright layout/overflow regression остаётся `Responsive visual gate`.
 
 ## R1 performance architecture — PERF-010..014
 
@@ -160,7 +181,7 @@ Machine delivery PASS не является mutation authorization для privat
 
 ## Dashboard/application writes
 
-Web Dashboard read paths не изменяют canonical operations. Pure application/analytics cores, PERF-010..014 и DOC-010 не имеют financial write authority. Current Google generic write blocked `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+Web Dashboard read paths не изменяют canonical operations. Pure application/analytics cores, PERF-010..014, completed DOC-010 и presentation-only DESIGN-020 не имеют financial write authority. Current Google generic write blocked `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 Любой future canonical mutation требует отдельного versioned policy contract, idempotency, bounded scope, preconditions, backup/rollback, audit, readback и private reconciliation; irreversible action требует нового owner authorization.
 
@@ -173,7 +194,7 @@ Web Dashboard read paths не изменяют canonical operations. Pure applic
 ```text
 PWA / family clients
         ↓
-UI/view adapters
+UI/view adapters + PRH_DESIGN_SYSTEM_V1
         ↓
 Application services + AnalyticsQuery/Result
         ↓
