@@ -60,6 +60,12 @@ jobs:
         run: node tools/free-only-scan.js
       - name: Documentation truth
         run: node tools/docs-drift-scan.js
+      - name: Language policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/language-policy-scan.js
+          node tests/language_policy_contract_test.js
       - name: R1 documentation contract
         run: node tests/r1_documentation_contract_test.js
       - name: Design system
