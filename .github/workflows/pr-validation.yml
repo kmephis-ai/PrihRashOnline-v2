@@ -74,6 +74,12 @@ jobs:
           set -euo pipefail
           node tools/ai-playbook-scan.js
           node tests/ai_playbook_contract_test.js
+      - name: AI regression eval
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/ai-eval-runner.js
+          node tests/ai_eval_suite_contract_test.js
       - name: R1 documentation contract
         run: node tests/r1_documentation_contract_test.js
       - name: Design system
