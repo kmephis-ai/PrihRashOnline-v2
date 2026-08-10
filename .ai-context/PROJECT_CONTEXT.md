@@ -95,7 +95,9 @@ Canonical R1 maps remain `docs/architecture/R1_C4_CONTEXT.md`, `docs/data/R1_DAT
 
 Owner-private migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
 
-Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound and is non-reusable. GitHub Actions/AI cannot create or reuse it for future mutations. Generic financial write remains blocked.
+Owner-confirmed preserve-all identity capability remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; no private owner resolution payload is included here.
+
+Historical authorization is exact-bound. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions/AI cannot reuse it for future mutations. Generic financial write remains blocked.
 
 ## Current delivery
 
