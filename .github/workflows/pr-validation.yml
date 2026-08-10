@@ -159,6 +159,8 @@ jobs:
         run: node tests/cash_flow_projection_contract_test.js
       - name: Goals and wish-list
         run: node tests/goal_planning_contract_test.js
+      - name: Balance reconciliation
+        run: node tests/balance_reconciliation_contract_test.js
       - name: Exploration state model
         run: node tests/exploration_state_contract_test.js
       - name: Migration reconcile synthetic
