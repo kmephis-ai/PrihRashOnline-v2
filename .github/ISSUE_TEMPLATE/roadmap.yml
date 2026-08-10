@@ -1,6 +1,8 @@
 name: Roadmap-задача
-about: Каноническая задача из Executable GitHub Roadmap
+description: Каноническая задача из Executable GitHub Roadmap
+title: "[ROADMAP-ID] "
 labels: []
+assignees: []
 body:
   - type: markdown
     attributes:
