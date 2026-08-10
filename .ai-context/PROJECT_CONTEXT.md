@@ -18,7 +18,20 @@
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`, `AIENG-006 = DONE`, `DOC-001 = DONE`, `DOC-002 = DONE`, `FINOPS-001 = DONE`.
 
-`DOC-002` Issue #75 — DONE/Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`; `PRH_LANGUAGE_POLICY_V1@1.0.0` остаётся mandatory. `AIENG-006` Issue #146 — DONE/Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`; required machine gates остаются `LOCAL_DETERMINISTIC`, separately billed API default disabled.
+`DOC-002` Issue #75 — DONE/Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`; `PRH_LANGUAGE_POLICY_V1@1.0.0` mandatory. `AIENG-006` Issue #146 — DONE/Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`; required machine gates остаются `LOCAL_DETERMINISTIC`, separately billed API default disabled.
+
+`AIENG-004` — current writer, Issue #157, PR #158, branch `agent/AIENG-004-ai-playbooks`. Machine authority: `PRH_AI_PLAYBOOK_CATALOG_V1@1.0.0`. Required playbooks: `ROADMAP_EXECUTION`, `PR_REVIEW`, `MIGRATION_REVIEW`, `DOCS_DRIFT`, `RELEASE`.
+
+AIENG-004 rules:
+
+- catalog/playbook text **не является новым source of truth** и не создаёт authority;
+- `catalog_grants_authority=false`; все repository/issue/review/merge/deploy/financial-write grants = false;
+- `PR_REVIEW` и `MIGRATION_REVIEW` = `READ_ONLY`, `writer_authority=false`;
+- Roadmap execution сохраняет `PRH_ROADMAP_TASK_V1`, один active writer, same Roadmap item при red recovery и DONE только после Main Verification;
+- release playbook только наблюдает `PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> CI-003 autonomous squash merge -> Main Verification`; ручной merge запрещён;
+- deterministic `tools/ai-playbook-scan.js` проверяет catalog↔files, metadata, required markers, русский текст, размер и authority boundaries;
+- `tests/ai_playbook_contract_test.js` adversarially проверяет missing/duplicate file, unsafe authority, missing marker, metadata mismatch, insufficient Russian text, oversized playbook и catalog authority drift;
+- `AI playbooks` = required POLICY_GOVERNANCE gate; отдельно оплачиваемый model/API не нужен; `FREE_ONLY` mandatory.
 
 ## Current R1 truth
 
@@ -36,7 +49,7 @@
 
 ## Current R2 truth
 
-DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020 and PWA-020 are DONE/Main Verification PASS. `NOT_PROVEN_CURRENT_HOST` remains the current Apps Script HtmlService service-worker state; private financial/authenticated responses are never allowed in PWA cache.
+DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020 and PWA-020 are DONE/Main Verification PASS. `PROF-020` remains P2 backlog. `NOT_PROVEN_CURRENT_HOST` remains the current Apps Script HtmlService service-worker state; private financial/authenticated responses are never allowed in PWA cache.
 
 ## Current R4 truth
 
@@ -52,32 +65,13 @@ Google remains authoritative. Blocked cloud items не создают live cloud
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`; authority `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`; authority `PRH_ANALYTICS_SCOPE_V1@1.0.0`.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS, merge `136fa66ea5752c96b789e92911d75ce37226b62f`; authority `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`.
-- `ANL-074` — **current writer**, Issue #155, branch `agent/ANL-074-exploration-state`; IN_PROGRESS до Main Verification.
+- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, candidate `94e199308c3bd3f0b61c4c9e16355b7befef2ca9`, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`; authority `PRH_EXPLORATION_STATE_V1@1.0.0`.
 
-ANL-074 machine contract: `lib/analytics/exploration_state.v1.json` (`PRH_EXPLORATION_STATE_V1@1.0.0`). Core: `lib/analytics/exploration_state.js`. Human contract: `docs/analytics/EXPLORATION_STATE.md`. Test: `tests/exploration_state_contract_test.js`. Named gate: `Exploration state model`.
-
-Rules ANL-074:
-
-- reuses VIZ-020 `PRH_FILTER_CONTEXT_V1@1.0.0` and `PRH_DRILL_CONTEXT_V1@1.0.0`; второй filter DSL не создаётся;
-- global context = normalized FilterContext + validated SCOPE-070 ScopeSpec;
-- widget context = FilterContext + `INHERIT_GLOBAL` либо explicit `OVERRIDE`; implicit scope merge=false;
-- INCLUDE одного field пересекаются, EXCLUDE объединяются; exclusion применяется после include; empty effective INCLUDE = `EXPLORATION_FILTER_CONTRADICTION`;
-- filter/widget ordering не влияет на `SHA256_CANONICAL_JSON_V1` state identity;
-- effective drill filters = global + source-widget + drill filters, затем повторная VIZ validation;
-- session actions: set global/widget, remove widget, set/clear drill, RESET, BACK; max history=32; no-op не добавляет history;
-- RESET возвращает canonical default; BACK восстанавливает exact previous canonical state/hash;
-- URL-state private-app only: canonical JSON UTF-8 → base64url с prefix `prh1.`, byte/char limits и canonical re-encode verification; history не сериализуется;
-- URL state не public-shareable, потому что filter IDs/values могут быть private configuration;
-- datasets/rows/transactions/results/measures/amount KPI fields и `scope_assignments` в state/actions запрещены;
-- telemetry содержит только schema/version/action/decision/reason/state_hash/history_depth/widget_count/global_scope_id/drill_active — без filter values;
-- ANL-074 не исполняет AnalyticsQuery и не реализует DASH-082/083/084;
-- `financial_write=false`, canonical mutation=false, query execution=false, runtime/network/storage authority=false; `FREE_ONLY` mandatory.
-
-ANL-072/BENCH-070/ANL-073 и downstream dashboard composition items не считаются реализованными ANL-074.
+ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependency-ready.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `semantic_analytics_registry_contract_test.js`, `analytics_scope_contract_test.js`, `period_comparison_engine_contract_test.js`, `exploration_state_contract_test.js` относятся к `PURE_DOMAIN_APPLICATION`; named analytics gates выполняются до migration/full/UI regression.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `ai_playbook_contract_test.js` belongs to `POLICY_GOVERNANCE`; named `AI playbooks` gate runs scanner + contract before the full layered suite. Existing semantic/scope/period/exploration tests remain independently classified.
 
 ## AI model/cost routing boundary
 
@@ -101,7 +95,7 @@ PR Validation
 -> Main Verification
 ```
 
-ANL-074 remains open until exploration-state + period/scope/semantic/LANG-RU/docs/privacy/FREE_ONLY/full layered evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #155.
+AIENG-004 remains open until `AI playbooks` + LANG-RU/docs/AI/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #157.
 
 ## Read-only multi-AI review
 
@@ -109,8 +103,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Private scope assignments and real filter values are not public evidence. Family Web App remains private `MYSELF`. ANL-074 is a pure configuration/state layer with `financial_write=false`, `runtime=false`, `network=false`, `storage=false`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. AIENG-004 is repository governance only: `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R1 items, R2 P1 baseline, YC-040, AUTH-040, DOC-002, AIENG-006, ANL-070, SCOPE-070 and ANL-071 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `ANL-074` is the single active writer.
+All R1 items, R2 P1 baseline, YC-040, AUTH-040, DOC-002, AIENG-006, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `AIENG-004` is the single active writer.
