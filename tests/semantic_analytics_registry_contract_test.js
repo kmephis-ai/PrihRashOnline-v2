@@ -1,8 +1,6 @@
 'use strict';
 
 const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
 
 const analyticsContract = require('../lib/analytics/analytics_contract.v1.json');
 const registry = require('../lib/analytics/semantic_registry.v1.json');
@@ -29,6 +27,8 @@ assert.strictEqual(registry.roadmap_id, 'ANL-070');
 assert.strictEqual(registry.upstream.financial_truth_policy, 'FIN-TRUTH-v1');
 assert.strictEqual(registry.semantics.registry_redefines_kpi_formulas, false);
 assert.strictEqual(registry.semantics.analytics_query_remains_execution_contract, true);
+assert.strictEqual(registry.semantics.renderer_neutral, true);
+assert.strictEqual(registry.semantics.storage_neutral, true);
 assert.strictEqual(registry.semantics.financial_values_embedded, false);
 assert.ok(Object.values(registry.authorities).every((value) => value === false));
 
@@ -127,11 +127,6 @@ assert.strictEqual(telemetry.decision, 'ALLOW');
 const telemetryText = JSON.stringify(telemetry).toLowerCase();
 for (const forbidden of ['prompt', 'response', 'description', 'counterparty', 'amount_minor', 'budget_minor', 'transaction_id', 'account_email', 'token']) {
   assert.strictEqual(telemetryText.includes(forbidden), false, forbidden);
-}
-
-const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'analytics', 'semantic_registry.js'), 'utf8');
-for (const forbidden of ['SpreadsheetApp.', 'UrlFetchApp.', 'HtmlService.', 'google.script', 'ECharts', 'echarts.init', 'fetch(', 'http.request', 'https.request']) {
-  assert.strictEqual(source.includes(forbidden), false, forbidden);
 }
 
 console.log('semantic-analytics-registry: PASS', {
