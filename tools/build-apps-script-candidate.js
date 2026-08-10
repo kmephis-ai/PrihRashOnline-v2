@@ -7,14 +7,6 @@ const path = require('path');
 const POLICY_VERSION = 'apps-script-top-level-v2';
 const BUILD_INFO_SCHEMA_VERSION = 1;
 const GENERATED_BUILD_INFO = 'BuildInfo.js';
-const GENERATED_R2_DOMAIN_BUNDLE = 'R2DomainBundle.js';
-const R2_DOMAIN_ENTRYPOINTS = Object.freeze([
-  'lib/home/financial_home.js',
-  'lib/expense/expense_analytics.js',
-  'lib/income/income_analytics.js',
-  'lib/cashflow/cash_flow_dashboard.js',
-  'lib/adapters/google_sheets_transaction_repository.js'
-]);
 const SHA_RE = /^[0-9a-f]{40}$/;
 
 function sha256(buffer) {
@@ -34,10 +26,8 @@ function parseArgs(argv) {
 
 function listDeployFiles(sourceRoot) {
   const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
-  for (const reserved of [GENERATED_BUILD_INFO, GENERATED_R2_DOMAIN_BUNDLE]) {
-    if (entries.some((entry) => entry.name === reserved)) {
-      throw new Error(`${reserved} is reserved for deterministic build metadata/runtime bundle`);
-    }
+  if (entries.some((entry) => entry.name === GENERATED_BUILD_INFO)) {
+    throw new Error(`${GENERATED_BUILD_INFO} is reserved for deterministic build metadata`);
   }
   const files = entries
     .filter((entry) => entry.isFile() && (entry.name === 'appsscript.json' || entry.name.endsWith('.js') || entry.name.endsWith('.html')))
@@ -76,145 +66,6 @@ function sourceFileDescriptors(source, names) {
   });
 }
 
-function normalizeModuleId(value) {
-  const normalized = path.posix.normalize(String(value || '').replace(/\\/g, '/'));
-  if (!normalized || normalized === '.' || normalized.startsWith('../') || normalized.startsWith('/')) {
-    throw new Error(`invalid R2 bundle module id: ${value}`);
-  }
-  return normalized.replace(/^\.\//, '');
-}
-
-function resolveRelativeModule(sourceRoot, fromId, request) {
-  const base = normalizeModuleId(path.posix.join(path.posix.dirname(fromId), request));
-  const candidates = [base, `${base}.js`, `${base}.json`, path.posix.join(base, 'index.js')];
-  for (const candidate of candidates) {
-    const absolute = path.join(sourceRoot, ...candidate.split('/'));
-    if (!fs.existsSync(absolute)) continue;
-    const stat = fs.lstatSync(absolute);
-    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`R2 bundle dependency must be a regular file: ${candidate}`);
-    return candidate;
-  }
-  throw new Error(`R2 bundle dependency not found: ${fromId} -> ${request}`);
-}
-
-function collectR2DomainModules(sourceRoot, entrypoints = R2_DOMAIN_ENTRYPOINTS) {
-  const modules = new Map();
-  const dependencyMap = new Map();
-  const pending = entrypoints.map(normalizeModuleId);
-  const requireRe = /require\(\s*['"]([^'"]+)['"]\s*\)/g;
-
-  while (pending.length) {
-    const id = pending.pop();
-    if (modules.has(id)) continue;
-    const absolute = path.join(sourceRoot, ...id.split('/'));
-    if (!fs.existsSync(absolute)) throw new Error(`R2 bundle entrypoint missing: ${id}`);
-    const stat = fs.lstatSync(absolute);
-    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`R2 bundle module must be a regular file: ${id}`);
-    const source = fs.readFileSync(absolute, 'utf8');
-    modules.set(id, source);
-    const deps = {};
-    if (id.endsWith('.js')) {
-      requireRe.lastIndex = 0;
-      let match;
-      while ((match = requireRe.exec(source)) !== null) {
-        const request = match[1];
-        if (request === 'crypto') {
-          deps[request] = 'crypto';
-          continue;
-        }
-        if (!request.startsWith('.')) throw new Error(`unsupported R2 bundle dependency: ${id} -> ${request}`);
-        const resolved = resolveRelativeModule(sourceRoot, id, request);
-        deps[request] = resolved;
-        if (!modules.has(resolved)) pending.push(resolved);
-      }
-    }
-    dependencyMap.set(id, deps);
-  }
-
-  const sortedModules = Array.from(modules.entries()).sort(([left], [right]) => left.localeCompare(right));
-  return { modules: sortedModules, dependencyMap };
-}
-
-function appsScriptCryptoShimSource() {
-  return [
-    "modules['crypto'] = function(module) {",
-    "  module.exports = Object.freeze({",
-    "    createHash: function(algorithm) {",
-    "      if (String(algorithm).toLowerCase() !== 'sha256') throw new Error('R2_BUNDLE_CRYPTO_ALGORITHM_UNSUPPORTED');",
-    "      var chunks = [];",
-    "      var api = {",
-    "        update: function(value) { chunks.push(String(value)); return api; },",
-    "        digest: function(encoding) {",
-    "          if (encoding !== 'hex') throw new Error('R2_BUNDLE_CRYPTO_ENCODING_UNSUPPORTED');",
-    "          var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, chunks.join(''), Utilities.Charset.UTF_8);",
-    "          return bytes.map(function(byte) { var value = byte < 0 ? byte + 256 : byte; return ('0' + value.toString(16)).slice(-2); }).join('');",
-    "        }",
-    "      };",
-    "      return api;",
-    "    }",
-    "  });",
-    "};"
-  ].join('\n');
-}
-
-function r2DomainBundleSource(sourceRoot, entrypoints = R2_DOMAIN_ENTRYPOINTS) {
-  const collected = collectR2DomainModules(sourceRoot, entrypoints);
-  const lines = [
-    '/** Generated from canonical lib sources by trusted candidate packager. Do not edit or commit. */',
-    'var PRH_R2_DOMAIN = (function() {',
-    "  'use strict';",
-    '  var modules = Object.create(null);',
-    '  var dependencies = Object.create(null);',
-    '  var cache = Object.create(null);',
-    appsScriptCryptoShimSource().split('\n').map((line) => `  ${line}`).join('\n')
-  ];
-
-  collected.modules.forEach(([id, source]) => {
-    const deps = collected.dependencyMap.get(id) || {};
-    lines.push(`  dependencies[${JSON.stringify(id)}] = ${JSON.stringify(deps)};`);
-    if (id.endsWith('.json')) {
-      const parsed = JSON.parse(source);
-      lines.push(`  modules[${JSON.stringify(id)}] = function(module) { module.exports = ${JSON.stringify(parsed)}; };`);
-    } else if (id.endsWith('.js')) {
-      lines.push(`  modules[${JSON.stringify(id)}] = function(module, exports, require) {`);
-      source.split('\n').forEach((line) => lines.push(`    ${line}`));
-      lines.push('  };');
-    } else {
-      throw new Error(`unsupported R2 bundle module extension: ${id}`);
-    }
-  });
-
-  lines.push(
-    '  function load(id) {',
-    "    if (id === 'crypto') {",
-    '      if (!cache[id]) { var cryptoModule = { exports: {} }; modules[id](cryptoModule); cache[id] = cryptoModule; }',
-    '      return cache[id].exports;',
-    '    }',
-    "    if (!Object.prototype.hasOwnProperty.call(modules, id)) throw new Error('R2_BUNDLE_MODULE_UNKNOWN:' + id);",
-    '    if (cache[id]) return cache[id].exports;',
-    '    var module = { exports: {} };',
-    '    cache[id] = module;',
-    '    var localRequire = function(request) {',
-    '      var map = dependencies[id] || {};',
-    '      var resolved = map[request] || request;',
-    '      return load(resolved);',
-    '    };',
-    '    modules[id](module, module.exports, localRequire);',
-    '    return module.exports;',
-    '  }',
-    `  var entrypoints = Object.freeze(${JSON.stringify(entrypoints.map(normalizeModuleId))});`,
-    "  return Object.freeze({ schema: 'PRH_R2_DOMAIN_BUNDLE_V1', version: '1.0.0', entrypoints: entrypoints, require: load });",
-    '}());',
-    ''
-  );
-  return lines.join('\n');
-}
-
-function generatedDescriptor(filePath, sourceText) {
-  const bytes = Buffer.from(sourceText, 'utf8');
-  return { path: filePath, sha256: sha256(bytes), size: bytes.length, bytes };
-}
-
 function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
   if (!SHA_RE.test(String(candidateSha || ''))) throw new Error('candidate SHA must be exactly 40 lowercase hex characters');
   const source = path.resolve(sourceRoot);
@@ -226,11 +77,14 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
   const names = listDeployFiles(source);
   const sourceFiles = sourceFileDescriptors(source, names);
   const sourceTreeHash = stableFileSetHash(sourceFiles);
-  const generatedFiles = [
-    generatedDescriptor(GENERATED_BUILD_INFO, buildInfoSource(candidateSha, sourceTreeHash)),
-    generatedDescriptor(GENERATED_R2_DOMAIN_BUNDLE, r2DomainBundleSource(source))
-  ];
-  const allFiles = [...sourceFiles, ...generatedFiles].sort((a, b) => a.path.localeCompare(b.path));
+  const buildInfoBytes = Buffer.from(buildInfoSource(candidateSha, sourceTreeHash), 'utf8');
+  const generatedFile = {
+    path: GENERATED_BUILD_INFO,
+    sha256: sha256(buildInfoBytes),
+    size: buildInfoBytes.length,
+    bytes: buildInfoBytes
+  };
+  const allFiles = [...sourceFiles, generatedFile].sort((a, b) => a.path.localeCompare(b.path));
 
   allFiles.forEach((item) => fs.writeFileSync(path.join(filesRoot, item.path), item.bytes));
   const manifestFiles = allFiles.map(({ path: filePath, sha256: digest, size }) => ({ path: filePath, sha256: digest, size }));
@@ -241,8 +95,6 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
     candidateSha,
     sourceTreeHash,
     generatedBuildInfo: GENERATED_BUILD_INFO,
-    generatedR2DomainBundle: GENERATED_R2_DOMAIN_BUNDLE,
-    r2DomainEntrypoints: R2_DOMAIN_ENTRYPOINTS.slice(),
     fileCount: manifestFiles.length,
     files: manifestFiles,
     artifactHash: stableFileSetHash(manifestFiles)
@@ -302,17 +154,11 @@ module.exports = {
   POLICY_VERSION,
   BUILD_INFO_SCHEMA_VERSION,
   GENERATED_BUILD_INFO,
-  GENERATED_R2_DOMAIN_BUNDLE,
-  R2_DOMAIN_ENTRYPOINTS,
   SHA_RE,
   sha256,
   listDeployFiles,
   stableFileSetHash,
   buildInfoSource,
-  normalizeModuleId,
-  resolveRelativeModule,
-  collectR2DomainModules,
-  r2DomainBundleSource,
   buildCandidate,
   verifyCandidate
 };
