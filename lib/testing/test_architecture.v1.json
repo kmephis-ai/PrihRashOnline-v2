@@ -60,7 +60,7 @@
         "^dashboard_.*_test\\.js$",
         "^.*(visual|responsive|playwright|web_ui|ui_).*_test\\.js$"
       ],
-      "budget": { "max_files": 40, "max_seconds": 150 }
+      "budget": { "max_files": 44, "max_seconds": 180 }
     },
     {
       "id": "POLICY_GOVERNANCE",
@@ -81,6 +81,8 @@
     "design_system_contract_test.js": "UI_E2E",
     "visualization_foundation_contract_test.js": "UI_E2E",
     "financial_home_contract_test.js": "UI_E2E",
+    "transaction_explorer_contract_test.js": "UI_E2E",
+    "transaction_explorer_visual_test.js": "UI_E2E",
     "income_sidebar_validation_test.js": "UI_E2E",
     "secret_scan_contract_test.js": "POLICY_GOVERNANCE",
     "synthetic_finance_fixture_contract_test.js": "PURE_DOMAIN_APPLICATION",
@@ -125,6 +127,7 @@
     { "name": "Design system", "layer": "UI_E2E" },
     { "name": "Visualization foundation", "layer": "UI_E2E" },
     { "name": "Financial Home", "layer": "UI_E2E" },
+    { "name": "Transaction Explorer", "layer": "UI_E2E" },
     { "name": "AI contract", "layer": "POLICY_GOVERNANCE" },
     { "name": "Roadmap task protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Multi-AI review protocol", "layer": "POLICY_GOVERNANCE" },
@@ -144,6 +147,7 @@
     { "name": "Migration reconcile synthetic", "layer": "MIGRATION_RECOVERY" },
     { "name": "Full-history migration protocol", "layer": "MIGRATION_RECOVERY" },
     { "name": "Responsive visual gate", "layer": "UI_E2E" },
-    { "name": "Financial Home visual gate", "layer": "UI_E2E" }
+    { "name": "Financial Home visual gate", "layer": "UI_E2E" },
+    { "name": "Transaction Explorer visual gate", "layer": "UI_E2E" }
   ]
 }
