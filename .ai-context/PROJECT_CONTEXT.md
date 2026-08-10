@@ -43,31 +43,40 @@ DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-02
 
 `PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`, authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
 
-`UI-MIG-020` is canonical dependency-ready P1 switch-over work and must be selected after current NW-030 completes, before remaining P2 items. `NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
+`UI-MIG-020` — **current writer**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`; P1 and IN_PROGRESS до Main Verification.
+
+UI-MIG-020 machine authority:
+
+- contract: `lib/ui/canonical_r2_web_app.v1.json` (`PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`);
+- router: `CanonicalR2WebAppService.js`;
+- read-only Home adapter: `R2FinancialRuntimeService.js` (`PRH_R2_FIN_RUNTIME_ADAPTER_V1`);
+- normative doc: `docs/ui/CANONICAL_R2_WEB_APP.md`;
+- required gates: `R2 Financial runtime parity`, `Canonical R2 cutover`, `Canonical R2 navigation visual gate`.
+
+UI-MIG-020 rules:
+
+- canonical default Web App route = `home` / `FinancialHomeWebApp`; legacy `DashboardWebApp` loses default authority;
+- primary navigation contains exactly Home, Transactions, Expenses, Income, Cash Flow, Budget, Obligations, Data Quality;
+- legacy remains only bounded rollback route `?surface=legacy` until post-cutover verification;
+- private exposure stays `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary remains unchanged;
+- Home runtime reads `01 Операции` only through `prhGoogleRepositoryReadOperationsTable_` and explicit `currency` from existing `09 Настройки`;
+- Home runtime projection is parity-guarded against canonical `evaluateKpis()` / `PRH_KPI_DICTIONARY_V1@1.0.0`; it has no independent financial formula authority;
+- posted income/expense/refund/transfer/zero-adjustment semantics remain `FIN-TRUTH-v1`; integer minor units and no implicit rounding;
+- legacy total cells are not financial truth; `legacy_total_cells_used=false`;
+- browser synthetic fixtures remain valid only for public CI/Playwright; private runtime fallback to `SYN-*` is forbidden;
+- routes without proven private binding use `SAFE_UNBOUND_FAIL_CLOSED` and do not read financial rows or display synthetic values as household truth;
+- authenticated technical render smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK` and does not read financial rows;
+- `financial_write=false`, `canonical_mutation=false`, storage/runtime-write/deployment authority=false; `FREE_ONLY` mandatory.
 
 ## Current R3 truth
 
-- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`, authority `PRH_LONG_TERM_TRENDS_V1@1.0.0`.
-- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`, authority `PRH_CASH_FLOW_PROJECTION_V1@1.0.0`.
-- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, candidate `6ca0c01510542323015d97795d8b007e048ded9a`, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`, authority `PRH_GOAL_PLANNING_V1@1.0.0`.
-- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, candidate `f091ef0079a259574e452f4dd3c26adab8f0e5f1`, merge `3caab7017de035d14c36d07f3712f7c019828e2f`, authority `PRH_BALANCE_RECONCILIATION_V1@1.0.0`.
-- `NW-030` — **current writer**, Issue #171, branch `agent/NW-030-net-worth`; IN_PROGRESS до Main Verification.
+- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
+- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
+- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
+- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
+- `NW-030` — **DONE**, Issue #171 Main Verification PASS, candidate `a2eefe5e9cb8d896e9f607486008901b40e50594`, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`, authority `PRH_NET_WORTH_V1@1.0.0`.
 
-NW-030 machine authority: `lib/networth/net_worth.v1.json` (`PRH_NET_WORTH_V1@1.0.0`). Core: `lib/networth/net_worth.js`. Contract test: `tests/net_worth_contract_test.js`. Normative doc: `docs/finance/NET_WORTH.md`. Named gate: `Net Worth`.
-
-NW-030 rules:
-
-- snapshot задаёт explicit ISO `valuation_date` и одну ISO currency; silent FX запрещён до отдельного FX work item;
-- account positions создаются только из `PRH_BALANCE_OBSERVATION_V1` или `PRH_BALANCE_RECONCILIATION_RESULT_V1`;
-- source account position всегда explicit `OBSERVED_BALANCE` либо `CALCULATED_BALANCE`; автоматического выбора нет;
-- BAL reconciliation state/id сохраняются в position provenance; `MISMATCH` не скрывается и переводит result в `RECONCILIATION_REVIEW_REQUIRED`;
-- non-account `ASSET`/`LIABILITY` имеют positive exact integer minor valuation и versioned `DECLARED_VALUATION|SYNTHETIC_TEST` provenance; live market provider не требуется;
-- net worth = signed account total + declared assets - declared liabilities; positive account balances входят в gross assets, отрицательные — в gross liabilities;
-- все arithmetic операции fail-closed при выходе из safe integer; duplicate position/account identity, mixed currency/date и invalid provenance запрещены;
-- deterministic ordering/id/serialization и input immutability обязательны;
-- public telemetry содержит только schema/version/status/count/source-kind/reconciliation-state metadata, без raw IDs, labels и financial values;
-- valuation layer имеет `financial_truth=false`; BAL/FIN/DATA authority не переопределяется;
-- `canonical_mutation=false`, `observation_mutation=false`, `financial_write=false`, storage/network/runtime/deployment authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
+BAL/NW contracts do not automatically grant UI-MIG private balance/valuation binding. No silent FX or market valuation is introduced.
 
 ## Current R4 truth
 
@@ -89,11 +98,11 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js`, `cash_flow_projection_contract_test.js`, `goal_planning_contract_test.js`, `balance_reconciliation_contract_test.js` и `net_worth_contract_test.js` belong to `PURE_DOMAIN_APPLICATION`; named `Net Worth` runs after `Balance reconciliation`. AI playbook/eval tests remain POLICY_GOVERNANCE.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. UI-MIG adds runtime-integration tests for FIN parity/canonical routing and a UI_E2E responsive navigation visual gate. Full layered inventory remains mandatory; no red gate can be bypassed.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. NW-030 requires no external model/provider, market-data API or paid bank API.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. UI-MIG-020 requires no external model/provider, market-data API or paid service.
 
 ## MIG-010 historical verified boundary
 
@@ -113,7 +122,7 @@ PR Validation
 -> Main Verification
 ```
 
-NW-030 remains open until Net Worth + BAL/DATA/FIN/DR/GOAL/PROJ/TREND/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #171.
+UI-MIG-020 remains open until R2 Financial runtime parity + Canonical R2 cutover + Canonical R2 navigation visual gate + existing FIN/DATA/ANL/DESIGN/VIZ/HOME/TX/EXP/INC/CF/BUD/OBL/DQ/PWA/MIG/privacy/FREE_ONLY/full layered evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #172.
 
 ## Read-only multi-AI review
 
@@ -121,8 +130,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. NW-030 is pure valuation-domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. UI-MIG only changes routing/render orchestration and read-only Home projection; `financial_write=false`. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, TREND-030, PROJ-030, GOAL-030, BAL-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `NW-030` is the single active writer; after it closes, dependency-ready P1 `UI-MIG-020` has resolver priority over P2.
+All R0 critical items, R1 core + AIENG-005, R2 baseline through PROF-020, TREND-030, PROJ-030, GOAL-030, BAL-030, NW-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 remain BLOCKED without writer authority. `MASTER-G3 = complete`. `UI-MIG-020` is the single active writer.
