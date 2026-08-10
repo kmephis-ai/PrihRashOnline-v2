@@ -76,7 +76,7 @@ Legacy итоговые ячейки не являются golden truth. Financi
 
 ## Pure application boundary — ARCH-010
 
-`PRH_APPLICATION_CORE_V1` имеет `io_authority=false`, `network_authority=false`, `financial_write_authority=false`. `SpreadsheetApp`, DOM/UI и network services запрещены внутри pure core.
+`PRH_APPLICATION_CORE_V1` имеет `io_authority: false`, `network_authority: false`, `financial_write_authority: false`. `SpreadsheetApp`, DOM/UI и network services запрещены внутри pure core.
 
 ## Repository boundary — ARCH-011
 
