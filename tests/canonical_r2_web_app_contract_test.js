@@ -9,6 +9,7 @@ const root = path.join(__dirname, '..');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const legacySource = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'FinancialHomeWebApp.html'), 'utf8');
+const cutoverContract = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'ui', 'canonical_r2_web_app.v1.json'), 'utf8'));
 new vm.Script(routerSource, { filename: 'CanonicalR2WebAppService.js' });
 
 function output(content) {
@@ -55,6 +56,9 @@ const context = vm.createContext({
 });
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 
+assert.strictEqual(cutoverContract.schema, 'PRH_CANONICAL_R2_WEB_APP_V1');
+assert.strictEqual(cutoverContract.synthetic_policy.private_runtime_fallback_allowed, false);
+assert.strictEqual(cutoverContract.synthetic_policy.unproven_binding_behavior, 'FAIL_CLOSED_NO_SYNTHETIC_TRUTH');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.SCHEMA, 'PRH_CANONICAL_R2_WEB_APP_V1');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE, 'home');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.PRIVATE_EXPOSURE, 'MYSELF');
@@ -70,12 +74,20 @@ for (const route of ['home','transactions','expenses','income','cash-flow','budg
   assert.strictEqual(context.prhR2ResolveSurface_(route), route);
 }
 
+const legacyParser = "function parse(){try{const text=document.getElementById('initial-home-data').textContent.trim();if(!text||text.indexOf('<?')===0)return SYN;return JSON.parse(text);}catch(e){return SYN;}}";
+const hardenedRawHome = context.prhR2HardenPrivateHome_(homeHtml);
+assert(!hardenedRawHome.includes(legacyParser));
+assert(hardenedRawHome.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
+assert(hardenedRawHome.includes('R2_PRIVATE_HOME_PAYLOAD_INVALID'));
+
 const home = context.doGet({ parameter: {} }).getContent();
 assert.strictEqual(homeRuntimeCalls, 1);
 assert(home.includes('data-prh-canonical-r2-shell="1"'));
 assert(home.includes('data-active-surface="home"'));
 assert(home.includes('meta name="prh-canonical-r2"'));
 assert(home.includes('"schema":"PRH_FINANCIAL_HOME_VIEW_V1"'));
+assert(home.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
+assert(!home.includes(legacyParser));
 assert(home.includes('?surface=transactions'));
 assert(home.includes('?surface=expenses'));
 assert(home.includes('?surface=income'));
@@ -108,6 +120,7 @@ assert.strictEqual(homeRuntimeCalls, 1, 'technical smoke must not call the priva
 const doGetCount = (routerSource.match(/function\s+doGet\s*\(/g) || []).length + (legacySource.match(/function\s+doGet\s*\(/g) || []).length;
 assert.strictEqual(doGetCount, 1, 'canonical Web App must have one doGet authority');
 assert.match(routerSource, /prhR2BuildFinancialHomeRuntime_\(\)/);
+assert.match(routerSource, /prhR2HardenPrivateHome_/);
 assert.doesNotMatch(routerSource, /PRH_R2_DOMAIN|generated bundle/i);
 assert.doesNotMatch(routerSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
 assert.doesNotMatch(legacySource, /function\s+doGet\s*\(/);
@@ -117,6 +130,7 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   primaryNavigationCount: 8,
   liveBoundRoutes: ['home'],
   unboundPolicy: 'FAIL_CLOSED_NO_SYNTHETIC_TRUTH',
+  privateHomeParseFallback: 'FAIL_CLOSED',
   legacyRollback: true,
   privateExposure: 'MYSELF',
   financialWrite: false,
