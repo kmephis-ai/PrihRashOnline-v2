@@ -133,6 +133,8 @@ jobs:
           node tests/analytics_extension_contract_test.js
           node tests/analytics_query_edge_contract_test.js
           node tests/analytics_documentation_contract_test.js
+      - name: Semantic analytics registry
+        run: node tests/semantic_analytics_registry_contract_test.js
       - name: Migration reconcile synthetic
         run: node tests/migration_reconciliation_contract_test.js
       - name: Full-history migration protocol
