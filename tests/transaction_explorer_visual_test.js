@@ -94,6 +94,14 @@ function expect(condition, message) { if (!condition) throw new Error(message); 
     const saveResult = await page.textContent('#save-result');
     expect(saveResult.includes('WRITE_BLOCKED') && saveResult.includes('данные не изменены'), `[${viewport.name}] save action must remain blocked`);
 
+    // The drawer is modal by design: background controls must remain non-interactive while it is open.
+    // Close the modal before testing an unrelated global theme control.
+    await page.click('#drawer-close');
+    await page.waitForFunction(() => {
+      const drawer = document.getElementById('drawer');
+      return !drawer.classList.contains('open') && drawer.getAttribute('aria-hidden') === 'true';
+    });
+
     await page.click('#theme-toggle');
     expect(await page.getAttribute('html','data-theme') === 'dark', `[${viewport.name}] theme toggle failed`);
     expect(!errors.length, `[${viewport.name}] runtime errors: ${errors.join(' | ')}`);
@@ -105,6 +113,8 @@ function expect(condition, message) { if (!condition) throw new Error(message); 
       writeBlocked:document.getElementById('save-result').textContent.includes('WRITE_BLOCKED')
     }));
     expect(metrics.overflow <= 1, `[${viewport.name}] interaction introduced horizontal overflow ${metrics.overflow}`);
+    expect(metrics.drawerOpen === false, `[${viewport.name}] modal drawer must be closed before background interaction`);
+    expect(metrics.writeBlocked === true, `[${viewport.name}] blocked-save evidence must remain visible in state`);
     results.push({ viewport:viewport.name, ...metrics });
     await page.screenshot({ path:path.join(artifactDir, `transaction-explorer-${viewport.name}.png`), fullPage:true });
     await page.close();
