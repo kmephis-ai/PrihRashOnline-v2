@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="ПрихРасхOnline">
+  <rect width="192" height="192" rx="42" fill="#0b6570"/>
+  <path d="M45 54h102v24H45zM45 88h64v24H45zM45 122h102v24H45z" fill="#ffffff" opacity=".96"/>
+  <circle cx="132" cy="100" r="17" fill="#8ee4d5"/>
+  <path d="M126 100h12M132 94v12" stroke="#0b4050" stroke-width="6" stroke-linecap="round"/>
+</svg>
