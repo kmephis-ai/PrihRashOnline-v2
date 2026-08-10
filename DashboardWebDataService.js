@@ -1,6 +1,6 @@
 /**
  * DashboardWebDataService v1.2.0
- * Read-only data API and Web App entry point for the HTML dashboard.
+ * Read-only legacy data API/renderer retained only for bounded rollback.
  *
  * Source of truth: `01 Операции` and quality score from `14 Аналитика`.
  * This service never writes financial values or changes spreadsheet geometry.
@@ -50,15 +50,9 @@ function prhRenderWebDashboard_(data) {
   return output;
 }
 
-function doGet(e) {
-  var params = (e && e.parameter) || {};
-  var data = prhGetWebDashboardData(params.year, params.month, params.view);
-  return prhRenderWebDashboard_(data);
-}
-
 /**
- * Privacy-safe render smoke used by authenticated CI runtime health.
- * It deliberately avoids workbook reads and returns only a constant token.
+ * Historical legacy render smoke. Canonical trusted runtime health uses
+ * prhWebAppRenderSmokeToken() -> R2 default-route smoke after UI-MIG-020.
  */
 function prhWebAppSmokeToken() {
   var output = prhRenderWebDashboard_({ smoke: true });
