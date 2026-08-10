@@ -40,29 +40,33 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `EXP-020` — **DONE**, Issue #126 Main Verification PASS.
 - `INC-020` — **DONE**, Issue #128 Main Verification PASS.
 - `CF-020` — **DONE**, Issue #130 Main Verification PASS.
-- `BUD-020` — **DONE**, Issue #132 Main Verification PASS, merge `6ab8db5b07c31cebc0d942be576a7b2a712dded1`.
-- `OBL-020` — **current R2 writer**, Issue #134, branch `agent/OBL-020-obligations-recurring`; IN_PROGRESS до Main Verification.
+- `BUD-020` — **DONE**, Issue #132 Main Verification PASS.
+- `OBL-020` — **DONE**, Issue #134 Main Verification PASS, merge `a97bc3d3cdce104bc21150e56ea53adccdc308ac`.
+- `DQ-020` — **current R2 writer**, Issue #136, branch `agent/DQ-020-data-quality-center`; IN_PROGRESS до Main Verification.
+- `PWA-020` — BACKLOG; prematurely opened PR #138 is closed unmerged until DQ completes.
 
-## OBL-020 Obligations boundary
+## DQ-020 Data Quality boundary
 
-Machine contract: `lib/obligations/obligations.v1.json` (`PRH_OBLIGATIONS_V1@1.0.0`). Core: `lib/obligations/obligations.js`. Human contract: `docs/analytics/OBLIGATIONS_RECURRING.md`. Browser evidence: `ObligationsWebApp.html`. Tests: `tests/obligations_contract_test.js`, `tests/obligations_visual_test.js`.
+Machine contract: `lib/data_quality/data_quality_center.v1.json` (`PRH_DATA_QUALITY_CENTER_V1@1.0.0`). Core: `lib/data_quality/data_quality_center.js`. Human contract: `docs/data/DATA_QUALITY_CENTER.md`. Browser evidence: `DataQualityWebApp.html`. Tests: `tests/data_quality_center_contract_test.js`, `tests/data_quality_visual_test.js`.
 
 Rules:
 
-- OBL consumes DATA-010/DESIGN-020 and does not redefine canonical or FIN contracts.
-- Planning window is explicit and bounded: `[window_start, window_end)`, max 366 days; `as_of` is explicit.
-- Recurrence v1 supports only `ONCE`, `WEEKLY`, `MONTHLY`; monthly dates use deterministic `CLAMP_TO_LAST_DAY`.
-- Stable occurrence identity is `SHA256(PRH_OBLIGATION_OCCURRENCE_V1|PLAN_ID|DUE_DATE)` and does not depend on row/order.
-- Completion uses explicit `completed_due_dates`; fuzzy transaction matching is forbidden.
-- States are deterministic: `OVERDUE`, `DUE`, `UPCOMING`, `FORECAST`.
-- Planning amount/direction and forecast are not FIN-TRUTH; mixed-currency view fails closed.
-- OBL does not auto-create canonical transactions and owns no storage/network/financial-write authority.
-- Public telemetry/evidence excludes amounts, labels and private plan IDs; independently generated synthetic only.
+- DQ consumes DATA-010/OBS-010 and does not redefine canonical schema or FIN-TRUTH.
+- Canonical validation is fail-closed; missing required fields are reported without coercive writes.
+- Exact duplicate uses `SHA256_CANONICAL_BUSINESS_PAYLOAD_V1`; fuzzy/similarity duplicate detection is forbidden in v1.
+- Same amount/date alone is not duplicate evidence; full versioned business payload must match.
+- Suspicious/provenance findings use explicit reason codes, not opaque scores.
+- Repair preview is deterministic `REVIEW_REQUIRED / NO_AUTOFIX`, `write_performed=false`.
+- Mutation evidence requires exact plan hash, fresh backup binding, idempotency key, rollback PASS and readback PASS.
+- Complete evidence yields only `READY_FOR_SEPARATE_AUTHORIZATION`; DQ-020 still has `write_authorized=false` and no repair write authority.
+- Historical MIG-010 `IRREVERSIBLE_ACTION_AUTHORIZED` is non-reusable for DQ repair. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`.
+- Generic Google financial write remains blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+- Public telemetry/evidence excludes raw rows, amounts, descriptions and private transaction/source IDs; independently generated synthetic only.
 - `FREE_ONLY` mandatory; no external provider required.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. OBL core contract is `PURE_DOMAIN_APPLICATION`; OBL browser visual test is `UI_E2E`. Unknown or ambiguous classification fails.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DQ contract is `PURE_DOMAIN_APPLICATION`; DQ browser visual test is `UI_E2E`. Unknown or ambiguous classification fails.
 
 ## MIG-010 historical verified boundary
 
@@ -82,7 +86,7 @@ PR Validation
 -> Main Verification
 ```
 
-OBL-020 remains open until recurrence/full layered/visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #134.
+DQ-020 remains open until detector/preview/mutation-boundary/full layered/visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #136.
 
 ## Read-only multi-AI review
 
@@ -90,12 +94,12 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Private deployment identifiers, authenticated responses, OAuth, backups/keys and real planning/financial models stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Private deployment identifiers, authenticated responses, OAuth, backups/keys and real DQ/financial records stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
-FIN-010: `FIN-TRUTH-v1`. DATA-010: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. OBL-020 is a planning read model only; `financial_write=false`.
+FIN-010: `FIN-TRUTH-v1`. DATA-010: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. DQ-020 is read-only quality/preview authority only; `financial_write=false`, `repair_write=false`.
 
 ## Scope handoff
 
-All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020/CF-020/BUD-020 are DONE. `MASTER-G3 = complete`. `OBL-020` is the single current R2 writer.
+All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020/CF-020/BUD-020/OBL-020 are DONE. `MASTER-G3 = complete`. `DQ-020` is the single current R2 writer.
