@@ -1,21 +1,18 @@
 # PrihRashOnline-v2 — текущий статус проекта
 
-Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Этот файл не может отменять красный gate.
+Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Human documentation не может отменять красный machine gate.
 
-Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закреплена `CI-003` и trusted exact-SHA chain.
+Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
 ## R0 — завершён
 
 ### MASTER-G0 / Truth — **complete**
-
 `TEST-001 + SEC-001 + FIN-001 + DATA-001 + DOC-001 = DONE`.
 
 ### MASTER-G1 / Autonomous delivery + AI engineering — **complete**
-
 `SEC-003 + CI-001 + CI-002 + CI-003 + AIENG-001 + AIENG-002 + AIENG-003 = DONE`.
 
 ### MASTER-G2 / Recoverability — **complete**
-
 `DR-001 + OBS-001 + FINOPS-001 = DONE`.
 
 ## R1 / Canonical Financial Platform — завершённая волна
@@ -24,7 +21,7 @@ Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закр
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
-- `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED`, fresh encrypted post-write reconciliation PASS.
+- `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
 - `ANL-010` Analytics extension contract v1 — **DONE**, Issue #98 Main Verification PASS.
 - `TEST-010` Layered test architecture — **DONE**, Issue #100 Main Verification PASS.
 - `OBS-010` SLO/error-budget layer — **DONE**, Issue #103 Main Verification PASS.
@@ -35,131 +32,95 @@ Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закр
 - `PERF-014` Synthetic scale performance gates — **DONE**, Issue #114 Main Verification PASS.
 - `DOC-010` Architecture/data/KPI/operations documentation contract — **DONE**, Issue #116 Main Verification PASS.
 
-FIN-010: `PRH_KPI_DICTIONARY_V1` / `FIN-TRUTH-v1`.  
-DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
-ARCH-010: `PRH_APPLICATION_CORE_V1`, `io_authority=false`, `financial_write_authority=false`, `network_authority=false`.  
-ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
-ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, renderer/storage-neutral, `financial_write=false`.  
-TEST-010: `PRH_TEST_ARCHITECTURE_V1@1.0.0`.  
-OBS-010: `PRH_SLO_ERROR_BUDGET_V1@1.0.0`.  
-PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0`.  
-PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`.  
-PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`.  
-PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`.  
-PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0`.
+FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.  
+DATA-010 authority: `PRH_CANONICAL_TRANSACTION_V1`.  
+ARCH-010: `PRH_APPLICATION_CORE_V1`, no I/O/network/financial-write authority.  
+ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
+ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; renderer/storage-neutral, `financial_write=false`.  
+PERF-010..014 read/performance layers не меняют FIN-TRUTH.  
+DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`; documentation coherence only.
 
-## DOC-010 verified truth
+### MASTER-G3 / Canonical platform — **complete**; historical pre-close state: open
 
-DOC-010 завершён и закрепил `PRH_R1_DOCUMENTATION_V1@1.0.0` как machine-readable map между нормативными R1 docs, versioned contracts/code, contract tests и named PR Validation gates.
-
-Канонические public-safe карты:
-
-- `docs/architecture/R1_C4_CONTEXT.md` — system/container context, trust/mutation/cost/future-provider boundaries;
-- `docs/data/R1_DATA_LINEAGE.md` — Google source → repository/canonical → FIN/KPI → analytics → PERF-010..014 → private UI, отдельно migration/recovery/observability/delivery;
-- `lib/documentation/r1_documentation.v1.json` — required docs/contracts/sources/tests/checks;
-- `tests/r1_documentation_contract_test.js` — existence/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector;
-- named gate `R1 documentation contract` в PR Validation.
-
-Documentation не является более высоким authority, чем `docs/ROADMAP.md`, live Issues или exact-SHA machine gates.
-
-Privacy boundary неизменна: private runtime locators, real/real-derived finance payload, OAuth/backup/private evidence не публикуются. `FREE_ONLY` mandatory. Generic Google financial write остаётся blocked.
-
-### MASTER-G3 / Canonical platform — **complete**
-
-Historical lifecycle state `open` применялся до DOC-010 Main Verification и больше не является текущим. `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`; private full-history reconciliation = PASS; synthetic 20k/50k performance = PASS.
+`FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`; private full-history reconciliation = PASS; independently generated synthetic 20k/50k performance = PASS.
 
 ## R2 / Family Finance Center — текущая волна
 
 - `DESIGN-020` Design system + responsive shell — **DONE**, Issue #118 Main Verification PASS, PR #119 autonomous merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
-- `VIZ-020` Versioned visualization foundation — **IN_PROGRESS**, Issue #120; current R2 writer, branch `agent/VIZ-020-visualization-foundation`.
+- `VIZ-020` Versioned visualization foundation — **DONE**, Issue #120 Main Verification PASS, PR #121 autonomous merge `66139972b1fc910fc7bc0e614ecfdc7d5b754adf`.
+- `HOME-020` Financial Home dashboard — **IN_PROGRESS**, Issue #122; current R2 writer, branch `agent/HOME-020-financial-home`.
 
-DESIGN-020 закрепил presentation-only `PRH_DESIGN_SYSTEM_V1@1.0.0`: semantic typography/color/spacing/radius/elevation/focus/motion tokens, explicit light/dark theme boundary, system theme preference, `:focus-visible`, reduced-motion policy и responsive breakpoints 760/1250 px.
+### DESIGN-020 verified boundary
 
-VIZ-020 вводит `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` поверх DESIGN-020 и ANL-010: configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`, machine chart registry, deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` и replaceable `ECHARTS_6` browser adapter. Specs не содержат financial rows/amount payload. Runtime render dataset/compiled renderer option считаются private in-memory data; public evidence synthetic-only. Renderer не имеет query/network/storage/persistence/financial-write authority. External CDN/provider не требуется; `FREE_ONLY` сохраняется.
+`PRH_DESIGN_SYSTEM_V1@1.0.0` задаёт semantic typography/color/spacing/radius/elevation/focus/motion tokens, light/dark themes, `:focus-visible`, reduced-motion policy и responsive breakpoints 760/1250 px. External CDN/font/design provider не требуется; `FREE_ONLY` сохраняется.
 
-HOME-020 и другие dependent R2 dashboards остаются dependency-gated до VIZ-020 Main Verification.
+### VIZ-020 verified boundary
 
-## PERF-014 verified boundary
+`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` определяет configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`, chart registry (`BAR`, `LINE`, `DONUT`), deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`, transient runtime render dataset и replaceable `ECHARTS_6` adapter. Specs не содержат financial rows/amount payload. Real renderer data/options остаются private runtime data. Renderer не имеет query/network/storage/persistence/financial-write authority; external CDN не требуется; `FREE_ONLY` mandatory.
 
-PERF-014 завершён Main Verification. `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` блокирует performance regression на independently generated synthetic 20k/50k operations. Read budget: one canonical snapshot read per linked PERF-012 refresh; financial writes = 0. Incremental PERF-013 state exact-parity с fresh rebuild; wall-clock budgets являются CI guardrails, не production SLA.
+### HOME-020 current boundary
 
-## PERF-013 verified boundary
+HOME-020 вводит `PRH_FINANCIAL_HOME_V1@1.0.0` и `PRH_FINANCIAL_HOME_VIEW_V1` поверх FIN-010 + VIZ-020 + DESIGN-020.
 
-PERF-013 завершён Main Verification. `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` materializes `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` projections, связывает state exact canonical revision + SHA-256 hash и пересчитывает только affected buckets по deterministic `ADDED/REMOVED/CHANGED` delta. Financial formulas остаются FIN-010 authority; exact parity с ANL-010/fresh full rebuild доказана.
+- Income / Expense / Cash Flow / Savings / Budget variance происходят из одного FIN-010 `evaluateKpis()` result; Home/UI не дублируют KPI formulas.
+- Budget требует explicit `budget_minor` того же периода/валюты; без плана state = `NOT_CONFIGURED`.
+- Liquidity **не** подменяется cash flow. Пока versioned balance-observation source отсутствует, state = `UNAVAILABLE_PENDING_BALANCE_SOURCE`, future dependency = `BAL-030`.
+- Alerts используют versioned explainable predicates над already-evaluated FIN outputs/capability states: `NEGATIVE_CASH_FLOW`, `BUDGET_OVERRUN`, `BUDGET_NOT_CONFIGURED`, `LIQUIDITY_SOURCE_UNAVAILABLE`.
+- Drill navigation использует `PRH_HOME_DRILL_ENVELOPE_V1` + VIZ `PRH_DRILL_CONTEXT_V1`; period и FilterContext сохраняются, financial values в navigation state не помещаются.
+- Home WidgetSpecs остаются configuration-only; real Home view/render data private, public tests independently generated synthetic only.
+- `FinancialHomeWebApp.html` — responsive synthetic/browser UI evidence; existing private Dashboard остаётся совместимым до explicit navigation/runtime integration.
+- named gates: `Financial Home` + `Financial Home visual gate`.
 
-## PERF-012 verified boundary
+Следующие R2 dashboards (`EXP-020`, `INC-020` и другие зависимые work items) не берутся этим writer и остаются dependency-gated канонической Roadmap.
 
-PERF-012 завершён Main Verification. `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` материализует один immutable canonical snapshot на bounded refresh cycle и обслуживает связанные repository/analytics operations без повторных underlying query/getById/revision calls.
+## MIG-010 historical safety boundary
 
-## PERF-011 verified boundary
+Owner-private MIG-010 evidence: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Private post-write reconciliation = PASS. Generic repository write authority не изменилась.
 
-PERF-011 завершён Main Verification. `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` — exact-revision independent-request cache; stale/unknown revision fail-closed, write authority отсутствует.
+Owner-confirmed duplicate-preservation capability remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это public-safe имя identity strategy без private resolution payload.
 
-## PERF-010 verified boundary
-
-PERF-010 завершён Main Verification. `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` отделяет header discovery от data-plane reads и ограничивает чтение mapped spans/rows; `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` остаётся действующим.
-
-## OBS-010 verified boundary
-
-OBS-010 завершён Main Verification. `PRH_SLO_ERROR_BUDGET_V1@1.0.0` использует integer ppm/bps и SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`. Financial/raw payload запрещён; `FREE_ONLY` mandatory.
-
-## TEST-010 verified boundary
-
-TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`; unknown/ambiguous/unclassified test fail-closed. VIZ-020 contract test классифицирован в `UI_E2E` и exposed named gate `Visualization foundation`.
-
-## ANL-010 verified boundary
-
-ANL-010 завершён Main Verification. `PRH_ANALYTICS_QUERY_V1` / `PRH_ANALYTICS_RESULT_V1` сохраняют deterministic query identity, canonical/KPI provenance и делегируют financial calculations FIN-010 `evaluateKpis()`.
-
-## MIG-010 verified historical boundary
-
-MIG-010 owner-private flow completed:
-
-```text
-RESOLVED_REBUILD_DRY_RUN = PASS
--> exact execution package/request
--> owner IRREVERSIBLE_ACTION_AUTHORIZED
--> STAGING + READBACK
--> FINALIZED_PENDING_RECONCILIATION
--> FRESH ENCRYPTED BACKUP
--> POST-WRITE RECONCILIATION
--> OWNER_VERIFIED
--> PR/Main Verification
--> DONE
-```
-
-Private evidence established `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Owner-confirmed identical operations remain represented by `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical authorization не переносится и не может повторно использоваться для future mutations.
+Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound и не переносится: GitHub Actions/AI не могут создать или повторно использовать её для future mutations. Новый irreversible financial write требует нового exact-bound owner authorization.
 
 ## Executable AI engineering baseline
 
 Root `AGENTS.md` is the public-safe repository AI operating contract.
 
-- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` define continuation, one-writer ownership и lifecycle;
-- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review;
-- reviewers всегда `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks review evidence;
-- required checks deterministic/local and require no paid AI/API provider.
+- `AIENG-001 + AIENG-002 + AIENG-003 = DONE`;
+- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation;
+- `tools/multi-ai-review-protocol.js` поддерживает read-only exact-candidate review;
+- reviewers всегда `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks supplementary review evidence;
+- required checks deterministic/local; paid AI/API dependency не требуется.
+
+## Current delivery chain
+
+```text
+active Roadmap Issue
+-> agent/<ID>-<slug> PR to main
+-> PR Validation
+-> immutable exact candidate
+-> Trusted DEV Deploy
+-> Trusted Runtime Health + Web App render smoke
+-> CI-003 autonomous squash merge
+-> Main Verification -> Issue DONE
+```
 
 ## Current runtime truth
 
 - private primary store/runtime: Google Sheets + Apps Script;
 - family UI: private `MYSELF` Apps Script Web Dashboard;
-- trusted runtime health includes authenticated Web App render smoke v2;
-- current Dashboard native SVG charts остаются active renderer path; VIZ-020 пока foundation/adapter boundary, не silent renderer cutover;
-- public GitHub finance content: independently generated synthetic only;
-- DEV delivery: exact-SHA autonomous pipeline;
-- PROD/cutover/destructive data actions: separate policy gates;
-- `FREE_ONLY` mandatory; paid-by-usage provider activation is not automatic.
+- existing Dashboard native SVG renderer остаётся рабочим; VIZ-020 foundation не означал silent cutover;
+- HOME-020 browser surface пока является new responsive view contract/synthetic gate и не объявляет новый private runtime route без отдельной integration boundary;
+- public GitHub finance/render evidence: independently generated synthetic only;
+- DEV delivery exact-SHA autonomous;
+- PROD/cutover/destructive data actions — отдельные policy gates;
+- `FREE_ONLY` mandatory; paid-by-usage provider activation не автоматический.
 
 ## Что намеренно не утверждается
 
-- VIZ-020 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- HOME-020 и dependent dashboards не начинаются до VIZ-020 DONE;
-- VIZ-020 не означает, что existing Dashboard уже переключён с native SVG на ECharts;
-- renderer option не является financial/query authority или public evidence для real data;
-- human documentation не может override красный machine gate;
-- PERF-014 timings — CI guardrails, а не production SLA;
-- performance/read-model layers не заменяют canonical/FIN/ANL authority;
-- owner authorization MIG-010 не переносится на future mutations;
+- HOME-020 не считается DONE до autonomous merge + Main Verification/Issue close;
+- liquidity value не существует без versioned balance source;
+- budget plan не выводится из истории автоматически;
+- HOME-020 не даёт financial write/storage/network authority;
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
 - public Git history rewrite не authorized/executed;
@@ -168,10 +129,10 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 ## Source precedence
 
 1. security/privacy/cost/irreversible boundaries;
-2. repository `docs/ROADMAP.md` v2.3 + live Issues;
+2. `docs/ROADMAP.md` v2.3 + live GitHub Issues;
 3. exact-SHA code/tests/workflows/machine evidence;
 4. versioned contracts;
 5. architecture/ADR/operations docs;
 6. README/user docs.
 
-Stale lower-priority документ никогда не разрешает bypass current machine gate.
+Stale lower-priority document никогда не разрешает bypass current machine gate.

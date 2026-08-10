@@ -65,6 +65,8 @@ jobs:
         run: node tests/design_system_contract_test.js
       - name: Visualization foundation
         run: node tests/visualization_foundation_contract_test.js
+      - name: Financial Home
+        run: node tests/financial_home_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
@@ -130,6 +132,8 @@ jobs:
         run: node tools/run-layered-tests.js full
       - name: Responsive visual gate
         run: node tests/dashboard_web_visual_test.js
+      - name: Financial Home visual gate
+        run: node tests/financial_home_visual_test.js
       - name: Build immutable Apps Script candidate
         run: |
           node tools/build-apps-script-candidate.js \
