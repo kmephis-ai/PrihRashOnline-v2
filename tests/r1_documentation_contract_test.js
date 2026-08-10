@@ -105,10 +105,15 @@ for (const [name, text] of [['architecture', architecture], ['data-model', dataM
 }
 
 for (const text of [projectStatus, aiContext, llms]) {
-  requireToken(text, 'DOC-010', 'current lifecycle docs must identify DOC-010');
+  requireToken(text, 'DOC-010', 'R1 lifecycle docs must retain DOC-010');
+  requireToken(text, 'DESIGN-020', 'post-R1 lifecycle docs must identify DESIGN-020 handoff');
 }
-assert(/DOC-010[^\n]{0,220}(?:IN_PROGRESS|current)/i.test(projectStatus), 'PROJECT_STATUS must identify DOC-010 as current writer');
-assert(/DOC-010[^\n]{0,220}(?:IN_PROGRESS|current)/i.test(aiContext), 'AI context must identify DOC-010 as current writer');
+assert(/DOC-010[^\n]{0,220}(?:DONE|Main Verification PASS)/i.test(projectStatus), 'PROJECT_STATUS must identify DOC-010 as DONE');
+assert(/DOC-010[^\n]{0,220}(?:DONE|Main Verification PASS)/i.test(aiContext), 'AI context must identify DOC-010 as DONE');
+assert(!/DOC-010[^\n]{0,220}(?:\*\*IN_PROGRESS\*\*|current writer)/i.test(projectStatus), 'PROJECT_STATUS must not keep DOC-010 as current writer');
+assert(!/DOC-010[^\n]{0,220}(?:\*\*IN_PROGRESS\*\*|current writer)/i.test(aiContext), 'AI context must not keep DOC-010 as current writer');
+assert(/MASTER-G3[^\n]{0,220}(?:complete|DONE|заверш)/i.test(projectStatus), 'PROJECT_STATUS must identify MASTER-G3 as complete');
+assert(/MASTER-G3[^\n]{0,220}(?:complete|DONE|заверш)/i.test(aiContext), 'AI context must identify MASTER-G3 as complete');
 
 const combinedCoreDocs = [readme, architecture, dataModel, c4, lineage, projectStatus, aiContext].join('\n');
 for (const token of ['FREE_ONLY', 'GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED', 'IRREVERSIBLE_ACTION_AUTHORIZED']) {
@@ -128,6 +133,7 @@ console.log('r1_documentation_contract_test: OK', {
   pathLinksVerified: true,
   contractLinksVerified: true,
   namedChecksVerified: true,
+  lifecycle: 'R1_COMPLETE_R2_HANDOFF',
   staleLifecycleRejected: true,
   privacyBoundary: 'PUBLIC_SAFE',
   freeOnly: true,

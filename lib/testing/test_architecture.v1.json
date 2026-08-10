@@ -78,6 +78,7 @@
   "exact_overrides": {
     "application_menu_contract_test.js": "UI_E2E",
     "autonomous_merge_contract_test.js": "POLICY_GOVERNANCE",
+    "design_system_contract_test.js": "UI_E2E",
     "income_sidebar_validation_test.js": "UI_E2E",
     "secret_scan_contract_test.js": "POLICY_GOVERNANCE",
     "synthetic_finance_fixture_contract_test.js": "PURE_DOMAIN_APPLICATION",
@@ -119,6 +120,7 @@
   "workflow_required_gates": [
     { "name": "Documentation truth", "layer": "POLICY_GOVERNANCE" },
     { "name": "R1 documentation contract", "layer": "POLICY_GOVERNANCE" },
+    { "name": "Design system", "layer": "UI_E2E" },
     { "name": "AI contract", "layer": "POLICY_GOVERNANCE" },
     { "name": "Roadmap task protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Multi-AI review protocol", "layer": "POLICY_GOVERNANCE" },
