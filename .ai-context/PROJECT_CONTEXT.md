@@ -43,54 +43,55 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `VIZ-020` — **DONE**, Issue #120 Main Verification PASS.
 - `HOME-020` — **DONE**, Issue #122 Main Verification PASS.
 - `TX-020` — **DONE**, Issue #124 Main Verification PASS.
-- `EXP-020` — **DONE**, Issue #126 Main Verification PASS, PR #127 merge `a3c938c08c3ae65a1f732aa024fa4001ca109883`.
-- `INC-020` — **current R2 writer**, Issue #128, branch `agent/INC-020-income-analytics`; IN_PROGRESS до Main Verification.
+- `EXP-020` — **DONE**, Issue #126 Main Verification PASS.
+- `INC-020` — **DONE**, Issue #128 Main Verification PASS, PR #129 merge `507e2cd32f28104b1a81bc02aa7856be41be58b2`.
+- `CF-020` — **current R2 writer**, Issue #130, branch `agent/CF-020-cash-flow-dashboard`; IN_PROGRESS до Main Verification.
 
-## INC-020 Income Analytics boundary
+## CF-020 Cash Flow boundary
 
-Machine contract: `lib/income/income_analytics.v1.json` (`PRH_INCOME_ANALYTICS_V1@1.0.0`). Core: `lib/income/income_analytics.js`. Human contract: `docs/analytics/INCOME_ANALYTICS.md`. Browser evidence: `IncomeAnalyticsWebApp.html`. Tests: `tests/income_analytics_contract_test.js`, `tests/income_analytics_visual_test.js`. Named gates: `Income Analytics`, `Income Analytics visual gate`.
+Machine contract: `lib/cashflow/cash_flow_dashboard.v1.json` (`PRH_CASH_FLOW_DASHBOARD_V1@1.0.0`). Core: `lib/cashflow/cash_flow_dashboard.js`. Human contract: `docs/analytics/CASH_FLOW_DASHBOARD.md`. Browser evidence: `CashFlowWebApp.html`. Tests: `tests/cash_flow_dashboard_contract_test.js`, `tests/cash_flow_visual_test.js`. Named gates: `Cash Flow`, `Cash Flow visual gate`.
 
 Rules:
 
-- INC consumes FIN-010/ANL-010/VIZ-020/TX-020 and does not redefine their contracts.
-- Primary/comparison `INCOME` totals are sourced from FIN-010 `evaluateKpis()`.
-- Trend uses explicit bounded DAY/MONTH/YEAR windows; each bucket is evaluated by FIN-010 and bucket sum must equal period INCOME.
-- MONTH trend requires first-day month boundaries; YEAR trend requires January-1 boundaries; ambiguous windows fail closed.
-- Current source dimension is canonical income `category_id` (`CANONICAL_INCOME_CATEGORY_AS_SOURCE`) so TX drill can use exact `category_ids`, not fuzzy text search.
-- Source mix groups canonical rows and evaluates each source through FIN-TRUTH `aggregateTransactions()`, so non-income rows do not become income by UI logic.
-- Source partition sum must equal FIN-010 INCOME exactly; residual must be zero; negative source bucket is fail-closed for DONUT ambiguity.
+- CF consumes FIN-010/HOME-020/VIZ-020/TX-020 and does not redefine them.
+- Inflow = FIN-010 `INCOME`, outflow = FIN-010 `EXPENSE`, net = FIN-010 `CASH_FLOW`.
+- Period, comparison and every trend bucket must satisfy `inflow - outflow = net`.
+- Trend uses explicit bounded DAY/MONTH/YEAR windows, each evaluated by FIN-010; bucket sums must exactly equal period totals.
+- Transfers are neutral and excluded from INFLOW/OUTFLOW/NET component drill filters. Refund affects outflow only through FIN-010 Expense semantics.
 - Comparison requires explicit equal-day windows through FIN-010 `assertComparablePeriods()`; implicit proration is forbidden.
-- Stability/variance use only FIN-backed trend bucket totals: population variance, stddev, coefficient of variation, bounded 0–100 stability score. These are explanatory derived metrics, not financial truth.
-- Source deltas are current source INCOME minus comparison source INCOME; exact sum must equal total INCOME delta.
-- WidgetSpecs are configuration-only VIZ `LINE`, `DONUT`, `BAR`; real render rows/amounts are separate transient private runtime datasets.
-- Drill uses deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` target `TRANSACTION_EXPLORER`, then bounded TX-020 query; navigation state contains no financial/variance values.
-- Income Analytics has no storage/network/financial-write authority. TX save remains `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
-- Public telemetry/evidence contains only schema/version/query-hash/context-hash/bucket/source counts/stability-state/status/reason/timing metadata; real amounts/private IDs are forbidden.
+- Comparison deltas must satisfy `inflow_delta - outflow_delta = net_delta`.
+- VIZ specs are configuration-only: net LINE, inflow BAR, outflow BAR, comparison BAR. Real render rows remain private transient runtime datasets.
+- Drill uses `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` target `TRANSACTION_EXPLORER`, then bounded TX query: INFLOW `income`; OUTFLOW `expense/refund`; NET `income/expense/refund`; transfer never included.
+- Navigation state contains no financial or balance values and grants no write authority.
+- `liquidity_state = NOT_A_BALANCE_METRIC`; `account_balance_authority=false`. Cash Flow is not balance/liquidity/Net Worth truth and cannot proxy Home liquidity.
+- CF has no storage/network/financial-write authority. TX save remains `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+- Public telemetry/evidence contains only schema/version/query/context hashes/bucket counts/status/reason/timing metadata; real amounts/private IDs are forbidden.
 - Public browser/tests use independently generated synthetic data only.
 - `FREE_ONLY` mandatory; no external CDN/provider required.
 
-Canonical INC-020 reading order:
+Canonical CF-020 reading order:
 
 1. `/docs/ROADMAP.md`
-2. live Issue #128
+2. live Issue #130
 3. `/docs/PROJECT_STATUS.md`
-4. `/lib/income/income_analytics.v1.json`
-5. `/lib/income/income_analytics.js`
-6. `/docs/analytics/INCOME_ANALYTICS.md`
-7. `/tests/income_analytics_contract_test.js`
-8. `/IncomeAnalyticsWebApp.html`
-9. `/tests/income_analytics_visual_test.js`
+4. `/lib/cashflow/cash_flow_dashboard.v1.json`
+5. `/lib/cashflow/cash_flow_dashboard.js`
+6. `/docs/analytics/CASH_FLOW_DASHBOARD.md`
+7. `/tests/cash_flow_dashboard_contract_test.js`
+8. `/CashFlowWebApp.html`
+9. `/tests/cash_flow_visual_test.js`
 10. exact candidate workflows/evidence
 
-CF-020/BUD-020/OBL-020/PWA-020 and other sibling scopes are not part of the current writer.
+BUD-020/OBL-020/PWA-020 and sibling scopes are not part of current writer.
 
 ## Verified R2 upstream boundaries
 
-`PRH_DESIGN_SYSTEM_V1@1.0.0` remains presentation-only; no financial/query/storage/write authority.  
-`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` remains configuration/interaction/replaceable-renderer authority only; no financial/query/storage/write authority.  
-`PRH_FINANCIAL_HOME_V1@1.0.0` remains FIN-backed Home composition only.  
+`PRH_DESIGN_SYSTEM_V1@1.0.0` remains presentation-only.  
+`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` remains configuration/interaction/replaceable-renderer only.  
+`PRH_FINANCIAL_HOME_V1@1.0.0` remains FIN-backed Home composition; Cash Flow proxy for liquidity is forbidden.  
 `PRH_TRANSACTION_EXPLORER_V1@1.0.0` remains canonical exploration/edit-draft validation only; `financial_write=false`.  
-`PRH_EXPENSE_ANALYTICS_V1@1.0.0` remains FIN-backed Expense analysis/read model only; `financial_write=false`.
+`PRH_EXPENSE_ANALYTICS_V1@1.0.0` remains FIN-backed Expense read model only.  
+`PRH_INCOME_ANALYTICS_V1@1.0.0` remains FIN-backed Income read model only.
 
 ## DOC-010 verified documentation boundary
 
@@ -98,11 +99,11 @@ CF-020/BUD-020/OBL-020/PWA-020 and other sibling scopes are not part of the curr
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. INC core contract is `PURE_DOMAIN_APPLICATION`; INC browser visual test is `UI_E2E`. Unknown/ambiguous test classification fails.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. CF core contract is `PURE_DOMAIN_APPLICATION`; CF browser visual test is `UI_E2E`. Unknown/ambiguous test classification fails.
 
 ## ANL / FIN / PERF authority
 
-`FIN-TRUTH-v1` / `PRH_KPI_DICTIONARY_V1` owns financial semantics. `PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute only. INC-020 composes FIN-backed read models and never becomes financial truth authority.
+`FIN-TRUTH-v1` / `PRH_KPI_DICTIONARY_V1` owns financial semantics. `PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute only. CF-020 composes FIN-backed read models and never becomes financial truth or balance authority.
 
 ## MIG-010 historical verified boundary
 
@@ -163,7 +164,7 @@ Roadmap Issue
 -> Main Verification -> Issue DONE/closed
 ```
 
-INC-020 remains open until FIN/source/stability/drill contracts, full layered suite and visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #128.
+CF-020 remains open until FIN/transfer/comparison/drill contracts, full layered suite and visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #130.
 
 ## Executable continuation protocol
 
@@ -175,7 +176,7 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Public finance/render/INC fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts, real Analytics/Home/TX/EXP/INC models and renderer options stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance/render/CF fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts, real Analytics/Home/TX/EXP/INC/CF models and renderer options stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
@@ -192,9 +193,10 @@ DESIGN-020: `PRH_DESIGN_SYSTEM_V1`; presentation only.
 VIZ-020: `PRH_VISUALIZATION_FOUNDATION_V1`; visualization config/interaction/renderer adapter only.  
 HOME-020: `PRH_FINANCIAL_HOME_V1`; FIN-backed view composition only.  
 TX-020: `PRH_TRANSACTION_EXPLORER_V1`; canonical exploration/edit draft only.  
-EXP-020: `PRH_EXPENSE_ANALYTICS_V1`; FIN-backed expense analysis/read model only.  
-INC-020: `PRH_INCOME_ANALYTICS_V1`; FIN-backed income source/trend/stability read model only; `financial_write=false`.
+EXP-020: `PRH_EXPENSE_ANALYTICS_V1`; FIN-backed expense read model only.  
+INC-020: `PRH_INCOME_ANALYTICS_V1`; FIN-backed income read model only.  
+CF-020: `PRH_CASH_FLOW_DASHBOARD_V1`; FIN-backed transfer-neutral cash-flow read model only; `financial_write=false`, `liquidity=false`, `account_balance=false`.
 
 ## Scope handoff
 
-All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020 are DONE. `MASTER-G3 = complete`. `INC-020` is the single current R2 writer.
+All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020 are DONE. `MASTER-G3 = complete`. `CF-020` is the single current R2 writer.

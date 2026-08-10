@@ -1,0 +1,69 @@
+{
+  "schema": "PRH_CASH_FLOW_DASHBOARD_V1",
+  "version": "1.0.0",
+  "roadmap_id": "CF-020",
+  "upstream": {
+    "financial_truth": "FIN-TRUTH-v1",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "financial_home": "PRH_FINANCIAL_HOME_V1@1.0.0",
+    "visualization": "PRH_VISUALIZATION_FOUNDATION_V1@1.0.0",
+    "transaction_explorer": "PRH_TRANSACTION_EXPLORER_V1@1.0.0"
+  },
+  "schemas": {
+    "view": "PRH_CASH_FLOW_VIEW_V1",
+    "drill_envelope": "PRH_CASH_FLOW_DRILL_ENVELOPE_V1"
+  },
+  "measures": {
+    "inflow": "INCOME",
+    "outflow": "EXPENSE",
+    "net": "CASH_FLOW"
+  },
+  "period": {
+    "bounds": "START_INCLUSIVE_END_EXCLUSIVE",
+    "comparison": "EXPLICIT_EQUAL_DAY_WINDOWS_ONLY",
+    "implicit_proration": false,
+    "supported_grains": ["DAY", "MONTH", "YEAR"]
+  },
+  "invariants": {
+    "net_equals_inflow_minus_outflow": true,
+    "transfer_neutral": true,
+    "liquidity_or_balance_authority": false,
+    "bucket_totals_equal_period_totals": true
+  },
+  "widgets": [
+    { "id": "cash-flow-net-trend", "type": "LINE", "measure": "CASH_FLOW", "query_ref": "cash-flow-net-trend-query" },
+    { "id": "cash-flow-inflow-trend", "type": "BAR", "measure": "INCOME", "query_ref": "cash-flow-inflow-trend-query" },
+    { "id": "cash-flow-outflow-trend", "type": "BAR", "measure": "EXPENSE", "query_ref": "cash-flow-outflow-trend-query" },
+    { "id": "cash-flow-compare", "type": "BAR", "measure": "CASH_FLOW", "query_ref": "cash-flow-compare-query" }
+  ],
+  "drill": {
+    "target": "TRANSACTION_EXPLORER",
+    "context": "PRH_DRILL_CONTEXT_V1",
+    "component_types": {
+      "INFLOW": ["income"],
+      "OUTFLOW": ["expense", "refund"],
+      "NET": ["income", "expense", "refund"]
+    },
+    "transfer_included": false,
+    "navigation_financial_payload": false
+  },
+  "authority": {
+    "financial_truth": false,
+    "financial_formula": false,
+    "liquidity": false,
+    "account_balance": false,
+    "canonical_override": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "real_view_public": false,
+    "telemetry_allowlist": ["schema", "version", "query_hash", "context_hash", "bucket_count", "status", "reason_code"]
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false
+  }
+}
