@@ -10,6 +10,7 @@ function expect(condition, message) { if (!condition) throw new Error(message); 
 const ROOT = path.join(__dirname, '..');
 const PWA_ROOT = path.join(ROOT, 'pwa');
 const ARTIFACTS = path.join(ROOT, 'artifacts');
+const PROGRESS_PATH = path.join(ARTIFACTS, 'pwa-offline-progress.json');
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 1000, maxHeight: 1700 },
   { name: 'laptop', width: 1024, height: 900, maxHeight: 1900 },
@@ -22,6 +23,16 @@ function contentType(file) {
   if (file.endsWith('.webmanifest')) return 'application/manifest+json; charset=utf-8';
   if (file.endsWith('.svg')) return 'image/svg+xml; charset=utf-8';
   return 'application/octet-stream';
+}
+
+function writeProgress(stage, details = {}) {
+  fs.mkdirSync(ARTIFACTS, { recursive: true });
+  fs.writeFileSync(PROGRESS_PATH, JSON.stringify({
+    schema: 'PRH_PWA_OFFLINE_PROGRESS_V1',
+    privacy_class: 'PUBLIC_SYNTHETIC',
+    stage,
+    ...details
+  }, null, 2));
 }
 
 function makeServer() {
@@ -62,53 +73,83 @@ async function cacheSnapshot(page) {
   });
 }
 
+let server = null;
+let browser = null;
+let context = null;
+let page = null;
+let stage = 'BOOT';
+
 (async () => {
   fs.mkdirSync(ARTIFACTS, { recursive: true });
-  const server = makeServer();
+  writeProgress(stage);
+
+  stage = 'SERVER_LISTEN';
+  server = makeServer();
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   const { port } = server.address();
   const base = `http://127.0.0.1:${port}/pwa/`;
   const privateUrl = `${base}api/private/finance/summary`;
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'allow' });
-  const page = await context.newPage();
+  writeProgress(stage, { server: 'LISTENING' });
+
+  stage = 'BROWSER_LAUNCH';
+  browser = await chromium.launch({ headless: true });
+  context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'allow' });
+  page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  writeProgress(stage, { browser: 'READY' });
 
+  stage = 'SERVICE_WORKER_CONTROL';
   await page.goto(`${base}index.html`, { waitUntil: 'load' });
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   expect(pageErrors.length === 0, `PWA startup errors: ${pageErrors.join(' | ')}`);
-
   const controlled = await page.evaluate(() => Boolean(navigator.serviceWorker.controller));
   expect(controlled, 'Service worker must control the PWA page after reload');
+  writeProgress(stage, { controlled });
 
+  stage = 'ONLINE_PRIVATE_NETWORK_ONLY';
   const onlinePrivate = await page.evaluate((url) => fetch(url, { credentials: 'include' }).then((response) => response.json()), privateUrl);
   expect(onlinePrivate.synthetic_private === 'NETWORK_ONLY_TEST_PAYLOAD', 'Online private route fixture failed');
+  writeProgress(stage, { private_request: 'NETWORK_OK' });
 
+  stage = 'ONLINE_CACHE_SNAPSHOT';
   const onlineCache = await cacheSnapshot(page);
   const shellEntries = onlineCache.entries.filter((entry) => entry.cache === 'prh-pwa-shell-v1');
+  const pwaCacheNames = onlineCache.names.filter((name) => name.startsWith('prh-pwa-shell-'));
+  const privateEntries = onlineCache.entries.filter((entry) => /\/api\/|\/private\/|\/finance\//i.test(new URL(entry.url).pathname));
+  writeProgress(stage, {
+    cache_names: onlineCache.names,
+    shell_entry_count: shellEntries.length,
+    pwa_cache_count: pwaCacheNames.length,
+    private_cache_entry_count: privateEntries.length,
+    shell_paths: shellEntries.map((entry) => new URL(entry.url).pathname).sort()
+  });
   expect(shellEntries.length === 5, `Expected exactly 5 shell cache entries, got ${shellEntries.length}`);
-  expect(onlineCache.names.filter((name) => name.startsWith('prh-pwa-shell-')).length === 1, 'Only current versioned shell cache may remain');
+  expect(pwaCacheNames.length === 1, 'Only current versioned shell cache may remain');
   expect(!onlineCache.entries.some((entry) => entry.url === privateUrl), 'Private endpoint must never enter CacheStorage');
-  expect(!onlineCache.entries.some((entry) => /\/api\/|\/private\/|\/finance\//i.test(new URL(entry.url).pathname)), 'Private-path cache entry detected');
+  expect(privateEntries.length === 0, 'Private-path cache entry detected');
 
+  stage = 'OFFLINE_SHELL';
   await context.setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.panel');
   const offlineText = await page.textContent('body');
   expect(offlineText.includes('Безопасная offline-оболочка'), 'Offline shell content unavailable');
   expect(offlineText.includes('NOT_PROVEN_CURRENT_HOST'), 'Apps Script hosting boundary missing offline');
+  writeProgress(stage, { offline_shell: true });
 
+  stage = 'OFFLINE_PRIVATE_NETWORK_ONLY';
   const privateOfflineFailed = await page.evaluate(async (url) => {
     try { await fetch(url, { credentials: 'include' }); return false; } catch (error) { return true; }
   }, privateUrl);
   expect(privateOfflineFailed, 'Offline private request must fail instead of using stale cache');
-
   const afterOffline = await cacheSnapshot(page);
   expect(!afterOffline.entries.some((entry) => entry.url === privateUrl), 'Offline private request must not populate cache');
+  writeProgress(stage, { private_offline_failed: true, private_cache_entries: 0 });
 
+  stage = 'RESPONSIVE';
   const responsive = [];
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -134,11 +175,15 @@ async function cacheSnapshot(page) {
     expect(layout.panels === 1 && layout.items === 2, `[${viewport.name}] shell components missing`);
     responsive.push({ name: viewport.name, overflow: layout.overflow, pageHeight: layout.pageHeight });
     await page.screenshot({ path: path.join(ARTIFACTS, `pwa-offline-${viewport.name}.png`), fullPage: true });
+    writeProgress(stage, { viewport: viewport.name, responsive });
   }
 
+  stage = 'COMPLETE';
   await context.setOffline(false);
   await browser.close();
+  browser = null;
   await new Promise((resolve) => server.close(resolve));
+  server = null;
 
   const evidence = {
     schema: 'PRH_PWA_OFFLINE_EVIDENCE_V1',
@@ -155,8 +200,22 @@ async function cacheSnapshot(page) {
     reason_code: null
   };
   fs.writeFileSync(path.join(ARTIFACTS, 'pwa-offline-evidence.json'), JSON.stringify(evidence, null, 2));
+  writeProgress(stage, { status: 'PASS' });
   console.log('pwa_offline_visual_test: OK', evidence);
 })().catch(async (error) => {
+  try {
+    writeProgress(stage, {
+      status: 'FAIL',
+      reason_code: 'PWA_OFFLINE_TEST_FAILED',
+      error_name: String(error && error.name || 'Error').slice(0, 80),
+      error_message: String(error && error.message || error || 'unknown').slice(0, 500)
+    });
+  } catch (writeError) {
+    // Keep original error authoritative.
+  }
+  try { if (context) await context.setOffline(false); } catch (ignore) {}
+  try { if (browser) await browser.close(); } catch (ignore) {}
+  try { if (server) await new Promise((resolve) => server.close(resolve)); } catch (ignore) {}
   console.error(error);
-  process.exit(1);
+  process.exitCode = 1;
 });
