@@ -83,6 +83,8 @@
     "financial_home_contract_test.js": "UI_E2E",
     "transaction_explorer_contract_test.js": "UI_E2E",
     "transaction_explorer_visual_test.js": "UI_E2E",
+    "expense_analytics_contract_test.js": "PURE_DOMAIN_APPLICATION",
+    "expense_analytics_visual_test.js": "UI_E2E",
     "income_sidebar_validation_test.js": "UI_E2E",
     "secret_scan_contract_test.js": "POLICY_GOVERNANCE",
     "synthetic_finance_fixture_contract_test.js": "PURE_DOMAIN_APPLICATION",
@@ -128,6 +130,7 @@
     { "name": "Visualization foundation", "layer": "UI_E2E" },
     { "name": "Financial Home", "layer": "UI_E2E" },
     { "name": "Transaction Explorer", "layer": "UI_E2E" },
+    { "name": "Expense Analytics", "layer": "PURE_DOMAIN_APPLICATION" },
     { "name": "AI contract", "layer": "POLICY_GOVERNANCE" },
     { "name": "Roadmap task protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Multi-AI review protocol", "layer": "POLICY_GOVERNANCE" },
@@ -148,6 +151,7 @@
     { "name": "Full-history migration protocol", "layer": "MIGRATION_RECOVERY" },
     { "name": "Responsive visual gate", "layer": "UI_E2E" },
     { "name": "Financial Home visual gate", "layer": "UI_E2E" },
-    { "name": "Transaction Explorer visual gate", "layer": "UI_E2E" }
+    { "name": "Transaction Explorer visual gate", "layer": "UI_E2E" },
+    { "name": "Expense Analytics visual gate", "layer": "UI_E2E" }
   ]
 }
