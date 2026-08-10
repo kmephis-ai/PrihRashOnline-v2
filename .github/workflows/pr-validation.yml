@@ -69,6 +69,8 @@ jobs:
         run: node tests/financial_home_contract_test.js
       - name: Transaction Explorer
         run: node tests/transaction_explorer_contract_test.js
+      - name: Expense Analytics
+        run: node tests/expense_analytics_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
@@ -138,6 +140,8 @@ jobs:
         run: node tests/financial_home_visual_test.js
       - name: Transaction Explorer visual gate
         run: node tests/transaction_explorer_visual_test.js
+      - name: Expense Analytics visual gate
+        run: node tests/expense_analytics_visual_test.js
       - name: Build immutable Apps Script candidate
         run: |
           node tools/build-apps-script-candidate.js \

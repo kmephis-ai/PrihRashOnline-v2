@@ -1,0 +1,65 @@
+{
+  "schema": "PRH_EXPENSE_ANALYTICS_V1",
+  "version": "1.0.0",
+  "roadmap_id": "EXP-020",
+  "upstream": {
+    "financial_truth": "FIN-TRUTH-v1",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "analytics": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "visualization": "PRH_VISUALIZATION_FOUNDATION_V1@1.0.0",
+    "transaction_explorer": "PRH_TRANSACTION_EXPLORER_V1@1.0.0"
+  },
+  "schemas": {
+    "view": "PRH_EXPENSE_ANALYTICS_VIEW_V1",
+    "drill_envelope": "PRH_EXPENSE_DRILL_ENVELOPE_V1"
+  },
+  "measure": "EXPENSE",
+  "period": {
+    "bounds": "START_INCLUSIVE_END_EXCLUSIVE",
+    "comparison": "EXPLICIT_EQUAL_DAY_WINDOWS_ONLY",
+    "implicit_proration": false,
+    "supported_trend_grains": ["DAY", "MONTH", "YEAR"]
+  },
+  "category_mix": {
+    "dimension": "category_id",
+    "measure": "EXPENSE",
+    "refund_semantics_source": "FIN-010",
+    "stable_order": "EXPENSE_DESC_THEN_CATEGORY_ASC",
+    "partition_must_equal_total": true
+  },
+  "drivers": {
+    "dimension": "category_id",
+    "definition": "CURRENT_CATEGORY_EXPENSE_MINUS_COMPARISON_CATEGORY_EXPENSE",
+    "financial_formula_authority": false,
+    "conservation": "SUM_DRIVER_DELTA_EQUALS_TOTAL_EXPENSE_DELTA",
+    "stable_order": "ABS_DELTA_DESC_THEN_CATEGORY_ASC"
+  },
+  "widgets": [
+    { "id": "expense-trend", "type": "LINE", "query_ref": "expense-trend-query" },
+    { "id": "expense-category-mix", "type": "DONUT", "query_ref": "expense-category-query" },
+    { "id": "expense-drivers", "type": "BAR", "query_ref": "expense-driver-query" }
+  ],
+  "drill": {
+    "target": "TRANSACTION_EXPLORER",
+    "context": "PRH_DRILL_CONTEXT_V1",
+    "navigation_financial_payload": false
+  },
+  "authority": {
+    "financial_truth": false,
+    "financial_formula": false,
+    "canonical_schema_override": false,
+    "query_contract_override": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "real_view_payload_public": false,
+    "public_telemetry_fields": ["schema", "version", "query_hash", "context_hash", "bucket_count", "category_count", "driver_count", "status", "reason_code"]
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false
+  }
+}
