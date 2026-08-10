@@ -87,6 +87,8 @@ jobs:
         run: node tests/repository_refresh_pipeline_adapter_contract_test.js
       - name: Incremental analytics aggregates
         run: node tests/incremental_analytics_aggregates_contract_test.js
+      - name: Synthetic scale performance
+        run: node tests/synthetic_scale_performance_contract_test.js
       - name: Analytics extension contract
         shell: bash
         run: |
