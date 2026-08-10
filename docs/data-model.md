@@ -135,7 +135,7 @@ balance_observation = false
 - `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` — affected-bucket derived materializations;
 - `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` — independently generated synthetic 20k/50k regression gate.
 
-PERF-010..014 завершены, не являются current writer, не становятся canonical truth и не открывают writes. PERF-014 timings — CI guardrails, не production SLA.
+PERF-010..014 — DONE; завершены, не являются current writer, не становятся canonical truth и не открывают writes. PERF-014 timings — CI guardrails, не production SLA.
 
 ## Source-to-canonical provenance / MIG-010
 
