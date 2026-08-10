@@ -31,9 +31,10 @@
     "bucket_totals_equal_period_totals": true
   },
   "widgets": [
-    { "id": "cash-flow-net-trend", "type": "LINE", "query_ref": "cash-flow-trend-query" },
-    { "id": "cash-flow-in-out", "type": "BAR", "query_ref": "cash-flow-components-query" },
-    { "id": "cash-flow-compare", "type": "BAR", "query_ref": "cash-flow-compare-query" }
+    { "id": "cash-flow-net-trend", "type": "LINE", "measure": "CASH_FLOW", "query_ref": "cash-flow-net-trend-query" },
+    { "id": "cash-flow-inflow-trend", "type": "BAR", "measure": "INCOME", "query_ref": "cash-flow-inflow-trend-query" },
+    { "id": "cash-flow-outflow-trend", "type": "BAR", "measure": "EXPENSE", "query_ref": "cash-flow-outflow-trend-query" },
+    { "id": "cash-flow-compare", "type": "BAR", "measure": "CASH_FLOW", "query_ref": "cash-flow-compare-query" }
   ],
   "drill": {
     "target": "TRANSACTION_EXPLORER",
