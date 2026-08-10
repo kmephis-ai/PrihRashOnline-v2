@@ -31,6 +31,8 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
+Historical ANL-010 authority remains `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; renderer/storage-neutral and `financial_write=false`. Analytics financial semantics remain delegated to FIN-010 and completed ANL-010 is not current lifecycle authority.
+
 ## Current R2 truth
 
 DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020 and PWA-020 are DONE/Main Verification PASS. PWA-020 Issue #137 merged through PR #140, merge `c6910df6679fdc894635092c27cd3c463a69a364`.
