@@ -1,0 +1,63 @@
+{
+  "schema": "PRH_LANGUAGE_POLICY_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DOC-002",
+  "normative_human_language": "ru",
+  "policy": {
+    "single_human_source_of_truth": true,
+    "parallel_english_normative_source_allowed": false,
+    "machine_identifiers_translated": false,
+    "technical_standards_names_translated": false,
+    "code_and_schema_fields_in_scope": false,
+    "free_only": true
+  },
+  "normative_inventory": [
+    {"path":"README.md","kind":"PROJECT_ENTRY","min_cyrillic_letters":120},
+    {"path":"AGENTS.md","kind":"AI_INSTRUCTIONS","min_cyrillic_letters":250},
+    {"path":"docs/ROADMAP.md","kind":"ROADMAP","min_cyrillic_letters":500},
+    {"path":"docs/PROJECT_STATUS.md","kind":"STATUS","min_cyrillic_letters":250},
+    {"path":".ai-context/PROJECT_CONTEXT.md","kind":"AI_CONTEXT","min_cyrillic_letters":250},
+    {"path":"docs/RELEASE_PROCESS.md","kind":"RUNBOOK","min_cyrillic_letters":120},
+    {"path":"docs/security/FAMILY_AUTHORIZATION.md","kind":"SECURITY","min_cyrillic_letters":120},
+    {"path":"docs/architecture/YDB_SERVERLESS_POC.md","kind":"ARCHITECTURE","min_cyrillic_letters":120},
+    {"path":".github/ISSUE_TEMPLATE/roadmap.yml","kind":"ISSUE_TEMPLATE","min_cyrillic_letters":40},
+    {"path":".github/PULL_REQUEST_TEMPLATE.md","kind":"PR_TEMPLATE","min_cyrillic_letters":40},
+    {"path":".github/RELEASE_TEMPLATE.md","kind":"RELEASE_TEMPLATE","min_cyrillic_letters":40}
+  ],
+  "required_markers": {
+    "AGENTS.md": ["LANG-RU", "русский"],
+    "docs/ROADMAP.md": ["LANG-RU", "Русский язык"],
+    ".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],
+    ".github/ISSUE_TEMPLATE/roadmap.yml": ["language: ru"],
+    ".github/PULL_REQUEST_TEMPLATE.md": ["language: ru"],
+    ".github/RELEASE_TEMPLATE.md": ["language: ru"]
+  },
+  "technical_allowlist_examples": [
+    "API", "ADR", "AI", "CI", "CLI", "JSON", "YAML", "YQL", "YDB", "OAuth", "OIDC", "WIF",
+    "HMAC-SHA256", "RFC 2104", "NIST SP 800-63B-4", "FREE_ONLY", "FIN-TRUTH-v1",
+    "PRH_CANONICAL_TRANSACTION_V1", "PRH_TRANSACTION_REPOSITORY_V1", "GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED",
+    "GitHub Actions", "Google Apps Script", "ECharts", "Playwright", "Node.js"
+  ],
+  "parallel_english_normative_path_patterns": [
+    "(^|/)docs/en(/|$)",
+    "(^|/)docs/english(/|$)",
+    "(^|/)README_EN\\.md$",
+    "(^|/)README\\.en\\.md$"
+  ],
+  "content_rules": {
+    "strip_before_human_language_check": ["FENCED_CODE", "INLINE_CODE", "URL"],
+    "english_only_human_text": "FAIL",
+    "technical_only_tokens": "ALLOW",
+    "missing_inventory_path": "FAIL",
+    "missing_required_marker": "FAIL",
+    "parallel_english_normative_source": "FAIL"
+  },
+  "authority": {
+    "financial_truth": false,
+    "runtime": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false,
+    "deployment": false
+  }
+}
