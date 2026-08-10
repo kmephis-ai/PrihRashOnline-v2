@@ -36,6 +36,7 @@
     {"path":"docs/planning/CASH_FLOW_PROJECTION.md","kind":"PLANNING","min_cyrillic_letters":300},
     {"path":"docs/planning/GOALS_WISHLIST.md","kind":"PLANNING","min_cyrillic_letters":260},
     {"path":"docs/finance/BALANCE_RECONCILIATION.md","kind":"FINANCE","min_cyrillic_letters":320},
+    {"path":"docs/finance/NET_WORTH.md","kind":"FINANCE","min_cyrillic_letters":300},
     {"path":".github/ISSUE_TEMPLATE/roadmap.yml","kind":"ISSUE_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/PULL_REQUEST_TEMPLATE.md","kind":"PR_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/RELEASE_TEMPLATE.md","kind":"RELEASE_TEMPLATE","min_cyrillic_letters":40}
@@ -60,8 +61,9 @@
     "Trusted Runtime Health", "PRH_AI_PLAYBOOK_CATALOG_V1", "PRH_AI_EVAL_SUITE_V1",
     "PRH_AI_EVAL_BASELINE_V1", "PRH_AI_EVAL_REPORT_V1", "PRH_HOUSEHOLD_PREFERENCES_V1",
     "PRH_LONG_TERM_TRENDS_V1", "PRH_CASH_FLOW_PROJECTION_V1", "PRH_GOAL_PLANNING_V1",
-    "PRH_BALANCE_RECONCILIATION_V1", "PRH_BALANCE_OBSERVATION_V1", "ANCHOR_EXCLUSIVE_TARGET_INCLUSIVE",
-    "DECLARED_PLANNING", "BACKTEST_MAE_SYMMETRIC", "ROLLING_MEAN_3_COMPLETE_MONTHS_V1",
+    "PRH_BALANCE_RECONCILIATION_V1", "PRH_BALANCE_OBSERVATION_V1", "PRH_NET_WORTH_V1",
+    "OBSERVED_BALANCE", "CALCULATED_BALANCE", "ANCHOR_EXCLUSIVE_TARGET_INCLUSIVE",
+    "DECLARED_PLANNING", "DECLARED_VALUE", "BACKTEST_MAE_SYMMETRIC", "ROLLING_MEAN_3_COMPLETE_MONTHS_V1",
     "PROFILE_EDIT", "HOUSEHOLD_ADMIN", "SYSTEM", "LIGHT", "DARK"
   ],
   "parallel_english_normative_path_patterns": [
