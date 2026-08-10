@@ -88,7 +88,7 @@ Legacy итоговые ячейки не являются golden truth. Financi
 
 `PRH_ANALYTICS_CONTRACT_V1@1.0.0` renderer/storage-neutral и делегирует financial measures FIN-010 `evaluateKpis()`. Authority: `io=false`, `network=false`, `financial_write=false`, `ui=false`.
 
-ANL-010 завершён; он не является current writer.
+ANL-010 — DONE; завершён и не является current writer.
 
 ## R2 design boundary — DESIGN-020 — DONE
 
