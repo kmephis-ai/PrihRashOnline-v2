@@ -1,12 +1,11 @@
 /**
  * UI-MIG-020 canonical R2 Web App router/runtime bridge.
  *
- * Safety:
- * - reads only through the existing Google operations gateway and settings;
- * - financial values are computed by the generated bundle from canonical lib sources;
- * - no financial write/storage authority is introduced;
- * - synthetic R2 previews are never used as private-runtime truth;
- * - legacy Dashboard remains an explicit bounded rollback surface.
+ * Default route is R2 Financial Home. Home receives private read-only data from
+ * the parity-guarded FIN runtime adapter. Other R2 routes are visible in primary
+ * navigation but fail closed until their private runtime binding is separately proven.
+ * Synthetic preview values are never substituted for private runtime truth.
+ * Legacy Dashboard remains an explicit bounded rollback route.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
@@ -14,13 +13,13 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   DEFAULT_SURFACE: 'home',
   ROUTE_PARAMETER: 'surface',
   LIVE_SURFACES: Object.freeze({
-    home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Financial Home' }),
-    expenses: Object.freeze({ file: 'ExpenseAnalyticsWebApp', placeholder: 'initialExpenseData', title: 'Расходы' }),
-    income: Object.freeze({ file: 'IncomeAnalyticsWebApp', placeholder: 'initialIncomeData', title: 'Доходы' }),
-    'cash-flow': Object.freeze({ file: 'CashFlowWebApp', placeholder: 'initialCashFlowData', title: 'Cash Flow' })
+    home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Financial Home' })
   }),
   SAFE_UNBOUND_SURFACES: Object.freeze({
     transactions: 'Транзакции',
+    expenses: 'Расходы',
+    income: 'Доходы',
+    'cash-flow': 'Денежный поток',
     budget: 'Бюджет',
     obligations: 'Обязательства',
     'data-quality': 'Качество данных'
@@ -105,124 +104,9 @@ function prhR2RenderFile_(surface, payload) {
 function prhR2RenderUnavailable_(surface, reasonCode) {
   var title = PRH_CANONICAL_R2_WEB.SAFE_UNBOUND_SURFACES[surface];
   if (!title) throw new Error('R2_UNBOUND_SURFACE_UNKNOWN');
-  var html = '<!doctype html><html lang="ru"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><style>:root{color-scheme:light dark}*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#10233f;font:14px/1.5 Inter,system-ui,sans-serif}.r2-state{max-width:900px;margin:56px auto;padding:0 18px}.r2-card{background:#fff;border:1px solid #d7e0ea;border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(16,35,63,.10)}h1{margin:0 0 8px;font-size:30px}.pill{display:inline-block;margin-top:14px;padding:6px 10px;border-radius:999px;background:#fff7e6;color:#704400;font-weight:700}.note{margin-top:18px;color:#52657d}@media(prefers-color-scheme:dark){body{background:#0b1220;color:#f3f7fc}.r2-card{background:#111b2c;border-color:#33445d}.note{color:#aebdd0}}</style></head><body><main class="r2-state"><section class="r2-card" data-r2-unbound-surface="' + prhR2EscapeHtml_(surface) + '"><div>PrihRashOnline • R2</div><h1>' + prhR2EscapeHtml_(title) + '</h1><p>Экран включён в canonical navigation, но private runtime binding для него не подтверждён. Synthetic preview здесь намеренно не показывается.</p><span class="pill">FAIL-CLOSED • ' + prhR2EscapeHtml_(reasonCode || 'RUNTIME_BINDING_NOT_PROVEN') + '</span><p class="note">Финансовые данные не изменяются. Для возврата к прежнему интерфейсу доступен bounded route Legacy.</p></section></main></body></html>';
+  var html = '<!doctype html><html lang="ru"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><style>:root{color-scheme:light dark}*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#10233f;font:14px/1.5 Inter,system-ui,sans-serif}.r2-state{max-width:900px;margin:56px auto;padding:0 18px}.r2-card{background:#fff;border:1px solid #d7e0ea;border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(16,35,63,.10)}h1{margin:0 0 8px;font-size:30px}.pill{display:inline-block;margin-top:14px;padding:6px 10px;border-radius:999px;background:#fff7e6;color:#704400;font-weight:700}.note{margin-top:18px;color:#52657d}@media(prefers-color-scheme:dark){body{background:#0b1220;color:#f3f7fc}.r2-card{background:#111b2c;border-color:#33445d}.note{color:#aebdd0}}</style></head><body><main class="r2-state"><section class="r2-card" data-r2-unbound-surface="' + prhR2EscapeHtml_(surface) + '"><div>PrihRashOnline • R2</div><h1>' + prhR2EscapeHtml_(title) + '</h1><p>Экран уже находится в canonical navigation, но его private runtime binding ещё не доказан machine gate. Synthetic preview здесь намеренно не показывается как реальные данные.</p><span class="pill">FAIL-CLOSED • ' + prhR2EscapeHtml_(reasonCode || 'RUNTIME_BINDING_NOT_PROVEN') + '</span><p class="note">Финансовые данные не изменяются. Для ограниченного rollback доступен маршрут Legacy.</p></section></main></body></html>';
   html = prhR2InjectShell_(html, surface);
   return HtmlService.createHtmlOutput(html).setTitle('PrihRashOnline — ' + title).addMetaTag('viewport', 'width=device-width, initial-scale=1');
-}
-
-function prhR2DomainRequire_(id) {
-  if (typeof PRH_R2_DOMAIN !== 'object' || !PRH_R2_DOMAIN || typeof PRH_R2_DOMAIN.require !== 'function') {
-    throw new Error('R2_DOMAIN_BUNDLE_MISSING');
-  }
-  return PRH_R2_DOMAIN.require(id);
-}
-
-function prhR2Currency_() {
-  var settings = getSettingsMap_();
-  var currency = String(settings.currency || '').trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(currency)) throw new Error('R2_RUNTIME_CURRENCY_SETTING_REQUIRED');
-  return currency;
-}
-
-function prhR2ReadFinTransactions_() {
-  var adapter = prhR2DomainRequire_('lib/adapters/google_sheets_transaction_repository.js');
-  var headers = ['ID', 'Дата и время', 'Тип', 'Сумма', 'Счёт', 'Счёт назначения', 'Категория', 'Статус'];
-  var snapshot = prhGoogleRepositoryReadOperationsTable_({ required_headers: headers });
-  var index = adapter.normalizeHeaderIndex(snapshot.headers, headers);
-  var currency = prhR2Currency_();
-  var transactions = [];
-  snapshot.rows.forEach(function(row) {
-    var transactionId = String(row[index.ID] || '').trim();
-    if (!transactionId) return;
-    var type = adapter.normalizeType(row[index['Тип']]);
-    var account = String(row[index['Счёт']] || '').trim();
-    var destination = String(row[index['Счёт назначения']] || '').trim();
-    var category = String(row[index['Категория']] || '').trim() || 'UNCLASSIFIED';
-    transactions.push({
-      transaction_id: transactionId,
-      occurred_at: adapter.toRfc3339(row[index['Дата и время']]),
-      type: type,
-      status: adapter.normalizeStatus(row[index['Статус']]),
-      amount_minor: adapter.majorToMinorExact(row[index['Сумма']]),
-      currency: currency,
-      account_id: account || null,
-      destination_account_id: type === 'transfer' ? (destination || null) : null,
-      category_id: category,
-      reverses_transaction_id: null,
-      adjustment_semantics: type === 'refund' ? 'expense_reduction' : null
-    });
-  });
-  if (!transactions.length) throw new Error('R2_RUNTIME_NO_TRANSACTIONS');
-  return Object.freeze({ currency: currency, transactions: Object.freeze(transactions) });
-}
-
-function prhR2IsoDay_(date) {
-  return Utilities.formatDate(date, 'UTC', 'yyyy-MM-dd');
-}
-
-function prhR2LatestMonthPeriod_(transactions) {
-  var latest = null;
-  transactions.forEach(function(tx) {
-    var date = new Date(tx.occurred_at);
-    if (!Number.isFinite(date.getTime())) throw new Error('R2_RUNTIME_TRANSACTION_DATE_INVALID');
-    if (!latest || date > latest) latest = date;
-  });
-  if (!latest) throw new Error('R2_RUNTIME_PERIOD_UNAVAILABLE');
-  var start = new Date(Date.UTC(latest.getUTCFullYear(), latest.getUTCMonth(), 1));
-  var end = new Date(Date.UTC(latest.getUTCFullYear(), latest.getUTCMonth() + 1, 1));
-  return Object.freeze({ start: prhR2IsoDay_(start), end: prhR2IsoDay_(end), partial: false });
-}
-
-function prhR2ComparisonPeriod_(period) {
-  var startMs = Date.parse(period.start + 'T00:00:00Z');
-  var endMs = Date.parse(period.end + 'T00:00:00Z');
-  var days = Math.round((endMs - startMs) / 86400000);
-  if (!Number.isInteger(days) || days <= 0) throw new Error('R2_RUNTIME_PERIOD_RANGE_INVALID');
-  var comparisonEnd = new Date(startMs);
-  var comparisonStart = new Date(startMs - days * 86400000);
-  return Object.freeze({ start: prhR2IsoDay_(comparisonStart), end: prhR2IsoDay_(comparisonEnd), partial: false });
-}
-
-function prhR2RuntimeViews_() {
-  var source = prhR2ReadFinTransactions_();
-  var period = prhR2LatestMonthPeriod_(source.transactions);
-  var comparisonPeriod = prhR2ComparisonPeriod_(period);
-  var homeModule = prhR2DomainRequire_('lib/home/financial_home.js');
-  var expenseModule = prhR2DomainRequire_('lib/expense/expense_analytics.js');
-  var incomeModule = prhR2DomainRequire_('lib/income/income_analytics.js');
-  var cashFlowModule = prhR2DomainRequire_('lib/cashflow/cash_flow_dashboard.js');
-  var expenses = expenseModule.buildExpenseAnalytics(source.transactions, {
-    currency: source.currency, period: period, comparison_period: comparisonPeriod, trend_grain: 'MONTH'
-  });
-  var income = incomeModule.buildIncomeAnalytics(source.transactions, {
-    currency: source.currency, period: period, comparison_period: comparisonPeriod, trend_grain: 'MONTH'
-  });
-  var cashFlow = cashFlowModule.buildCashFlowDashboard(source.transactions, {
-    currency: source.currency, period: period, comparison_period: comparisonPeriod, grain: 'MONTH'
-  });
-  var home = homeModule.buildFinancialHome(source.transactions, { currency: source.currency, period: period });
-  var homePayload = JSON.parse(JSON.stringify(home));
-  homePayload.visual_data = {
-    cash_flow_minor: cashFlow.trend.points.map(function(point) { return point.net_minor; }),
-    expense_mix: expenses.category_mix.rows.map(function(row) { return [row.category_id, row.expense_minor]; })
-  };
-  homePayload.provenance.runtime_bridge = 'UI_MIG_020_CANONICAL_LIB_BUNDLE';
-  return Object.freeze({
-    currency: source.currency,
-    period: period,
-    comparison_period: comparisonPeriod,
-    home: homePayload,
-    expenses: expenses,
-    income: income,
-    'cash-flow': cashFlow
-  });
-}
-
-function prhR2RenderCanonical_(surface) {
-  var views = prhR2RuntimeViews_();
-  var payload = views[surface];
-  if (!payload) throw new Error('R2_RUNTIME_VIEW_UNAVAILABLE');
-  return prhR2RenderFile_(surface, payload);
 }
 
 function prhR2RenderLegacy_(params) {
@@ -234,10 +118,10 @@ function doGet(e) {
   var params = (e && e.parameter) || {};
   var surface = prhR2ResolveSurface_(params[PRH_CANONICAL_R2_WEB.ROUTE_PARAMETER]);
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
-  if (Object.prototype.hasOwnProperty.call(PRH_CANONICAL_R2_WEB.SAFE_UNBOUND_SURFACES, surface)) {
-    return prhR2RenderUnavailable_(surface, 'RUNTIME_BINDING_NOT_PROVEN');
+  if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) {
+    return prhR2RenderFile_('home', prhR2BuildFinancialHomeRuntime_());
   }
-  return prhR2RenderCanonical_(surface);
+  return prhR2RenderUnavailable_(surface, 'RUNTIME_BINDING_NOT_PROVEN');
 }
 
 function prhR2SmokePayload_() {
@@ -245,6 +129,7 @@ function prhR2SmokePayload_() {
     smoke: true,
     schema: 'PRH_FINANCIAL_HOME_VIEW_V1',
     contract_version: '1.0.0',
+    currency: 'RUB',
     period: { kind: 'FULL_INPUT_SET', start: null, end: null, partial: false, day_count: null, proration: 'NONE' },
     financial_truth_policy: 'FIN-TRUTH-v1',
     kpi_dictionary_version: '1.0.0',
