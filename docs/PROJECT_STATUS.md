@@ -17,28 +17,28 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 ## R1 / Canonical Financial Platform — завершённая волна
 
-- `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
-- `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
-- `ARCH-010` Pure domain/application core — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` Repository interfaces + Google Sheets adapter — **DONE**, Issue #91 Main Verification PASS.
-- `MIG-010` Deterministic full-history migration — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
-- `ANL-010` Analytics extension contract v1 — **DONE**, Issue #98 Main Verification PASS.
-- `TEST-010` Layered test architecture — **DONE**, Issue #100 Main Verification PASS.
-- `OBS-010` SLO/error-budget layer — **DONE**, Issue #103 Main Verification PASS.
-- `PERF-010` Query projection/minimal ranges — **DONE**, Issue #105 Main Verification PASS.
-- `PERF-011` Revision-aware read cache — **DONE**, Issue #108 Main Verification PASS.
-- `PERF-012` Single-scan refresh pipeline — **DONE**, Issue #110 Main Verification PASS.
-- `PERF-013` Incremental analytics aggregates — **DONE**, Issue #112 Main Verification PASS.
-- `PERF-014` Synthetic scale performance gates — **DONE**, Issue #114 Main Verification PASS.
-- `DOC-010` Architecture/data/KPI/operations documentation contract — **DONE**, Issue #116 Main Verification PASS.
+- `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
+- `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
+- `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
+- `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
+- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
+- `ANL-010` — **DONE**, Issue #98 Main Verification PASS.
+- `TEST-010` — **DONE**, Issue #100 Main Verification PASS.
+- `OBS-010` — **DONE**, Issue #103 Main Verification PASS.
+- `PERF-010` — **DONE**, Issue #105 Main Verification PASS.
+- `PERF-011` — **DONE**, Issue #108 Main Verification PASS.
+- `PERF-012` — **DONE**, Issue #110 Main Verification PASS.
+- `PERF-013` — **DONE**, Issue #112 Main Verification PASS.
+- `PERF-014` — **DONE**, Issue #114 Main Verification PASS.
+- `DOC-010` — **DONE**, Issue #116 Main Verification PASS.
 
 FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.  
 DATA-010 authority: `PRH_CANONICAL_TRANSACTION_V1`.  
-ARCH-010: `PRH_APPLICATION_CORE_V1`, no I/O/network/financial-write authority.  
-ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
+ARCH-010: `PRH_APPLICATION_CORE_V1`, `io_authority: false`, no network/financial-write authority.  
+ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
 ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; renderer/storage-neutral, `financial_write=false`.  
-PERF-010..014 read/performance layers не меняют FIN-TRUTH.  
-DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`; documentation coherence only.
+PERF-010..014 do not redefine FIN-TRUTH.  
+DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`.
 
 ### MASTER-G3 / Canonical platform — **complete**; historical pre-close state: open
 
@@ -46,57 +46,57 @@ DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`; documentation coherence only.
 
 ## R2 / Family Finance Center — текущая волна
 
-- `DESIGN-020` Design system + responsive shell — **DONE**, Issue #118 Main Verification PASS, PR #119 autonomous merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
-- `VIZ-020` Versioned visualization foundation — **DONE**, Issue #120 Main Verification PASS, PR #121 autonomous merge `66139972b1fc910fc7bc0e614ecfdc7d5b754adf`.
-- `HOME-020` Financial Home dashboard — **DONE**, Issue #122 Main Verification PASS, PR #123 autonomous merge `24e6e57e1b2b803dd0d2176376207fd524674dd3`.
-- `TX-020` Transaction Explorer — **IN_PROGRESS**, Issue #124; current R2 writer, branch `agent/TX-020-transaction-explorer`.
+- `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS, PR #119 merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
+- `VIZ-020` — **DONE**, Issue #120 Main Verification PASS, PR #121 merge `66139972b1fc910fc7bc0e614ecfdc7d5b754adf`.
+- `HOME-020` — **DONE**, Issue #122 Main Verification PASS, PR #123 merge `24e6e57e1b2b803dd0d2176376207fd524674dd3`.
+- `TX-020` — **DONE**, Issue #124 Main Verification PASS, PR #125 merge `38a6d6bece459f61a2cf3d9af2cd8419274b258b`.
+- `EXP-020` Expense Analytics — **IN_PROGRESS**, Issue #126; current R2 writer, branch `agent/EXP-020-expense-analytics`.
 
-### DESIGN-020 verified boundary
+### Verified R2 foundations
 
-`PRH_DESIGN_SYSTEM_V1@1.0.0` задаёт semantic typography/color/spacing/radius/elevation/focus/motion tokens, light/dark themes, `:focus-visible`, reduced-motion policy и responsive breakpoints 760/1250 px. External CDN/font/design provider не требуется; `FREE_ONLY` сохраняется.
+`PRH_DESIGN_SYSTEM_V1@1.0.0` — presentation tokens/theme/a11y/responsive only.  
+`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — configuration-only ChartSpec/WidgetSpec, deterministic Filter/Drill contexts and replaceable `ECHARTS_6` adapter; no financial/query/storage/write authority.  
+`PRH_FINANCIAL_HOME_V1@1.0.0` — one FIN-010 result, explicit budget, fail-safe liquidity capability state.  
+`PRH_TRANSACTION_EXPLORER_V1@1.0.0` — canonical row search/filter/sort/pagination/edit-draft validation; generic runtime save remains `WRITE_BLOCKED` / `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-### VIZ-020 verified boundary
+### EXP-020 current boundary
 
-`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` определяет configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`, chart registry (`BAR`, `LINE`, `DONUT`), deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`, transient runtime render dataset и replaceable `ECHARTS_6` adapter. Specs не содержат financial rows/amount payload. Real renderer data/options остаются private runtime data. Renderer не имеет query/network/storage/persistence/financial-write authority; external CDN не требуется; `FREE_ONLY` mandatory.
+EXP-020 вводит `PRH_EXPENSE_ANALYTICS_V1@1.0.0` поверх FIN-010/ANL-010/VIZ-020/TX-020.
 
-### HOME-020 verified boundary
+- primary/comparison Expense totals sourced from FIN-010 `evaluateKpis()`;
+- trend состоит из explicit bounded buckets, каждый bucket имеет FIN-010 parity, сумма bucket totals равна period EXPENSE;
+- category mix использует FIN-TRUTH `by_expense_category_minor`: expense добавляет, refund уменьшает, transfer нейтрален;
+- сумма категорий обязана равняться EXPENSE, residual = 0; ambiguous negative category bucket fail-closed;
+- comparable periods только explicit equal-day windows, без implicit proration;
+- drivers = current category expense − comparison category expense; сумма drivers обязана равняться total Expense delta;
+- VIZ WidgetSpecs `LINE` / `DONUT` / `BAR` configuration-only; render datasets передаются отдельно;
+- drill использует `PRH_FILTER_CONTEXT_V1` + `PRH_DRILL_CONTEXT_V1` и bounded TX-020 query к `TRANSACTION_EXPLORER`; navigation state не содержит денежных значений;
+- `ExpenseAnalyticsWebApp.html` — synthetic responsive evidence surface, не новый write/runtime authority;
+- public telemetry: version/hash/count/status/reason metadata only, no financial payload;
+- named gates: `Expense Analytics`, `Expense Analytics visual gate`;
+- `FREE_ONLY` mandatory; external CDN/provider не требуется.
 
-`PRH_FINANCIAL_HOME_V1@1.0.0` / `PRH_FINANCIAL_HOME_VIEW_V1` прошёл Main Verification. Home использует один FIN-010 `evaluateKpis()` result, explicit budget или `NOT_CONFIGURED`, liquidity `UNAVAILABLE_PENDING_BALANCE_SOURCE` до BAL-030, explainable alerts и VIZ drill/filter context без financial payload в navigation state. Home не имеет financial-write/storage/network authority.
+Normative doc: `docs/analytics/EXPENSE_ANALYTICS.md`. Core: `lib/expense/expense_analytics.js`. Tests: `tests/expense_analytics_contract_test.js`, `tests/expense_analytics_visual_test.js`.
 
-### TX-020 current boundary
-
-TX-020 вводит `PRH_TRANSACTION_EXPLORER_V1@1.0.0` поверх `PRH_CANONICAL_TRANSACTION_V1`.
-
-- deterministic search/filter/sort по date/account/category/member/type/status и bounded text search по allowlisted display fields;
-- normalized query имеет SHA-256 identity, stable sorting всегда использует `transaction_id` tie-breaker;
-- offset/limit pagination bounded: default 50, max 200;
-- Explorer rows являются projection canonical transaction fields и не вычисляют KPI/financial truth;
-- edit draft становится `VALID` только после полного DATA-010 `normalizeCanonicalTransaction()` и immutable source-identity check;
-- generic runtime save остаётся `WRITE_BLOCKED` с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`; Explorer не обходит financial-write policy;
-- independently generated synthetic 20k/50k scale test проверяет bounded page/search/filter/sort path;
-- `TransactionExplorerWebApp.html` даёт responsive desktop/laptop/mobile synthetic UI с filters/sort/pagination/edit drawer;
-- public telemetry allowlist содержит только schema/version/query-hash/count/timing/edit-state/reason-code metadata, без private transaction values/IDs;
-- named gates: `Transaction Explorer` + `Transaction Explorer visual gate`.
-
-EXP-020/INC-020/CF-020/PWA-020 и другие соседние items не входят в scope текущего writer.
+INC-020/CF-020/BUD-020 и другие sibling items не входят в scope текущего writer.
 
 ## MIG-010 historical safety boundary
 
-Owner-private MIG-010 evidence: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Private post-write reconciliation = PASS. Generic repository write authority не изменилась.
+MIG-010 owner-private evidence remains `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
 
-Owner-confirmed duplicate-preservation capability remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это public-safe имя identity strategy без private resolution payload.
+Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
 
-Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound и не переносится: GitHub Actions/AI не могут создать или повторно использовать её для future mutations. Новый irreversible financial write требует нового exact-bound owner authorization.
+Historical machine anchors: **Current write authority = false**. The **owner-verified MIG-010 private full-history reconciliation** remains completed correctness proof.
+
+Execution policy remains `MIG010_EXECUTION_POLICY_V1@1.0.0`; `FINALIZED_PENDING_RECONCILIATION` was not completion until post-write reconciliation PASS.
+
+Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions and AI cannot reuse it for later mutations. Any future irreversible financial write requires fresh exact-bound owner authorization.
 
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` is the public-safe repository AI operating contract.
+Root `AGENTS.md` is the public-safe repository AI operating contract. `AIENG-001`, `AIENG-002`, `AIENG-003` are DONE.
 
-- `AIENG-001 + AIENG-002 + AIENG-003 = DONE`;
-- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation;
-- `tools/multi-ai-review-protocol.js` поддерживает read-only exact-candidate review;
-- reviewers всегда `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks supplementary review evidence;
-- required checks deterministic/local; paid AI/API dependency не требуется.
+`tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers always have `writer_authority=false`; machine gates and Main Verification remain authoritative.
 
 ## Current delivery chain
 
@@ -115,21 +115,19 @@ active Roadmap Issue
 
 - private primary store/runtime: Google Sheets + Apps Script;
 - family UI: private `MYSELF` Apps Script Web Dashboard;
-- existing Dashboard and verified Home surface remain compatible;
-- TX-020 browser surface is synthetic contract/UI evidence and does not silently create a new private runtime route;
 - public GitHub finance/render evidence: independently generated synthetic only;
 - DEV delivery exact-SHA autonomous;
 - PROD/cutover/destructive data actions — separate policy gates;
-- `FREE_ONLY` mandatory; paid-by-usage provider activation не автоматический.
+- `FREE_ONLY` mandatory.
 
 ## Что намеренно не утверждается
 
-- TX-020 не считается DONE до autonomous merge + Main Verification/Issue close;
-- Explorer save не разрешён: generic Google write остаётся blocked до separate versioned write policy;
-- Explorer row projection не является новой canonical/financial truth;
+- EXP-020 не считается DONE до autonomous merge + Main Verification/Issue close;
+- Expense Analytics не владеет FIN formulas и не разрешает Google write;
+- standalone synthetic Expense surface не означает публикацию private runtime route;
+- historical MIG-010 authorization не переносится на future mutation;
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
-- public Git history rewrite не authorized/executed;
 - paid cloud/AI/OCR/observability/cache/design/visualization provider не включён.
 
 ## Source precedence
