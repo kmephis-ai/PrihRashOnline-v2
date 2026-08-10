@@ -18,7 +18,7 @@ Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закр
 
 `DR-001 + OBS-001 + FINOPS-001 = DONE`.
 
-## R1 / Canonical Financial Platform — текущая волна
+## R1 / Canonical Financial Platform — завершённая волна
 
 - `FIN-010` Versioned KPI Dictionary — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` Canonical transaction schema v1 — **DONE**, Issue #87 Main Verification PASS.
@@ -33,7 +33,7 @@ Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закр
 - `PERF-012` Single-scan refresh pipeline — **DONE**, Issue #110 Main Verification PASS.
 - `PERF-013` Incremental analytics aggregates — **DONE**, Issue #112 Main Verification PASS.
 - `PERF-014` Synthetic scale performance gates — **DONE**, Issue #114 Main Verification PASS.
-- `DOC-010` Architecture/data/KPI/operations documentation contract — **IN_PROGRESS**, Issue #116; current R1 writer.
+- `DOC-010` Architecture/data/KPI/operations documentation contract — **DONE**, Issue #116 Main Verification PASS.
 
 FIN-010: `PRH_KPI_DICTIONARY_V1` / `FIN-TRUTH-v1`.  
 DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
@@ -48,11 +48,11 @@ PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`.
 PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`.  
 PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0`.
 
-## DOC-010 current truth
+## DOC-010 verified truth
 
-DOC-010 вводит `PRH_R1_DOCUMENTATION_V1@1.0.0` как machine-readable map между нормативными R1 docs, versioned contracts/code, contract tests и named PR Validation gates.
+DOC-010 завершён и закрепил `PRH_R1_DOCUMENTATION_V1@1.0.0` как machine-readable map между нормативными R1 docs, versioned contracts/code, contract tests и named PR Validation gates.
 
-Новые канонические public-safe карты:
+Канонические public-safe карты:
 
 - `docs/architecture/R1_C4_CONTEXT.md` — system/container context, trust/mutation/cost/future-provider boundaries;
 - `docs/data/R1_DATA_LINEAGE.md` — Google source → repository/canonical → FIN/KPI → analytics → PERF-010..014 → private UI, отдельно migration/recovery/observability/delivery;
@@ -60,9 +60,21 @@ DOC-010 вводит `PRH_R1_DOCUMENTATION_V1@1.0.0` как machine-readable map
 - `tests/r1_documentation_contract_test.js` — existence/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector;
 - named gate `R1 documentation contract` в PR Validation.
 
-README, architecture и data-model актуализированы до текущего R1: PERF-010..014 DONE, DOC-010 current. Documentation не является более высоким authority, чем `docs/ROADMAP.md`, live Issues или exact-SHA machine gates.
+Documentation не является более высоким authority, чем `docs/ROADMAP.md`, live Issues или exact-SHA machine gates.
 
 Privacy boundary неизменна: private runtime locators, real/real-derived finance payload, OAuth/backup/private evidence не публикуются. `FREE_ONLY` mandatory. Generic Google financial write остаётся blocked.
+
+### MASTER-G3 / Canonical platform — **complete**
+
+Historical lifecycle state `open` применялся до DOC-010 Main Verification и больше не является текущим. `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`; private full-history reconciliation = PASS; synthetic 20k/50k performance = PASS.
+
+## R2 / Family Finance Center — текущая волна
+
+- `DESIGN-020` Design system + responsive shell — **IN_PROGRESS**, Issue #118; current R2 writer.
+
+DESIGN-020 вводит presentation-only `PRH_DESIGN_SYSTEM_V1@1.0.0`: semantic typography/color/spacing/radius/elevation/focus/motion tokens, explicit light/dark theme boundary, system theme preference, единый `:focus-visible`, reduced-motion policy и responsive breakpoints 760/1250 px. Dashboard сохраняет существующие 10 top-level tabs и financial/query semantics. External CDN/font/design provider не требуется, financial payload в design contract запрещён, `FREE_ONLY` сохраняется.
+
+VIZ-020 остаётся dependency-gated до завершения DESIGN-020/Main Verification.
 
 ## PERF-014 verified boundary
 
@@ -115,13 +127,9 @@ RESOLVED_REBUILD_DRY_RUN = PASS
 
 Private evidence established `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Owner-confirmed identical operations remain represented by `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical authorization не переносится и не может повторно использоваться для future mutations.
 
-### MASTER-G3 / Canonical platform — **open**
-
-Private full-history reconciliation gate = PASS. Synthetic 20k/50k performance gate = PASS. Все обязательные dependencies кроме текущего `DOC-010` уже DONE. MASTER-G3 требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`; поэтому он остаётся open до DOC-010 Main Verification.
-
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` — public-safe repository AI operating contract.
+Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 - `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` define continuation, one-writer ownership и lifecycle;
 - `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review;
@@ -140,8 +148,8 @@ Root `AGENTS.md` — public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- DOC-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- MASTER-G3 не считается закрытым до DOC-010 DONE;
+- DESIGN-020 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- VIZ-020 не начинается до DESIGN-020 DONE;
 - human documentation не может override красный machine gate;
 - PERF-014 timings — CI guardrails, а не production SLA;
 - performance/read-model layers не заменяют canonical/FIN/ANL authority;
@@ -149,7 +157,7 @@ Root `AGENTS.md` — public-safe repository AI operating contract.
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
 - public Git history rewrite не authorized/executed;
-- paid cloud/AI/OCR/observability/cache provider не включён.
+- paid cloud/AI/OCR/observability/cache/design provider не включён.
 
 ## Source precedence
 
