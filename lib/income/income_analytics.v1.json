@@ -1,0 +1,66 @@
+{
+  "schema": "PRH_INCOME_ANALYTICS_V1",
+  "version": "1.0.0",
+  "roadmap_id": "INC-020",
+  "upstream": {
+    "financial_truth": "FIN-TRUTH-v1",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "analytics": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "visualization": "PRH_VISUALIZATION_FOUNDATION_V1@1.0.0",
+    "transaction_explorer": "PRH_TRANSACTION_EXPLORER_V1@1.0.0"
+  },
+  "schemas": {
+    "view": "PRH_INCOME_ANALYTICS_VIEW_V1",
+    "drill_envelope": "PRH_INCOME_DRILL_ENVELOPE_V1"
+  },
+  "measure": "INCOME",
+  "source_dimension": "counterparty",
+  "unknown_source_label": "UNSPECIFIED_SOURCE",
+  "period": {
+    "bounds": "START_INCLUSIVE_END_EXCLUSIVE",
+    "comparison": "EXPLICIT_EQUAL_DAY_WINDOWS_ONLY",
+    "implicit_proration": false,
+    "supported_trend_grains": ["DAY", "MONTH", "YEAR"]
+  },
+  "source_mix": {
+    "stable_order": "INCOME_DESC_THEN_SOURCE_ASC",
+    "partition_must_equal_total": true,
+    "financial_semantics_source": "FIN-010"
+  },
+  "stability": {
+    "input": "FIN_BACKED_TREND_BUCKET_TOTALS",
+    "variance": "POPULATION_VARIANCE_OF_BUCKET_INCOME",
+    "coefficient_of_variation": "STDDEV_DIV_MEAN",
+    "stability_score": "ROUND_100_MINUS_MIN_100_CV_PERCENT",
+    "financial_formula_authority": false
+  },
+  "widgets": [
+    { "id": "income-trend", "type": "LINE", "query_ref": "income-trend-query" },
+    { "id": "income-source-mix", "type": "DONUT", "query_ref": "income-source-query" },
+    { "id": "income-source-compare", "type": "BAR", "query_ref": "income-source-compare-query" }
+  ],
+  "drill": {
+    "target": "TRANSACTION_EXPLORER",
+    "context": "PRH_DRILL_CONTEXT_V1",
+    "source_filter_field": "counterparty",
+    "navigation_financial_payload": false
+  },
+  "authority": {
+    "financial_truth": false,
+    "financial_formula": false,
+    "canonical_override": false,
+    "query_override": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "real_view_public": false,
+    "telemetry_allowlist": ["schema", "version", "query_hash", "context_hash", "bucket_count", "source_count", "stability_state", "status", "reason_code"]
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false
+  }
+}
