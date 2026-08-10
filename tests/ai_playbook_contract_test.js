@@ -83,7 +83,7 @@ expectFixtureFailure('AI_PLAYBOOK_AUTHORITY_GRANT_FORBIDDEN', ({ catalog: fixtur
 
 expectFixtureFailure('AI_PLAYBOOK_REQUIRED_MARKER_MISSING', ({ root }) => {
   const file = path.join(root, catalog.playbooks.RELEASE.file);
-  const text = fs.readFileSync(file, 'utf8').replace('Main Verification', 'Main-Verification-removed');
+  const text = fs.readFileSync(file, 'utf8').split('Main Verification').join('Main-Verification-removed');
   fs.writeFileSync(file, text, 'utf8');
 });
 
