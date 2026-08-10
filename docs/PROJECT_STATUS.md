@@ -42,23 +42,27 @@ YC-040 остаётся offline YDB schema/adapter/cost-guard PoC: Google author
 
 ## R7 / Semantic Analytics — текущий writer
 
-- `ANL-070` Semantic measure/dimension registry — **IN_PROGRESS**, Issue #150; current writer, branch `agent/ANL-070-semantic-registry`.
+- `ANL-070` Semantic measure/dimension registry — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`.
+- `SCOPE-070` Области аналитики и системные теги — **IN_PROGRESS**, Issue #77; current writer, branch `agent/SCOPE-070-analytics-scopes`.
 
-Machine contract: `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`. Core: `lib/analytics/semantic_registry.js`. Normative doc: `docs/analytics/SEMANTIC_REGISTRY.md`. Test: `tests/semantic_analytics_registry_contract_test.js`.
+ANL-070 authority остаётся `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`: measure/dimension compatibility не переопределяет FIN-TRUTH и не имеет renderer/storage/network/financial-write authority.
 
-ANL-070 фиксирует semantic IDs и compatibility поверх существующих `ANL-010`/KPI/canonical contracts:
+SCOPE-070 machine contract: `PRH_ANALYTICS_SCOPE_V1@1.0.0`. Core: `lib/analytics/analytics_scope.js`. Normative doc: `docs/analytics/ANALYTICS_SCOPES.md`. Test: `tests/analytics_scope_contract_test.js`.
 
-- measure set не может расходиться с `PRH_ANALYTICS_CONTRACT_V1` и `PRH_KPI_DICTIONARY_V1`;
-- groupable dimensions остаются `account_id`, `category_id`, `member_id`, `project_id`, `type`;
-- `status`/`tag` остаются filter-only;
-- `time_bucket` выводится из `occurred_at` и использует уже поддержанные grains;
-- hierarchy `TIME` = `YEAR -> MONTH -> DAY`, без выдуманных account/category parent links;
-- `BUDGET_VARIANCE` остаётся `UNGROUPED_ONLY`/`SCALAR_KPI` и не получает неявного распределения бюджета;
-- unknown/duplicate/unsupported combinations fail closed;
-- registry не переопределяет FIN-TRUTH и не имеет renderer/storage/network/financial-write authority;
-- public evidence synthetic/public-safe only; `FREE_ONLY` mandatory.
+SCOPE-070 boundary:
 
-ANL-071/072/073/074 не считаются реализованными в ANL-070.
+- canonical `tags[]` остаётся свободным user-tag пространством и не является authority для protected system tags;
+- protected assignments живут в отдельном private overlay по stable account/transaction IDs;
+- account assignment применяется к source и destination account участиям transaction;
+- `ALL_CANONICAL` возвращает полный canonical dataset и служит ANL-010 parity proof;
+- `DEFAULT_ANALYSIS` исключает `EXCLUDE_FROM_ANALYSIS`;
+- `EMERGENCY_FUND_ONLY` включает `EMERGENCY_FUND`, но exclusion имеет deny-wins;
+- serialized scope spec содержит только policy IDs/system tags, без private account/transaction IDs или financial payload;
+- unknown/duplicate/overlapping policy tags и unknown assignment targets fail closed;
+- scope создаёт filtered analytic view и не меняет canonical transactions, provenance, user tags или FIN-TRUTH;
+- `financial_write=false`, canonical mutation=false, storage/network authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
+
+ANL-071/072/073/074 не считаются реализованными SCOPE-070.
 
 ## MIG-010 historical safety boundary
 
@@ -91,7 +95,7 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. ANL-070 меняет только semantic metadata/validation/docs/tests и не меняет runtime financial state. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. SCOPE-070 добавляет pure policy/view layer и не меняет runtime financial state или backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
