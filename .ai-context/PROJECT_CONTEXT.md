@@ -39,10 +39,24 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 ## Current R2 truth
 
-- `DESIGN-020` — **current R2 writer**, Issue #118, branch `agent/DESIGN-020-design-system-shell`, IN_PROGRESS до Main Verification.
-- `VIZ-020` dependency-gated до DESIGN-020 DONE.
+- `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS, PR #119 autonomous merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
+- `VIZ-020` — **current R2 writer**, Issue #120, branch `agent/VIZ-020-visualization-foundation`, IN_PROGRESS до Main Verification.
+- `HOME-020` и другие VIZ-dependent R2 items dependency-gated до VIZ-020 DONE.
 
 `PRH_DESIGN_SYSTEM_V1@1.0.0` — presentation-only contract: semantic typography/spacing/radius/elevation/colors/focus/motion tokens, explicit light/dark `html[data-theme]`, system dark preference при отсутствии explicit theme, `:focus-visible`, `prefers-reduced-motion`, responsive breakpoints 760/1250 px. Он не имеет financial/query/storage/write authority, не содержит financial payload и не требует external CDN/font/design provider. `FREE_ONLY` сохраняется.
+
+`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — renderer-neutral visualization/interaction contract поверх DESIGN-020 + ANL-010. Он определяет configuration-only `PRH_CHART_SPEC_V1`, `PRH_WIDGET_SPEC_V1`, chart registry (`BAR`, `LINE`, `DONUT`), deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`, transient `PRH_VISUALIZATION_RENDER_DATASET_V1` и replaceable primary browser renderer `ECHARTS_6`.
+
+VIZ-020 invariant: ChartSpec/WidgetSpec не содержат financial rows/data/amount payload. Runtime render dataset/compiled renderer option могут содержать private values только in-memory и не являются public evidence. Renderer не имеет query/network/storage/persistence/financial-write authority. External CDN/provider не требуется; loading policy `LOCAL_OR_BUNDLED`; `FREE_ONLY` mandatory.
+
+Canonical VIZ-020 entry points:
+
+- `docs/architecture/VISUALIZATION_FOUNDATION.md`;
+- `docs/adr/ADR-VIZ-020-ECHARTS-6.md`;
+- `lib/visualization/visualization_foundation.v1.json`;
+- `lib/visualization/visualization_foundation.js`;
+- `tests/visualization_foundation_contract_test.js`;
+- named PR gate `Visualization foundation`.
 
 Canonical DESIGN-020 entry points:
 
@@ -92,11 +106,11 @@ Private runtime locators, real/real-derived financial payload, OAuth, backup/pri
 
 ## TEST-010 verified testing boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed. DESIGN-020 contract test belongs to UI_E2E and is exposed as named `Design system` gate.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed. DESIGN-020 contract test belongs to UI_E2E as named `Design system`; VIZ-020 contract test belongs to UI_E2E as named `Visualization foundation`.
 
 ## ANL-010 verified analytics boundary
 
-`PRH_ANALYTICS_CONTRACT_V1@1.0.0` defines renderer/storage-neutral query/results and delegates financial KPI semantics to FIN-010 `evaluateKpis()`. `financial_write=false`.
+`PRH_ANALYTICS_CONTRACT_V1@1.0.0` defines renderer/storage-neutral query/results and delegates financial KPI semantics to FIN-010 `evaluateKpis()`. `financial_write=false`. VIZ-020 consumes semantic dimension/measure IDs but не изменяет AnalyticsQuery/AnalyticsResult semantics.
 
 ## MIG-010 historical verified boundary
 
@@ -115,11 +129,11 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-DESIGN-020 remains IN_PROGRESS until design contract/shell/docs/tests are green, trusted runtime evidence passes and Main Verification closes Issue #118.
+VIZ-020 remains IN_PROGRESS until visualization contract/registry/interaction/adapter/docs/tests are green, trusted runtime evidence passes and Main Verification closes Issue #120.
 
 ## MASTER-G3 state
 
-`MASTER-G3 / Canonical platform` complete. Private full-history reconciliation = PASS. Synthetic PERF-014 20k/50k performance = PASS. FIN/DATA/ARCH/ANL/MIG/PERF/DOC dependencies = DONE. R2 is therefore dependency-ready.
+`MASTER-G3 / Canonical platform` complete. Private full-history reconciliation = PASS. Synthetic PERF-014 20k/50k performance = PASS. FIN/DATA/ARCH/ANL/MIG/PERF/DOC dependencies = DONE. R2 is dependency-ready.
 
 ## Executable continuation protocol
 
@@ -131,7 +145,7 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys and migration artifacts stay private. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts и real renderer options stay private. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
@@ -148,23 +162,25 @@ PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1`; bounded refresh snapshot reuse authority
 PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1`; affected-bucket materialization authority only.  
 PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1`; synthetic CI performance-gate authority only.  
 DOC-010: `PRH_R1_DOCUMENTATION_V1`; documentation coherence authority only.  
-DESIGN-020: `PRH_DESIGN_SYSTEM_V1`; presentation-token/theme/accessibility authority only.
+DESIGN-020: `PRH_DESIGN_SYSTEM_V1`; presentation-token/theme/accessibility authority only.  
+VIZ-020: `PRH_VISUALIZATION_FOUNDATION_V1`; renderer-neutral spec/registry/interaction/renderer-adapter authority only; no query/financial/storage/write authority.
 
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #118
+3. active GitHub Issue #120
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/design/DESIGN_SYSTEM.md`
-6. `/lib/design/design_system.v1.json`
-7. `/tests/design_system_contract_test.js`
-8. `/DashboardWebApp.html`
-9. `/lib/documentation/r1_documentation.v1.json`
-10. `/docs/architecture/R1_C4_CONTEXT.md`
-11. `/docs/data/R1_DATA_LINEAGE.md`
-12. exact candidate code/tests/workflows
+5. `/docs/architecture/VISUALIZATION_FOUNDATION.md`
+6. `/docs/adr/ADR-VIZ-020-ECHARTS-6.md`
+7. `/lib/visualization/visualization_foundation.v1.json`
+8. `/lib/visualization/visualization_foundation.js`
+9. `/tests/visualization_foundation_contract_test.js`
+10. `/docs/design/DESIGN_SYSTEM.md`
+11. `/lib/design/design_system.v1.json`
+12. `/lib/documentation/r1_documentation.v1.json`
+13. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` = DONE. `MASTER-G3 = complete`. `DESIGN-020` = current R2 writer. `VIZ-020` remains dependency-gated until DESIGN-020 Main Verification.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010`, `DESIGN-020` = DONE. `MASTER-G3 = complete`. `VIZ-020` = current R2 writer. `HOME-020` and other VIZ-dependent R2 work remain dependency-gated until VIZ-020 Main Verification.
