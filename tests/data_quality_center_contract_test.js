@@ -29,7 +29,7 @@ assert.strictEqual(CONTRACT.cost.mode,'FREE_ONLY');
 const duplicateA=tx('A1',{transaction_id:'SYN-DUP-A',provenance:{...tx('A1').provenance,source_record_id:'SRC-DUP-A',source_position:'row:11'}});
 const duplicateB=tx('B1',{transaction_id:'SYN-DUP-B',provenance:{...tx('B1').provenance,source_record_id:'SRC-DUP-B',source_position:'row:12'}});
 const sameAmountDateDistinct=tx('C1',{transaction_id:'SYN-DISTINCT',category_id:'CAT-B',provenance:{...tx('C1').provenance,source_record_id:'SRC-DISTINCT',source_position:'row:13'}});
-const incompleteSheet=tx('D1',{transaction_id:'SYN-INCOMPLETE',provenance:{...tx('D1').provenance,source_record_id:'SRC-INCOMPLETE',source_container:null,source_position:null}});
+const incompleteSheet=tx('D1',{transaction_id:'SYN-INCOMPLETE',category_id:'CAT-PROVENANCE',provenance:{...tx('D1').provenance,source_record_id:'SRC-INCOMPLETE',source_container:null,source_position:null}});
 const sourceDuplicate1=tx('E1',{transaction_id:'SYN-SRC-A',category_id:'CAT-C',provenance:{...tx('E1').provenance,source_record_id:'SRC-SAME',source_position:'row:20'}});
 const sourceDuplicate2=tx('F1',{transaction_id:'SYN-SRC-B',category_id:'CAT-D',provenance:{...tx('F1').provenance,source_record_id:'SRC-SAME',source_position:'row:21'}});
 const invalidMissing=tx('G1'); delete invalidMissing.category_id;
@@ -50,6 +50,7 @@ const exactGroups=scan.issues.filter((item)=>item.reason==='EXACT_BUSINESS_PAYLO
 assert.strictEqual(exactGroups.length,2,'Only the two exact business-payload duplicates should be grouped');
 assert(exactGroups.every((item)=>item.group_hash===exactGroups[0].group_hash));
 assert(!exactGroups.some((item)=>item.record_hash===DQ.recordHash(sameAmountDateDistinct)),'Same amount/date with a different category must not be an exact duplicate');
+assert(!exactGroups.some((item)=>item.record_hash===DQ.recordHash(incompleteSheet)),'Provenance fixture must not pollute exact duplicate evidence');
 
 const telemetry=JSON.stringify(scan.telemetry);
 for(const forbidden of ['12500','Synthetic merchant','SYN-DUP-A','SRC-SAME','CAT-A']) assert(!telemetry.includes(forbidden),`Telemetry leaked ${forbidden}`);
