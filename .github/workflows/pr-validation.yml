@@ -161,6 +161,8 @@ jobs:
         run: node tests/goal_planning_contract_test.js
       - name: Balance reconciliation
         run: node tests/balance_reconciliation_contract_test.js
+      - name: Net Worth
+        run: node tests/net_worth_contract_test.js
       - name: Exploration state model
         run: node tests/exploration_state_contract_test.js
       - name: Migration reconcile synthetic
