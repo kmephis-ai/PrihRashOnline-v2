@@ -2,7 +2,7 @@
 
 ## Назначение
 
-`PRH_FAMILY_AUTH_V1@1.0.0` задаёт provider-neutral security boundary для будущего семейного runtime: verified identity assertion, principal, signed session, least-privilege roles/capabilities, household isolation и privacy-safe authorization telemetry.
+`PRH_FAMILY_AUTH_V1@1.0.0` задаёт provider-neutral security boundary для будущего семейного runtime: verified identity assertion, principal, integrity-protected session, least-privilege roles/capabilities, household isolation и privacy-safe authorization telemetry.
 
 AUTH-040 **не делает текущий Apps Script Web App публичным**, не provision-ит Yandex Cloud IAM/OIDC и не выдаёт financial write authority.
 
@@ -16,23 +16,23 @@ Raw identity assertion никогда не считается доверенны
 - issued/expires timestamps;
 - known family role.
 
-Wrong audience, expired/unverified assertion и unknown role fail-closed.
-
-Required CI использует только independently generated synthetic identities. Live IdP/provider не нужен.
+Wrong audience, expired/unverified assertion и unknown role fail-closed. Required CI использует только independently generated synthetic identities. Live IdP/provider не нужен.
 
 ## Session protection
 
 Reference session token integrity = `HMAC-SHA256` с **runtime-injected key ≥32 bytes**. Key не хранится в repository/config fixture и не попадает в telemetry.
 
-Session включает:
+Signed token намеренно identity-minimal: он содержит только technical session metadata (`session_id`, issued/absolute-expiry timestamps, version). Raw issuer/subject/household/role в token payload запрещены. Identity/role binding, `last_activity_at`, idle timeout и revocation/version state находятся в server-side session store.
+
+Session policy:
 
 - random 128-bit session ID;
-- role + household/subject binding;
-- 30 minute idle timeout;
+- 30 minute **activity-based** idle timeout;
 - 8 hour absolute lifetime;
-- `session_version`.
+- `session_version`;
+- constant-time signature compare через `timingSafeEqual`.
 
-Signature проверяется `timingSafeEqual`. Rotation увеличивает version в stateful reference store, поэтому предыдущий signed token становится `AUTH_SESSION_VERSION_STALE`; rotation не продлевает absolute lifetime.
+Успешная авторизация обновляет только server-side `last_activity_at`; она не переписывает signed token. Rotation увеличивает version, делает предыдущий token `AUTH_SESSION_VERSION_STALE` и обновляет activity state, но **не продлевает absolute lifetime**.
 
 ## Least privilege
 
@@ -51,11 +51,11 @@ backend_financial_write_granted = false
 google_write_policy = GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED
 ```
 
-AUTH-040 не отменяет repository write policy.
+AUTH-040 не отменяет repository write policy и не становится canonical financial-write authority.
 
 ## Household isolation
 
-Каждый household-scoped resource требует exact `resource_household_id == session.household_id`. Cross-household access всегда `AUTH_HOUSEHOLD_ISOLATION_DENY`, даже если роль в принципе имеет capability.
+Каждый household-scoped resource требует exact `resource_household_id == session.household_id`. Cross-household access всегда `AUTH_HOUSEHOLD_ISOLATION_DENY`, даже если роль имеет capability.
 
 Raw household/subject/session IDs не разрешены в public telemetry.
 
@@ -82,8 +82,10 @@ Public-safe `PRH_AUTH_TELEMETRY_V1` допускает только:
 - schema/version;
 - ALLOW/DENY + reason code;
 - role/capability/session state;
-- SHA-256 opaque principal/household/session hashes;
+- opaque principal/household/session pseudonyms;
 - bounded decision count.
+
+Pseudonyms строятся через **HMAC-SHA256 с отдельным runtime-injected key ≥32 bytes**, а не plain SHA-256 raw identifiers. Это уменьшает риск dictionary reversal и делает public-safe pseudonyms key-scoped. Raw telemetry key никогда не публикуется.
 
 Запрещены raw subject/household/session IDs, bearer token, HMAC key, OAuth/refresh token, private runtime locator и financial payload.
 
@@ -101,7 +103,7 @@ identity_provider_provisioned = false
 
 ## Security standards baseline
 
-Reference design сверялся с NIST SP 800-63B-4 session management: session secret, inactivity/overall timeouts, session termination и защита state-changing requests. Integrity primitive — HMAC-SHA256, соответствующий стандартной HMAC construction (RFC 2104). Эти внешние standards не заменяют project-specific fail-closed rules выше.
+Reference design сверялся с NIST SP 800-63B-4 session management: session secret, inactivity/overall timeouts, session termination и защита state-changing requests. Integrity/pseudonym primitive — HMAC-SHA256, соответствующий стандартной HMAC construction (RFC 2104). Эти внешние standards не заменяют project-specific fail-closed rules выше.
 
 ## Machine evidence
 
@@ -110,6 +112,8 @@ Reference design сверялся с NIST SP 800-63B-4 session management: sessi
 - `tests/family_auth_contract_test.js`;
 - named `Family Auth` gate;
 - full layered privacy/security/FREE_ONLY regression.
+
+Adversarial test обязан доказывать: signature tamper/wrong key fail, token не содержит identity payload, activity refresh не отменяет absolute expiry, cross-household/unknown capability deny, nonce replay deny, keyed telemetry pseudonyms отличаются при смене key и не раскрывают raw identifiers.
 
 ## Rollback
 
