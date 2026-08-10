@@ -43,21 +43,15 @@ function createContext(options = {}) {
       sourceTreeHash: options.sourceTreeHash || sourceTreeHash
     },
     PR_CONFIG: options.config === false ? undefined : {
-      SHEETS: {
-        OPERATIONS: 'operations',
-        SETTINGS: 'settings',
-        CONTROL: 'control'
-      }
+      SHEETS: { OPERATIONS: 'operations', SETTINGS: 'settings', CONTROL: 'control' }
     },
-    SpreadsheetApp: {
-      getActiveSpreadsheet() { return spreadsheet; }
-    }
+    SpreadsheetApp: { getActiveSpreadsheet() { return spreadsheet; } }
   };
   if (!options.webSmokeMissing) {
     context.prhWebAppRenderSmokeToken = function () {
       webSmokeCounter.value += 1;
       if (options.webSmokeThrows) throw new Error('synthetic web smoke failure');
-      return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V2|OK';
+      return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V3|R2|OK';
     };
   }
   vm.createContext(context);
@@ -67,8 +61,8 @@ function createContext(options = {}) {
 
 const transportOnly = createContext({ noSpreadsheet: true });
 assert.strictEqual(transportOnly.context.prhRuntimeTransportPing(), 'PRH_TRANSPORT_V1|OK');
-assert.strictEqual(transportOnly.readCounter.value, 0, 'transport ping must not touch workbook data');
-assert.strictEqual(transportOnly.webSmokeCounter.value, 0, 'transport ping must not render Web App');
+assert.strictEqual(transportOnly.readCounter.value, 0);
+assert.strictEqual(transportOnly.webSmokeCounter.value, 0);
 
 const healthy = createContext();
 const result = healthy.context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash });
@@ -81,80 +75,43 @@ assert.strictEqual(result.runtime, 'V8');
 assert.strictEqual(result.requiredSheetCount, 3);
 assert.strictEqual(result.readCheck, true);
 assert(Number.isInteger(result.latencyMs) && result.latencyMs >= 0);
-assert.strictEqual(healthy.readCounter.value, 1, 'health probe must prove read capability exactly once');
-assert.strictEqual(healthy.webSmokeCounter.value, 1, 'health probe must render Web App exactly once');
+assert.strictEqual(healthy.readCounter.value, 1);
+assert.strictEqual(healthy.webSmokeCounter.value, 1);
 
 const tokenHealthy = createContext();
 const token = tokenHealthy.context.prhReleaseHealthCheckToken({ candidateSha, sourceTreeHash });
 const tokenParts = token.split('|');
-assert.strictEqual(tokenParts.length, 9, 'health token schema must remain fixed');
+assert.strictEqual(tokenParts.length, 9);
 assert.deepStrictEqual(tokenParts.slice(0, 8), [
-  'PRH_HEALTH_V1',
-  'OK',
-  candidateSha,
-  sourceTreeHash,
-  '1',
-  'V8',
-  '3',
-  '1'
+  'PRH_HEALTH_V1', 'OK', candidateSha, sourceTreeHash, '1', 'V8', '3', '1'
 ]);
-assert(/^\d+$/.test(tokenParts[8]), 'health token latency must be a non-negative integer');
-assert.strictEqual(tokenHealthy.readCounter.value, 1, 'token entrypoint must perform exactly one read proof');
-assert.strictEqual(tokenHealthy.webSmokeCounter.value, 1, 'token entrypoint must perform exactly one Web App render smoke');
+assert(/^\d+$/.test(tokenParts[8]));
+assert.strictEqual(tokenHealthy.readCounter.value, 1);
+assert.strictEqual(tokenHealthy.webSmokeCounter.value, 1);
 
 const publicResult = JSON.parse(JSON.stringify(result));
 ['amount','income','expense','balance','description','category','row','value','payload','account'].forEach((forbidden) => {
-  assert(!Object.keys(publicResult).some((key) => key.toLowerCase().includes(forbidden)), `health response leaks forbidden field class: ${forbidden}`);
-  assert(!token.toLowerCase().includes(forbidden), `health token leaks forbidden field class: ${forbidden}`);
+  assert(!Object.keys(publicResult).some((key) => key.toLowerCase().includes(forbidden)));
+  assert(!token.toLowerCase().includes(forbidden));
 });
 
-assert.throws(
-  () => createContext().context.prhReleaseHealthCheck({ candidateSha: 'bad', sourceTreeHash }),
-  /RUNTIME_HEALTH_EXPECTED_BUILD_INVALID/
-);
-assert.throws(
-  () => createContext({ candidateSha: 'c'.repeat(40) }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_BUILD_MISMATCH/
-);
-assert.throws(
-  () => createContext({ buildInfo: false }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_BUILD_INFO_MISSING/
-);
-assert.throws(
-  () => createContext({ config: false }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_CONFIG_MISSING/
-);
-assert.throws(
-  () => createContext({ sheets: ['operations', 'settings'] }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_REQUIRED_SHEET_MISSING/
-);
-assert.throws(
-  () => createContext({ noSpreadsheet: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_SPREADSHEET_UNAVAILABLE/
-);
-assert.throws(
-  () => createContext({ readFailure: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /synthetic read failure/
-);
-assert.throws(
-  () => createContext({ webSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING/
-);
-assert.throws(
-  () => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/
-);
-assert.throws(
-  () => createContext({ webSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }),
-  /synthetic web smoke failure/
-);
+assert.throws(() => createContext().context.prhReleaseHealthCheck({ candidateSha: 'bad', sourceTreeHash }), /RUNTIME_HEALTH_EXPECTED_BUILD_INVALID/);
+assert.throws(() => createContext({ candidateSha: 'c'.repeat(40) }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_BUILD_MISMATCH/);
+assert.throws(() => createContext({ buildInfo: false }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_BUILD_INFO_MISSING/);
+assert.throws(() => createContext({ config: false }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_CONFIG_MISSING/);
+assert.throws(() => createContext({ sheets: ['operations', 'settings'] }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_REQUIRED_SHEET_MISSING/);
+assert.throws(() => createContext({ noSpreadsheet: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_SPREADSHEET_UNAVAILABLE/);
+assert.throws(() => createContext({ readFailure: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic read failure/);
+assert.throws(() => createContext({ webSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING/);
+assert.throws(() => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V3|R2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
+assert.throws(() => createContext({ webSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic web smoke failure/);
 
 console.log('runtime_health_contract_test: OK', {
   exactSha: true,
   sourceTreeHash: true,
   transportPing: true,
   privateSchemaRead: true,
-  webAppRenderSmoke: 'V2',
+  webAppRenderSmoke: 'V3_R2',
   scalarEntrypoint: true,
   financialPayload: false
 });
