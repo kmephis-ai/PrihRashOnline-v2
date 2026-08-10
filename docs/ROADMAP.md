@@ -147,6 +147,7 @@ Roadmap является единственным публичным источ�
 | BUD-020 | P1 | EXP-020,FIN-010,VIZ-020 | Budget Control dashboard | plan/fact/variance/run-rate; budget scope versioned; alerts link to explaining transactions | BACKLOG |
 | OBL-020 | P1 | DESIGN-020,DATA-010 | Obligations & recurring dashboard | upcoming obligations, recurring flows, overdue/forecast states; deterministic recurrence tests green | BACKLOG |
 | DQ-020 | P1 | DATA-010,OBS-010 | Data Quality Center | missing/duplicate/suspicious/provenance issues; repair preview; bulk mutation requires backup/idempotent rollback evidence | BACKLOG |
+| UI-MIG-020 | P1 | HOME-020,TX-020,EXP-020,INC-020,CF-020,BUD-020,OBL-020,DQ-020 | Переключить canonical Web Dashboard на R2 UI | private canonical Web App по default route открывает R2 responsive shell + Financial Home; верхнеуровневая навигация ведёт в Transactions/Expenses/Income/Cash Flow/Budget/Obligations/Data Quality без дублирования FIN-TRUTH; runtime использует существующие canonical/analytics services и VIZ adapter; legacy Dashboard перестаёт быть default и остаётся только bounded rollback route до post-cutover verification; `MYSELF`, privacy, `FREE_ONLY` и write boundaries не ослабляются; authenticated exact-SHA Web App render smoke + responsive synthetic visual/interaction gates green | BACKLOG |
 | PROF-020 | P2 | DESIGN-020 | Household/preferences center | family member/profile/preferences/accessibility settings separated from financial domain | BACKLOG |
 | PWA-020 | P1 | HOME-020,TX-020 | Installable PWA baseline | install manifest, responsive offline shell/read cache policy, update strategy, private-cache safety tests | BACKLOG |
 
@@ -372,6 +373,12 @@ Issue automation должна отклонять work item без dependencies/a
 
 После этого curated R2 dashboards и будущий Studio используют общий semantic/query/visualization contract вместо dashboard-specific financial calculations.
 
+### Canonical R2 Daily UI
+
+`UI-MIG-020 = DONE`.
+
+После этого private canonical Web App по default route использует новый R2 responsive shell и Financial Home, а curated R2 surfaces доступны из основной навигации; legacy Dashboard не является default и сохраняется только как ограниченный rollback path до подтверждённого post-cutover verification.
+
 ### Analytics Studio
 
 `MASTER-G7 + MASTER-G8 = PASS`.
@@ -408,6 +415,7 @@ Issue automation должна отклонять work item без dependencies/a
 14. R4 cloud migration может идти параллельно analytics track после своих gates; смена backend не должна менять `AnalyticsQuery/Result` и dashboard specs.
 15. Ghostfolio остаётся benchmark, а не dependency: изменения upstream не меняют Roadmap автоматически и принимаются только через отдельный audit/ADR/work item.
 16. `LANG-RU` действует немедленно для всей новой human-facing разработки; `DOC-002` нормализует исторические нормативные материалы отдельным non-critical-path item; английские machine identifiers не считаются нарушением политики.
+17. `UI-MIG-020` — P1 R2 switch-over item: после готовности declared dependencies он должен перевести canonical private Web App на уже реализованные R2 surfaces до возврата resolver к готовым P2 product/Studio work; наличие текущего active writer не обходится — AIENG-002 сначала завершает его штатный lifecycle.
 
 Эта Roadmap намеренно не содержит фактических финансовых значений или агрегатов исходной книги. Их evidence хранится только в приватном Master Audit/закрытом runtime и используется как PASS/FAIL gate.
 
@@ -431,3 +439,10 @@ Issue automation должна отклонять work item без dependencies/a
 - Добавлены machine checks `balance-reconciliation`, `visibility-redaction`, `xray-rules`, `language-policy`.
 - Число executable work items увеличено с **100 до 106**: пять Ghostfolio-inspired product items + один language-governance item `DOC-002`; R0 critical path, `FREE_ONLY`, `DATA-PUBLIC`, `FIN-TRUTH`, recovery/privacy и autonomous-delivery policies не ослаблены.
 - Исправлена фактическая последовательность AI Engineering: `AIENG-003` зависит от `AIENG-002`, чтобы Autopilot не запускал второй writer до завершения executable Roadmap-to-agent protocol; live lifecycle всегда берётся из GitHub Issues.
+
+## 20. Дополнение Roadmap — 2026-08-10
+
+- Добавлен `UI-MIG-020 / Canonical Web Dashboard -> R2 UI` с приоритетом **P1**. Он закрывает ранее явно оставленный разрыв между готовыми `DESIGN-020`/`VIZ-020`/curated R2 surfaces и фактическим default route текущего private Web App.
+- `UI-MIG-020` не создаёт новую financial semantics, storage/write authority или provider dependency: задача только переключает canonical navigation/render path на уже реализованные R2 contracts и сохраняет legacy Dashboard как ограниченный rollback route до post-cutover verification.
+- Для завершения обязательны authenticated exact-SHA Web App render smoke, responsive synthetic visual/interaction evidence и сохранение `MYSELF`, privacy, `FREE_ONLY` и действующих fail-closed write boundaries.
+- Текущее число executable work items Roadmap после дополнения: **107**.
