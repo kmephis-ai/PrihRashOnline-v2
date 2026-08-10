@@ -32,7 +32,7 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020` — DONE/Main Verification PASS.
 
-- `PROF-020` — **DONE**, Issue #162 Main Verification PASS, candidate `1ba5d7e8e73c74c2195418cf2fb43aaafcf7c5a1`, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
+- `PROF-020` — **DONE**, Issue #162 Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
 
 `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0` остаётся configuration-domain authority; planner не выдаёт authorization и не выполняет financial write.
 
@@ -40,9 +40,12 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 
 ## R3 / Planning, Wealth, Decision Intelligence — текущий writer
 
-- `TREND-030` Long-term Trends — **IN_PROGRESS**, Issue #164, branch `agent/TREND-030-long-term-trends`.
+- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, candidate `676dddc9d6cfd23a9c57cca4b7a12a27fee31140`, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
+- `PROJ-030` Cash-flow Projection — **IN_PROGRESS**, Issue #166, branch `agent/PROJ-030-cash-flow-projection`.
 
-TREND-030 authority = `PRH_LONG_TERM_TRENDS_V1@1.0.0`. Он переиспользует `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0` и существующий ANL-010/KPI Dictionary evaluator. Поддержаны explicit/rolling-90/rolling-365/YTD, MONTH/QUARTER/YEAR и optional `YEAR_OVER_YEAR`; partial/leap/comparison-quality semantics передаются из ANL-071. `BUDGET_VARIANCE`, calculated/window metrics, CAGR, forecast и benchmarks в scope не входят. `formula_layer_added=false`, `financial_write=false`, storage/network authority=false, public evidence synthetic-only, `FREE_ONLY` mandatory.
+TREND-030 authority `PRH_LONG_TERM_TRENDS_V1@1.0.0` остаётся observed long-term analytics boundary и не переопределяет FIN-TRUTH.
+
+PROJ-030 authority = `PRH_CASH_FLOW_PROJECTION_V1@1.0.0`. Observed facts принимаются только как complete monthly ungrouped `CASH_FLOW` из TREND-030; partial months не используются. Deterministic baseline `ROLLING_MEAN_3_COMPLETE_MONTHS_V1` использует три предыдущих complete observed months, exact integer rounding `INTEGER_DIVISION_HALF_AWAY_FROM_ZERO` и `future_fact_access=false`. Walk-forward backtest использует только предыдущие факты и публикует private-result sample count/MAE/mean error. Uncertainty = `BACKTEST_MAE_SYMMETRIC`, `statistical_confidence_interval=false`. Scenario inputs хранятся отдельно от observed facts; forecast row раздельно хранит baseline/scenario adjustment/projected value/band. `financial_truth=false`, `projection_not_observation=true`, `canonical_mutation=false`, `financial_write=false`, storage/network/model-provider authority=false; public evidence synthetic-only; `FREE_ONLY` mandatory.
 
 ## R4 / Yandex Cloud shadow platform
 
@@ -86,11 +89,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-TREND-030 остаётся открытым до `Long-term trends` + Period/Semantic/KPI/AI/profile/LANG-RU/docs/privacy/FREE_ONLY/FIN/MIG/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+PROJ-030 остаётся открытым до `Cash-flow projection` + TREND/FIN/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. TREND-030 — pure analytics orchestration и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. PROJ-030 — pure deterministic planning/model layer и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
