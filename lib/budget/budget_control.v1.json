@@ -1,0 +1,69 @@
+{
+  "schema": "PRH_BUDGET_CONTROL_V1",
+  "version": "1.0.0",
+  "roadmap_id": "BUD-020",
+  "upstream": {
+    "financial_truth": "FIN-TRUTH-v1",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "expense_analytics": "PRH_EXPENSE_ANALYTICS_V1@1.0.0",
+    "visualization": "PRH_VISUALIZATION_FOUNDATION_V1@1.0.0",
+    "transaction_explorer": "PRH_TRANSACTION_EXPLORER_V1@1.0.0"
+  },
+  "schemas": {
+    "plan": "PRH_BUDGET_PLAN_V1",
+    "view": "PRH_BUDGET_CONTROL_VIEW_V1",
+    "drill_envelope": "PRH_BUDGET_DRILL_ENVELOPE_V1"
+  },
+  "scope": {
+    "id": "TOTAL_EXPENSE_LINEAR_PERIOD_V1",
+    "measure": "EXPENSE",
+    "bounds": "START_INCLUSIVE_END_EXCLUSIVE",
+    "as_of": "EXCLUSIVE_DAY_BOUNDARY",
+    "elapsed_budget_formula": "ROUND_HALF_UP_POSITIVE(BUDGET_MINOR * ELAPSED_DAYS / TOTAL_DAYS)",
+    "run_rate_projection_formula": "ROUND_HALF_UP_POSITIVE(ACTUAL_EXPENSE_MINOR * TOTAL_DAYS / ELAPSED_DAYS)",
+    "implicit_proration": false,
+    "category_allocation": false,
+    "persistence": false
+  },
+  "alert_policy": {
+    "id": "BUDGET_ALERT_V1",
+    "over_budget": "ELAPSED_FIN_VARIANCE_LT_ZERO",
+    "at_risk": "ELAPSED_FIN_VARIANCE_GTE_ZERO_AND_PROJECTED_UTILIZATION_BP_GTE_THRESHOLD",
+    "on_track": "OTHERWISE",
+    "at_risk_utilization_basis_points": 9500
+  },
+  "widgets": [
+    { "id": "budget-fact", "type": "BAR", "measure": "EXPENSE", "query_ref": "budget-fact-query" },
+    { "id": "budget-variance", "type": "BAR", "measure": "BUDGET_VARIANCE", "query_ref": "budget-variance-query" }
+  ],
+  "drill": {
+    "target": "TRANSACTION_EXPLORER",
+    "types": ["expense", "refund"],
+    "navigation_financial_payload": false
+  },
+  "invariants": {
+    "fact_from_fin010": true,
+    "elapsed_variance_from_fin010": true,
+    "projection_is_financial_truth": false,
+    "run_rate_is_financial_truth": false,
+    "liquidity_or_balance_authority": false
+  },
+  "authority": {
+    "financial_truth": false,
+    "financial_formula": false,
+    "canonical_override": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "real_plan_public": false,
+    "real_view_public": false,
+    "telemetry_allowlist": ["schema", "version", "query_hash", "context_hash", "total_days", "elapsed_days", "alert_state", "status", "reason_code"]
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false
+  }
+}

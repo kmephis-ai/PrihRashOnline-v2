@@ -75,6 +75,8 @@ jobs:
         run: node tests/income_analytics_contract_test.js
       - name: Cash Flow
         run: node tests/cash_flow_dashboard_contract_test.js
+      - name: Budget Control
+        run: node tests/budget_control_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
@@ -150,6 +152,8 @@ jobs:
         run: node tests/income_analytics_visual_test.js
       - name: Cash Flow visual gate
         run: node tests/cash_flow_visual_test.js
+      - name: Budget Control visual gate
+        run: node tests/budget_control_visual_test.js
       - name: Build immutable Apps Script candidate
         run: |
           node tools/build-apps-script-candidate.js \
