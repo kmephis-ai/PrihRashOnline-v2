@@ -60,6 +60,11 @@ function makeServer() {
   });
 }
 
+async function closeServer(instance) {
+  if (!instance) return;
+  await new Promise((resolve, reject) => instance.close((error) => error ? reject(error) : resolve()));
+}
+
 async function cacheSnapshot(page) {
   return page.evaluate(async () => {
     const names = await caches.keys();
@@ -131,14 +136,22 @@ let stage = 'BOOT';
   expect(!onlineCache.entries.some((entry) => entry.url === privateUrl), 'Private endpoint must never enter CacheStorage');
   expect(privateEntries.length === 0, 'Private-path cache entry detected');
 
+  // Simulate a real origin outage rather than relying on Playwright offline emulation.
+  // Chromium may let service-worker-initiated fetches bypass context.setOffline(), which
+  // would test the emulator instead of the NETWORK_ONLY cache policy. Closing the origin
+  // makes both navigation fallback and private network failure deterministic.
+  stage = 'ORIGIN_OUTAGE';
+  await closeServer(server);
+  server = null;
+  writeProgress(stage, { origin: 'CLOSED' });
+
   stage = 'OFFLINE_SHELL';
-  await context.setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.panel');
   const offlineText = await page.textContent('body');
   expect(offlineText.includes('Безопасная offline-оболочка'), 'Offline shell content unavailable');
   expect(offlineText.includes('NOT_PROVEN_CURRENT_HOST'), 'Apps Script hosting boundary missing offline');
-  writeProgress(stage, { offline_shell: true });
+  writeProgress(stage, { offline_shell: true, outage_method: 'ORIGIN_CLOSED' });
 
   stage = 'OFFLINE_PRIVATE_NETWORK_ONLY';
   const privateOfflineFailed = await page.evaluate(async (url) => {
@@ -147,7 +160,7 @@ let stage = 'BOOT';
   expect(privateOfflineFailed, 'Offline private request must fail instead of using stale cache');
   const afterOffline = await cacheSnapshot(page);
   expect(!afterOffline.entries.some((entry) => entry.url === privateUrl), 'Offline private request must not populate cache');
-  writeProgress(stage, { private_offline_failed: true, private_cache_entries: 0 });
+  writeProgress(stage, { private_offline_failed: true, private_cache_entries: 0, outage_method: 'ORIGIN_CLOSED' });
 
   stage = 'RESPONSIVE';
   const responsive = [];
@@ -179,11 +192,8 @@ let stage = 'BOOT';
   }
 
   stage = 'COMPLETE';
-  await context.setOffline(false);
   await browser.close();
   browser = null;
-  await new Promise((resolve) => server.close(resolve));
-  server = null;
 
   const evidence = {
     schema: 'PRH_PWA_OFFLINE_EVIDENCE_V1',
@@ -191,6 +201,7 @@ let stage = 'BOOT';
     cache_version: 'prh-pwa-shell-v1',
     controlled,
     offline_shell: true,
+    outage_method: 'ORIGIN_CLOSED',
     cached_shell_count: shellEntries.length,
     private_cache_entries: 0,
     private_offline_network_only: privateOfflineFailed,
@@ -200,7 +211,7 @@ let stage = 'BOOT';
     reason_code: null
   };
   fs.writeFileSync(path.join(ARTIFACTS, 'pwa-offline-evidence.json'), JSON.stringify(evidence, null, 2));
-  writeProgress(stage, { status: 'PASS' });
+  writeProgress(stage, { status: 'PASS', outage_method: 'ORIGIN_CLOSED' });
   console.log('pwa_offline_visual_test: OK', evidence);
 })().catch(async (error) => {
   try {
@@ -213,9 +224,8 @@ let stage = 'BOOT';
   } catch (writeError) {
     // Keep original error authoritative.
   }
-  try { if (context) await context.setOffline(false); } catch (ignore) {}
   try { if (browser) await browser.close(); } catch (ignore) {}
-  try { if (server) await new Promise((resolve) => server.close(resolve)); } catch (ignore) {}
+  try { if (server) await closeServer(server); } catch (ignore) {}
   console.error(error);
   process.exitCode = 1;
 });
