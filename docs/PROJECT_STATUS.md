@@ -4,11 +4,14 @@
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
-## R0 — текущий AIENG-006 writer
+## R0 — завершён
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
 
 - `DOC-002` Русский нормативный контур — **DONE**, Issue #75 Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`.
+
+### Текущий governance writer
+
 - `AIENG-006` Маршрутизация моделей/стоимости — **IN_PROGRESS**, Issue #146; current writer, branch `agent/AIENG-006-model-cost-routing`.
 
 `LANG-RU` остаётся обязательным: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers, API/schema fields, library/protocol/standard names и технические пути сохраняются без перевода.
