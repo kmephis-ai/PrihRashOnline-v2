@@ -87,9 +87,31 @@ docs/operations/MIG010_AUTHORIZED_EXECUTION.md — exact authorization/staging/f
 lib/migration/full_history_migration.v1.json — migration machine contract.
 lib/migration/full_history_migration.js — migration dry-run/batch/reconciliation engine.
 lib/migration/mig010_repair_policy.v1.json — `MIG010_REPAIR_POLICY_V1@1.1.0`.
+lib/migration/mig010_repair_policy.js — deterministic repair proposal + owner-bound duplicate resolution.
 lib/migration/mig010_execution_policy.v1.json — `MIG010_EXECUTION_POLICY_V1@1.0.0`.
-tests/mig010_documentation_contract_test.js — historical migration truth/privacy contract.
-tests/mig010_execution_documentation_contract_test.js — authorized execution/reconciliation truth contract.
+Mig010ExecutionGateway.js — migration-specific staging/finalize/rollback gateway; generic write authority remains false.
+Mig010ExecutionTypedWrite.js — adaptive exact-type staging writer with exact readback.
+tools/mig010-owner.js — owner-local encrypted-backup snapshot/dry-run/state/diagnose CLI.
+tools/mig010-repair.js — owner-local repair proposal/offline duplicate review/resolve CLI.
+tools/mig010-rebuild-dry-run.js — owner-local resolved repair verifier.
+tools/mig010-execution-package.js — exact private execution-package builder; no generic write command.
+tools/mig010-authorized-executor.js — exact private `IRREVERSIBLE_ACTION_AUTHORIZED` execution/rollback boundary.
+tools/mig010-post-reconcile.js — read-only fresh-backup post-write reconciliation.
+tests/full_history_migration_contract_test.js — full-history deterministic migration contract.
+tests/mig010_occurrence_identity_contract_test.js — occurrence identity + FIN parity.
+tests/mig010_owner_tool_contract_test.js — owner tool privacy/pre-authorization contract.
+tests/mig010_owner_diagnostics_contract_test.js — exact-plan private diagnostics contract.
+tests/mig010_repair_policy_contract_test.js — repair/duplicate-decision contract.
+tests/mig010_repair_policy_compatibility_contract_test.js — proposal compatibility/tamper fail-closed contract.
+tests/mig010_repair_tool_contract_test.js — private repair tool contract.
+tests/mig010_rebuild_dry_run_contract_test.js — exact resolved rebuild verification.
+tests/mig010_execution_package_contract_test.js — exact execution package/batching/hash contract.
+tests/mig010_execution_gateway_contract_test.js — authorization/staging/readback/finalize/rollback contract.
+tests/mig010_authorized_executor_contract_test.js — exact authorization/fresh backup/finalize contract.
+tests/mig010_typed_staging_write_contract_test.js — adaptive typed staging/readback contract.
+tests/mig010_post_reconcile_contract_test.js — post-write reconciliation/idempotency contract.
+tests/mig010_documentation_contract_test.js — historical migration truth/privacy/index contract.
+tests/mig010_execution_documentation_contract_test.js — authorized execution/reconciliation truth/index contract.
 
 # Delivery / operations
 docs/RELEASE_PROCESS.md — exact-SHA autonomous delivery and Main Verification close path.
