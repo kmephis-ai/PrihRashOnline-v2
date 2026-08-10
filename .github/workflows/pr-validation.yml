@@ -84,6 +84,8 @@ jobs:
         run: node tests/data_quality_center_contract_test.js
       - name: PWA baseline
         run: node tests/pwa_baseline_contract_test.js
+      - name: YDB Serverless PoC
+        run: node tests/ydb_serverless_poc_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol

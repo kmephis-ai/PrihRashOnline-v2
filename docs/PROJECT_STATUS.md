@@ -36,7 +36,7 @@ FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA-010 auth
 
 `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`; private full-history reconciliation = PASS; independently generated synthetic 20k/50k performance = PASS.
 
-## R2 / Family Finance Center — текущая волна
+## R2 / Family Finance Center — P1 baseline завершён
 
 - `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS.
 - `VIZ-020` — **DONE**, Issue #120 Main Verification PASS.
@@ -47,25 +47,36 @@ FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA-010 auth
 - `CF-020` — **DONE**, Issue #130 Main Verification PASS.
 - `BUD-020` — **DONE**, Issue #132 Main Verification PASS.
 - `OBL-020` — **DONE**, Issue #134 Main Verification PASS.
-- `DQ-020` — **DONE**, Issue #136 Main Verification PASS, merge `e02ea53a35ec6a15828f4961d3ab2895bb7e7d4e`.
-- `PWA-020` Installable PWA baseline — **IN_PROGRESS**, Issue #137; current R2 writer, branch `agent/PWA-020-installable-pwa`.
+- `DQ-020` — **DONE**, Issue #136 Main Verification PASS.
+- `PWA-020` — **DONE**, Issue #137 Main Verification PASS, PR #140 merge `c6910df6679fdc894635092c27cd3c463a69a364`.
+- `PROF-020` — P2, не является текущим writer.
 
-### PWA-020 current boundary
+PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются; private Web App остаётся `MYSELF`.
 
-`PRH_PWA_BASELINE_V1@1.0.0` — host-neutral installable/offline shell capability поверх HOME-020/TX-020 без финансового cache authority.
+## R4 / Yandex Cloud shadow platform — текущий P1 writer
 
-- manifest содержит local name/start/scope/standalone/theme/background + local 192/512 icons;
-- service worker работает только на supported secure origin/localhost; current Apps Script HtmlService activation = `NOT_PROVEN_CURRENT_HOST`;
-- shell cache = explicit allowlist из пяти static URLs, cache version `prh-pwa-shell-v1`;
-- private/API/finance/dashboard/transactions/analytics/home/explorer routes = `NETWORK_ONLY_NO_CACHE_FALLBACK`;
-- cross-origin и non-GET никогда не кэшируются;
-- authenticated/financial response cache запрещён;
-- activate удаляет old `prh-pwa-shell-*` caches и claims clients;
-- real Chromium localhost test доказывает SW control, offline shell, 5 shell cache entries, 0 private cache entries и offline private request failure;
-- private Apps Script deployment locator не публикуется, `MYSELF` runtime boundary не меняется;
-- public evidence — independently generated synthetic/public-safe metadata only; `FREE_ONLY` mandatory.
+AIENG-002 resolver рассмотрел dependency-ready P1 candidates `YC-040` и `AUTH-040` и по priority/wave/Roadmap order выбрал `YC-040` первым.
 
-Normative doc: `docs/architecture/PWA_BASELINE.md`. Bundle: `pwa/`. Tests: `tests/pwa_baseline_contract_test.js`, `tests/pwa_offline_visual_test.js`.
+- `YC-040` YDB Serverless PoC + cost envelope — **IN_PROGRESS**, Issue #141; current writer, branch `agent/YC-040-ydb-serverless-poc`.
+- `AUTH-040` — **READY**, Issue #142; writer authority отсутствует до следующего resolver selection.
+
+### YC-040 current boundary
+
+`PRH_YDB_SERVERLESS_POC_V1@1.0.0` — offline schema/adapter/cost-guard PoC, не cloud cutover.
+
+- YQL row-table PoC: `canonical_transactions_v1`, primary key `transaction_id`;
+- DATA-010 money остаётся integer minor units; canonical RFC3339 timestamp сохраняется lossless как exact `Utf8`;
+- canonical ↔ YDB row mapping обязан давать exact normalized round-trip;
+- required CI uses only independently generated synthetic records, без YDB credentials/endpoints/resources;
+- current official YDB Serverless free-tier reference checked 2026-08-10: 1,000,000 RU/month and 1 GiB storage; excess use is billable and cloud quota is not a billing cap;
+- PoC safety envelope строже reference: 250,000 RU/month, 256 MiB storage, 100,000 requests/month internal guard, 5 RU/s peak guard;
+- `paidOverageAllowed=false`; unknown/stale billing state = BLOCK;
+- public telemetry содержит только RU/storage/request counts/utilization/status/reason metadata, без financial payload/private cloud locators;
+- Google remains authoritative; YDB canonical write owner = false; real replication = false;
+- production `PR_CONFIG.FINOPS.PROVIDERS` остаётся пустым: PoC не создаёт runtime cloud authority;
+- `FREE_ONLY` mandatory.
+
+Normative doc: `docs/architecture/YDB_SERVERLESS_POC.md`. Core: `lib/ydb/ydb_serverless_poc.js`. YQL: `lib/ydb/canonical_transactions_v1.yql`. Test: `tests/ydb_serverless_poc_contract_test.js`.
 
 ## MIG-010 historical safety boundary
 
@@ -96,11 +107,11 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. DEV delivery is exact-SHA autonomous. PROD/cutover/destructive data actions remain separate policy gates. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. Google remains current canonical runtime authority. YC-040 creates no Yandex Cloud resource and performs no real cloud/data write. `FREE_ONLY` mandatory.
 
 ## Что намеренно не утверждается
 
-PWA-020 не считается DONE до autonomous merge + Main Verification/Issue close. `NOT_PROVEN_CURRENT_HOST` означает, что текущий Apps Script HtmlService не объявлен доказанным SW host. Offline shell не содержит и не кэширует financial truth. PWA-020 не публикует private runtime и не разрешает Google write. Historical MIG-010 authorization не переносится на future mutation.
+YC-040 не считается DONE до autonomous merge + Main Verification/Issue close. YDB PoC не означает YDB production readiness, live parity, shadow replication или cutover. Free-tier documented package не означает guaranteed remaining billing-account allowance. YC-040 не разрешает paid overage или Google/YDB financial write. Historical MIG-010 authorization не переносится на cloud cutover.
 
 ## Source precedence
 
