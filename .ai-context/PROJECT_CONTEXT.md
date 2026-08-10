@@ -40,28 +40,29 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `EXP-020` — **DONE**, Issue #126 Main Verification PASS.
 - `INC-020` — **DONE**, Issue #128 Main Verification PASS.
 - `CF-020` — **DONE**, Issue #130 Main Verification PASS.
-- `BUD-020` — **current R2 writer**, Issue #132, branch `agent/BUD-020-budget-control`; IN_PROGRESS до Main Verification.
+- `BUD-020` — **DONE**, Issue #132 Main Verification PASS, merge `6ab8db5b07c31cebc0d942be576a7b2a712dded1`.
+- `OBL-020` — **current R2 writer**, Issue #134, branch `agent/OBL-020-obligations-recurring`; IN_PROGRESS до Main Verification.
 
-## BUD-020 Budget Control boundary
+## OBL-020 Obligations boundary
 
-Machine contract: `lib/budget/budget_control.v1.json` (`PRH_BUDGET_CONTROL_V1@1.0.0`). Core: `lib/budget/budget_control.js`. Human contract: `docs/analytics/BUDGET_CONTROL.md`. Browser evidence: `BudgetControlWebApp.html`. Tests: `tests/budget_control_contract_test.js`, `tests/budget_control_visual_test.js`.
+Machine contract: `lib/obligations/obligations.v1.json` (`PRH_OBLIGATIONS_V1@1.0.0`). Core: `lib/obligations/obligations.js`. Human contract: `docs/analytics/OBLIGATIONS_RECURRING.md`. Browser evidence: `ObligationsWebApp.html`. Tests: `tests/obligations_contract_test.js`, `tests/obligations_visual_test.js`.
 
 Rules:
 
-- BUD consumes FIN-010/VIZ-020/TX-020 and does not redefine their contracts.
-- Budget scope is explicit `TOTAL_EXPENSE_LINEAR_PERIOD_V1`; full-period budget is not silently passed to partial fact windows.
-- Elapsed budget uses deterministic integer `ROUND_HALF_UP_POSITIVE` over elapsed_days/total_days.
-- Exact elapsed `EXPENSE` and `BUDGET_VARIANCE` come from FIN-010 for the same explicit window/currency/elapsed budget.
-- Run-rate/projection are planning-only derived metrics, never FIN-TRUTH.
-- `BUDGET_ALERT_V1`: `OVER_BUDGET` when elapsed FIN variance < 0; `AT_RISK` when elapsed variance >= 0 and projected utilization >= 9500 bp; otherwise `ON_TRACK`.
-- VIZ specs remain configuration-only and runtime financial render rows remain private/transient.
-- TX drill is bounded to the elapsed window and `expense/refund`; navigation contains no financial/budget values and grants no write authority.
-- Budget Control is not account-balance/liquidity truth.
-- Public evidence is independently generated synthetic only. `FREE_ONLY` mandatory; external CDN/provider not required.
+- OBL consumes DATA-010/DESIGN-020 and does not redefine canonical or FIN contracts.
+- Planning window is explicit and bounded: `[window_start, window_end)`, max 366 days; `as_of` is explicit.
+- Recurrence v1 supports only `ONCE`, `WEEKLY`, `MONTHLY`; monthly dates use deterministic `CLAMP_TO_LAST_DAY`.
+- Stable occurrence identity is `SHA256(PRH_OBLIGATION_OCCURRENCE_V1|PLAN_ID|DUE_DATE)` and does not depend on row/order.
+- Completion uses explicit `completed_due_dates`; fuzzy transaction matching is forbidden.
+- States are deterministic: `OVERDUE`, `DUE`, `UPCOMING`, `FORECAST`.
+- Planning amount/direction and forecast are not FIN-TRUTH; mixed-currency view fails closed.
+- OBL does not auto-create canonical transactions and owns no storage/network/financial-write authority.
+- Public telemetry/evidence excludes amounts, labels and private plan IDs; independently generated synthetic only.
+- `FREE_ONLY` mandatory; no external provider required.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. BUD core contract is `PURE_DOMAIN_APPLICATION`; BUD browser visual test is `UI_E2E`. Unknown or ambiguous test classification fails.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. OBL core contract is `PURE_DOMAIN_APPLICATION`; OBL browser visual test is `UI_E2E`. Unknown or ambiguous classification fails.
 
 ## MIG-010 historical verified boundary
 
@@ -81,7 +82,7 @@ PR Validation
 -> Main Verification
 ```
 
-BUD-020 remains open until its contract/full layered/visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #132.
+OBL-020 remains open until recurrence/full layered/visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #134.
 
 ## Read-only multi-AI review
 
@@ -89,12 +90,12 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Private deployment identifiers, authenticated responses, OAuth, backups/keys and real Home/TX/Analytics/Budget models stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Private deployment identifiers, authenticated responses, OAuth, backups/keys and real planning/financial models stay private. Family Web App remains private `MYSELF`. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
-FIN-010: `FIN-TRUTH-v1`. DATA-010: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. BUD-020 is a FIN-backed budget read/planning model only; `financial_write=false`.
+FIN-010: `FIN-TRUTH-v1`. DATA-010: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. OBL-020 is a planning read model only; `financial_write=false`.
 
 ## Scope handoff
 
-All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020/CF-020 are DONE. `MASTER-G3 = complete`. `BUD-020` is the single current R2 writer.
+All R1 items plus DESIGN-020/VIZ-020/HOME-020/TX-020/EXP-020/INC-020/CF-020/BUD-020 are DONE. `MASTER-G3 = complete`. `OBL-020` is the single current R2 writer.
