@@ -95,9 +95,11 @@ Canonical R1 maps remain `docs/architecture/R1_C4_CONTEXT.md`, `docs/data/R1_DAT
 
 Owner-private migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
 
+Execution policy remains `MIG010_EXECUTION_POLICY_V1@1.0.0`. Historical finalize entered `FINALIZED_PENDING_RECONCILIATION` and was not completion until post-write reconciliation returned PASS/OWNER_VERIFIED.
+
 Owner-confirmed preserve-all identity capability remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; no private owner resolution payload is included here.
 
-Historical authorization is exact-bound. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions/AI cannot reuse it for future mutations. Generic financial write remains blocked.
+Historical authorization is exact-bound. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions/AI cannot reuse it for future mutations. Generic financial write remains blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 ## Current delivery
 
