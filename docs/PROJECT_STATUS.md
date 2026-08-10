@@ -45,25 +45,28 @@ FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA-010 auth
 - `EXP-020` — **DONE**, Issue #126 Main Verification PASS.
 - `INC-020` — **DONE**, Issue #128 Main Verification PASS.
 - `CF-020` — **DONE**, Issue #130 Main Verification PASS.
-- `BUD-020` — **DONE**, Issue #132 Main Verification PASS, merge `6ab8db5b07c31cebc0d942be576a7b2a712dded1`.
-- `OBL-020` Obligations & recurring dashboard — **IN_PROGRESS**, Issue #134; current R2 writer, branch `agent/OBL-020-obligations-recurring`.
+- `BUD-020` — **DONE**, Issue #132 Main Verification PASS.
+- `OBL-020` — **DONE**, Issue #134 Main Verification PASS, merge `a97bc3d3cdce104bc21150e56ea53adccdc308ac`.
+- `DQ-020` Data Quality Center — **IN_PROGRESS**, Issue #136; current R2 writer, branch `agent/DQ-020-data-quality-center`.
+- `PWA-020` — BACKLOG до завершения DQ-020; преждевременно открытый PR #138 закрыт без merge.
 
-### OBL-020 current boundary
+### DQ-020 current boundary
 
-`PRH_OBLIGATIONS_V1@1.0.0` — read-only planning model обязательств и повторяющихся потоков поверх DATA-010/DESIGN-020.
+`PRH_DATA_QUALITY_CENTER_V1@1.0.0` — read-only quality layer для canonical/candidate records.
 
-- explicit bounded planning window `[window_start, window_end)`, максимум 366 дней;
-- recurrence v1: `ONCE`, `WEEKLY`, `MONTHLY`; monthly policy `CLAMP_TO_LAST_DAY`;
-- stable occurrence identity = `SHA256(PRH_OBLIGATION_OCCURRENCE_V1|PLAN_ID|DUE_DATE)`;
-- completion задаётся только explicit `completed_due_dates`; fuzzy transaction matching отсутствует;
-- states: `OVERDUE`, `DUE`, `UPCOMING`, `FORECAST` относительно explicit `as_of`;
-- planning amount/direction и forecast **не являются FIN-TRUTH**;
-- mixed-currency view fail-closed;
-- OBL не создаёт canonical transactions автоматически и не получает storage/network/financial-write authority;
-- public telemetry не содержит amount/label/private plan IDs;
+- canonical validation fail-closed; missing required fields не coercятся;
+- exact duplicate detector = versioned SHA-256 business-payload fingerprint; fuzzy/similarity detector отсутствует;
+- same amount/date не считается duplicate без совпадения полного versioned business payload;
+- suspicious/provenance detectors возвращают явные reason codes;
+- repair preview всегда `REVIEW_REQUIRED / NO_AUTOFIX`, `write_performed=false`;
+- mutation gate требует plan hash + fresh backup binding + idempotency + rollback/readback PASS;
+- даже полный evidence даёт только `READY_FOR_SEPARATE_AUTHORIZATION`, `write_authorized=false`;
+- historical MIG-010 `IRREVERSIBLE_ACTION_AUTHORIZED` не reusable для DQ repair;
+- generic Google mutation остаётся `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`;
+- public telemetry содержит только hashes/counts/reasons/status, без rows/amounts/private IDs;
 - public evidence — independently generated synthetic only; `FREE_ONLY` mandatory.
 
-Normative doc: `docs/analytics/OBLIGATIONS_RECURRING.md`. Core: `lib/obligations/obligations.js`. Tests: `tests/obligations_contract_test.js`, `tests/obligations_visual_test.js`.
+Normative doc: `docs/data/DATA_QUALITY_CENTER.md`. Core: `lib/data_quality/data_quality_center.js`. Tests: `tests/data_quality_center_contract_test.js`, `tests/data_quality_visual_test.js`.
 
 ## MIG-010 historical safety boundary
 
@@ -94,11 +97,11 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub finance/render evidence is independently generated synthetic only. DEV delivery is exact-SHA autonomous. PROD/cutover/destructive data actions remain separate policy gates. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. DEV delivery is exact-SHA autonomous. PROD/cutover/destructive data actions remain separate policy gates. `FREE_ONLY` mandatory.
 
 ## Что намеренно не утверждается
 
-OBL-020 не считается DONE до autonomous merge + Main Verification/Issue close. Obligation forecast не является financial fact. OBL-020 не разрешает Google write и не создаёт операции автоматически. Historical MIG-010 authorization не переносится на future mutation. Private Dashboard не сделан публичным.
+DQ-020 не считается DONE до autonomous merge + Main Verification/Issue close. DQ repair preview не разрешает Google write. Exact duplicate не означает automatic delete. Historical MIG-010 authorization не переносится на DQ repair. Private Dashboard не сделан публичным.
 
 ## Source precedence
 
