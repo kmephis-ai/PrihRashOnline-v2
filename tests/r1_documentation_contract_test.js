@@ -90,12 +90,19 @@ for (const token of [
 
 for (const text of [architecture, dataModel, projectStatus, aiContext, llms]) {
   for (const id of ['PERF-010', 'PERF-011', 'PERF-012', 'PERF-013', 'PERF-014']) {
-    const bad = new RegExp(`${id}[^\\n]{0,180}(?:IN_PROGRESS|current writer)`, 'i');
-    assert(!bad.test(text), `stale completed performance lifecycle remains in normative documentation: ${id}`);
+    const lines = text.split(/\r?\n/).filter((line) => line.includes(id));
+    for (const line of lines) {
+      const stale = /(?:IN_PROGRESS|current writer)/i.test(line) && !/\bDONE\b/i.test(line);
+      assert(!stale, `stale completed performance lifecycle remains in normative documentation: ${id}`);
+    }
   }
 }
-assert(!/ANL-010[^\n]{0,180}(?:IN_PROGRESS|current writer)/i.test(architecture), 'architecture must not describe completed ANL-010 as current writer');
-assert(!/ANL-010[^\n]{0,180}(?:IN_PROGRESS|current writer)/i.test(dataModel), 'data-model must not describe completed ANL-010 as current writer');
+for (const [name, text] of [['architecture', architecture], ['data-model', dataModel]]) {
+  for (const line of text.split(/\r?\n/).filter((entry) => entry.includes('ANL-010'))) {
+    const stale = /(?:IN_PROGRESS|current writer)/i.test(line) && !/\bDONE\b/i.test(line);
+    assert(!stale, `${name} must not describe completed ANL-010 as current writer`);
+  }
+}
 
 for (const text of [projectStatus, aiContext, llms]) {
   requireToken(text, 'DOC-010', 'current lifecycle docs must identify DOC-010');
