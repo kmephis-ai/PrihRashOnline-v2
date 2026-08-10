@@ -2,7 +2,7 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с приватным Web Dashboard и GitHub как инженерным control plane.
 
-> **Текущий статус:** доказанный **R0 platform baseline** (`MASTER-G0`, `MASTER-G1`, `MASTER-G2` complete) и почти завершённая R1 Canonical Financial Platform. `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014` прошли Main Verification. `DOC-010` — текущий writer; `MASTER-G3` остаётся open только до его Main Verification.
+> **Текущий статус:** доказаны **R0 platform baseline** (`MASTER-G0`, `MASTER-G1`, `MASTER-G2` complete) и **R1 Canonical Financial Platform** (`MASTER-G3` complete). `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` прошли Main Verification. В R2 текущий writer — `DESIGN-020` (design system + responsive shell).
 
 ## Принципы
 
@@ -12,7 +12,8 @@
 - private Google Sheets остаётся текущим primary store/adapter, а domain/analytics contracts не зависят от spreadsheet layout;
 - обычная инженерная доставка полностью автоматизирована, но privacy, paid-service activation и irreversible production-data actions остаются policy boundaries;
 - `FREE_ONLY` — исполняемый invariant: неизвестный billable provider fail-closed, paid overage автоматически не включается;
-- performance layers могут уменьшать reads/recompute, но не могут переопределять финансовую семантику или открывать write authority.
+- performance layers могут уменьшать reads/recompute, но не могут переопределять финансовую семантику или открывать write authority;
+- presentation/design layer не владеет financial/query/storage semantics и не публикует private financial payload.
 
 ## Каноническая R1 архитектура
 
@@ -50,10 +51,19 @@ private Google Sheets
 | One-scan refresh | `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` |
 | Incremental aggregates | `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` |
 | Synthetic scale gate | `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` |
+| R1 documentation | `PRH_R1_DOCUMENTATION_V1@1.0.0` |
 
 `PERF-014` проверяет independently generated synthetic 20k/50k operations как CI regression guardrail. Его wall-clock ceilings — не пользовательский SLA; correctness/parity остаётся выше latency.
 
 Generic Google canonical write по-прежнему fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+
+## R2 design system — DESIGN-020
+
+Текущий R2 presentation contract: [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) + [`lib/design/design_system.v1.json`](lib/design/design_system.v1.json), machine schema `PRH_DESIGN_SYSTEM_V1@1.0.0`.
+
+DESIGN-020 стандартизует typography/spacing/radius/elevation/semantic colors/focus/motion, explicit light/dark theme boundary и system theme preference. `:focus-visible` и `prefers-reduced-motion` являются обязательными accessibility boundaries; responsive shell сохраняет проверенные breakpoints 760/1250 px и существующие 10 top-level tabs. Ключевые normal-text пары имеют WCAG-oriented contrast >=4.5:1.
+
+Design layer не меняет FIN-TRUTH, canonical schema, AnalyticsQuery/Result, storage или write authority. External CDN/font/design provider не требуется, `FREE_ONLY` сохраняется. Следующий `VIZ-020` остаётся dependency-gated до DESIGN-020 Main Verification.
 
 ## AI agents
 
@@ -72,7 +82,7 @@ Web Dashboard остаётся основным пользовательским
 
 **Приватный deployment URL не публикуется и не поддерживается через README/release commits.** Владелец открывает Dashboard через доверенный private deployment/book menu или собственную локальную закладку. Отсутствие публичной ссылки не является ошибкой release pipeline.
 
-Текущий Dashboard сохраняет 10 представлений, Executive KPI, read-only drill-down, единый refresh, Quality Workbench и responsive desktop/laptop/mobile UI. UI не является authority для KPI formulas.
+Dashboard сохраняет 10 представлений, Executive KPI, read-only drill-down, единый refresh, Quality Workbench и responsive desktop/laptop/mobile UI. DESIGN-020 переводит shell на semantic `--ds-*` CSS tokens без изменения существующей финансовой/query логики. UI не является authority для KPI formulas.
 
 ## Финансовая и data safety модель
 
@@ -122,6 +132,7 @@ Issue: DONE
 - [Архитектура](docs/architecture.md)
 - [R1 C4/context](docs/architecture/R1_C4_CONTEXT.md)
 - [R1 data lineage](docs/data/R1_DATA_LINEAGE.md)
+- [Design system](docs/design/DESIGN_SYSTEM.md)
 - [Canonical Transaction](docs/data/CANONICAL_TRANSACTION_SCHEMA.md)
 - [KPI Dictionary](docs/finance/KPI_DICTIONARY.md)
 - [Repository port](docs/architecture/TRANSACTION_REPOSITORY_PORT.md)
@@ -135,4 +146,4 @@ Issue: DONE
 
 ## Что дальше
 
-После `DOC-010` Main Verification все обязательные условия `MASTER-G3 / Canonical platform` будут выполнены: canonical/KPI/domain/repository/analytics/migration foundations — DONE, private reconciliation — PASS, synthetic performance 20k/50k — PASS, documentation coherence — machine-proven. Следующий основной продуктовый переход по Roadmap — R2 `DESIGN-020` (design system + responsive shell), а затем `VIZ-020` и семейные dashboards поверх уже стабильных semantic/query contracts.
+Текущий Roadmap item — `DESIGN-020`. После его green PR Validation, Trusted DEV Deploy, Trusted Runtime Health, автономного squash merge и Main Verification следующим dependency-ready R2 item станет `VIZ-020`: renderer-neutral `ChartSpec/WidgetSpec` foundation поверх уже стабильных FIN/canonical/analytics contracts.
