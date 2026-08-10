@@ -157,6 +157,8 @@ jobs:
         run: node tests/long_term_trends_contract_test.js
       - name: Cash-flow projection
         run: node tests/cash_flow_projection_contract_test.js
+      - name: Goals and wish-list
+        run: node tests/goal_planning_contract_test.js
       - name: Exploration state model
         run: node tests/exploration_state_contract_test.js
       - name: Migration reconcile synthetic
