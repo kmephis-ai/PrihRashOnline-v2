@@ -127,6 +127,7 @@
     { "name": "Transaction repository adapter", "layer": "ADAPTER_INTEGRATION" },
     { "name": "Query projection minimal ranges", "layer": "ADAPTER_INTEGRATION" },
     { "name": "Revision-aware read cache", "layer": "ADAPTER_INTEGRATION" },
+    { "name": "Single-scan refresh pipeline", "layer": "ADAPTER_INTEGRATION" },
     { "name": "Analytics extension contract", "layer": "PURE_DOMAIN_APPLICATION" },
     { "name": "Migration reconcile synthetic", "layer": "MIGRATION_RECOVERY" },
     { "name": "Full-history migration protocol", "layer": "MIGRATION_RECOVERY" },

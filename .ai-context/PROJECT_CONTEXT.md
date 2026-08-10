@@ -27,41 +27,42 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `TEST-010` — DONE, Issue #100 Main Verification PASS.
 - `OBS-010` — DONE, Issue #103 Main Verification PASS.
 - `PERF-010` — DONE, Issue #105 Main Verification PASS.
-- `PERF-011` — **current P1 writer**, Issue #108, branch `agent/PERF-011-revision-aware-read-cache`.
+- `PERF-011` — DONE, Issue #108 Main Verification PASS.
+- `PERF-012` — **current P1 writer**, Issue #110, branch `agent/PERF-012-single-scan-refresh`.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## PERF-011 revision-aware cache boundary
+## PERF-012 single-scan refresh boundary
 
-`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` decorates read/query operations only. It cannot define financial semantics and cannot inherit write authority from a wrapped repository.
+`PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` coordinates one bounded point-in-time refresh cycle. It cannot define financial/query semantics and cannot inherit write authority.
 
-Exact HIT preconditions:
+Cycle start:
 
-- cache schema/version matches;
-- repository schema matches;
-- versioned adapter/mapping namespace matches;
-- versioned projection identity matches;
-- exact 64-hex repository revision is freshly probed before the HIT;
-- operation and normalized operation/query identity match;
-- TTL not expired.
+- exactly one `repository.readAll()` canonical snapshot materialization;
+- canonical collection validation;
+- exact 64-hex revision derived by authoritative `repositoryRevision()` from that same validated snapshot;
+- no separate underlying `getRevision()` call, because the current Google revision producer itself performs a canonical read and would duplicate the scan;
+- snapshot is immutable and cannot be reused across refresh cycles.
 
-Key identity includes SHA-256 normalized operation identity. `QUERY` uses authoritative `normalizeQuery()`, so semantically equivalent query ordering does not create duplicate entries. If a repository advertises `capabilities.projection=true`, explicit `projection_identity` is mandatory; missing identity fails closed.
+Within one cycle, `READ_ALL`, `GET_BY_ID`, `QUERY` and `ANALYTICS` are served from the immutable snapshot. Repository query semantics reuse `applyQuery()`. Analytics reuses `evaluateAnalytics()`/FIN-010 and must return matching `provenance.input_revision`. Underlying `getRevision/getById/query` are not called by logical consumers.
 
-Revision change invalidates all entries before HIT. Unknown revision fails closed before the underlying loader. Adapter/mapping/projection version change yields a different key namespace/MISS even with same revision/query.
+A cycle is bounded by age and operation count. Expiry, explicit invalidation and operation-budget exhaustion fail closed. External mutation after cycle start cannot partially alter the active point-in-time snapshot; the next cycle performs a new canonical read and derives the new revision.
 
-Bounds: TTL default 30s/max 300s; entries default 64/hard max 512; LRU eviction. Eviction only turns a future request into MISS. Explicit invalidation clears entries and forgets the last revision.
+Telemetry is technical only: snapshot status/reason, SHA-256 cycle hash, domain-separated revision hash prefix, canonical snapshot read count, logical/reuse/operation counts, age/bounds/invalidation. Raw query, transaction identity, canonical rows and financial payload are forbidden.
 
-PERF-011 deliberately does not cache the exact revision probe and does not implement PERF-012 single-scan refresh. On MISS, PERF-010 projection path remains authoritative.
+`writeBatch()` always returns `BLOCKED / SINGLE_SCAN_REFRESH_WRITE_NOT_AUTHORIZED`.
 
-Cache layer `writeBatch()` always returns `BLOCKED / REVISION_CACHE_WRITE_NOT_AUTHORIZED`.
+Normative runbook: `docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`. Named canonical PR gate: `Single-scan refresh pipeline`.
 
-Privacy-safe telemetry includes only HIT/MISS/EMPTY, reason, operation, cache-key SHA-256, domain-separated revision hash prefix, entry count, age, eviction and invalidation counts. Raw query, transaction ID, adapter/projection namespace and financial/canonical payload are absent.
+## PERF-011 verified cache boundary
 
-Normative runbook: `docs/operations/PERF011_REVISION_AWARE_CACHE.md`. Named canonical PR gate: `Revision-aware read cache`. Supplemental workflow `PERF-011 Cache Contract` is not completion authority.
+`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` is DONE. It remains the exact-revision cache for independent repository requests: potential HIT always performs exact revision confirmation, query identity is normalized, adapter/mapping/projection namespace is versioned, stale/unknown revision fails closed, and cache has no financial/write authority.
+
+PERF-012 does not weaken PERF-011. Cache and refresh snapshot have different lifetimes: PERF-011 reuses independent request results only after exact revision probe; PERF-012 reuses one already materialized immutable canonical snapshot inside one bounded refresh cycle.
 
 ## PERF-010 verified projection boundary
 
-`PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` is DONE. Header discovery is separated from data-plane reads; canonical Google rows are read only through required contiguous column spans and bounded row groups. Generic financial write stays blocked. PERF-011 key namespace binds to the projection version rather than redefining projection behavior.
+`PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` is DONE. Header discovery is separated from data-plane reads; canonical Google rows are read only through required mapped contiguous column spans and bounded row groups. Generic financial write stays blocked.
 
 ## OBS-010 verified SLO/error-budget boundary
 
@@ -92,7 +93,7 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-PERF-011 remains IN_PROGRESS until its cache/docs/machine evidence is green and Main Verification closes Issue #108.
+PERF-012 remains IN_PROGRESS until its single-scan/docs/machine evidence is green and Main Verification closes Issue #110.
 
 ## Executable continuation protocol
 
@@ -116,21 +117,23 @@ ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; no financial-write authority.
 TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test authority only.  
 OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLO authority only.  
 PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1`; read-plan authority only.  
-PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.
+PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.  
+PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1`; bounded refresh snapshot reuse authority only.
 
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #108
+3. active GitHub Issue #110
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/operations/PERF011_REVISION_AWARE_CACHE.md`
-6. `/lib/repository/revision_aware_cache.v1.json`
-7. `/lib/repository/revision_aware_cache.js`
-8. `/tests/repository_cache_adapter_contract_test.js`
-9. `/docs/operations/PERF010_QUERY_PROJECTION.md`
-10. exact candidate code/tests/workflows
+5. `/docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`
+6. `/lib/repository/single_scan_refresh.v1.json`
+7. `/lib/repository/single_scan_refresh.js`
+8. `/tests/repository_refresh_pipeline_adapter_contract_test.js`
+9. `/docs/operations/PERF011_REVISION_AWARE_CACHE.md`
+10. `/docs/operations/PERF010_QUERY_PROJECTION.md`
+11. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010` = DONE. `PERF-011` = current R1 writer. PERF-012+ remain dependency-gated until its Main Verification.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011` = DONE. `PERF-012` = current R1 writer. PERF-013+ remain dependency-gated until its Main Verification.
