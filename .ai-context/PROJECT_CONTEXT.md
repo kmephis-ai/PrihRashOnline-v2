@@ -28,49 +28,46 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `OBS-010` — DONE, Issue #103 Main Verification PASS.
 - `PERF-010` — DONE, Issue #105 Main Verification PASS.
 - `PERF-011` — DONE, Issue #108 Main Verification PASS.
-- `PERF-012` — **current P1 writer**, Issue #110, branch `agent/PERF-012-single-scan-refresh`.
+- `PERF-012` — DONE, Issue #110 Main Verification PASS.
+- `PERF-013` — **current P1 writer**, Issue #112, branch `agent/PERF-013-incremental-aggregates`.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## PERF-012 single-scan refresh boundary
+## PERF-013 incremental aggregate boundary
 
-`PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` coordinates one bounded point-in-time refresh cycle. It cannot define financial/query semantics and cannot inherit write authority.
+`PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` materializes renderer/UI-neutral `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` projections for `INCOME`, `EXPENSE`, `CASH_FLOW`, `SAVINGS`, `GROSS_EXPENSE`, `REFUND`, `TRANSFER`.
 
-Cycle start:
+Financial semantics are not duplicated: every bucket uses FIN-010 `evaluateKpis()` and synthetic parity is checked against ANL-010 `evaluateAnalytics()`. `BUDGET_VARIANCE` is intentionally not materialized because ANL-010 budget input is query-scoped and grouped budget variance is unsupported.
 
-- exactly one `repository.readAll()` canonical snapshot materialization;
-- canonical collection validation;
-- exact 64-hex revision derived by authoritative `repositoryRevision()` from that same validated snapshot;
-- no separate underlying `getRevision()` call, because the current Google revision producer itself performs a canonical read and would duplicate the scan;
-- snapshot is immutable and cannot be reused across refresh cycles.
+State `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_STATE_V1` binds exact canonical revision, materialized projections and private runtime membership index with a SHA-256 state hash. Incremental update requires exact `expected_base_revision`; malformed/tampered state fails closed.
 
-Within one cycle, `READ_ALL`, `GET_BY_ID`, `QUERY` and `ANALYTICS` are served from the immutable snapshot. Repository query semantics reuse `applyQuery()`. Analytics reuses `evaluateAnalytics()`/FIN-010 and must return matching `provenance.input_revision`. Underlying `getRevision/getById/query` are not called by logical consumers.
+Delta identity is `transaction_id`; a SHA-256 stable canonical fingerprint classifies `ADDED`, `REMOVED`, `CHANGED`. Old/new membership determines affected projection buckets. Only affected buckets are recomputed from the next canonical snapshot; untouched rows come from the verified prior state. This avoids unsafe manual plus/minus money logic while still reducing recomputation scope.
 
-A cycle is bounded by age and operation count. Expiry, explicit invalidation and operation-budget exhaustion fail closed. External mutation after cycle start cannot partially alter the active point-in-time snapshot; the next cycle performs a new canonical read and derives the new revision.
+Identical revision/dataset returns explicit `NOOP`. Result revision always comes from authoritative `repositoryRevision(next canonical snapshot)`. Mixed currency remains fail-closed until FX layer.
 
-Telemetry is technical only: snapshot status/reason, SHA-256 cycle hash, domain-separated revision hash prefix, canonical snapshot read count, logical/reuse/operation counts, age/bounds/invalidation. Raw query, transaction identity, canonical rows and financial payload are forbidden.
+Public-safe evidence contains only operation/status, domain-separated revision hash prefixes, added/removed/changed counts, affected/recomputed bucket counts and projection count. Aggregate values, bucket labels, transaction identities and canonical payload stay private.
 
-`writeBatch()` always returns `BLOCKED / SINGLE_SCAN_REFRESH_WRITE_NOT_AUTHORIZED`.
+`financial_write=false`; no migration/network/UI/provider authority. Normative runbook: `docs/operations/PERF013_INCREMENTAL_AGGREGATES.md`. Named canonical PR gate: `Incremental analytics aggregates`.
 
-Normative runbook: `docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`. Named canonical PR gate: `Single-scan refresh pipeline`.
+## PERF-012 verified single-scan boundary
+
+`PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` is DONE. One bounded refresh cycle materializes one validated canonical snapshot, derives exact content revision from that snapshot and serves linked repository/analytics consumers locally. It has no cross-cycle reuse or write authority.
 
 ## PERF-011 verified cache boundary
 
-`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` is DONE. It remains the exact-revision cache for independent repository requests: potential HIT always performs exact revision confirmation, query identity is normalized, adapter/mapping/projection namespace is versioned, stale/unknown revision fails closed, and cache has no financial/write authority.
-
-PERF-012 does not weaken PERF-011. Cache and refresh snapshot have different lifetimes: PERF-011 reuses independent request results only after exact revision probe; PERF-012 reuses one already materialized immutable canonical snapshot inside one bounded refresh cycle.
+`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` is DONE. Independent request cache HIT still requires exact revision confirmation; stale/unknown revision fails closed and cache has no financial/write authority.
 
 ## PERF-010 verified projection boundary
 
-`PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` is DONE. Header discovery is separated from data-plane reads; canonical Google rows are read only through required mapped contiguous column spans and bounded row groups. Generic financial write stays blocked.
+`PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` is DONE. Header discovery is separated from data-plane reads; Google canonical rows are read only through required mapped contiguous spans/rows. Generic write stays blocked.
 
 ## OBS-010 verified SLO/error-budget boundary
 
-`PRH_SLO_ERROR_BUDGET_V1@1.0.0` uses integer ppm/bps and SLI AVAILABILITY/LATENCY/CORRECTNESS/FRESHNESS/MIGRATION_ERRORS. Correctness accepts allowlisted technical machine evidence only. It has no financial truth/write authority and requires no paid provider.
+`PRH_SLO_ERROR_BUDGET_V1@1.0.0` uses integer ppm/bps and SLI AVAILABILITY/LATENCY/CORRECTNESS/FRESHNESS/MIGRATION_ERRORS. Correctness accepts allowlisted technical machine evidence only. No financial truth/write or paid-provider authority.
 
 ## TEST-010 verified testing boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed. Shared lifecycle/workflow parsers remove hard-coded successor authority.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies all tracked tests into pure, migration/recovery, adapter/integration, runtime, UI/E2E and policy/governance. Unknown/ambiguous classification is fail-closed.
 
 ## ANL-010 verified analytics boundary
 
@@ -93,7 +90,7 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-PERF-012 remains IN_PROGRESS until its single-scan/docs/machine evidence is green and Main Verification closes Issue #110.
+PERF-013 remains IN_PROGRESS until aggregate parity/docs/machine evidence is green and Main Verification closes Issue #112.
 
 ## Executable continuation protocol
 
@@ -118,22 +115,23 @@ TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test authority only.
 OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLO authority only.  
 PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1`; read-plan authority only.  
 PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.  
-PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1`; bounded refresh snapshot reuse authority only.
+PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1`; bounded refresh snapshot reuse authority only.  
+PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1`; affected-bucket materialization authority only.
 
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #110
+3. active GitHub Issue #112
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`
-6. `/lib/repository/single_scan_refresh.v1.json`
-7. `/lib/repository/single_scan_refresh.js`
-8. `/tests/repository_refresh_pipeline_adapter_contract_test.js`
-9. `/docs/operations/PERF011_REVISION_AWARE_CACHE.md`
-10. `/docs/operations/PERF010_QUERY_PROJECTION.md`
+5. `/docs/operations/PERF013_INCREMENTAL_AGGREGATES.md`
+6. `/lib/analytics/incremental_aggregates.v1.json`
+7. `/lib/analytics/incremental_aggregates.js`
+8. `/tests/incremental_analytics_aggregates_contract_test.js`
+9. `/docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`
+10. `/docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md`
 11. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011` = DONE. `PERF-012` = current R1 writer. PERF-013+ remain dependency-gated until its Main Verification.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012` = DONE. `PERF-013` = current R1 writer. PERF-014+ remain dependency-gated until its Main Verification.
