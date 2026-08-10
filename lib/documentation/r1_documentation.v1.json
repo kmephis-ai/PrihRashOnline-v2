@@ -1,0 +1,128 @@
+{
+  "schema": "PRH_R1_DOCUMENTATION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DOC-010",
+  "language": "ru",
+  "privacy_class": "PUBLIC_SAFE",
+  "cost_class": "FREE_ONLY",
+  "source_precedence": [
+    "docs/ROADMAP.md",
+    "live GitHub Issues",
+    "exact-SHA code/tests/workflows",
+    "versioned contracts",
+    "normative human docs"
+  ],
+  "entry_points": [
+    "README.md",
+    "docs/architecture.md",
+    "docs/architecture/R1_C4_CONTEXT.md",
+    "docs/data/R1_DATA_LINEAGE.md",
+    "docs/PROJECT_STATUS.md"
+  ],
+  "areas": [
+    {
+      "id": "ARCHITECTURE_CONTEXT",
+      "docs": ["docs/architecture.md", "docs/architecture/R1_C4_CONTEXT.md"],
+      "contracts": ["PRH_APPLICATION_CORE_V1", "PRH_TRANSACTION_REPOSITORY_V1", "PRH_ANALYTICS_CONTRACT_V1@1.0.0"],
+      "sources": ["lib/application/application_core.v1.json", "lib/repository/transaction_repository.v1.json", "lib/analytics/analytics_contract.v1.json"],
+      "tests": ["tests/pure_domain_application_core_contract_test.js", "tests/repository_adapter_contract_test.js", "tests/analytics_extension_contract_test.js"],
+      "checks": ["Pure domain/application core", "Transaction repository adapter", "Analytics extension contract"]
+    },
+    {
+      "id": "CANONICAL_DATA",
+      "docs": ["docs/data-model.md", "docs/data/CANONICAL_TRANSACTION_SCHEMA.md", "docs/data/R1_DATA_LINEAGE.md"],
+      "contracts": ["PRH_CANONICAL_TRANSACTION_V1", "PRH_TRANSACTION_REPOSITORY_V1"],
+      "sources": ["lib/domain/canonical_transaction.v1.schema.json", "lib/domain/canonical_transaction.js", "lib/repository/transaction_repository.js"],
+      "tests": ["tests/canonical_transaction_schema_contract_test.js", "tests/repository_adapter_contract_test.js"],
+      "checks": ["Canonical transaction schema", "Transaction repository adapter"]
+    },
+    {
+      "id": "FINANCIAL_TRUTH",
+      "docs": ["docs/finance/KPI_DICTIONARY.md", "docs/data/R1_DATA_LINEAGE.md"],
+      "contracts": ["PRH_KPI_DICTIONARY_V1", "FIN-TRUTH-v1"],
+      "sources": ["lib/finance/kpi_dictionary.v1.json", "lib/finance/kpi_dictionary.js"],
+      "tests": ["tests/kpi_dictionary_contract_test.js", "tests/financial_reconciliation_contract_test.js"],
+      "checks": ["KPI Dictionary", "Financial reconcile synthetic"]
+    },
+    {
+      "id": "ANALYTICS",
+      "docs": ["docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md", "docs/data/R1_DATA_LINEAGE.md"],
+      "contracts": ["PRH_ANALYTICS_CONTRACT_V1@1.0.0", "PRH_ANALYTICS_QUERY_V1", "PRH_ANALYTICS_RESULT_V1"],
+      "sources": ["lib/analytics/analytics_contract.v1.json", "lib/analytics/analytics_engine.js"],
+      "tests": ["tests/analytics_extension_contract_test.js", "tests/analytics_query_edge_contract_test.js"],
+      "checks": ["Analytics extension contract"]
+    },
+    {
+      "id": "PERFORMANCE_READ_PATH",
+      "docs": [
+        "docs/operations/PERF010_QUERY_PROJECTION.md",
+        "docs/operations/PERF011_REVISION_AWARE_CACHE.md",
+        "docs/operations/PERF012_SINGLE_SCAN_REFRESH.md",
+        "docs/operations/PERF013_INCREMENTAL_AGGREGATES.md",
+        "docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md",
+        "docs/data/R1_DATA_LINEAGE.md"
+      ],
+      "contracts": [
+        "PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0",
+        "PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0",
+        "PRH_SINGLE_SCAN_REFRESH_V1@1.0.0",
+        "PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0",
+        "PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0"
+      ],
+      "sources": [
+        "lib/adapters/google_sheets_projection.v1.json",
+        "lib/repository/revision_aware_cache.v1.json",
+        "lib/repository/single_scan_refresh.v1.json",
+        "lib/analytics/incremental_aggregates.v1.json",
+        "lib/performance/synthetic_scale_gate.v1.json"
+      ],
+      "tests": [
+        "tests/repository_projection_adapter_contract_test.js",
+        "tests/repository_cache_adapter_contract_test.js",
+        "tests/repository_refresh_pipeline_adapter_contract_test.js",
+        "tests/incremental_analytics_aggregates_contract_test.js",
+        "tests/synthetic_scale_performance_contract_test.js"
+      ],
+      "checks": [
+        "Query projection minimal ranges",
+        "Revision-aware read cache",
+        "Single-scan refresh pipeline",
+        "Incremental analytics aggregates",
+        "Synthetic scale performance"
+      ]
+    },
+    {
+      "id": "MIGRATION_RECOVERY",
+      "docs": ["docs/operations/MIG010_FULL_HISTORY_MIGRATION.md", "docs/operations/MIG010_AUTHORIZED_EXECUTION.md", "docs/operations/DR001_DIRECT_OWNER_BACKUP.md", "docs/data/R1_DATA_LINEAGE.md"],
+      "contracts": ["PRH_FULL_HISTORY_MIGRATION_V1@1.0.0", "MIG010_EXECUTION_POLICY_V1@1.0.0", "CONTENT_FINGERPRINT_OCCURRENCE_V1"],
+      "sources": ["lib/migration/full_history_migration.v1.json", "lib/migration/mig010_execution_policy.v1.json"],
+      "tests": ["tests/full_history_migration_contract_test.js", "tests/mig010_authorized_executor_contract_test.js", "tests/mig010_post_reconcile_contract_test.js"],
+      "checks": ["Migration reconcile synthetic", "Full-history migration protocol"]
+    },
+    {
+      "id": "OBSERVABILITY_SLO",
+      "docs": ["docs/operations/OBS001_AUDIT_TELEMETRY.md", "docs/operations/OBS010_SLO_ERROR_BUDGET.md"],
+      "contracts": ["PRH_SLO_ERROR_BUDGET_V1@1.0.0"],
+      "sources": ["lib/observability/slo_error_budget.v1.json", "lib/observability/slo_error_budget.js"],
+      "tests": ["tests/slo_error_budget_policy_contract_test.js"],
+      "checks": ["SLO error budget"]
+    },
+    {
+      "id": "DELIVERY_OPERATIONS",
+      "docs": ["docs/RELEASE_PROCESS.md", "docs/PROJECT_STATUS.md"],
+      "contracts": ["EXACT_SHA_AUTONOMOUS", "CI-003"],
+      "sources": [".github/workflows/pr-validation.yml", ".github/workflows/trusted-dev-deploy.yml", ".github/workflows/trusted-runtime-health.yml", ".github/workflows/main-verification.yml"],
+      "tests": ["tests/ci_trust_boundary_contract_test.js", "tests/autonomous_merge_contract_test.js"],
+      "checks": ["CI trust-boundary policy", "Responsive visual gate"]
+    }
+  ],
+  "invariants": {
+    "financial_truth_from_canonical_kpi_only": true,
+    "generic_google_financial_write_authorized": false,
+    "migration_authorization_reusable": false,
+    "public_financial_payload_allowed": false,
+    "private_runtime_locator_public": false,
+    "paid_dependency_required": false,
+    "documentation_can_override_red_gate": false
+  }
+}
