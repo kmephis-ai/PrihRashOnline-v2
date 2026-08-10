@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; R1/Master-G3 complete, DESIGN-020 current writer.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; R1/Master-G3 + DESIGN-020 complete, VIZ-020 current writer.
 docs/PROJECT_STATUS.md — human-readable current R1/R2 state; GitHub Issue lifecycle и machine evidence имеют приоритет.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task packet.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/one-writer lifecycle protocol.
@@ -13,11 +13,19 @@ tools/roadmap-task-protocol.js — executable Roadmap resolver.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — supplementary multi-AI review protocol.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid model dependency.
 
-# DESIGN-020 current R2 design system
+# VIZ-020 current R2 visualization foundation
+docs/architecture/VISUALIZATION_FOUNDATION.md — normative renderer-neutral ChartSpec/WidgetSpec/FilterContext/DrillContext/runtime-render boundary.
+docs/adr/ADR-VIZ-020-ECHARTS-6.md — ECharts 6.x primary browser renderer decision behind replaceable local/bundled adapter.
+lib/visualization/visualization_foundation.v1.json — machine-readable `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0`; chart registry, renderer metadata, privacy/FREE_ONLY/no-authority invariants.
+lib/visualization/visualization_foundation.js — deterministic spec/context validators, synthetic/private-runtime render dataset validator, ECharts option compiler and selection/drill helpers.
+tests/visualization_foundation_contract_test.js — BAR/LINE/DONUT spec/registry/adapter/interaction/payload-rejection contract using synthetic-only render rows.
+.github/workflows/pr-validation.yml — named `Visualization foundation` gate + full layered regression.
+
+# DESIGN-020 verified R2 design system
 docs/design/DESIGN_SYSTEM.md — normative presentation-only design-system/responsive-shell contract.
 lib/design/design_system.v1.json — machine-readable `PRH_DESIGN_SYSTEM_V1@1.0.0`; semantic tokens, light/dark, focus, motion, breakpoints, privacy/FREE_ONLY boundaries.
 tests/design_system_contract_test.js — token parity/contrast/theme/focus/reduced-motion/responsive/privacy/provider contract.
-DashboardWebApp.html — private/synthetic Dashboard presentation consumer; financial/query semantics remain upstream authority.
+DashboardWebApp.html — private/synthetic Dashboard presentation consumer; existing native SVG renderer remains active until a separate UI migration; financial/query semantics remain upstream authority.
 .github/workflows/pr-validation.yml — canonical named `Design system` gate plus full layered regression.
 
 # DOC-010 verified R1 documentation coherence
@@ -26,7 +34,7 @@ docs/architecture/R1_C4_CONTEXT.md — normative public-safe system/container C4
 docs/data/R1_DATA_LINEAGE.md — normative source -> repository/canonical -> FIN/KPI -> analytics -> PERF-010..014 -> private UI lineage plus migration/recovery/SLO/delivery.
 tests/r1_documentation_contract_test.js — path/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector; preserves completed R1 truth after R2 handoff.
 README.md — current R0/R1/R2 status and canonical documentation entry points.
-docs/architecture.md — current architecture synchronized with verified R1 lifecycle and R2 presentation boundary.
+docs/architecture.md — current architecture synchronized with verified R1 lifecycle and R2 presentation/visualization boundaries.
 docs/data-model.md — canonical model/write boundaries synchronized with verified R1 lifecycle.
 
 # PERF-014 verified synthetic scale performance gate
@@ -88,7 +96,7 @@ lib/repository/transaction_repository.v1.json — storage-neutral repository con
 lib/repository/transaction_repository.js — authoritative query/revision + synthetic fake repository.
 tests/repository_adapter_contract_test.js — repository/Google mapping/write-guard parity contract.
 
-lib/testing/test_architecture.v1.json — `PRH_TEST_ARCHITECTURE_V1@1.0.0` taxonomy/gates.
+lib/testing/test_architecture.v1.json — `PRH_TEST_ARCHITECTURE_V1@1.0.0` taxonomy/gates; VIZ-020 contract classified `UI_E2E`.
 lib/testing/test_architecture.js — deterministic test inventory/classification.
 lib/testing/structured_contract_parsers.js — lifecycle/workflow structured parsers.
 tools/run-layered-tests.js — deterministic pure/full suite runner.
@@ -141,4 +149,4 @@ docs/operations/OBS001_AUDIT_TELEMETRY.md — privacy-safe observability baselin
 docs/operations/FINOPS001_FREE_ONLY_GUARD.md — executable FREE_ONLY circuit breaker.
 docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md — public-history remediation; destructive rewrite not authorized.
 
-Внешний canonical context, когда явно предоставлен task: `Master Audit v2.1` и `AI Development Playbook v1.0`. Executable GitHub Roadmap берётся только из repository `docs/ROADMAP.md`. Chat history/memory и stale Roadmap copies не authority. Никогда не помещайте сюда private household finance/runtime/credential/backup/authorization data.
+Внешний canonical context, когда явно предоставлен task: `Master Audit v2.1` и `AI Development Playbook v1.0`. Executable GitHub Roadmap берётся только из repository `docs/ROADMAP.md`. Chat history/memory и stale Roadmap copies не authority. Никогда не помещайте сюда private household finance/runtime/credential/backup/authorization/real-renderer data.

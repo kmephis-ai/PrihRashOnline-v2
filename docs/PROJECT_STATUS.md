@@ -70,11 +70,14 @@ Historical lifecycle state `open` применялся до DOC-010 Main Verific
 
 ## R2 / Family Finance Center — текущая волна
 
-- `DESIGN-020` Design system + responsive shell — **IN_PROGRESS**, Issue #118; current R2 writer.
+- `DESIGN-020` Design system + responsive shell — **DONE**, Issue #118 Main Verification PASS, PR #119 autonomous merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
+- `VIZ-020` Versioned visualization foundation — **IN_PROGRESS**, Issue #120; current R2 writer, branch `agent/VIZ-020-visualization-foundation`.
 
-DESIGN-020 вводит presentation-only `PRH_DESIGN_SYSTEM_V1@1.0.0`: semantic typography/color/spacing/radius/elevation/focus/motion tokens, explicit light/dark theme boundary, system theme preference, единый `:focus-visible`, reduced-motion policy и responsive breakpoints 760/1250 px. Dashboard сохраняет существующие 10 top-level tabs и financial/query semantics. External CDN/font/design provider не требуется, financial payload в design contract запрещён, `FREE_ONLY` сохраняется.
+DESIGN-020 закрепил presentation-only `PRH_DESIGN_SYSTEM_V1@1.0.0`: semantic typography/color/spacing/radius/elevation/focus/motion tokens, explicit light/dark theme boundary, system theme preference, `:focus-visible`, reduced-motion policy и responsive breakpoints 760/1250 px.
 
-VIZ-020 остаётся dependency-gated до завершения DESIGN-020/Main Verification.
+VIZ-020 вводит `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` поверх DESIGN-020 и ANL-010: configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`, machine chart registry, deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1` и replaceable `ECHARTS_6` browser adapter. Specs не содержат financial rows/amount payload. Runtime render dataset/compiled renderer option считаются private in-memory data; public evidence synthetic-only. Renderer не имеет query/network/storage/persistence/financial-write authority. External CDN/provider не требуется; `FREE_ONLY` сохраняется.
+
+HOME-020 и другие dependent R2 dashboards остаются dependency-gated до VIZ-020 Main Verification.
 
 ## PERF-014 verified boundary
 
@@ -102,7 +105,7 @@ OBS-010 завершён Main Verification. `PRH_SLO_ERROR_BUDGET_V1@1.0.0` ис
 
 ## TEST-010 verified boundary
 
-TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`; unknown/ambiguous/unclassified test fail-closed.
+TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`; unknown/ambiguous/unclassified test fail-closed. VIZ-020 contract test классифицирован в `UI_E2E` и exposed named gate `Visualization foundation`.
 
 ## ANL-010 verified boundary
 
@@ -141,6 +144,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 - private primary store/runtime: Google Sheets + Apps Script;
 - family UI: private `MYSELF` Apps Script Web Dashboard;
 - trusted runtime health includes authenticated Web App render smoke v2;
+- current Dashboard native SVG charts остаются active renderer path; VIZ-020 пока foundation/adapter boundary, не silent renderer cutover;
 - public GitHub finance content: independently generated synthetic only;
 - DEV delivery: exact-SHA autonomous pipeline;
 - PROD/cutover/destructive data actions: separate policy gates;
@@ -148,8 +152,10 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- DESIGN-020 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- VIZ-020 не начинается до DESIGN-020 DONE;
+- VIZ-020 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- HOME-020 и dependent dashboards не начинаются до VIZ-020 DONE;
+- VIZ-020 не означает, что existing Dashboard уже переключён с native SVG на ECharts;
+- renderer option не является financial/query authority или public evidence для real data;
 - human documentation не может override красный machine gate;
 - PERF-014 timings — CI guardrails, а не production SLA;
 - performance/read-model layers не заменяют canonical/FIN/ANL authority;
@@ -157,7 +163,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
 - public Git history rewrite не authorized/executed;
-- paid cloud/AI/OCR/observability/cache/design provider не включён.
+- paid cloud/AI/OCR/observability/cache/design/visualization provider не включён.
 
 ## Source precedence
 
