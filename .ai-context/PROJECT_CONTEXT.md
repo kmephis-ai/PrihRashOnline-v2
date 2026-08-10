@@ -47,24 +47,27 @@ DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-02
 
 ## Current R3 truth
 
-- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, candidate `676dddc9d6cfd23a9c57cca4b7a12a27fee31140`, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`, authority `PRH_LONG_TERM_TRENDS_V1@1.0.0`.
-- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, candidate `f0fb557783960342db931488d2de97116c518b30`, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`, authority `PRH_CASH_FLOW_PROJECTION_V1@1.0.0`.
-- `GOAL-030` — **current writer**, Issue #168, branch `agent/GOAL-030-goals-wishlist`; IN_PROGRESS до Main Verification.
+- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`, authority `PRH_LONG_TERM_TRENDS_V1@1.0.0`.
+- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`, authority `PRH_CASH_FLOW_PROJECTION_V1@1.0.0`.
+- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, candidate `6ca0c01510542323015d97795d8b007e048ded9a`, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`, authority `PRH_GOAL_PLANNING_V1@1.0.0`.
+- `BAL-030` — **current writer**, Issue #76, branch `agent/BAL-030-balance-reconciliation`; IN_PROGRESS до Main Verification.
 
-GOAL-030 machine authority: `lib/planning/goal_planning.v1.json` (`PRH_GOAL_PLANNING_V1@1.0.0`). Core: `lib/planning/goal_planning.js`. Contract test: `tests/goal_planning_contract_test.js`. Normative doc: `docs/planning/GOALS_WISHLIST.md`. Named gate: `Goals and wish-list`.
+BAL-030 machine authority: `lib/balance/balance_reconciliation.v1.json` (`PRH_BALANCE_RECONCILIATION_V1@1.0.0`). Core: `lib/balance/balance_reconciliation.js`. Contract test: `tests/balance_reconciliation_contract_test.js`. Normative doc: `docs/finance/BALANCE_RECONCILIATION.md`. Named gate: `Balance reconciliation`.
 
-GOAL-030 rules:
+BAL-030 rules:
 
-- goal planning state отделён от `FIN-TRUTH-v1`, canonical transactions, BUD-020 facts и PROJ-030 forecasts;
-- target amount хранится в exact integer minor units с explicit ISO currency; deadline optional, priority/status allowlisted;
-- funding events имеют уникальный event id, deterministic date/id ordering и provenance `DECLARED_PLANNING`;
-- declared funding event не является canonical transaction и не подтверждает observed account balance;
-- negative corrections допустимы только пока cumulative funding не становится отрицательным; future event относительно `as_of` fail-closed;
-- progress = funded/remaining/overfunded + basis-points; achieved/overfunded/no-deadline/overdue/due-today states explicit;
-- recommendation = `DETERMINISTIC_RULE`, required monthly contribution вычисляется из remaining amount и inclusive contribution periods; `hidden_forecast=false`, `financial_truth=false`;
-- PROJ/ML/RISK/NETWORTH logic не используется; budget semantics не переопределяются;
-- deterministic private serialization может содержать planning values, но public telemetry содержит только allowlisted status/priority/deadline/event-count/reason/progress-band metadata без names, raw IDs и amounts;
-- `canonical_mutation=false`, `budget_mutation=false`, `financial_write=false`, storage/network/runtime/model-provider authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
+- absolute balance нельзя выводить из transaction flow без baseline; explicit anchor `PRH_BALANCE_OBSERVATION_V1` обязателен, `zero_origin_assumed=false`;
+- anchor и target обязаны иметь один account/currency; target строго позже anchor;
+- interval = `ANCHOR_EXCLUSIVE_TARGET_INCLUSIVE`;
+- observations используют signed safe-integer minor units, explicit ISO currency, RFC3339 instant и versioned provenance;
+- observation не является canonical transaction и не создаёт canonical financial truth;
+- posted canonical account deltas: income/refund `+amount`, expense `-amount`, transfer source `-amount`, transfer destination `+amount`, current zero-only adjustment `0`; pending/void игнорируются;
+- touching-account transaction с другой currency fail-closed; silent FX запрещён;
+- mismatch = observed target minus calculated target; state только `MATCH|MISMATCH`;
+- mismatch proposal = `REVIEW_CANONICAL_OR_OBSERVATION`, но `mutation_authorized=false`, `canonical_mutation=false`, `observation_mutation=false`, `financial_write=false`;
+- deterministic reconciliation id и result не зависят от входного порядка transaction array; input mutation запрещён;
+- public telemetry содержит только state/reason/count/delta-direction/proposal metadata, без balances, mismatch values и raw IDs;
+- storage/network/runtime/bank-provider/UI authority отсутствует; public evidence synthetic only; `FREE_ONLY` mandatory.
 
 ## Current R4 truth
 
@@ -86,11 +89,11 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js`, `cash_flow_projection_contract_test.js` и `goal_planning_contract_test.js` belong to `PURE_DOMAIN_APPLICATION`; named `Goals and wish-list` runs after `Cash-flow projection`. Household preferences remains PURE_DOMAIN_APPLICATION; AI playbook/eval tests remain POLICY_GOVERNANCE.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js`, `cash_flow_projection_contract_test.js`, `goal_planning_contract_test.js` и `balance_reconciliation_contract_test.js` belong to `PURE_DOMAIN_APPLICATION`; named `Balance reconciliation` runs after `Goals and wish-list`. AI playbook/eval tests remain POLICY_GOVERNANCE.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. GOAL-030 requires no external model/provider.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. BAL-030 requires no external model/provider or paid bank API.
 
 ## MIG-010 historical verified boundary
 
@@ -110,7 +113,7 @@ PR Validation
 -> Main Verification
 ```
 
-GOAL-030 remains open until Goals and wish-list + BUD/PROJ/TREND/FIN/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #168.
+BAL-030 remains open until Balance reconciliation + DATA/FIN/DR/GOAL/PROJ/TREND/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #76.
 
 ## Read-only multi-AI review
 
@@ -118,8 +121,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. GOAL-030 is pure planning-domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. BAL-030 is pure reconciliation-domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, TREND-030, PROJ-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `GOAL-030` is the single active writer.
+All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, TREND-030, PROJ-030, GOAL-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `BAL-030` is the single active writer.
