@@ -2,8 +2,8 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; PERF-010..014 DONE, DOC-010 current writer.
-docs/PROJECT_STATUS.md — human-readable current R1 state; GitHub Issue lifecycle и machine evidence имеют приоритет.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; R1/Master-G3 complete, DESIGN-020 current writer.
+docs/PROJECT_STATUS.md — human-readable current R1/R2 state; GitHub Issue lifecycle и machine evidence имеют приоритет.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task packet.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/one-writer lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap resolver.
@@ -13,15 +13,21 @@ tools/roadmap-task-protocol.js — executable Roadmap resolver.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — supplementary multi-AI review protocol.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid model dependency.
 
-# DOC-010 R1 documentation coherence
+# DESIGN-020 current R2 design system
+docs/design/DESIGN_SYSTEM.md — normative presentation-only design-system/responsive-shell contract.
+lib/design/design_system.v1.json — machine-readable `PRH_DESIGN_SYSTEM_V1@1.0.0`; semantic tokens, light/dark, focus, motion, breakpoints, privacy/FREE_ONLY boundaries.
+tests/design_system_contract_test.js — token parity/contrast/theme/focus/reduced-motion/responsive/privacy/provider contract.
+DashboardWebApp.html — private/synthetic Dashboard presentation consumer; financial/query semantics remain upstream authority.
+.github/workflows/pr-validation.yml — canonical named `Design system` gate plus full layered regression.
+
+# DOC-010 verified R1 documentation coherence
 lib/documentation/r1_documentation.v1.json — machine-readable `PRH_R1_DOCUMENTATION_V1@1.0.0`; required docs/contracts/sources/tests/named checks and privacy/FREE_ONLY/write invariants.
 docs/architecture/R1_C4_CONTEXT.md — normative public-safe system/container C4 context, trust/mutation/cost/future-provider boundaries.
 docs/data/R1_DATA_LINEAGE.md — normative source -> repository/canonical -> FIN/KPI -> analytics -> PERF-010..014 -> private UI lineage plus migration/recovery/SLO/delivery.
-tests/r1_documentation_contract_test.js — path/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector.
-README.md — current R0/R1 status and canonical documentation entry points.
-docs/architecture.md — current architecture synchronized with verified R1 lifecycle.
+tests/r1_documentation_contract_test.js — path/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector; preserves completed R1 truth after R2 handoff.
+README.md — current R0/R1/R2 status and canonical documentation entry points.
+docs/architecture.md — current architecture synchronized with verified R1 lifecycle and R2 presentation boundary.
 docs/data-model.md — canonical model/write boundaries synchronized with verified R1 lifecycle.
-.github/workflows/pr-validation.yml — canonical named `R1 documentation contract` gate plus full layered regression.
 
 # PERF-014 verified synthetic scale performance gate
 docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md — normative 20k/50k synthetic CI guardrails, read/write budgets, correctness-first policy, privacy and rollback.
