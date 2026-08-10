@@ -187,7 +187,7 @@ Named gates: `Financial Home`, `Financial Home visual gate`.
 | PERF-013 | `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` | affected-bucket read-model materialization |
 | PERF-014 | `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` | synthetic 20k/50k CI regression guardrail |
 
-PERF-010..014 завершены и не являются current writer. Они не создают альтернативную FIN truth и не открывают financial writes. PERF-014 wall-clock ceilings — CI guardrails, не production SLA.
+PERF-010..014 — DONE; завершены и не являются current writer. Они не создают альтернативную FIN truth и не открывают financial writes. PERF-014 wall-clock ceilings — CI guardrails, не production SLA.
 
 ## MIG-010 historical boundary
 
