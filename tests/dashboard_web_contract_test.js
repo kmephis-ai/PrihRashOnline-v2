@@ -50,7 +50,6 @@ expect(!service.includes('.evaluate()'),
   'function renderExecutiveSecondary(data)', 'function openDrilldown(key)', 'function drilldownTable(rows)',
   '.prhGetWebDashboardDataV13(year, month, activeView)', 'Executive-панель',
   'monthlyIncome:', 'monthStructure:', 'summary:', 'executive:', 'drilldowns:',
-  'scrollbar-width: none', '.dashboard-grid:has(#yearly-panel[hidden]) > .overview-kpis',
   'id="action-bar"', 'id="action-refresh"', 'id="action-quality"', 'id="action-snapshot"', 'id="action-pdf"',
   'function runUnifiedRefresh()', 'function loadQualityWorkbench()', 'function renderQualityWorkbench(workbench)',
   'function suggestClassification(proposalId)', 'function createSnapshot()', 'function createPdfReport()',
@@ -58,6 +57,11 @@ expect(!service.includes('.evaluate()'),
   ".prhCreateIncomePdfReport('MONTH')", '.prhSuggestCategoryForQualityProposal(proposalId)',
   'v1.0 RC', "privacyClass:'PUBLIC_SYNTHETIC'"
 ].forEach((required) => expect(html.includes(required), `Missing v1 RC dashboard contract: ${required}`));
+
+// CSS formatting is not part of the runtime contract: validate the semantics, not spaces around punctuation.
+expect(/scrollbar-width\s*:\s*none/i.test(html), 'Mobile tab scrollbar must remain hidden');
+expect(/\.dashboard-grid:has\(#yearly-panel\[hidden\]\)\s*>\s*\.overview-kpis/.test(html),
+  'Single visible overview KPI panel must span the dashboard grid');
 
 const synthetic = generateSyntheticDashboardFixture({ seed: 20260808 });
 expect(synthetic.testMetadata.synthetic === true, 'Public dashboard test input must be explicitly synthetic');
