@@ -1,0 +1,73 @@
+{
+  "schema": "PRH_LONG_TERM_TRENDS_V1",
+  "version": "1.0.0",
+  "roadmap_id": "TREND-030",
+  "schemas": {
+    "query": "PRH_LONG_TERM_TREND_QUERY_V1",
+    "result": "PRH_LONG_TERM_TREND_RESULT_V1",
+    "telemetry": "PRH_LONG_TERM_TREND_TELEMETRY_V1"
+  },
+  "upstream": {
+    "analytics_contract": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "semantic_registry": "PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0",
+    "period_engine": "PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "allowed": {
+    "selectors": ["EXPLICIT_RANGE", "ROLLING_90", "ROLLING_365", "YTD"],
+    "grains": ["MONTH", "QUARTER", "YEAR"],
+    "comparison_modes": ["NONE", "YEAR_OVER_YEAR"],
+    "measures": ["INCOME", "EXPENSE", "CASH_FLOW", "SAVINGS", "GROSS_EXPENSE", "REFUND", "TRANSFER"],
+    "dimensions": ["account_id", "category_id", "member_id", "project_id", "type"]
+  },
+  "limits": {
+    "max_measures": 4,
+    "max_dimensions": 1,
+    "max_filters": 16,
+    "max_rows": 5000
+  },
+  "orchestration": {
+    "execution_engine": "PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0",
+    "bucket_query_grain": "NONE",
+    "bucket_query_comparison": "NONE",
+    "kpi_formula_redefinition": false,
+    "calculated_metric_operators": false,
+    "window_metric_operators": false,
+    "forecasting": false,
+    "benchmarking": false,
+    "budget_variance_temporal_trend": "DENY"
+  },
+  "partial_period": {
+    "authority": "PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0",
+    "primary_partial_passthrough": true,
+    "bucket_partial_passthrough": true,
+    "comparison_quality_passthrough": true,
+    "leap_adjustment_passthrough": true,
+    "silent_proration": false
+  },
+  "serialization": {
+    "definition_only": true,
+    "includes_filter_values": false,
+    "includes_financial_values": false,
+    "includes_private_ids": false,
+    "deterministic": true
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "selector_kind", "grain", "comparison_mode",
+    "measure_count", "dimension_count", "filter_count", "primary_bucket_count",
+    "comparison_bucket_count", "primary_partial", "comparison_quality", "leap_adjusted"
+  ],
+  "authorities": {
+    "financial_truth": false,
+    "financial_write": false,
+    "canonical_mutation": false,
+    "io": false,
+    "network": false,
+    "storage": false,
+    "renderer": false,
+    "ui": false
+  },
+  "public_evidence": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+  "free_only": true
+}
