@@ -28,8 +28,9 @@
 - `OBS-010` SLO/error-budget layer — **DONE**, Issue #103 Main Verification PASS.
 - `PERF-010` Query projection/minimal ranges — **DONE**, Issue #105 Main Verification PASS.
 - `PERF-011` Revision-aware read cache — **DONE**, Issue #108 Main Verification PASS.
-- `PERF-012` Single-scan refresh pipeline — **IN_PROGRESS**, Issue #110; current R1 writer.
-- последующие `PERF-013..014`, `DOC-010` и другие items остаются dependency/priority-gated.
+- `PERF-012` Single-scan refresh pipeline — **DONE**, Issue #110 Main Verification PASS.
+- `PERF-013` Incremental analytics aggregates — **IN_PROGRESS**, Issue #112; current R1 writer.
+- последующие `PERF-014`, `DOC-010` и другие items остаются dependency/priority-gated.
 
 FIN-010: `PRH_KPI_DICTIONARY_V1` / `FIN-TRUTH-v1`.  
 DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
@@ -39,43 +40,42 @@ ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, renderer/storage-neutral, `financial
 TEST-010: `PRH_TEST_ARCHITECTURE_V1@1.0.0`.  
 OBS-010: `PRH_SLO_ERROR_BUDGET_V1@1.0.0`.  
 PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0`.  
-PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`.
+PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`.  
+PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`.
 
-## PERF-012 current truth
+## PERF-013 current truth
 
-PERF-012 вводит `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` как bounded point-in-time refresh coordinator поверх authoritative `PRH_TRANSACTION_REPOSITORY_V1`, PERF-010 projection и ANL-010 analytics semantics.
+PERF-013 вводит `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`: versioned materialized projections `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` для основных FIN-010 measures без UI coupling.
 
-Каждый refresh cycle вызывает `repository.readAll()` ровно один раз, валидирует canonical collection и вычисляет exact 64-hex content revision через `repositoryRevision()` на том же snapshot. Separate `getRevision()` перед чтением намеренно не используется: текущий Google adapter сам вычисляет revision через canonical read, поэтому такой probe удвоил бы scan budget до начала dashboard calculations.
+Financial formulas не дублируются: bucket recompute использует `evaluateKpis()`, а correctness parity проверяется с ANL-010 `evaluateAnalytics()`. `BUDGET_VARIANCE` не материализуется, потому что budget input query-scoped и grouped budget variance в ANL-010 fail-closed.
 
-Внутри cycle `READ_ALL`, `GET_BY_ID`, `QUERY` и `ANALYTICS` обслуживаются из immutable snapshot. Repository query semantics делегируются authoritative `applyQuery()`, analytics — `evaluateAnalytics()`/FIN-010. Underlying `getRevision/getById/query` для logical consumers не вызываются.
+State связывает exact canonical revision, projection rows и private membership index SHA-256 `state_hash`. Incremental update требует exact `expected_base_revision`; tampered/unknown state fail-closed. Delta по `transaction_id` + stable canonical fingerprint классифицирует `ADDED/REMOVED/CHANGED`; пересчитываются только old/new affected buckets из next canonical snapshot. Не затронутые rows переносятся только из hash-verified prior state.
 
-Snapshot не является cross-cycle cache. Он ограничен `max_age_ms` и `max_operations`, explicit invalidation fail-closed. Изменение источника после начала cycle не создаёт mixed result: активный cycle остаётся point-in-time snapshot, а следующий cycle обязан снова materialize canonical dataset и получает новый revision.
+Это оптимизация recompute scope, а не ручная арифметика денег: refund/transfer/status semantics по-прежнему вычисляет FIN-010. Identical revision возвращает deterministic `NOOP`; mixed currency fail-closed до FX layer.
 
-Telemetry public-safe: snapshot status/reason, SHA-256 cycle hash, domain-separated revision hash prefix, canonical snapshot read count, logical/reuse counts, operation counts, age/bounds/invalidation. Raw query, transaction identity, canonical rows и financial payload запрещены.
+Public evidence содержит только operation/status, domain-separated revision hash prefixes, delta counts и affected/recomputed bucket counts. Aggregate values, bucket labels, transaction IDs и canonical payload не публикуются. `financial_write=false`, external/paid provider не требуется.
 
-`writeBatch()` всегда `BLOCKED / SINGLE_SCAN_REFRESH_WRITE_NOT_AUTHORIZED`. PERF-012 не вводит incremental aggregates PERF-013 и не меняет PERF-010/PERF-011/ANL-010 semantics.
+Normative runbook: `docs/operations/PERF013_INCREMENTAL_AGGREGATES.md`. Named canonical PR gate: `Incremental analytics aggregates`.
 
-Normative runbook: `docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`. Named canonical PR gate: `Single-scan refresh pipeline`.
+## PERF-012 verified boundary
+
+PERF-012 завершён Main Verification. `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` материализует один immutable canonical snapshot на bounded refresh cycle, выводит exact content revision из того же snapshot и обслуживает связанные repository/analytics operations без повторных underlying query/getById/revision calls. Cross-cycle reuse и write authority отсутствуют.
 
 ## PERF-011 verified boundary
 
-PERF-011 завершён Main Verification. `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` остаётся bounded read/query decorator для independent repository requests: каждый потенциальный HIT требует exact repository revision probe, key включает adapter/mapping/projection namespace и normalized operation identity; unknown/stale revision fail-closed. Cache не создаёт financial/query/write authority.
-
-PERF-012 не ослабляет этот contract: request cache и refresh snapshot имеют разные lifetimes/authority. Cache полезен между независимыми requests; single-scan snapshot устраняет повторные reads внутри одного связного refresh cycle.
+PERF-011 завершён Main Verification. `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` остаётся exact-revision cache для independent repository requests. HIT требует revision proof; stale/unknown revision fail-closed; write authority отсутствует.
 
 ## PERF-010 verified boundary
 
-PERF-010 завершён Main Verification. `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` отделяет header discovery от data-plane reads: rows читаются только requested mapped contiguous column spans и bounded row intervals. Synthetic 4-row/20-column evidence: full-width baseline 80 cells, mapped readAll 60, getById 19, representative narrow query 35; projected query result exact-parity с authoritative repository baseline.
-
-Google gateway fail-closed при ambiguous duplicate mapped physical headers и не использует generic financial write authority. `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` остаётся действующим.
+PERF-010 завершён Main Verification. `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` отделяет header discovery от data-plane reads: rows читаются только requested mapped contiguous column spans и bounded row intervals. Synthetic evidence: full-width baseline 80 cells, mapped readAll 60, getById 19, representative narrow query 35; projected query exact-parity с authoritative repository baseline. `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` остаётся действующим.
 
 ## OBS-010 verified boundary
 
-OBS-010 завершён Main Verification. `PRH_SLO_ERROR_BUDGET_V1@1.0.0` использует integer ppm/bps, half-open windows и SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`. Observation shapes deny-by-default; correctness принимает только allowlisted technical PASS/FAIL evidence. Financial/raw payload запрещён; `FREE_ONLY`, `financial_write=false`, `financial_correctness=false`.
+OBS-010 завершён Main Verification. `PRH_SLO_ERROR_BUDGET_V1@1.0.0` использует integer ppm/bps, half-open windows и SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`. Financial/raw payload запрещён; `FREE_ONLY`, `financial_write=false`, `financial_correctness=false`.
 
 ## TEST-010 verified boundary
 
-TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`. `unclassified_test=FAIL`, `ambiguous_classification=FAIL`, `duplicate_machine_authority=FAIL`; current-writer/workflow authority использует shared structured parsers.
+TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`. `unclassified_test=FAIL`, ambiguous classification = FAIL, duplicate machine authority = FAIL.
 
 ## ANL-010 verified boundary
 
@@ -125,12 +125,12 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- PERF-012 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- single-scan snapshot — point-in-time input одного bounded refresh cycle, а не вечный cache;
-- новый cycle всегда требует нового canonical snapshot read;
-- PERF-012 не вводит incremental aggregates PERF-013 или scale gate PERF-014;
-- PERF-011 cache HIT по-прежнему никогда не разрешён без exact revision proof;
-- PERF-010 projection instrumentation, PERF-011 cache telemetry и PERF-012 refresh telemetry не разрешают financial payload;
+- PERF-013 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- aggregate state не заменяет canonical dataset или ANL-010 full recompute authority;
+- PERF-013 не вводит PERF-014 20k/50k performance gate;
+- incremental recompute не использует собственные финансовые формулы;
+- private aggregate contents не разрешены в public telemetry/evidence;
+- PERF-011 cache HIT по-прежнему требует exact revision proof;
 - owner authorization MIG-010 не переносится на future mutations;
 - hidden MIG staging/rollback cleanup не выполнен автоматически;
 - Google -> Yandex cutover не выполнен;
