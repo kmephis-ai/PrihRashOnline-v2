@@ -94,6 +94,15 @@ function prhR2RenderFile_(surface, payload) {
   var placeholder = '<' + '?!= ' + spec.placeholder + ' ?' + '>';
   if (html.indexOf(placeholder) < 0) throw new Error('R2_SURFACE_PAYLOAD_PLACEHOLDER_MISSING');
   html = html.replace(placeholder, prhR2SerializeJson_(payload));
+  if (surface === 'home') {
+    html = html
+      .replace(/Synthetic cash-flow trend/g, 'Cash-flow trend')
+      .replace(/title="Synthetic"/g, 'title="Cash flow"')
+      .replace(
+        'До появления versioned balance-observation source (BAL-030) карточка остаётся явно недоступной.',
+        'До подключения private balance runtime source карточка ликвидности остаётся явно недоступной.'
+      );
+  }
   html = prhR2InjectShell_(html, surface);
   var rendered = HtmlService.createHtmlOutput(html);
   rendered.setTitle('PrihRashOnline — ' + spec.title);
@@ -125,6 +134,9 @@ function doGet(e) {
 }
 
 function prhR2SmokePayload_() {
+  function unavailable(id) {
+    return { id: id, state: 'UNAVAILABLE', value_minor: null, currency: 'RUB', drill: null };
+  }
   return {
     smoke: true,
     schema: 'PRH_FINANCIAL_HOME_VIEW_V1',
@@ -133,7 +145,15 @@ function prhR2SmokePayload_() {
     period: { kind: 'FULL_INPUT_SET', start: null, end: null, partial: false, day_count: null, proration: 'NONE' },
     financial_truth_policy: 'FIN-TRUTH-v1',
     kpi_dictionary_version: '1.0.0',
-    cards: {},
+    cards: {
+      INCOME: unavailable('INCOME'),
+      EXPENSE: unavailable('EXPENSE'),
+      CASH_FLOW: unavailable('CASH_FLOW'),
+      SAVINGS: unavailable('SAVINGS'),
+      BUDGET: { id: 'BUDGET', state: 'NOT_CONFIGURED', budget_minor: null, expense_minor: null, variance_minor: null, currency: 'RUB', drill: null },
+      LIQUIDITY: { id: 'LIQUIDITY', state: 'UNAVAILABLE_PENDING_BALANCE_SOURCE', value_minor: null, currency: 'RUB', future_dependency: 'RUNTIME_BINDING', drill: null },
+      ALERTS: { id: 'ALERTS', state: 'READY', value_minor: null, currency: 'RUB', drill: null }
+    },
     alerts: [],
     visual_data: { cash_flow_minor: [], expense_mix: [] },
     provenance: { financial_values: 'TECHNICAL_SMOKE_ONLY', ui_financial_formula_used: false }
