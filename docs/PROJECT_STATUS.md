@@ -4,19 +4,19 @@
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
-## R0 — critical path завершён, текущий optional writer
+## R0 — critical path завершён
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-004`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
 
 - `DOC-002` — **DONE**, Issue #75 Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`.
+- `AIENG-004` — **DONE**, Issue #157 Main Verification PASS, candidate `515f5d8961c57b4e6dbb3a28b8d09323638a5968`, merge `280dea294b086fae3cedf56df7899c9938b42b88`.
 - `AIENG-006` — **DONE**, Issue #146 Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`.
-- `AIENG-004` Reusable AI skills/playbooks — **IN_PROGRESS**, Issue #157, PR #158, branch `agent/AIENG-004-ai-playbooks`.
 
-AIENG-004 authority: `PRH_AI_PLAYBOOK_CATALOG_V1@1.0.0`. Пять focused flows (`ROADMAP_EXECUTION`, `PR_REVIEW`, `MIGRATION_REVIEW`, `DOCS_DRIFT`, `RELEASE`) являются тонкими versioned adapters к существующим Roadmap/Issue/tests/policies и сами не выдают repository/issue/review/merge/deploy/financial-write authority. `PR_REVIEW` и `MIGRATION_REVIEW` остаются `READ_ONLY`, `writer_authority=false`. Required `AI playbooks` gate выполняет deterministic local scanner + adversarial contract test; отдельно оплачиваемый AI/API не требуется.
+`PRH_AI_PLAYBOOK_CATALOG_V1@1.0.0` остаётся reusable AI-governance слоем: playbooks не создают authority, `PR_REVIEW`/`MIGRATION_REVIEW` остаются READ_ONLY, red machine gate не обходится текстом.
 
-`LANG-RU` остаётся обязательным: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers и названия стандартов не переводятся искусственно.
+`LANG-RU` обязателен: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers и названия стандартов не переводятся искусственно.
 
-## R1 / Canonical Financial Platform — завершена
+## R1 / Canonical Financial Platform — завершена, optional AI writer активен
 
 - `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
@@ -25,8 +25,11 @@ AIENG-004 authority: `PRH_AI_PLAYBOOK_CATALOG_V1@1.0.0`. Пять focused flows 
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
+- `AIENG-005` AI regression/eval suite — **IN_PROGRESS**, Issue #159, branch `agent/AIENG-005-ai-eval-suite`.
 
 `MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: open. FIN authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority: `PRH_CANONICAL_TRANSACTION_V1`. Repository authority: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+
+AIENG-005 authority = `PRH_AI_EVAL_SUITE_V1@1.0.0`. Он содержит 12 independently authored synthetic golden tasks по `SCOPE_DISCIPLINE`, `TEST_SELECTION`, `PRIVACY`, `DOCS_ROADMAP_SYNC`, `REVIEW_QUALITY`, versioned baseline `PRH_AI_EVAL_BASELINE_V1@1.0.0`, deterministic evaluator/runner и adversarial contract tests. Required gate `AI regression eval` выполняется локально без внешней модели, сети и отдельно оплачиваемого API. `eval_grants_authority=false`; production/real-derived financial data запрещены; `FREE_ONLY` mandatory.
 
 ## R2 / Family Finance Center
 
@@ -48,11 +51,9 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS, merge `136fa66ea5752c96b789e92911d75ce37226b62f`.
-- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, candidate `94e199308c3bd3f0b61c4c9e16355b7befef2ca9`, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
+- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
 
-ANL-070 authority `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`; SCOPE-070 authority `PRH_ANALYTICS_SCOPE_V1@1.0.0`; ANL-071 authority `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`; ANL-074 authority `PRH_EXPLORATION_STATE_V1@1.0.0`. Они не переопределяют FIN-TRUTH и не имеют financial-write authority.
-
-ANL-072/BENCH-070/ANL-073 остаются downstream P2. `PERF-070` и `TEST-070` пока не dependency-ready.
+ANL-072/BENCH-070/ANL-073 остаются P2 backlog. `PERF-070` и `TEST-070` пока не dependency-ready.
 
 ## MIG-010 historical safety boundary
 
@@ -68,9 +69,7 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
 
-`PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` сохраняет required machine gates на `LOCAL_DETERMINISTIC`; separately billed OpenAI API default disabled и не требуется для required checks.
-
-AIENG-004 добавляет reusable playbooks, но `catalog_grants_authority=false`, `source_of_truth_duplicated=false`, `paid_dependency_required=false`, `FREE_ONLY=true`. Red machine gate не может быть обойдён playbook-текстом.
+`PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` сохраняет required machine gates на `LOCAL_DETERMINISTIC`; separately billed OpenAI API default disabled и не требуется для required checks. `AI playbooks` и `AI regression eval` также являются local deterministic gates.
 
 ## Current delivery chain
 
@@ -85,11 +84,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-AIENG-004 остаётся открытым до `AI playbooks` + LANG-RU/docs/AI/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+AIENG-005 остаётся открытым до `AI regression eval` + AI playbooks/LANG-RU/docs/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. AIENG-004 меняет только repository AI governance/playbooks и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. AIENG-005 меняет только local repository AI-evaluation/governance и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
