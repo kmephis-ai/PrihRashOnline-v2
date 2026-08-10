@@ -46,43 +46,48 @@ DOC-010: `PRH_R1_DOCUMENTATION_V1@1.0.0`.
 
 ## R2 / Family Finance Center — текущая волна
 
-- `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS, PR #119 merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
-- `VIZ-020` — **DONE**, Issue #120 Main Verification PASS, PR #121 merge `66139972b1fc910fc7bc0e614ecfdc7d5b754adf`.
-- `HOME-020` — **DONE**, Issue #122 Main Verification PASS, PR #123 merge `24e6e57e1b2b803dd0d2176376207fd524674dd3`.
-- `TX-020` — **DONE**, Issue #124 Main Verification PASS, PR #125 merge `38a6d6bece459f61a2cf3d9af2cd8419274b258b`.
-- `EXP-020` — **DONE**, Issue #126 Main Verification PASS, PR #127 merge `a3c938c08c3ae65a1f732aa024fa4001ca109883`.
-- `INC-020` Income Analytics — **IN_PROGRESS**, Issue #128; current R2 writer, branch `agent/INC-020-income-analytics`.
+- `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS.
+- `VIZ-020` — **DONE**, Issue #120 Main Verification PASS.
+- `HOME-020` — **DONE**, Issue #122 Main Verification PASS.
+- `TX-020` — **DONE**, Issue #124 Main Verification PASS.
+- `EXP-020` — **DONE**, Issue #126 Main Verification PASS.
+- `INC-020` — **DONE**, Issue #128 Main Verification PASS, PR #129 merge `507e2cd32f28104b1a81bc02aa7856be41be58b2`.
+- `CF-020` Cash Flow dashboard — **IN_PROGRESS**, Issue #130; current R2 writer, branch `agent/CF-020-cash-flow-dashboard`.
 
 ### Verified R2 foundations
 
-`PRH_DESIGN_SYSTEM_V1@1.0.0` — presentation tokens/theme/a11y/responsive only.  
-`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — configuration-only ChartSpec/WidgetSpec, deterministic Filter/Drill contexts and replaceable `ECHARTS_6` adapter; no financial/query/storage/write authority.  
-`PRH_FINANCIAL_HOME_V1@1.0.0` — one FIN-010 result, explicit budget, fail-safe liquidity capability state.  
-`PRH_TRANSACTION_EXPLORER_V1@1.0.0` — canonical row search/filter/sort/pagination/edit-draft validation; generic runtime save remains `WRITE_BLOCKED` / `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
-`PRH_EXPENSE_ANALYTICS_V1@1.0.0` — FIN-backed Expense trend/category/comparison/drivers + exact TX drill; no financial-write authority.
+`PRH_DESIGN_SYSTEM_V1@1.0.0` — presentation-only.  
+`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — configuration-only ChartSpec/WidgetSpec + Filter/Drill context, no financial/query/storage/write authority.  
+`PRH_FINANCIAL_HOME_V1@1.0.0` — FIN-backed Home composition; liquidity is not proxied from Cash Flow.  
+`PRH_TRANSACTION_EXPLORER_V1@1.0.0` — canonical exploration/edit-draft validation; runtime save remains `WRITE_BLOCKED` / `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.  
+`PRH_EXPENSE_ANALYTICS_V1@1.0.0` — FIN-backed Expense analysis, DONE.  
+`PRH_INCOME_ANALYTICS_V1@1.0.0` — FIN-backed Income source/time/stability analysis, DONE.
 
-### INC-020 current boundary
+### CF-020 current boundary
 
-INC-020 вводит `PRH_INCOME_ANALYTICS_V1@1.0.0` поверх FIN-010/ANL-010/VIZ-020/TX-020.
+CF-020 вводит `PRH_CASH_FLOW_DASHBOARD_V1@1.0.0` поверх FIN-010/HOME-020/VIZ-020/TX-020.
 
-- primary/comparison `INCOME` totals sourced only from FIN-010 `evaluateKpis()`;
-- DAY/MONTH/YEAR trend использует bounded explicit buckets; каждый bucket имеет FIN parity, а сумма bucket totals равна period INCOME;
-- «источник дохода» в current canonical model = income `category_id` (`CANONICAL_INCOME_CATEGORY_AS_SOURCE`), чтобы TX drill был exact, а не fuzzy text search;
-- source mix группирует canonical rows и получает source income через FIN-TRUTH `aggregateTransactions()`; expense/transfer rows не становятся доходом;
-- сумма source totals обязана равняться FIN INCOME, residual = 0;
-- comparison допускает только explicit equal-day windows; implicit proration запрещён;
-- stability/variance считаются только над FIN-backed bucket totals: population variance, stddev, coefficient of variation и bounded 0–100 stability score; эти metrics не являются financial truth;
-- source deltas обязаны в сумме точно равняться total INCOME delta;
-- VIZ WidgetSpecs `LINE` / `DONUT` / `BAR` configuration-only; real render data separate/private;
-- drill использует `PRH_FILTER_CONTEXT_V1` + `PRH_DRILL_CONTEXT_V1` и bounded TX-020 query к `TRANSACTION_EXPLORER`; navigation state не содержит денежных/variance значений;
-- `IncomeAnalyticsWebApp.html` — synthetic responsive evidence surface, не runtime/write authority;
-- public telemetry: schema/version/hash/count/stability-state/status/reason/timing only;
-- named gates: `Income Analytics`, `Income Analytics visual gate`;
+- `inflow = FIN-010 INCOME`;
+- `outflow = FIN-010 EXPENSE`;
+- `net = FIN-010 CASH_FLOW`;
+- `inflow - outflow = net` проверяется для period, comparison и каждого trend bucket;
+- DAY/MONTH/YEAR dynamics используют отдельный FIN-010 evaluation на bucket; суммы buckets обязаны совпадать с period totals;
+- transfers нейтральны и не входят в inflow/outflow/net или drill component filters;
+- refund влияет на outflow только через FIN-TRUTH Expense semantics;
+- comparison — только explicit equal-day windows, `implicit_proration=false`;
+- `Δ inflow - Δ outflow = Δ net` является обязательным conservation invariant;
+- VIZ specs configuration-only: net LINE, inflow BAR, outflow BAR, comparison BAR; real render data separate/private;
+- drill использует VIZ context + bounded TX query: INFLOW=`income`, OUTFLOW=`expense/refund`, NET=`income/expense/refund`; transfer excluded;
+- navigation state не содержит денежных значений и не даёт write authority;
+- `liquidity_state = NOT_A_BALANCE_METRIC`, `account_balance_authority=false`; Cash Flow не заменяет balance/liquidity truth;
+- `CashFlowWebApp.html` — synthetic responsive evidence surface;
+- public telemetry: version/hash/bucket-count/status/reason/timing only;
+- named gates: `Cash Flow`, `Cash Flow visual gate`;
 - `FREE_ONLY` mandatory; external CDN/provider не требуется.
 
-Normative doc: `docs/analytics/INCOME_ANALYTICS.md`. Core: `lib/income/income_analytics.js`. Tests: `tests/income_analytics_contract_test.js`, `tests/income_analytics_visual_test.js`.
+Normative doc: `docs/analytics/CASH_FLOW_DASHBOARD.md`. Core: `lib/cashflow/cash_flow_dashboard.js`. Tests: `tests/cash_flow_dashboard_contract_test.js`, `tests/cash_flow_visual_test.js`.
 
-CF-020/BUD-020/OBL-020 и другие sibling items не входят в scope текущего writer.
+BUD-020/OBL-020/PWA-020 и другие sibling items не входят в scope текущего writer.
 
 ## MIG-010 historical safety boundary
 
@@ -126,10 +131,10 @@ active Roadmap Issue
 
 ## Что намеренно не утверждается
 
-- INC-020 не считается DONE до autonomous merge + Main Verification/Issue close;
-- Income stability/variance не являются новой FIN-TRUTH;
-- Income Analytics не разрешает Google write;
-- standalone synthetic Income surface не означает публикацию private runtime route;
+- CF-020 не считается DONE до autonomous merge + Main Verification/Issue close;
+- Cash Flow не является balance/liquidity/Net Worth truth;
+- CF-020 не разрешает Google write;
+- standalone synthetic Cash Flow surface не означает публикацию private runtime route;
 - historical MIG-010 authorization не переносится на future mutation;
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
