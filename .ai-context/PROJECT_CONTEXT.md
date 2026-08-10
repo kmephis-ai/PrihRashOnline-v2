@@ -51,30 +51,33 @@ Google remains authoritative. Blocked cloud items не создают live cloud
 
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`; authority `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`; authority `PRH_ANALYTICS_SCOPE_V1@1.0.0`.
-- `ANL-071` — **current writer**, Issue #153, branch `agent/ANL-071-period-comparison`; IN_PROGRESS до Main Verification.
+- `ANL-071` — **DONE**, Issue #153 Main Verification PASS, merge `136fa66ea5752c96b789e92911d75ce37226b62f`; authority `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`.
+- `ANL-074` — **current writer**, Issue #155, branch `agent/ANL-074-exploration-state`; IN_PROGRESS до Main Verification.
 
-ANL-071 machine contract: `lib/analytics/period_engine.v1.json` (`PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`). Core: `lib/analytics/period_engine.js`. Human contract: `docs/analytics/PERIOD_COMPARISON_ENGINE.md`. Test: `tests/period_comparison_engine_contract_test.js`. Named gate: `Period/comparison engine`.
+ANL-074 machine contract: `lib/analytics/exploration_state.v1.json` (`PRH_EXPLORATION_STATE_V1@1.0.0`). Core: `lib/analytics/exploration_state.js`. Human contract: `docs/analytics/EXPLORATION_STATE.md`. Test: `tests/exploration_state_contract_test.js`. Named gate: `Exploration state model`.
 
-Rules ANL-071:
+Rules ANL-074:
 
-- calendar = proleptic Gregorian UTC date-only; range = half-open `[start,end)`; week start Monday ISO;
-- hidden wall-clock `today` запрещён; rolling/PTD используют explicit `as_of`;
-- selectors: `EXPLICIT_RANGE`, `ROLLING_7/30/90/365`, `MTD`, `QTD`, `YTD`;
-- grains: `NONE`, `DAY`, `WEEK`, `MONTH`, `QUARTER`, `YEAR`;
-- first/last natural bucket clip к selected range и получает partial metadata; bucket coverage обязано быть gap/overlap-free;
-- previous comparable explicit/rolling = immediately preceding exact day count;
-- previous comparable MTD/QTD/YTD = previous natural calendar period same elapsed day count с boundary clipping и explicit quality;
-- YoY = calendar shift -1 year, leap-day endpoint clamp deterministic и reported;
-- ANL-010 v1 **не мутируется** для WEEK/QUARTER: period engine строит per-bucket `PRH_ANALYTICS_QUERY_V1` с `grain=NONE`, `comparison=NONE` и вызывает existing `evaluateAnalytics()`;
-- KPI formulas и `FIN-TRUTH-v1` не переопределяются;
-- `BUDGET_VARIANCE` temporal bucket series/comparison fail-closed; scalar NONE/NONE остаётся допустимым;
-- period spec serialization содержит только temporal policy metadata, public telemetry — selector/grain/comparison/day/bucket/partial-quality metadata без financial payload/private IDs;
-- ANL-072/BENCH-070/ANL-073/ANL-074 не считаются реализованными;
-- ANL-071 имеет `financial_write=false`, canonical mutation=false, runtime/network/storage authority=false; `FREE_ONLY` mandatory.
+- reuses VIZ-020 `PRH_FILTER_CONTEXT_V1@1.0.0` and `PRH_DRILL_CONTEXT_V1@1.0.0`; второй filter DSL не создаётся;
+- global context = normalized FilterContext + validated SCOPE-070 ScopeSpec;
+- widget context = FilterContext + `INHERIT_GLOBAL` либо explicit `OVERRIDE`; implicit scope merge=false;
+- INCLUDE одного field пересекаются, EXCLUDE объединяются; exclusion применяется после include; empty effective INCLUDE = `EXPLORATION_FILTER_CONTRADICTION`;
+- filter/widget ordering не влияет на `SHA256_CANONICAL_JSON_V1` state identity;
+- effective drill filters = global + source-widget + drill filters, затем повторная VIZ validation;
+- session actions: set global/widget, remove widget, set/clear drill, RESET, BACK; max history=32; no-op не добавляет history;
+- RESET возвращает canonical default; BACK восстанавливает exact previous canonical state/hash;
+- URL-state private-app only: canonical JSON UTF-8 → base64url с prefix `prh1.`, byte/char limits и canonical re-encode verification; history не сериализуется;
+- URL state не public-shareable, потому что filter IDs/values могут быть private configuration;
+- datasets/rows/transactions/results/measures/amount KPI fields и `scope_assignments` в state/actions запрещены;
+- telemetry содержит только schema/version/action/decision/reason/state_hash/history_depth/widget_count/global_scope_id/drill_active — без filter values;
+- ANL-074 не исполняет AnalyticsQuery и не реализует DASH-082/083/084;
+- `financial_write=false`, canonical mutation=false, query execution=false, runtime/network/storage authority=false; `FREE_ONLY` mandatory.
+
+ANL-072/BENCH-070/ANL-073 и downstream dashboard composition items не считаются реализованными ANL-074.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `semantic_analytics_registry_contract_test.js`, `analytics_scope_contract_test.js`, `period_comparison_engine_contract_test.js` относятся к `PURE_DOMAIN_APPLICATION`; named gates выполняются до migration/full/UI regression.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `semantic_analytics_registry_contract_test.js`, `analytics_scope_contract_test.js`, `period_comparison_engine_contract_test.js`, `exploration_state_contract_test.js` относятся к `PURE_DOMAIN_APPLICATION`; named analytics gates выполняются до migration/full/UI regression.
 
 ## AI model/cost routing boundary
 
@@ -98,7 +101,7 @@ PR Validation
 -> Main Verification
 ```
 
-ANL-071 remains open until period/comparison + semantic/scope/LANG-RU/docs/privacy/FREE_ONLY/full layered evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #153.
+ANL-074 remains open until exploration-state + period/scope/semantic/LANG-RU/docs/privacy/FREE_ONLY/full layered evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #155.
 
 ## Read-only multi-AI review
 
@@ -106,8 +109,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. ANL-071 is a pure temporal orchestration layer with `financial_write=false`, `runtime=false`, `network=false`, `storage=false`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Private scope assignments and real filter values are not public evidence. Family Web App remains private `MYSELF`. ANL-074 is a pure configuration/state layer with `financial_write=false`, `runtime=false`, `network=false`, `storage=false`. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R1 items, R2 P1 baseline, YC-040, AUTH-040, DOC-002, AIENG-006, ANL-070 and SCOPE-070 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `ANL-071` is the single active writer.
+All R1 items, R2 P1 baseline, YC-040, AUTH-040, DOC-002, AIENG-006, ANL-070, SCOPE-070 and ANL-071 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `ANL-074` is the single active writer.
