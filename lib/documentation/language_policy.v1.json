@@ -27,6 +27,7 @@
     {"path":"docs/architecture/YDB_SERVERLESS_POC.md","kind":"ARCHITECTURE","min_cyrillic_letters":120},
     {"path":"docs/operations/AIENG006_MODEL_COST_ROUTING.md","kind":"AI_OPERATIONS","min_cyrillic_letters":180},
     {"path":"docs/operations/AIENG005_AI_REGRESSION_EVAL.md","kind":"AI_OPERATIONS","min_cyrillic_letters":260},
+    {"path":"docs/product/HOUSEHOLD_PREFERENCES.md","kind":"PRODUCT","min_cyrillic_letters":260},
     {"path":"docs/analytics/SEMANTIC_REGISTRY.md","kind":"ANALYTICS","min_cyrillic_letters":220},
     {"path":"docs/analytics/ANALYTICS_SCOPES.md","kind":"ANALYTICS","min_cyrillic_letters":220},
     {"path":"docs/analytics/PERIOD_COMPARISON_ENGINE.md","kind":"ANALYTICS","min_cyrillic_letters":260},
@@ -53,7 +54,8 @@
     "YEAR_OVER_YEAR", "PREVIOUS_COMPARABLE_PERIOD", "FilterContext", "DrillContext", "base64url",
     "state_hash", "INHERIT_GLOBAL", "OVERRIDE", "READ_ONLY", "Main Verification", "Trusted DEV Deploy",
     "Trusted Runtime Health", "PRH_AI_PLAYBOOK_CATALOG_V1", "PRH_AI_EVAL_SUITE_V1",
-    "PRH_AI_EVAL_BASELINE_V1", "PRH_AI_EVAL_REPORT_V1"
+    "PRH_AI_EVAL_BASELINE_V1", "PRH_AI_EVAL_REPORT_V1", "PRH_HOUSEHOLD_PREFERENCES_V1",
+    "PROFILE_EDIT", "HOUSEHOLD_ADMIN", "SYSTEM", "LIGHT", "DARK"
   ],
   "parallel_english_normative_path_patterns": [
     "(^|/)docs/en(/|$)",
