@@ -1,0 +1,61 @@
+{
+  "schema": "PRH_SYNTHETIC_SCALE_GATE_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PERF-014",
+  "fixture": {
+    "generator": "PRH_SYNTHETIC_SCALE_FIXTURE_V1",
+    "seed": 14014,
+    "production_derived": false,
+    "persist_dataset_artifact": false,
+    "currency": "RUB"
+  },
+  "profiles": [
+    {
+      "id": "SCALE_20K",
+      "operations": 20000,
+      "delta_operations": 100,
+      "ceilings_ms": {
+        "canonical_revision": 4000,
+        "analytics_full_recompute": 5000,
+        "single_scan_linked_refresh": 8000,
+        "aggregate_full_build": 8000,
+        "incremental_update": 8000,
+        "aggregate_parity_rebuild": 8000
+      }
+    },
+    {
+      "id": "SCALE_50K",
+      "operations": 50000,
+      "delta_operations": 250,
+      "ceilings_ms": {
+        "canonical_revision": 10000,
+        "analytics_full_recompute": 12000,
+        "single_scan_linked_refresh": 18000,
+        "aggregate_full_build": 18000,
+        "incremental_update": 18000,
+        "aggregate_parity_rebuild": 18000
+      }
+    }
+  ],
+  "budgets": {
+    "canonical_reads_per_refresh_cycle": 1,
+    "financial_writes": 0,
+    "incremental_recompute_scope": "AFFECTED_BUCKETS_ONLY",
+    "regression_threshold_breach": "FAIL_PR",
+    "wall_clock_is_user_sla": false
+  },
+  "evidence": {
+    "financial_payload_allowed": false,
+    "transaction_identity_allowed": false,
+    "bucket_label_allowed": false,
+    "fields": ["profile", "operations", "delta_operations", "elapsed_ms", "canonical_reads", "financial_writes", "added_count", "removed_count", "changed_count", "affected_bucket_count", "recomputed_bucket_count", "status"]
+  },
+  "authority": {
+    "financial_semantics": false,
+    "financial_write": false,
+    "migration": false,
+    "network": false,
+    "external_provider_required": false,
+    "paid_dependency_required": false
+  }
+}

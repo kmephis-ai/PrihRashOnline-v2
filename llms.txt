@@ -2,7 +2,7 @@
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
 docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; PERF-010..012 DONE, PERF-013 current writer.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; PERF-010..013 DONE, PERF-014 current writer.
 docs/PROJECT_STATUS.md — human-readable current R1 state; GitHub Issue lifecycle и machine evidence имеют приоритет.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task packet.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/one-writer lifecycle protocol.
@@ -13,12 +13,18 @@ tools/roadmap-task-protocol.js — executable Roadmap resolver.
 docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md — supplementary multi-AI review protocol.
 tools/multi-ai-review-protocol.js — deterministic local review aggregator; no paid model dependency.
 
-# PERF-013 incremental analytics aggregates
+# PERF-014 synthetic scale performance gate
+docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md — normative 20k/50k synthetic CI guardrails, read/write budgets, correctness-first policy, privacy and rollback.
+lib/performance/synthetic_scale_gate.v1.json — machine-readable `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0`; versioned profiles/ceilings and evidence boundary.
+lib/testing/synthetic_scale_fixture.js — deterministic in-memory `PRH_SYNTHETIC_SCALE_FIXTURE_V1` generator + bounded delta mutation; no production-derived input.
+tests/synthetic_scale_performance_contract_test.js — blocking 20k/50k revision/analytics/single-scan/full-aggregate/incremental/parity benchmark contract.
+.github/workflows/pr-validation.yml — canonical named `Synthetic scale performance` gate plus full layered regression.
+
+# PERF-013 verified incremental analytics aggregates
 docs/operations/PERF013_INCREMENTAL_AGGREGATES.md — normative exact-revision state/delta/affected-bucket recompute/privacy/rollback semantics.
 lib/analytics/incremental_aggregates.v1.json — machine-readable `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`; MONTH/CATEGORY_ID/ACCOUNT_ID projections, FIN-010 authority and public-safe evidence contract.
 lib/analytics/incremental_aggregates.js — deterministic full-build + exact-base incremental update; SHA-256 membership/state binding and affected-bucket-only recompute.
 tests/incremental_analytics_aggregates_contract_test.js — synthetic full-build/NOOP/add-remove-change/move/delete/tamper/mixed-currency and ANL-010 parity contract.
-.github/workflows/pr-validation.yml — canonical named `Incremental analytics aggregates` gate plus full layered regression.
 
 # PERF-012 verified single-scan refresh
 docs/operations/PERF012_SINGLE_SCAN_REFRESH.md — one-read-per-cycle snapshot model and read budget.
