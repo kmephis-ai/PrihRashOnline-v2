@@ -1,0 +1,82 @@
+{
+  "schema": "PRH_CANONICAL_R2_WEB_APP_V1",
+  "version": "1.0.0",
+  "roadmap_id": "UI-MIG-020",
+  "default_route": "home",
+  "private_exposure": "MYSELF",
+  "primary_navigation": [
+    "home",
+    "transactions",
+    "expenses",
+    "income",
+    "cash-flow",
+    "budget",
+    "obligations",
+    "data-quality"
+  ],
+  "runtime_bindings": {
+    "home": {
+      "state": "BOUND_READ_ONLY",
+      "surface": "FinancialHomeWebApp",
+      "data_source": "PRH_R2_FIN_RUNTIME_ADAPTER_V1",
+      "financial_truth": "FIN-TRUTH-v1",
+      "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+      "parity_gate_required": true
+    },
+    "transactions": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"TransactionExplorerWebApp"},
+    "expenses": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"ExpenseAnalyticsWebApp"},
+    "income": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"IncomeAnalyticsWebApp"},
+    "cash-flow": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"CashFlowWebApp"},
+    "budget": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"BudgetControlWebApp"},
+    "obligations": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"ObligationsWebApp"},
+    "data-quality": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"DataQualityWebApp"}
+  },
+  "synthetic_policy": {
+    "browser_visual_fixture_allowed": true,
+    "private_runtime_fallback_allowed": false,
+    "unproven_binding_behavior": "FAIL_CLOSED_NO_SYNTHETIC_TRUTH"
+  },
+  "legacy_rollback": {
+    "route": "legacy",
+    "default": false,
+    "bounded_until_post_cutover_verification": true,
+    "financial_authority": false
+  },
+  "runtime_fin_adapter": {
+    "schema": "PRH_R2_FIN_RUNTIME_ADAPTER_V1",
+    "source": "01 Операции",
+    "currency_setting": "09 Настройки:currency",
+    "read_gateway": "prhGoogleRepositoryReadOperationsTable_",
+    "money": "integer_minor_units",
+    "parity_authority": "FIN-TRUTH-v1 + PRH_KPI_DICTIONARY_V1@1.0.0",
+    "legacy_total_cells_used": false,
+    "ui_financial_formula_authority": false,
+    "write_authority": false
+  },
+  "trusted_delivery": {
+    "render_smoke_token": "PRH_WEBAPP_SMOKE_V3|R2|OK",
+    "render_smoke_reads_financial_rows": false,
+    "exact_sha_required": true,
+    "runtime_health_required": true,
+    "autonomous_merge_required": true,
+    "manual_merge": false
+  },
+  "observability": {
+    "public_allowlist": ["schema","version","route","surface","binding_state","render_status","reason_code","latency_ms"],
+    "financial_payload_allowed": false,
+    "private_runtime_locator_allowed": false
+  },
+  "authority": {
+    "financial_truth": false,
+    "canonical_transaction": false,
+    "storage": false,
+    "financial_write": false,
+    "runtime_write": false,
+    "deployment": false
+  },
+  "cost": {
+    "class": "FREE_ONLY",
+    "paid_dependency_required": false,
+    "external_cdn_required": false
+  }
+}
