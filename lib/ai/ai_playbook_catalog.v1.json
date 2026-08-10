@@ -1,0 +1,130 @@
+{
+  "schema": "PRH_AI_PLAYBOOK_CATALOG_V1",
+  "version": "1.0.0",
+  "roadmap_id": "AIENG-004",
+  "language": "ru",
+  "principles": {
+    "catalog_grants_authority": false,
+    "existing_authority_required": true,
+    "source_of_truth_duplicated": false,
+    "public_safe": true,
+    "public_finance_data": "SYNTHETIC_ONLY",
+    "paid_dependency_required": false,
+    "red_machine_gate_bypass_allowed": false,
+    "one_writer_preserved": true,
+    "free_only": true
+  },
+  "canonical_authorities": [
+    "AGENTS.md",
+    "docs/ROADMAP.md",
+    "live GitHub Issues",
+    "exact-SHA code/tests/workflows/machine evidence",
+    "PRH_ROADMAP_TASK_V1",
+    "PRH_MULTI_AI_REVIEW_V1",
+    "FIN-TRUTH-v1",
+    "PRH_TEST_ARCHITECTURE_V1@1.0.0",
+    "CI-003",
+    "PRH_LANGUAGE_POLICY_V1@1.0.0"
+  ],
+  "required_playbook_ids": [
+    "ROADMAP_EXECUTION",
+    "PR_REVIEW",
+    "MIGRATION_REVIEW",
+    "DOCS_DRIFT",
+    "RELEASE"
+  ],
+  "playbooks": {
+    "ROADMAP_EXECUTION": {
+      "version": "1.0.0",
+      "file": ".ai-context/playbooks/ROADMAP_EXECUTION.md",
+      "mode": "ACTIVE_WRITER",
+      "authority_source": "ACTIVE_ROADMAP_ISSUE+AGENTS+MACHINE_GATES",
+      "authority_grants": {"repository_write":false,"issue_write":false,"review_write":false,"merge":false,"deploy":false,"financial_write":false},
+      "required_inputs": ["continuation_request","docs/ROADMAP.md","live_issue_state","public_safe_ai_context"],
+      "ordered_steps": ["LOAD_AUTHORITY","RESOLVE_TASK","VERIFY_ONE_WRITER","IMPLEMENT_SCOPE","RUN_MACHINE_GATES","RECOVER_RED_IN_SAME_ITEM","FREEZE_EXACT_SHA","FOLLOW_TRUSTED_CHAIN","VERIFY_MAIN","RESOLVE_NEXT"],
+      "stop_conditions": ["MULTIPLE_ACTIVE_WRITERS","DEPENDENCY_NOT_DONE","POLICY_GATED_ACTION_REQUIRES_OWNER","PRIVATE_DATA_REQUIRED_IN_PUBLIC_CONTEXT","UNRESOLVED_RED_GATE"],
+      "outputs": ["roadmap_id","issue_number","branch","pr_number","candidate_sha","machine_evidence","main_verification"],
+      "required_markers": ["PRH_ROADMAP_TASK_V1","один active writer","same Roadmap item","red machine gate","Main Verification","FREE_ONLY"],
+      "min_cyrillic_letters": 180,
+      "max_bytes": 10000
+    },
+    "PR_REVIEW": {
+      "version": "1.0.0",
+      "file": ".ai-context/playbooks/PR_REVIEW.md",
+      "mode": "READ_ONLY",
+      "authority_source": "PRH_MULTI_AI_REVIEW_V1+EXACT_SHA",
+      "authority_grants": {"repository_write":false,"issue_write":false,"review_write":false,"merge":false,"deploy":false,"financial_write":false},
+      "required_inputs": ["immutable_sha","diff_or_patch","public_safe_context","review_scope"],
+      "ordered_steps": ["PIN_SHA","LOAD_PUBLIC_CONTEXT","CHECK_SCOPE","REVIEW_ARCHITECTURE","REVIEW_SECURITY_PRIVACY","REVIEW_TESTS_OPERATIONS","REPORT_FINDINGS"],
+      "stop_conditions": ["SHA_NOT_IMMUTABLE","PRIVATE_PAYLOAD_REQUIRED","REQUEST_TO_MUTATE","INSUFFICIENT_EVIDENCE"],
+      "outputs": ["severity","evidence","recommendation","confidence"],
+      "required_markers": ["READ_ONLY","writer_authority=false","severity","evidence","recommendation","confidence","red machine gate"],
+      "min_cyrillic_letters": 160,
+      "max_bytes": 9000
+    },
+    "MIGRATION_REVIEW": {
+      "version": "1.0.0",
+      "file": ".ai-context/playbooks/MIGRATION_REVIEW.md",
+      "mode": "READ_ONLY",
+      "authority_source": "MIGRATION_CONTRACTS+OWNER_PRIVATE_EVIDENCE",
+      "authority_grants": {"repository_write":false,"issue_write":false,"review_write":false,"merge":false,"deploy":false,"financial_write":false},
+      "required_inputs": ["immutable_sha_or_plan","migration_contract","public_safe_evidence","owner_private_evidence_status_if_available"],
+      "ordered_steps": ["PIN_SCOPE","CHECK_BACKUP","CHECK_PROVENANCE","CHECK_IDEMPOTENCY","CHECK_RECONCILIATION","CHECK_AUTHORIZATION_BOUNDARY","REPORT_FINDINGS"],
+      "stop_conditions": ["REAL_DATA_REQUESTED_FOR_PUBLIC_EVIDENCE","WRITE_EXECUTION_REQUESTED","AUTHORIZATION_MISSING","RECONCILIATION_UNEXPLAINED"],
+      "outputs": ["severity","evidence","recommendation","confidence","write_authority_status"],
+      "required_markers": ["READ_ONLY","writer_authority=false","Current write authority = false","fresh exact-bound owner authorization","synthetic-only public evidence","unexplainedMismatch=0"],
+      "min_cyrillic_letters": 180,
+      "max_bytes": 10000
+    },
+    "DOCS_DRIFT": {
+      "version": "1.0.0",
+      "file": ".ai-context/playbooks/DOCS_DRIFT.md",
+      "mode": "VALIDATE_OR_REPAIR_ACTIVE_WRITER",
+      "authority_source": "ACTIVE_ROADMAP_ISSUE+DOCS_SCANNERS",
+      "authority_grants": {"repository_write":false,"issue_write":false,"review_write":false,"merge":false,"deploy":false,"financial_write":false},
+      "required_inputs": ["active_issue_or_read_only_mode","docs/ROADMAP.md","docs/PROJECT_STATUS.md","public_safe_ai_context"],
+      "ordered_steps": ["RUN_DOCS_TRUTH","RUN_LANGUAGE_POLICY","RUN_AI_CONTRACT","COMPARE_LIFECYCLE","REPAIR_ONLY_ACTIVE_SCOPE","RERUN_SCANNERS"],
+      "stop_conditions": ["NO_WRITER_AUTHORITY_FOR_REPAIR","ROADMAP_SCOPE_CHANGE_REQUIRED","PRIVATE_DATA_IN_DOCS","SCANNER_STILL_RED"],
+      "outputs": ["scanner_status","drift_findings","changed_paths","remaining_blockers"],
+      "required_markers": ["docs-drift-scan.js","language-policy-scan.js","ai-contract-scan.js","machine evidence","active writer","LANG-RU"],
+      "min_cyrillic_letters": 160,
+      "max_bytes": 9000
+    },
+    "RELEASE": {
+      "version": "1.0.0",
+      "file": ".ai-context/playbooks/RELEASE.md",
+      "mode": "TRUSTED_DELIVERY_OBSERVER",
+      "authority_source": "CI-002+CI-003+DEFAULT_BRANCH_WORKFLOWS",
+      "authority_grants": {"repository_write":false,"issue_write":false,"review_write":false,"merge":false,"deploy":false,"financial_write":false},
+      "required_inputs": ["open_roadmap_pr","candidate_sha","pr_validation_status"],
+      "ordered_steps": ["VERIFY_PR_VALIDATION","FREEZE_SHA","VERIFY_TRUSTED_DEPLOY","VERIFY_RUNTIME_HEALTH","VERIFY_AUTONOMOUS_MERGE","VERIFY_MAIN"],
+      "stop_conditions": ["PR_VALIDATION_RED","HEAD_CHANGED","TRUSTED_DEPLOY_RED","RUNTIME_HEALTH_RED","AUTONOMOUS_MERGE_RED","MAIN_VERIFICATION_RED"],
+      "outputs": ["candidate_sha","trusted_deploy","runtime_health","autonomous_merge","merge_sha","main_verification"],
+      "required_markers": ["PR Validation","Trusted DEV Deploy","Trusted Runtime Health","autonomous squash merge","Main Verification","ручной merge запрещён"],
+      "min_cyrillic_letters": 160,
+      "max_bytes": 9000
+    }
+  },
+  "scanner": {
+    "metadata_marker": "PRH_AI_PLAYBOOK_META_V1",
+    "max_steps_per_playbook": 12,
+    "max_stop_conditions_per_playbook": 8,
+    "missing_playbook": "FAIL",
+    "catalog_file_mismatch": "FAIL",
+    "duplicate_file": "FAIL",
+    "unsafe_authority_grant": "FAIL",
+    "missing_required_marker": "FAIL",
+    "insufficient_russian_text": "FAIL",
+    "oversized_playbook": "FAIL"
+  },
+  "authorities": {
+    "financial_truth": false,
+    "financial_write": false,
+    "roadmap_status": false,
+    "merge": false,
+    "deployment": false,
+    "runtime": false,
+    "storage": false,
+    "network": false
+  }
+}
