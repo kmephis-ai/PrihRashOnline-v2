@@ -43,31 +43,31 @@ DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-02
 
 `PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`, authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
 
-`NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
+`UI-MIG-020` is canonical dependency-ready P1 switch-over work and must be selected after current NW-030 completes, before remaining P2 items. `NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
 
 ## Current R3 truth
 
 - `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`, authority `PRH_LONG_TERM_TRENDS_V1@1.0.0`.
 - `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`, authority `PRH_CASH_FLOW_PROJECTION_V1@1.0.0`.
 - `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, candidate `6ca0c01510542323015d97795d8b007e048ded9a`, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`, authority `PRH_GOAL_PLANNING_V1@1.0.0`.
-- `BAL-030` — **current writer**, Issue #76, branch `agent/BAL-030-balance-reconciliation`; IN_PROGRESS до Main Verification.
+- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, candidate `f091ef0079a259574e452f4dd3c26adab8f0e5f1`, merge `3caab7017de035d14c36d07f3712f7c019828e2f`, authority `PRH_BALANCE_RECONCILIATION_V1@1.0.0`.
+- `NW-030` — **current writer**, Issue #171, branch `agent/NW-030-net-worth`; IN_PROGRESS до Main Verification.
 
-BAL-030 machine authority: `lib/balance/balance_reconciliation.v1.json` (`PRH_BALANCE_RECONCILIATION_V1@1.0.0`). Core: `lib/balance/balance_reconciliation.js`. Contract test: `tests/balance_reconciliation_contract_test.js`. Normative doc: `docs/finance/BALANCE_RECONCILIATION.md`. Named gate: `Balance reconciliation`.
+NW-030 machine authority: `lib/networth/net_worth.v1.json` (`PRH_NET_WORTH_V1@1.0.0`). Core: `lib/networth/net_worth.js`. Contract test: `tests/net_worth_contract_test.js`. Normative doc: `docs/finance/NET_WORTH.md`. Named gate: `Net Worth`.
 
-BAL-030 rules:
+NW-030 rules:
 
-- absolute balance нельзя выводить из transaction flow без baseline; explicit anchor `PRH_BALANCE_OBSERVATION_V1` обязателен, `zero_origin_assumed=false`;
-- anchor и target обязаны иметь один account/currency; target строго позже anchor;
-- interval = `ANCHOR_EXCLUSIVE_TARGET_INCLUSIVE`;
-- observations используют signed safe-integer minor units, explicit ISO currency, RFC3339 instant и versioned provenance;
-- observation не является canonical transaction и не создаёт canonical financial truth;
-- posted canonical account deltas: income/refund `+amount`, expense `-amount`, transfer source `-amount`, transfer destination `+amount`, current zero-only adjustment `0`; pending/void игнорируются;
-- touching-account transaction с другой currency fail-closed; silent FX запрещён;
-- mismatch = observed target minus calculated target; state только `MATCH|MISMATCH`;
-- mismatch proposal = `REVIEW_CANONICAL_OR_OBSERVATION`, но `mutation_authorized=false`, `canonical_mutation=false`, `observation_mutation=false`, `financial_write=false`;
-- deterministic reconciliation id и result не зависят от входного порядка transaction array; input mutation запрещён;
-- public telemetry содержит только state/reason/count/delta-direction/proposal metadata, без balances, mismatch values и raw IDs;
-- storage/network/runtime/bank-provider/UI authority отсутствует; public evidence synthetic only; `FREE_ONLY` mandatory.
+- snapshot задаёт explicit ISO `valuation_date` и одну ISO currency; silent FX запрещён до отдельного FX work item;
+- account positions создаются только из `PRH_BALANCE_OBSERVATION_V1` или `PRH_BALANCE_RECONCILIATION_RESULT_V1`;
+- source account position всегда explicit `OBSERVED_BALANCE` либо `CALCULATED_BALANCE`; автоматического выбора нет;
+- BAL reconciliation state/id сохраняются в position provenance; `MISMATCH` не скрывается и переводит result в `RECONCILIATION_REVIEW_REQUIRED`;
+- non-account `ASSET`/`LIABILITY` имеют positive exact integer minor valuation и versioned `DECLARED_VALUATION|SYNTHETIC_TEST` provenance; live market provider не требуется;
+- net worth = signed account total + declared assets - declared liabilities; positive account balances входят в gross assets, отрицательные — в gross liabilities;
+- все arithmetic операции fail-closed при выходе из safe integer; duplicate position/account identity, mixed currency/date и invalid provenance запрещены;
+- deterministic ordering/id/serialization и input immutability обязательны;
+- public telemetry содержит только schema/version/status/count/source-kind/reconciliation-state metadata, без raw IDs, labels и financial values;
+- valuation layer имеет `financial_truth=false`; BAL/FIN/DATA authority не переопределяется;
+- `canonical_mutation=false`, `observation_mutation=false`, `financial_write=false`, storage/network/runtime/deployment authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
 
 ## Current R4 truth
 
@@ -89,11 +89,11 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js`, `cash_flow_projection_contract_test.js`, `goal_planning_contract_test.js` и `balance_reconciliation_contract_test.js` belong to `PURE_DOMAIN_APPLICATION`; named `Balance reconciliation` runs after `Goals and wish-list`. AI playbook/eval tests remain POLICY_GOVERNANCE.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js`, `cash_flow_projection_contract_test.js`, `goal_planning_contract_test.js`, `balance_reconciliation_contract_test.js` и `net_worth_contract_test.js` belong to `PURE_DOMAIN_APPLICATION`; named `Net Worth` runs after `Balance reconciliation`. AI playbook/eval tests remain POLICY_GOVERNANCE.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. BAL-030 requires no external model/provider or paid bank API.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. NW-030 requires no external model/provider, market-data API or paid bank API.
 
 ## MIG-010 historical verified boundary
 
@@ -113,7 +113,7 @@ PR Validation
 -> Main Verification
 ```
 
-BAL-030 remains open until Balance reconciliation + DATA/FIN/DR/GOAL/PROJ/TREND/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #76.
+NW-030 remains open until Net Worth + BAL/DATA/FIN/DR/GOAL/PROJ/TREND/MIG/analytics/profile/AI/LANG-RU/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #171.
 
 ## Read-only multi-AI review
 
@@ -121,8 +121,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. BAL-030 is pure reconciliation-domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. NW-030 is pure valuation-domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, TREND-030, PROJ-030, GOAL-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `BAL-030` is the single active writer.
+All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, TREND-030, PROJ-030, GOAL-030, BAL-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `NW-030` is the single active writer; after it closes, dependency-ready P1 `UI-MIG-020` has resolver priority over P2.
