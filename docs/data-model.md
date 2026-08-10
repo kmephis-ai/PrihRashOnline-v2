@@ -41,7 +41,7 @@ Legacy totals/cells не являются golden truth. Analytics, performance r
 
 `PRH_ANALYTICS_CONTRACT_V1@1.0.0` renderer/storage-neutral. `AnalyticsResult` — derived read model, не новый financial source of truth или persistence authority. Real analytics results/aggregates остаются private.
 
-ANL-010 завершён и не является current writer.
+ANL-010 — DONE; завершён и не является current writer.
 
 ## DESIGN-020 — DONE
 
