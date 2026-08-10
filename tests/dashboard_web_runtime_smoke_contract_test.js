@@ -28,6 +28,7 @@ function makeHtmlOutput(content) {
   };
 }
 
+let homeReadSmokeCalls = 0;
 const context = vm.createContext({
   console,
   JSON,
@@ -49,7 +50,11 @@ const context = vm.createContext({
     },
     createHtmlOutput(content) { return makeHtmlOutput(String(content)); }
   },
-  prhR2BuildFinancialHomeRuntime_() { throw new Error('technical smoke must not read private financial runtime'); },
+  prhR2BuildFinancialHomeRuntime_() { throw new Error('technical render smoke must not read private financial runtime'); },
+  prhR2FinancialHomeReadSmokeToken() {
+    homeReadSmokeCalls += 1;
+    return 'PRH_R2_HOME_READ_V1|OK|7';
+  },
   PR_BUILD_INFO: {
     schemaVersion: 1,
     candidateSha: 'a'.repeat(40),
@@ -88,12 +93,14 @@ assert(!r2Rendered.includes('<?!= initialHomeData ?>'));
 
 const smokeToken = vm.runInContext('prhWebAppRenderSmokeToken()', context);
 assert.strictEqual(smokeToken, 'PRH_WEBAPP_SMOKE_V3|R2|OK');
+assert.strictEqual(homeReadSmokeCalls, 0, 'technical render smoke stays independent of private data');
 
 const healthToken = vm.runInContext(
   "prhReleaseHealthCheckToken({candidateSha:'" + 'a'.repeat(40) + "',sourceTreeHash:'" + 'b'.repeat(64) + "'})",
   context
 );
 assert.match(healthToken, /^PRH_HEALTH_V1\|OK\|a{40}\|b{64}\|1\|V8\|3\|1\|[0-9]+$/);
+assert.strictEqual(homeReadSmokeCalls, 1, 'trusted health must prove the private Home read path exactly once');
 
 assert.match(dashboardSource, /function prhRenderWebDashboard_\(data\)/);
 assert.doesNotMatch(dashboardSource, /function\s+doGet\s*\(/);
@@ -103,14 +110,16 @@ assert.match(routerSource, /\?surface=legacy/);
 assert.match(smokeSource, /prhCanonicalR2WebAppSmokeToken\(\)/);
 assert.doesNotMatch(smokeSource, /SpreadsheetApp|prhGetWebDashboardData/);
 assert.match(runtimeSource, /PRH_WEBAPP_SMOKE_V3\|R2\|OK/);
-assert.match(runtimeSource, /prhWebAppRenderSmokeToken\(\)/);
-assert.match(runtimeSource, /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
+assert.match(runtimeSource, /PRH_R2_HOME_READ_V1\|OK\|7/);
+assert.match(runtimeSource, /prhR2FinancialHomeReadSmokeToken\(\)/);
+assert.match(runtimeSource, /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
 
 console.log('dashboard-web-runtime-smoke: PASS', {
   syntax: 'V8',
   canonicalDefault: 'R2_HOME',
   legacyRollback: true,
   smokeVersion: 3,
-  workbookReadsInSmoke: false,
+  technicalRenderReadsFinancialRows: false,
+  trustedPrivateHomeReadProof: true,
   healthTokenShapePreserved: true
 });
