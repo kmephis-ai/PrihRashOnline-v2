@@ -13,6 +13,7 @@ function createContext(options = {}) {
   const existingSheets = new Set(options.sheets || ['operations', 'settings', 'control']);
   const readCounter = { value: 0 };
   const webSmokeCounter = { value: 0 };
+  const homeReadSmokeCounter = { value: 0 };
   const spreadsheet = options.noSpreadsheet ? null : {
     getSheetByName(name) {
       if (!existingSheets.has(name)) return null;
@@ -54,15 +55,23 @@ function createContext(options = {}) {
       return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V3|R2|OK';
     };
   }
+  if (!options.homeReadSmokeMissing) {
+    context.prhR2FinancialHomeReadSmokeToken = function () {
+      homeReadSmokeCounter.value += 1;
+      if (options.homeReadSmokeThrows) throw new Error('synthetic home read failure');
+      return options.homeReadSmokeToken || 'PRH_R2_HOME_READ_V1|OK|7';
+    };
+  }
   vm.createContext(context);
   vm.runInContext(source, context, { filename: 'RuntimeHealth.js' });
-  return { context, readCounter, webSmokeCounter };
+  return { context, readCounter, webSmokeCounter, homeReadSmokeCounter };
 }
 
 const transportOnly = createContext({ noSpreadsheet: true });
 assert.strictEqual(transportOnly.context.prhRuntimeTransportPing(), 'PRH_TRANSPORT_V1|OK');
 assert.strictEqual(transportOnly.readCounter.value, 0);
 assert.strictEqual(transportOnly.webSmokeCounter.value, 0);
+assert.strictEqual(transportOnly.homeReadSmokeCounter.value, 0);
 
 const healthy = createContext();
 const result = healthy.context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash });
@@ -77,6 +86,7 @@ assert.strictEqual(result.readCheck, true);
 assert(Number.isInteger(result.latencyMs) && result.latencyMs >= 0);
 assert.strictEqual(healthy.readCounter.value, 1);
 assert.strictEqual(healthy.webSmokeCounter.value, 1);
+assert.strictEqual(healthy.homeReadSmokeCounter.value, 1);
 
 const tokenHealthy = createContext();
 const token = tokenHealthy.context.prhReleaseHealthCheckToken({ candidateSha, sourceTreeHash });
@@ -88,6 +98,7 @@ assert.deepStrictEqual(tokenParts.slice(0, 8), [
 assert(/^\d+$/.test(tokenParts[8]));
 assert.strictEqual(tokenHealthy.readCounter.value, 1);
 assert.strictEqual(tokenHealthy.webSmokeCounter.value, 1);
+assert.strictEqual(tokenHealthy.homeReadSmokeCounter.value, 1);
 
 const publicResult = JSON.parse(JSON.stringify(result));
 ['amount','income','expense','balance','description','category','row','value','payload','account'].forEach((forbidden) => {
@@ -105,6 +116,9 @@ assert.throws(() => createContext({ readFailure: true }).context.prhReleaseHealt
 assert.throws(() => createContext({ webSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING/);
 assert.throws(() => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V3|R2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
 assert.throws(() => createContext({ webSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic web smoke failure/);
+assert.throws(() => createContext({ homeReadSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_MISSING/);
+assert.throws(() => createContext({ homeReadSmokeToken: 'PRH_R2_HOME_READ_V1|FAIL|0' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
+assert.throws(() => createContext({ homeReadSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic home read failure/);
 
 console.log('runtime_health_contract_test: OK', {
   exactSha: true,
@@ -112,6 +126,7 @@ console.log('runtime_health_contract_test: OK', {
   transportPing: true,
   privateSchemaRead: true,
   webAppRenderSmoke: 'V3_R2',
+  privateHomeReadSmoke: true,
   scalarEntrypoint: true,
   financialPayload: false
 });
