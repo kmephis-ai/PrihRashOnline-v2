@@ -56,6 +56,16 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED');
   }
 
+  // Private binding proof. This invokes the real read-only Home projection on the
+  // deployed workbook, but receives only a constant technical scalar without financial payload.
+  if (typeof prhR2FinancialHomeReadSmokeToken !== 'function') {
+    throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_MISSING');
+  }
+  var homeReadSmoke = prhR2FinancialHomeReadSmokeToken();
+  if (homeReadSmoke !== 'PRH_R2_HOME_READ_V1|OK|7') {
+    throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED');
+  }
+
   return {
     ok: true,
     status: 'OK',
