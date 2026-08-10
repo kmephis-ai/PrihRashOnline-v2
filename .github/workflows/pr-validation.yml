@@ -61,6 +61,8 @@ jobs:
         run: node tools/docs-drift-scan.js
       - name: R1 documentation contract
         run: node tests/r1_documentation_contract_test.js
+      - name: Design system
+        run: node tests/design_system_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol
