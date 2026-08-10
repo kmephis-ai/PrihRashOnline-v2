@@ -15,7 +15,7 @@ const headers = ['ID', 'Дата и время', 'Тип', 'Сумма', 'Счё
 const rows = [
   ['SYN-PREV-001', '2026-01-15T10:00:00Z', 'доход', '50.00', 'SYN-A', '', 'SYN-INCOME', 'posted'],
   ['SYN-INC-001', '2026-02-05T10:00:00Z', 'доход', '100.00', 'SYN-A', '', 'SYN-INCOME', 'проведено'],
-  ['SYN-EXP-001', '2026-02-06T10:00:00Z', 'расход', '30.00', 'SYN-A', '', 'SYN-FOOD', 'posted'],
+  ['SYN-EXP-001', '2026-02-06T10:00:00Z', 'расход', '30.00', 'SYN-A', '', 'SYN-FOOD', 'Перенесено'],
   ['SYN-REF-001', '2026-02-07T10:00:00Z', 'возврат', '5.00', 'SYN-A', '', 'SYN-FOOD', 'posted'],
   ['SYN-TRF-001', '2026-02-08T10:00:00Z', 'перевод', '20.00', 'SYN-A', 'SYN-B', 'SYN-TRANSFER', 'posted'],
   ['SYN-PEND-001', '2026-02-09T10:00:00Z', 'доход', '999.00', 'SYN-A', '', 'SYN-INCOME', 'pending'],
@@ -54,18 +54,20 @@ assert.strictEqual(context.PRH_R2_FIN_RUNTIME.WRITE_AUTHORITY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.UI_FINANCIAL_FORMULA_AUTHORITY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FREE_ONLY, true);
 
-// Mapping parity with the canonical Google adapter.
+// Mapping parity with the canonical Google adapter, including the MIG-010 materialized target marker.
 for (const value of ['доход', 'расход', 'перевод', 'возврат', 'корректировка', 'income', 'expense']) {
   assert.strictEqual(context.prhR2FinType_(value), googleAdapter.normalizeType(value));
 }
-for (const value of ['', 'проведено', 'оплачено', 'posted', 'pending', 'отменено']) {
+for (const value of ['', 'проведено', 'оплачено', 'Перенесено', 'posted', 'pending', 'отменено']) {
   assert.strictEqual(context.prhR2FinStatus_(value), googleAdapter.normalizeStatus(value));
 }
+assert.strictEqual(googleAdapter.normalizeStatus('Перенесено'), 'posted');
 for (const value of ['0', '1', '10.25', '123456.78']) {
   assert.strictEqual(context.prhR2FinMajorToMinor_(value), googleAdapter.majorToMinorExact(value));
 }
 
 const runtimeSource = context.prhR2FinReadTransactions_();
+assert.strictEqual(runtimeSource.transactions.find((tx) => tx.transaction_id === 'SYN-EXP-001').status, 'posted');
 const period = context.prhR2FinLatestMonthPeriod_(runtimeSource.transactions);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(period)), {
   kind: 'EXPLICIT_WINDOW', start: '2026-02-01', end: '2026-03-01', partial: false, day_count: 28, proration: 'NONE'
@@ -122,6 +124,7 @@ console.log('r2_financial_runtime_parity_contract_test: OK', {
   policy: 'FIN-TRUTH-v1',
   kpiDictionary: '1.0.0',
   exactMoney: true,
+  migratedStatusParity: true,
   refundParity: true,
   transferNeutral: true,
   pendingExcluded: true,
