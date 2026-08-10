@@ -20,6 +20,7 @@
     {"path":"docs/RELEASE_PROCESS.md","kind":"RUNBOOK","min_cyrillic_letters":120},
     {"path":"docs/security/FAMILY_AUTHORIZATION.md","kind":"SECURITY","min_cyrillic_letters":120},
     {"path":"docs/architecture/YDB_SERVERLESS_POC.md","kind":"ARCHITECTURE","min_cyrillic_letters":120},
+    {"path":"docs/operations/AIENG006_MODEL_COST_ROUTING.md","kind":"AI_OPERATIONS","min_cyrillic_letters":180},
     {"path":".github/ISSUE_TEMPLATE/roadmap.yml","kind":"ISSUE_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/PULL_REQUEST_TEMPLATE.md","kind":"PR_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/RELEASE_TEMPLATE.md","kind":"RELEASE_TEMPLATE","min_cyrillic_letters":40}
@@ -36,7 +37,8 @@
     "API", "ADR", "AI", "CI", "CLI", "JSON", "YAML", "YQL", "YDB", "OAuth", "OIDC", "WIF",
     "HMAC-SHA256", "RFC 2104", "NIST SP 800-63B-4", "FREE_ONLY", "FIN-TRUTH-v1",
     "PRH_CANONICAL_TRANSACTION_V1", "PRH_TRANSACTION_REPOSITORY_V1", "GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED",
-    "GitHub Actions", "Google Apps Script", "ECharts", "Playwright", "Node.js"
+    "GitHub Actions", "Google Apps Script", "ECharts", "Playwright", "Node.js", "Sol", "Terra", "Luna",
+    "ChatGPT", "OpenAI API"
   ],
   "parallel_english_normative_path_patterns": [
     "(^|/)docs/en(/|$)",
