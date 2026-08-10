@@ -41,41 +41,44 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 
 - `DESIGN-020` — **DONE**, Issue #118 Main Verification PASS, PR #119 autonomous merge `9337dfb1288ebc3e0c746ab744b61bb1051e14ea`.
 - `VIZ-020` — **DONE**, Issue #120 Main Verification PASS, PR #121 autonomous merge `66139972b1fc910fc7bc0e614ecfdc7d5b754adf`.
-- `HOME-020` — **current R2 writer**, Issue #122, branch `agent/HOME-020-financial-home`; remains open until Main Verification.
+- `HOME-020` — **DONE**, Issue #122 Main Verification PASS, PR #123 autonomous merge `24e6e57e1b2b803dd0d2176376207fd524674dd3`.
+- `TX-020` — **current R2 writer**, Issue #124, branch `agent/TX-020-transaction-explorer`; IN_PROGRESS до Main Verification.
 
-`PRH_DESIGN_SYSTEM_V1@1.0.0` remains presentation-only: semantic tokens, explicit light/dark theme, focus/reduced-motion and responsive shell; no financial/query/storage/write authority and no paid/external design provider requirement.
+`PRH_DESIGN_SYSTEM_V1@1.0.0` remains presentation-only; no financial/query/storage/write authority.  
+`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` remains configuration/interaction/replaceable-renderer authority only; no financial/query/storage/write authority.  
+`PRH_FINANCIAL_HOME_V1@1.0.0` remains FIN-backed Home composition only; no financial-write/storage/network/balance-observation authority.
 
-`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` remains renderer-neutral: configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`, `BAR|LINE|DONUT` registry, deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`, transient render dataset and replaceable `ECHARTS_6` adapter. Specs contain no financial payload; real render data/options remain private runtime-only. No query/network/storage/persistence/financial-write authority. `FREE_ONLY` mandatory.
+## TX-020 Transaction Explorer boundary
 
-## HOME-020 Financial Home boundary
+Machine contract: `lib/explorer/transaction_explorer.v1.json` (`PRH_TRANSACTION_EXPLORER_V1@1.0.0`). Core: `lib/explorer/transaction_explorer.js`. Browser surface: `TransactionExplorerWebApp.html`. Tests: `tests/transaction_explorer_contract_test.js`, `tests/transaction_explorer_visual_test.js`. Named gates: `Transaction Explorer`, `Transaction Explorer visual gate`.
 
-Machine contract: `lib/home/financial_home.v1.json` (`PRH_FINANCIAL_HOME_V1@1.0.0`). View model: `PRH_FINANCIAL_HOME_VIEW_V1`. Implementation: `lib/home/financial_home.js`. Browser surface: `FinancialHomeWebApp.html`. Tests: `tests/financial_home_contract_test.js`, `tests/financial_home_visual_test.js`. Named gates: `Financial Home`, `Financial Home visual gate`.
+Rules:
 
-Financial Home rules:
+- Explorer consumes `PRH_CANONICAL_TRANSACTION_V1`; it does not redefine canonical shape or FIN-TRUTH.
+- Query supports explicit date/account/category/member/type/status filters, bounded text search, allowlisted sort fields and offset/limit page semantics.
+- Normalized query identity is deterministic SHA-256; stable sort uses `transaction_id` tie-breaker.
+- Page size is bounded to max 200; synthetic 20k/50k interaction profiles exercise search/filter/sort/page behavior.
+- Result rows are projections of canonical transaction fields, not new financial calculations.
+- Edit draft accepts only allowlisted editable fields and becomes `VALID` only through DATA-010 `normalizeCanonicalTransaction()` plus immutable source-identity check.
+- Runtime save remains `WRITE_BLOCKED` with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`; financial write authority is false.
+- A future write policy must separately prove idempotency, preconditions, backup, readback, reconciliation and rollback before Google mutation can be enabled.
+- Public telemetry is restricted to schema/version/query-hash/count/timing/edit-state/reason-code metadata; private rows/IDs/amounts are not public telemetry.
+- Public tests/browser evidence use independently generated synthetic transactions only.
+- `FREE_ONLY` mandatory; no external provider/CDN required.
 
-- Income / Expense / Cash Flow / Savings / Budget variance come from one FIN-010 `evaluateKpis()` evaluation; Home/UI do not implement alternative KPI formulas.
-- Budget is valid only with explicit same-period/same-currency `budget_minor`; missing plan -> `NOT_CONFIGURED`, never inferred from history.
-- Liquidity has no canonical value until a versioned balance-observation source exists. Current state -> `UNAVAILABLE_PENDING_BALANCE_SOURCE`; cash flow proxy is forbidden; future dependency `BAL-030`.
-- Alerts are explainable/versioned conditions over already-evaluated FIN outputs or explicit capability states: `NEGATIVE_CASH_FLOW`, `BUDGET_OVERRUN`, `BUDGET_NOT_CONFIGURED`, `LIQUIDITY_SOURCE_UNAVAILABLE`.
-- Drill navigation is `PRH_HOME_DRILL_ENVELOPE_V1` containing explicit FIN period + VIZ `PRH_DRILL_CONTEXT_V1`; financial values are not embedded in navigation state/URL.
-- Home WidgetSpecs are configuration-only and use VIZ semantic encodings; real Home view/render payload remains private.
-- Public Home fixture/visual evidence is independently generated synthetic only.
-- HOME-020 has no financial truth/query/storage/network/financial-write/balance-observation authority.
-- External CDN/paid dependency not required; `FREE_ONLY` mandatory.
-
-Canonical HOME-020 entry points:
+Canonical TX-020 entry points:
 
 1. `docs/ROADMAP.md`
-2. live Issue #122
+2. live Issue #124
 3. `docs/PROJECT_STATUS.md`
-4. `lib/home/financial_home.v1.json`
-5. `lib/home/financial_home.js`
-6. `FinancialHomeWebApp.html`
-7. `tests/financial_home_contract_test.js`
-8. `tests/financial_home_visual_test.js`
+4. `lib/explorer/transaction_explorer.v1.json`
+5. `lib/explorer/transaction_explorer.js`
+6. `TransactionExplorerWebApp.html`
+7. `tests/transaction_explorer_contract_test.js`
+8. `tests/transaction_explorer_visual_test.js`
 9. exact candidate workflows/evidence
 
-Dependent R2 work (`EXP-020`, `INC-020`, later dashboards) remains dependency-gated by the Roadmap; HOME-020 does not take those scopes.
+EXP-020/INC-020/CF-020/PWA-020 and other sibling scopes are not part of the current writer.
 
 ## DOC-010 verified documentation-coherence boundary
 
@@ -85,11 +88,11 @@ Canonical R1 maps remain `docs/architecture/R1_C4_CONTEXT.md`, `docs/data/R1_DAT
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DESIGN-020/VIZ-020/HOME-020 contracts are `UI_E2E`; Financial Home visual test is also `UI_E2E`. Unknown/ambiguous test classification fails.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DESIGN/VIZ/HOME/TX contracts and UI visual tests are `UI_E2E`. Unknown/ambiguous test classification fails.
 
 ## ANL / FIN / PERF authority
 
-`PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; analytics authority explicitly remains `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute but cannot redefine financial truth. HOME-020 consumes FIN results and VIZ configuration; it does not become a second analytics or finance authority.
+`PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; analytics authority explicitly remains `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute but cannot redefine financial truth. TX-020 projects canonical rows and does not become analytics/finance authority.
 
 ## MIG-010 historical verified boundary
 
@@ -114,7 +117,7 @@ Roadmap Issue
 -> Main Verification -> Issue DONE/closed
 ```
 
-HOME-020 remains open until its contract/visual/full suites are green, trusted exact-head deploy/runtime evidence passes and Main Verification closes Issue #122.
+TX-020 remains open until contract/scale/visual/full suites are green, trusted exact-head deploy/runtime evidence passes and Main Verification closes Issue #124.
 
 ## Executable continuation protocol
 
@@ -126,7 +129,7 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data stays private. Public finance/render fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts, real Home view models and renderer options stay private. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance/render/Explorer fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys, migration artifacts, real Home models, real transaction rows and renderer options stay private. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
@@ -140,9 +143,10 @@ OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLO authority only.
 PERF-010..014: read/performance authority only.  
 DOC-010: `PRH_R1_DOCUMENTATION_V1`; documentation coherence only.  
 DESIGN-020: `PRH_DESIGN_SYSTEM_V1`; presentation semantics only.  
-VIZ-020: `PRH_VISUALIZATION_FOUNDATION_V1`; visualization configuration/interaction/renderer-adapter only.  
-HOME-020: `PRH_FINANCIAL_HOME_V1`; FIN-backed view composition + explainable Home alert/drill policy only.
+VIZ-020: `PRH_VISUALIZATION_FOUNDATION_V1`; visualization config/interaction/renderer-adapter only.  
+HOME-020: `PRH_FINANCIAL_HOME_V1`; FIN-backed view composition only.  
+TX-020: `PRH_TRANSACTION_EXPLORER_V1`; canonical row exploration/edit-draft validation only; financial_write=false.
 
 ## Scope handoff
 
-`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; all R1 items, `DESIGN-020`, `VIZ-020` = DONE. `MASTER-G3 = complete`. `HOME-020` is the single current R2 writer.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; all R1 items, `DESIGN-020`, `VIZ-020`, `HOME-020` = DONE. `MASTER-G3 = complete`. `TX-020` is the single current R2 writer.
