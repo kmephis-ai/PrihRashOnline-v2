@@ -6,13 +6,10 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 ## R0 — завершён
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
 
 - `DOC-002` Русский нормативный контур — **DONE**, Issue #75 Main Verification PASS, merge `8495dc730166f4e5fb7a03b5a7ab780501f6bbf5`.
-
-### Текущий governance writer
-
-- `AIENG-006` Маршрутизация моделей/стоимости — **IN_PROGRESS**, Issue #146; current writer, branch `agent/AIENG-006-model-cost-routing`.
+- `AIENG-006` Маршрутизация моделей/стоимости — **DONE**, Issue #146 Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`.
 
 `LANG-RU` остаётся обязательным: русский — единственный нормативный язык human-facing документации/metadata/AI instructions; machine identifiers, API/schema fields, library/protocol/standard names и технические пути сохраняются без перевода.
 
@@ -38,21 +35,30 @@ PWA boundary сохраняется: current Apps Script HtmlService service-wor
 
 - `YC-040` — **DONE**, Issue #141 Main Verification PASS, merge `924a44f4cb01e6add6c7fd9a0b166d7a7743b96a`.
 - `AUTH-040` — **DONE**, Issue #142 Main Verification PASS, merge `455c7fdaaaee118369294d96183631d7322e5ea2`.
+- `YC-041` — **BLOCKED**, Issue #148, `OWNER_CLOUD_BOOTSTRAP_REQUIRED`; blocker не имеет writer authority.
+- `YC-042` — **BLOCKED**, Issue #149, `OWNER_YDB_TARGET_REQUIRED`; blocker не имеет writer authority.
 
-YC-040 остаётся offline YDB schema/adapter/cost-guard PoC: Google authoritative, YDB canonical write owner=false, real replication=false. AUTH-040 остаётся provider-neutral auth reference policy: current Apps Script access `MYSELF`, public exposure unchanged, backend financial write granted=false.
+YC-040 остаётся offline YDB schema/adapter/cost-guard PoC: Google authoritative, YDB canonical write owner=false, real replication=false. AUTH-040 остаётся provider-neutral auth reference policy: current Apps Script access `MYSELF`, public exposure unchanged, backend financial write granted=false. Cloud blockers не меняют canonical ownership и не создают billing-backed resources автоматически.
 
-## AIENG-006 current boundary
+## R7 / Semantic Analytics — текущий writer
 
-Machine contract: `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0`. Core: `lib/ai/model_cost_routing.js`. Normative doc: `docs/operations/AIENG006_MODEL_COST_ROUTING.md`. Test: `tests/ai_model_cost_routing_contract_test.js`.
+- `ANL-070` Semantic measure/dimension registry — **IN_PROGRESS**, Issue #150; current writer, branch `agent/ANL-070-semantic-registry`.
 
-- `SOL`, `TERRA`, `LUNA` — внутренние workload lanes, не vendor model IDs и не гарантированные entitlements.
-- `MACHINE_GATE` всегда выполняется через `LOCAL_DETERMINISTIC` и не зависит от model availability.
-- AI-assisted engineering использует только доступные subscription lanes по deterministic fallback order.
-- `UNKNOWN` не считается available; если required AI capacity отсутствует — `PAUSE_REQUIRED_WORK`, optional — `DEFER_OPTIONAL`.
-- OpenAI API рассматривается как separately billed surface, `enabled=false`; automatic API fallback/billing запрещены.
-- ChatGPT subscription и API billing не смешиваются; current account/model availability не hard-code'ится.
-- routing telemetry содержит только allowlisted техническую metadata, без prompts/responses/financial/account/billing-token payload.
-- machine gate bypass=false; paid API required=false; `FREE_ONLY` mandatory.
+Machine contract: `PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0`. Core: `lib/analytics/semantic_registry.js`. Normative doc: `docs/analytics/SEMANTIC_REGISTRY.md`. Test: `tests/semantic_analytics_registry_contract_test.js`.
+
+ANL-070 фиксирует semantic IDs и compatibility поверх существующих `ANL-010`/KPI/canonical contracts:
+
+- measure set не может расходиться с `PRH_ANALYTICS_CONTRACT_V1` и `PRH_KPI_DICTIONARY_V1`;
+- groupable dimensions остаются `account_id`, `category_id`, `member_id`, `project_id`, `type`;
+- `status`/`tag` остаются filter-only;
+- `time_bucket` выводится из `occurred_at` и использует уже поддержанные grains;
+- hierarchy `TIME` = `YEAR -> MONTH -> DAY`, без выдуманных account/category parent links;
+- `BUDGET_VARIANCE` остаётся `UNGROUPED_ONLY`/`SCALAR_KPI` и не получает неявного распределения бюджета;
+- unknown/duplicate/unsupported combinations fail closed;
+- registry не переопределяет FIN-TRUTH и не имеет renderer/storage/network/financial-write authority;
+- public evidence synthetic/public-safe only; `FREE_ONLY` mandatory.
+
+ANL-071/072/073/074 не считаются реализованными в ANL-070.
 
 ## MIG-010 historical safety boundary
 
@@ -67,6 +73,8 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 ## Executable AI engineering baseline
 
 Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
+
+`PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` сохраняет required machine gates на `LOCAL_DETERMINISTIC`; Sol/Terra/Luna являются internal workload lanes, а separately billed OpenAI API default disabled и не требуется для required checks.
 
 ## Current delivery chain
 
@@ -83,7 +91,7 @@ active Roadmap Issue
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. AIENG-006 не делает API calls, не включает billing и не меняет financial/runtime state. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. ANL-070 меняет только semantic metadata/validation/docs/tests и не меняет runtime financial state. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
