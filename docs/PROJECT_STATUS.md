@@ -2,6 +2,8 @@
 
 Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Этот файл не может отменять красный gate.
 
+Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закреплена `CI-003` и trusted exact-SHA chain.
+
 ## R0 — завершён
 
 ### MASTER-G0 / Truth — **complete**
@@ -30,8 +32,8 @@
 - `PERF-011` Revision-aware read cache — **DONE**, Issue #108 Main Verification PASS.
 - `PERF-012` Single-scan refresh pipeline — **DONE**, Issue #110 Main Verification PASS.
 - `PERF-013` Incremental analytics aggregates — **DONE**, Issue #112 Main Verification PASS.
-- `PERF-014` Synthetic scale performance gates — **IN_PROGRESS**, Issue #114; current R1 writer.
-- `DOC-010` и другие items остаются dependency/priority-gated.
+- `PERF-014` Synthetic scale performance gates — **DONE**, Issue #114 Main Verification PASS.
+- `DOC-010` Architecture/data/KPI/operations documentation contract — **IN_PROGRESS**, Issue #116; current R1 writer.
 
 FIN-010: `PRH_KPI_DICTIONARY_V1` / `FIN-TRUTH-v1`.  
 DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
@@ -43,45 +45,52 @@ OBS-010: `PRH_SLO_ERROR_BUDGET_V1@1.0.0`.
 PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0`.  
 PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`.  
 PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`.  
-PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`.
+PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`.  
+PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0`.
 
-## PERF-014 current truth
+## DOC-010 current truth
 
-PERF-014 вводит `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` как блокирующий CI guardrail на independently generated synthetic datasets размером 20 000 и 50 000 canonical operations. Это regression contract, а не пользовательский production SLA.
+DOC-010 вводит `PRH_R1_DOCUMENTATION_V1@1.0.0` как machine-readable map между нормативными R1 docs, versioned contracts/code, contract tests и named PR Validation gates.
 
-`PRH_SYNTHETIC_SCALE_FIXTURE_V1` генерирует детерминированные synthetic income/expense/refund/transfer rows только в памяти. Generator не читает private runtime, не использует production-derived values/distributions и не сохраняет 20k/50k dataset как repository fixture или CI artifact.
+Новые канонические public-safe карты:
 
-Для обоих профилей versioned ceilings покрывают authoritative `repositoryRevision()`, ANL-010 full recompute, PERF-012 linked single-scan refresh, PERF-013 aggregate full build, bounded incremental update и fresh aggregate rebuild для parity proof. Ceiling breach возвращает non-zero и блокирует PR; запас выбран для shared GitHub-hosted runner variability.
+- `docs/architecture/R1_C4_CONTEXT.md` — system/container context, trust/mutation/cost/future-provider boundaries;
+- `docs/data/R1_DATA_LINEAGE.md` — Google source → repository/canonical → FIN/KPI → analytics → PERF-010..014 → private UI, отдельно migration/recovery/observability/delivery;
+- `lib/documentation/r1_documentation.v1.json` — required docs/contracts/sources/tests/checks;
+- `tests/r1_documentation_contract_test.js` — existence/link/gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector;
+- named gate `R1 documentation contract` в PR Validation.
 
-PERF-012 benchmark доказывает `canonical_reads_per_refresh_cycle = 1` и `financial_writes = 0`. PERF-013 benchmark применяет bounded delta 100/250 rows, требует `recomputed_bucket_count == affected_bucket_count` и exact equality incremental state с fresh full aggregate rebuild.
+README, architecture и data-model актуализированы до текущего R1: PERF-010..014 DONE, DOC-010 current. Documentation не является более высоким authority, чем `docs/ROADMAP.md`, live Issues или exact-SHA machine gates.
 
-Public-safe benchmark evidence содержит только profile/operation counts, elapsed milliseconds, read/write counts, delta/affected/recomputed bucket counts и PASS/FAIL. Transaction IDs, bucket labels, financial values, canonical rows и source fingerprints запрещены.
+Privacy boundary неизменна: private runtime locators, real/real-derived finance payload, OAuth/backup/private evidence не публикуются. `FREE_ONLY` mandatory. Generic Google financial write остаётся blocked.
 
-`financial_write=false`; correctness gates имеют приоритет над latency. External/paid provider не требуется. Normative runbook: `docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md`. Named canonical PR gate: `Synthetic scale performance`.
+## PERF-014 verified boundary
+
+PERF-014 завершён Main Verification. `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` блокирует performance regression на independently generated synthetic 20k/50k operations. Read budget: one canonical snapshot read per linked PERF-012 refresh; financial writes = 0. Incremental PERF-013 state exact-parity с fresh rebuild; wall-clock budgets являются CI guardrails, не production SLA.
 
 ## PERF-013 verified boundary
 
-PERF-013 завершён Main Verification. `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` materializes `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` projections, связывает state exact canonical revision + SHA-256 hash и пересчитывает только affected buckets по deterministic `ADDED/REMOVED/CHANGED` delta. Financial formulas остаются FIN-010 authority; exact parity с ANL-010/fresh full rebuild доказана. Mixed currency fail-closed; public evidence financial-payload-free.
+PERF-013 завершён Main Verification. `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` materializes `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` projections, связывает state exact canonical revision + SHA-256 hash и пересчитывает только affected buckets по deterministic `ADDED/REMOVED/CHANGED` delta. Financial formulas остаются FIN-010 authority; exact parity с ANL-010/fresh full rebuild доказана.
 
 ## PERF-012 verified boundary
 
-PERF-012 завершён Main Verification. `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` материализует один immutable canonical snapshot на bounded refresh cycle, выводит exact content revision из того же snapshot и обслуживает связанные repository/analytics operations без повторных underlying query/getById/revision calls. Cross-cycle reuse и write authority отсутствуют.
+PERF-012 завершён Main Verification. `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` материализует один immutable canonical snapshot на bounded refresh cycle и обслуживает связанные repository/analytics operations без повторных underlying query/getById/revision calls.
 
 ## PERF-011 verified boundary
 
-PERF-011 завершён Main Verification. `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` остаётся exact-revision cache для independent repository requests. HIT требует revision proof; stale/unknown revision fail-closed; write authority отсутствует.
+PERF-011 завершён Main Verification. `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` — exact-revision independent-request cache; stale/unknown revision fail-closed, write authority отсутствует.
 
 ## PERF-010 verified boundary
 
-PERF-010 завершён Main Verification. `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` отделяет header discovery от data-plane reads: rows читаются только requested mapped contiguous column spans и bounded row intervals. Synthetic evidence: full-width baseline 80 cells, mapped readAll 60, getById 19, representative narrow query 35; projected query exact-parity с authoritative repository baseline. `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` остаётся действующим.
+PERF-010 завершён Main Verification. `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` отделяет header discovery от data-plane reads и ограничивает чтение mapped spans/rows; `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` остаётся действующим.
 
 ## OBS-010 verified boundary
 
-OBS-010 завершён Main Verification. `PRH_SLO_ERROR_BUDGET_V1@1.0.0` использует integer ppm/bps, half-open windows и SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`. Financial/raw payload запрещён; `FREE_ONLY`, `financial_write=false`, `financial_correctness=false`.
+OBS-010 завершён Main Verification. `PRH_SLO_ERROR_BUDGET_V1@1.0.0` использует integer ppm/bps и SLI `AVAILABILITY`, `LATENCY`, zero-tolerance `CORRECTNESS`, `FRESHNESS`, zero-tolerance `MIGRATION_ERRORS`. Financial/raw payload запрещён; `FREE_ONLY` mandatory.
 
 ## TEST-010 verified boundary
 
-TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`. `unclassified_test=FAIL`, ambiguous classification = FAIL, duplicate machine authority = FAIL.
+TEST-010 завершён Main Verification. `PRH_TEST_ARCHITECTURE_V1@1.0.0` разделяет `PURE_DOMAIN_APPLICATION`, `MIGRATION_RECOVERY`, `ADAPTER_INTEGRATION`, `RUNTIME_INTEGRATION`, `UI_E2E`, `POLICY_GOVERNANCE`; unknown/ambiguous/unclassified test fail-closed.
 
 ## ANL-010 verified boundary
 
@@ -104,19 +113,19 @@ RESOLVED_REBUILD_DRY_RUN = PASS
 -> DONE
 ```
 
-Private evidence established `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Hidden staging/rollback cleanup was not performed automatically and is not implied by DONE. Owner-confirmed identical operations remain represented by `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
+Private evidence established `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority did not change. Owner-confirmed identical operations remain represented by `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical authorization не переносится и не может повторно использоваться для future mutations.
 
 ### MASTER-G3 / Canonical platform — **open**
 
-Private full-history reconciliation gate is PASS. MASTER-G3 still requires `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE` and synthetic performance PASS.
+Private full-history reconciliation gate = PASS. Synthetic 20k/50k performance gate = PASS. Все обязательные dependencies кроме текущего `DOC-010` уже DONE. MASTER-G3 требует `FIN-010 + DATA-010 + ARCH-010 + ARCH-011 + ANL-010 + MIG-010 + PERF-014 + DOC-010 = DONE`; поэтому он остаётся open до DOC-010 Main Verification.
 
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` is the public-safe repository AI operating contract.
+Root `AGENTS.md` — public-safe repository AI operating contract.
 
-- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` define continuation, one-writer ownership and lifecycle.
-- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review.
-- reviewers always `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks review evidence, P2/P3 advisory.
+- `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` define continuation, one-writer ownership и lifecycle;
+- `tools/multi-ai-review-protocol.js` + `PRH_MULTI_AI_REVIEW_PACKET_V1` / `PRH_MULTI_AI_REVIEW_REPORT_V1` define supplementary exact-candidate review;
+- reviewers всегда `READ_ONLY`, `writer_authority=false`; unresolved P0/P1 blocks review evidence;
 - required checks deterministic/local and require no paid AI/API provider.
 
 ## Current runtime truth
@@ -131,14 +140,12 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- PERF-014 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- 20k/50k wall-clock ceilings — CI guardrails, а не production/user-facing SLA;
-- benchmark не использует private/production-derived finance data;
-- latency PASS не может отменить financial correctness/parity failure;
-- PERF-013 aggregate state не заменяет canonical dataset или ANL-010 authority;
-- PERF-011 cache HIT по-прежнему требует exact revision proof;
+- DOC-010 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- MASTER-G3 не считается закрытым до DOC-010 DONE;
+- human documentation не может override красный machine gate;
+- PERF-014 timings — CI guardrails, а не production SLA;
+- performance/read-model layers не заменяют canonical/FIN/ANL authority;
 - owner authorization MIG-010 не переносится на future mutations;
-- hidden MIG staging/rollback cleanup не выполнен автоматически;
 - Google -> Yandex cutover не выполнен;
 - private Dashboard не сделан публичным;
 - public Git history rewrite не authorized/executed;
@@ -147,12 +154,10 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 ## Source precedence
 
 1. security/privacy/cost/irreversible boundaries;
-2. repository `docs/ROADMAP.md` v2.3;
-3. external Master Audit / AI Development Playbook, когда явно предоставлены;
-4. active Roadmap Issue/task packet;
-5. executable exact-SHA code/tests/workflows;
-6. architecture/ADR/operations docs;
-7. README/user docs;
-8. historical changelog/release notes.
+2. repository `docs/ROADMAP.md` v2.3 + live Issues;
+3. exact-SHA code/tests/workflows/machine evidence;
+4. versioned contracts;
+5. architecture/ADR/operations docs;
+6. README/user docs.
 
 Stale lower-priority документ никогда не разрешает bypass current machine gate.

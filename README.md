@@ -2,20 +2,62 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с приватным Web Dashboard и GitHub как инженерным control plane.
 
-> **Текущий статус:** R0 platform baseline. `MASTER-G0` и `MASTER-G2` закрыты. После AIENG-001 repository AI contract становится machine-enforced; до полного выхода из R0 остаются `AIENG-002` (Roadmap-to-agent task protocol) и `AIENG-003` (read-only multi-AI review) для `MASTER-G1`.
+> **Текущий статус:** доказанный **R0 platform baseline** (`MASTER-G0`, `MASTER-G1`, `MASTER-G2` complete) и почти завершённая R1 Canonical Financial Platform. `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014` прошли Main Verification. `DOC-010` — текущий writer; `MASTER-G3` остаётся open только до его Main Verification.
 
 ## Принципы
 
 - простота и сопровождаемость важнее лишней инфраструктуры;
-- финансовая истина определяется canonical transaction rules, а не legacy итоговыми ячейками;
-- публичный GitHub содержит только код, документацию и независимо сгенерированные synthetic financial fixtures;
-- приватная книга Google остаётся текущим primary data store/adapter; полный history cutover не считается завершённым до отдельного migration gate;
-- обычная инженерная доставка автоматизирована, но privacy, paid-service activation и irreversible production-data actions остаются policy boundaries;
-- `FREE_ONLY` — исполняемый invariant: неизвестный billable provider fail-closed, paid overage автоматически не включается.
+- финансовая истина определяется canonical transaction rules + versioned KPI Dictionary (`FIN-TRUTH-v1`), а не legacy итоговыми ячейками;
+- публичный GitHub содержит только код, документацию и **independently generated synthetic** financial fixtures/evidence;
+- private Google Sheets остаётся текущим primary store/adapter, а domain/analytics contracts не зависят от spreadsheet layout;
+- обычная инженерная доставка полностью автоматизирована, но privacy, paid-service activation и irreversible production-data actions остаются policy boundaries;
+- `FREE_ONLY` — исполняемый invariant: неизвестный billable provider fail-closed, paid overage автоматически не включается;
+- performance layers могут уменьшать reads/recompute, но не могут переопределять финансовую семантику или открывать write authority.
+
+## Каноническая R1 архитектура
+
+Основной read lineage:
+
+```text
+private Google Sheets
+  -> Apps Script Google repository gateway / adapter
+  -> PRH_TRANSACTION_REPOSITORY_V1
+  -> PRH_CANONICAL_TRANSACTION_V1
+  -> FIN-TRUTH-v1 / PRH_KPI_DICTIONARY_V1
+  -> PRH_ANALYTICS_CONTRACT_V1
+  -> private MYSELF Web Dashboard
+```
+
+Подробные проверяемые карты:
+
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — единственная Executable GitHub Roadmap;
+- [`docs/architecture/R1_C4_CONTEXT.md`](docs/architecture/R1_C4_CONTEXT.md) — C4/context и trust boundaries;
+- [`docs/data/R1_DATA_LINEAGE.md`](docs/data/R1_DATA_LINEAGE.md) — source → canonical → KPI/analytics → performance/read models → UI;
+- [`lib/documentation/r1_documentation.v1.json`](lib/documentation/r1_documentation.v1.json) — machine-readable R1 documentation map.
+
+## R1 canonical/performance foundation
+
+| Область | Проверенный контракт |
+|---|---|
+| Финансовая истина | `PRH_KPI_DICTIONARY_V1` / `FIN-TRUTH-v1` |
+| Canonical data | `PRH_CANONICAL_TRANSACTION_V1` |
+| Pure application | `PRH_APPLICATION_CORE_V1` |
+| Repository port | `PRH_TRANSACTION_REPOSITORY_V1` |
+| Analytics | `PRH_ANALYTICS_CONTRACT_V1@1.0.0` |
+| SLO/error budget | `PRH_SLO_ERROR_BUDGET_V1@1.0.0` |
+| Minimal Google reads | `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` |
+| Exact-revision cache | `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` |
+| One-scan refresh | `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` |
+| Incremental aggregates | `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` |
+| Synthetic scale gate | `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` |
+
+`PERF-014` проверяет independently generated synthetic 20k/50k operations как CI regression guardrail. Его wall-clock ceilings — не пользовательский SLA; correctness/parity остаётся выше latency.
+
+Generic Google canonical write по-прежнему fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 ## AI agents
 
-Root [`AGENTS.md`](AGENTS.md) — обязательный repository AI operating contract. Он фиксирует source precedence, Autonomy Contract v2, one-writer lifecycle, public/private data classification, `FREE_ONLY`, exact machine gates, financial-write/migration policy, reproducibility, Google↔future-YDB adapter boundary, Definition of Done и CI-red recovery.
+Root [`AGENTS.md`](AGENTS.md) — обязательный repository AI operating contract. Он фиксирует source precedence, Autonomy Contract v2, one-writer lifecycle, public/private data classification, `FREE_ONLY`, exact machine gates, financial-write/migration policy и CI-red recovery.
 
 Короткие public-safe entry points:
 
@@ -30,23 +72,15 @@ Web Dashboard остаётся основным пользовательским
 
 **Приватный deployment URL не публикуется и не поддерживается через README/release commits.** Владелец открывает Dashboard через доверенный private deployment/book menu или собственную локальную закладку. Отсутствие публичной ссылки не является ошибкой release pipeline.
 
-Основные возможности текущего Dashboard:
-
-- 10 представлений: обзор, годы, месяцы, выбранный месяц, сезонность, структура, операции, прогноз, качество, детали;
-- Executive KPI и read-only drill-down к исходным операциям;
-- единый refresh;
-- Quality Workbench с очередью решений;
-- объяснимая классификация: предложение -> staging -> подтверждение;
-- PDF-отчёт существующей аналитики;
-- snapshots KPI в существующий `10 Контроль`;
-- responsive desktop/laptop/mobile UI.
+Текущий Dashboard сохраняет 10 представлений, Executive KPI, read-only drill-down, единый refresh, Quality Workbench и responsive desktop/laptop/mobile UI. UI не является authority для KPI formulas.
 
 ## Финансовая и data safety модель
 
-- публичные tests/fixtures не используют реальные или real-derived финансовые значения, агрегаты, распределения, seasonality, IDs или screenshots;
-- financial reconciliation строится из canonical/raw transaction semantics; legacy totals не являются golden truth;
-- source-to-canonical reconciliation проверяет provenance, mismatch/duplicate/missing/changed source rows и idempotency;
-- Web Dashboard не является свободным writer в `01 Операции`; финансовые mutation paths требуют отдельной write policy и machine evidence;
+- public tests/fixtures не используют реальные или **real-derived** финансовые значения, агрегаты, распределения, seasonality, IDs или screenshots;
+- financial reconciliation строится из canonical transaction semantics; legacy totals не являются golden truth;
+- canonical schema и repository/analytics layers не разрешают запись сами по себе;
+- `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` остаётся generic Google write boundary;
+- historical MIG-010 owner action `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound; это разрешение не может повторно использоваться для future mutations;
 - DEV и PROD — разные policy boundaries; merge в `main` сам по себе не разрешает необратимое PROD действие.
 
 ## Автономная доставка
@@ -58,49 +92,47 @@ Roadmap Issue: IN_PROGRESS
         ↓
 agent/<ID>-<slug> + PR to main
         ↓
-PR Validation
-  zero deploy secrets
-  policy/security/privacy/FREE_ONLY/docs/AI-contract/contracts/UI
-  immutable Apps Script candidate bound to exact PR SHA
+PR Validation (zero deploy secrets)
+        ↓
+immutable Apps Script candidate bound to exact PR SHA
         ↓
 Trusted DEV Deploy
-  trusted workflow from default branch
-  verifies candidate artifact against exact candidate Git tree
         ↓
-Trusted Runtime Health
-  authenticated owner-only Execution API probe
-  proves deployed candidate SHA + source-tree identity
+Trusted Runtime Health (authenticated owner-only runtime proof)
         ↓
 CI-003 autonomous squash merge
         ↓
 Main Verification
-  verifies merge/gates and changes linked Issue IN_PROGRESS -> DONE
+        ↓
+Issue: DONE
 ```
 
-Нет штатных `agent/release/**` snapshot branches, commit-count gate, manual runtime marker, anonymous Web App health probe или post-merge direct README commit.
+Нет штатных release-snapshot branches, commit-count gates, manual runtime markers, anonymous private health probes или post-merge direct README commits.
 
 ## Recovery / observability / cost
 
-- **DR-001:** owner-local portable `.prhbackup` шифруется AES-256-GCM до записи на диск; verify + isolated SQLite restore drill доказаны; backup/key/OAuth/private payload никогда не попадают в GitHub/CI/chat.
-- **OBS-001:** audit journal bounded/rotating, technical metadata allowlisted, logging failure отделён от корректности финансовой операции, privacy-safe health state сохраняет только технические counters/status.
-- **FINOPS-001:** `FREE_ONLY` guard использует explicit provider safety envelopes, conservative pre-reservation и 50/70/85/95/100 circuit-breaker policy; provider allowlist по умолчанию пуст.
+- **DR-001:** owner-local portable encrypted backup + verify + isolated restore drill; backup/key/OAuth/private payload никогда не попадают в GitHub/CI/chat.
+- **OBS-001:** bounded privacy-safe audit/telemetry, allowlisted technical metadata, no financial payload.
+- **FINOPS-001:** `FREE_ONLY` provider envelopes и 50/70/85/95/100 circuit-breaker policy; неизвестный/billable provider fail-closed.
 
 ## Документация
 
-- [Repository AI contract](AGENTS.md)
-- [Public-safe AI project context](.ai-context/PROJECT_CONTEXT.md)
-- [Текущий статус и gates](docs/PROJECT_STATUS.md)
+- [Executable Roadmap](docs/ROADMAP.md)
+- [Текущий статус](docs/PROJECT_STATUS.md)
 - [Архитектура](docs/architecture.md)
+- [R1 C4/context](docs/architecture/R1_C4_CONTEXT.md)
+- [R1 data lineage](docs/data/R1_DATA_LINEAGE.md)
+- [Canonical Transaction](docs/data/CANONICAL_TRANSACTION_SCHEMA.md)
+- [KPI Dictionary](docs/finance/KPI_DICTIONARY.md)
+- [Repository port](docs/architecture/TRANSACTION_REPOSITORY_PORT.md)
+- [Analytics contract](docs/analytics/ANALYTICS_EXTENSION_CONTRACT.md)
+- [SLO/error budget](docs/operations/OBS010_SLO_ERROR_BUDGET.md)
+- [PERF-010..014 runbooks](docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md)
 - [Release / autonomous delivery](docs/RELEASE_PROCESS.md)
-- [Web Dashboard](docs/dashboard.md)
-- [Модель данных и privacy boundary](docs/data-model.md)
-- [Руководство пользователя](docs/user-guide.md)
 - [DR-001 owner backup](docs/operations/DR001_DIRECT_OWNER_BACKUP.md)
-- [OBS-001 audit/telemetry](docs/operations/OBS001_AUDIT_TELEMETRY.md)
-- [FINOPS-001 FREE_ONLY guard](docs/operations/FINOPS001_FREE_ONLY_GUARD.md)
-- [Public-history remediation policy](docs/security/PUBLIC_HISTORY_REMEDIATION_PLAN.md)
-- [CHANGELOG](CHANGELOG.md)
+- [Web Dashboard](docs/dashboard.md)
+- [Руководство пользователя](docs/user-guide.md)
 
 ## Что дальше
 
-После merge AIENG-001 остаются dependency-ordered `AIENG-002 -> AIENG-003`. Только после их `DONE` закрывается `MASTER-G1`, R0 полностью завершается и highest-priority work переходит к R1 canonical financial platform (`FIN-010`, затем `DATA-010` и domain/adapters).
+После `DOC-010` Main Verification все обязательные условия `MASTER-G3 / Canonical platform` будут выполнены: canonical/KPI/domain/repository/analytics/migration foundations — DONE, private reconciliation — PASS, synthetic performance 20k/50k — PASS, documentation coherence — machine-proven. Следующий основной продуктовый переход по Roadmap — R2 `DESIGN-020` (design system + responsive shell), а затем `VIZ-020` и семейные dashboards поверх уже стабильных semantic/query contracts.

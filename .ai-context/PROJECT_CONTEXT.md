@@ -8,9 +8,9 @@
 2. `/docs/ROADMAP.md` — **каноническая Executable GitHub Roadmap v2.3**.
 3. GitHub Issues — live lifecycle/status.
 4. Exact-SHA code/tests/workflows и machine evidence.
-5. Architecture/ADR/operations docs.
+5. Versioned contracts + architecture/ADR/operations docs.
 
-Chat history/memory и stale Roadmap copies not authority. При явно предоставленных `Master Audit v2.1` / `AI Development Playbook v1.0` действует precedence из `AGENTS.md`.
+Chat history/memory и stale Roadmap copies not authority.
 
 ## Current R0 truth
 
@@ -30,25 +30,28 @@ R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты
 - `PERF-011` — DONE, Issue #108 Main Verification PASS.
 - `PERF-012` — DONE, Issue #110 Main Verification PASS.
 - `PERF-013` — DONE, Issue #112 Main Verification PASS.
-- `PERF-014` — **current P1 writer**, Issue #114, branch `agent/PERF-014-synthetic-scale-gates`.
+- `PERF-014` — DONE, Issue #114 Main Verification PASS.
+- `DOC-010` — **current P1 writer**, Issue #116, branch `agent/DOC-010-r1-documentation-contract`.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## PERF-014 synthetic scale boundary
+## DOC-010 documentation-coherence boundary
 
-`PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` defines blocking CI guardrails for deterministic synthetic 20k/50k canonical datasets. Wall-clock ceilings are regression thresholds with runner-variance margin, not production/user-facing SLA.
+`PRH_R1_DOCUMENTATION_V1@1.0.0` maps required human docs to versioned machine contracts, source files, contract tests and named PR Validation gates. Documentation is descriptive/verifiable authority below Roadmap/live lifecycle/exact-SHA machine evidence and can never override a red gate.
 
-`PRH_SYNTHETIC_SCALE_FIXTURE_V1` generates only independently synthetic valid transactions in memory from a fixed seed. It never reads private runtime, does not use production-derived values/distributions and does not persist the generated 20k/50k arrays as repository fixtures/artifacts.
+Canonical DOC-010 entry points:
 
-Profiles `SCALE_20K` and `SCALE_50K` measure authoritative canonical revision, representative ANL-010 full recompute, PERF-012 linked single-scan refresh, PERF-013 aggregate full build, bounded incremental update and fresh parity rebuild. A named ceiling breach is a PR failure.
+- `docs/architecture/R1_C4_CONTEXT.md` — system/container C4 context, trust/mutation/cost/future-provider boundaries;
+- `docs/data/R1_DATA_LINEAGE.md` — source → repository/canonical → FIN/KPI → analytics → PERF-010..014 → private UI, plus migration/recovery/SLO/delivery lineages;
+- `lib/documentation/r1_documentation.v1.json` — machine documentation inventory;
+- `tests/r1_documentation_contract_test.js` — path/link/named-gate/lifecycle/privacy/FREE_ONLY/write-boundary drift detector;
+- named PR gate `R1 documentation contract`.
 
-Read/write budget is explicit: one canonical `readAll()` per PERF-012 linked refresh cycle and zero underlying financial writes. The cycle write facade remains blocked.
+README, architecture and data-model are synchronized to the verified R1 lifecycle. Private runtime locators, real/real-derived financial payload, OAuth, backup/private evidence remain forbidden. `FREE_ONLY` remains mandatory. Generic Google financial write remains blocked.
 
-Incremental performance cannot override correctness. Bounded delta is 100/250 changed transactions; PERF-013 must report affected-bucket-only recompute and the incremental state must exactly equal a fresh full aggregate rebuild.
+## PERF-014 verified scale boundary
 
-Public evidence contains only profile/dataset/delta counts, elapsed milliseconds, technical read/write counters, changed/affected/recomputed bucket counts and PASS/FAIL. Transaction identities, bucket labels, financial values, canonical rows and source fingerprints are forbidden.
-
-`financial_write=false`; no migration/network/provider authority and no paid dependency. Normative runbook: `docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md`. Named canonical PR gate: `Synthetic scale performance`.
+`PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` is DONE. Deterministic independently generated synthetic 20k/50k datasets prove canonical revision, ANL-010 full recompute, PERF-012 one-scan refresh, PERF-013 full/incremental aggregate parity, one canonical read per linked refresh and zero financial writes. Timings are CI regression guardrails, not production SLA.
 
 ## PERF-013 verified aggregate boundary
 
@@ -56,11 +59,11 @@ Public evidence contains only profile/dataset/delta counts, elapsed milliseconds
 
 ## PERF-012 verified single-scan boundary
 
-`PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` is DONE. One bounded refresh cycle materializes one validated canonical snapshot, derives exact content revision from that snapshot and serves linked repository/analytics consumers locally. It has no cross-cycle reuse or write authority.
+`PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` is DONE. One bounded refresh cycle materializes one validated canonical snapshot, derives exact content revision from that snapshot and serves linked repository/analytics consumers locally. No cross-cycle reuse or write authority.
 
 ## PERF-011 verified cache boundary
 
-`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` is DONE. Independent request cache HIT still requires exact revision confirmation; stale/unknown revision fails closed and cache has no financial/write authority.
+`PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` is DONE. Independent request cache HIT requires exact revision confirmation; stale/unknown revision fails closed and cache has no financial/write authority.
 
 ## PERF-010 verified projection boundary
 
@@ -95,7 +98,11 @@ Roadmap Issue IN_PROGRESS
 -> Main Verification -> Issue DONE/closed
 ```
 
-PERF-014 remains IN_PROGRESS until 20k/50k scale/docs/machine evidence is green and Main Verification closes Issue #114.
+DOC-010 remains IN_PROGRESS until documentation map/docs/tests are green and Main Verification closes Issue #116.
+
+## MASTER-G3 state
+
+Private full-history reconciliation = PASS. Synthetic PERF-014 20k/50k performance = PASS. Required FIN/DATA/ARCH/ANL/MIG/PERF dependencies = DONE. `MASTER-G3` remains open only until DOC-010 reaches DONE/Main Verification.
 
 ## Executable continuation protocol
 
@@ -107,7 +114,7 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Privacy / financial / cost boundaries
 
-Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys и migration artifacts stay private. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Public finance fixtures are independently generated synthetic only. Private deployment identifiers, authenticated responses, OAuth, backups/keys and migration artifacts stay private. `FREE_ONLY` remains mandatory.
 
 ## Domain boundaries
 
@@ -122,22 +129,23 @@ PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1`; read-plan authority only.
 PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1`; cache reuse authority only.  
 PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1`; bounded refresh snapshot reuse authority only.  
 PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1`; affected-bucket materialization authority only.  
-PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1`; synthetic CI performance-gate authority only.
+PERF-014: `PRH_SYNTHETIC_SCALE_GATE_V1`; synthetic CI performance-gate authority only.  
+DOC-010: `PRH_R1_DOCUMENTATION_V1`; documentation coherence authority only.
 
 ## Start-reading order
 
 1. `/AGENTS.md`
 2. `/docs/ROADMAP.md`
-3. active GitHub Issue #114
+3. active GitHub Issue #116
 4. `/docs/PROJECT_STATUS.md`
-5. `/docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md`
-6. `/lib/performance/synthetic_scale_gate.v1.json`
-7. `/lib/testing/synthetic_scale_fixture.js`
-8. `/tests/synthetic_scale_performance_contract_test.js`
-9. `/docs/operations/PERF013_INCREMENTAL_AGGREGATES.md`
-10. `/docs/operations/PERF012_SINGLE_SCAN_REFRESH.md`
+5. `/lib/documentation/r1_documentation.v1.json`
+6. `/docs/architecture/R1_C4_CONTEXT.md`
+7. `/docs/data/R1_DATA_LINEAGE.md`
+8. `/tests/r1_documentation_contract_test.js`
+9. `/docs/architecture.md`
+10. `/docs/data-model.md`
 11. exact candidate code/tests/workflows
 
 ## Scope handoff
 
-`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013` = DONE. `PERF-014` = current R1 writer. `DOC-010` remains dependency-gated until its Main Verification.
+`AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`; `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014` = DONE. `DOC-010` = current R1 writer. R2 `DESIGN-020` remains dependency-gated until MASTER-G3 is proven complete.

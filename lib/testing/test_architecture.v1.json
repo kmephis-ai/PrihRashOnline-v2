@@ -85,6 +85,7 @@
     "v1_rc_contract_test.js": "UI_E2E",
     "dashboard_web_runtime_smoke_contract_test.js": "RUNTIME_INTEGRATION",
     "incremental_analytics_aggregates_contract_test.js": "PURE_DOMAIN_APPLICATION",
+    "r1_documentation_contract_test.js": "POLICY_GOVERNANCE",
     "mig010_documentation_contract_test.js": "MIGRATION_RECOVERY",
     "mig010_execution_documentation_contract_test.js": "MIGRATION_RECOVERY",
     "mig010_execution_gateway_contract_test.js": "MIGRATION_RECOVERY",
@@ -117,6 +118,7 @@
   },
   "workflow_required_gates": [
     { "name": "Documentation truth", "layer": "POLICY_GOVERNANCE" },
+    { "name": "R1 documentation contract", "layer": "POLICY_GOVERNANCE" },
     { "name": "AI contract", "layer": "POLICY_GOVERNANCE" },
     { "name": "Roadmap task protocol", "layer": "POLICY_GOVERNANCE" },
     { "name": "Multi-AI review protocol", "layer": "POLICY_GOVERNANCE" },
