@@ -12,15 +12,28 @@
 
 Chat history/memory и stale Roadmap copies not authority.
 
-## Verified R0/R1 truth
+## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2`, `MASTER-G3` — complete. `AIENG-001`, `AIENG-002`, `AIENG-003` — DONE.
+R0 machine-proven complete. `MASTER-G0`, `MASTER-G1`, `MASTER-G2` закрыты. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`.
 
-R1 DONE/Main Verification PASS: `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`.
+## Current R1 truth
 
-`DOC-010` — **DONE**, Main Verification PASS; `PRH_R1_DOCUMENTATION_V1@1.0.0` remains the verified R1 documentation-coherence authority.
+`MASTER-G3 / Canonical platform` — complete. Independently generated synthetic 20k/50k performance = PASS.
 
-Private MIG-010 full-history reconciliation = PASS. Independently generated synthetic 20k/50k performance = PASS.
+- `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
+- `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
+- `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
+- `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
+- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private `OWNER_VERIFIED` reconciliation PASS.
+- `ANL-010` — **DONE**, Issue #98 Main Verification PASS.
+- `TEST-010` — **DONE**, Issue #100 Main Verification PASS.
+- `OBS-010` — **DONE**, Issue #103 Main Verification PASS.
+- `PERF-010` — **DONE**, Issue #105 Main Verification PASS.
+- `PERF-011` — **DONE**, Issue #108 Main Verification PASS.
+- `PERF-012` — **DONE**, Issue #110 Main Verification PASS.
+- `PERF-013` — **DONE**, Issue #112 Main Verification PASS.
+- `PERF-014` — **DONE**, Issue #114 Main Verification PASS.
+- `DOC-010` — **DONE**, Issue #116 Main Verification PASS; `PRH_R1_DOCUMENTATION_V1@1.0.0` verified.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
@@ -148,11 +161,13 @@ Roadmap Issue
 
 EXP-020 remains open until FIN/category/driver/drill contracts, full layered suite and visual evidence are green, trusted exact-head deploy/runtime health passes and Main Verification closes Issue #126.
 
-## Executable continuation / review
+## Executable continuation protocol
 
 `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` select exactly one dependency-ready writer. Multiple writers/missing dependencies/private context fail closed.
 
-Read-only multi-AI roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`; reviewers are `READ_ONLY`, `writer_authority:false`. Review cannot override red machine gates or Main Verification.
+## Read-only multi-AI review
+
+Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers are `READ_ONLY`, `writer_authority:false`; unresolved P0/P1 blocks supplementary review evidence. Review cannot override red machine gates or Main Verification.
 
 ## Privacy / runtime / cost
 
