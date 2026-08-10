@@ -22,21 +22,27 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
-- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, candidate `efffce37a4b63fad899b6096cfda28bce8af129a`, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
+- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
 
 `MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: open. FIN authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority: `PRH_CANONICAL_TRANSACTION_V1`. Repository authority: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-`PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic regression gate: 12 synthetic golden tasks, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
+`PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic regression gate: synthetic golden tasks, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
 
-## R2 / Family Finance Center — текущий writer
+## R2 / Family Finance Center — P1/P2 baseline завершён
 
-`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020` — DONE/Main Verification PASS.
+`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020` — DONE/Main Verification PASS.
 
-- `PROF-020` Household/preferences center — **IN_PROGRESS**, Issue #162, branch `agent/PROF-020-household-preferences`.
+- `PROF-020` — **DONE**, Issue #162 Main Verification PASS, candidate `1ba5d7e8e73c74c2195418cf2fb43aaafcf7c5a1`, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
 
-PROF-020 authority = `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Он отделяет household/member profile metadata и UI/accessibility preferences от финансового domain. Theme/accessibility согласуются с `PRH_DESIGN_SYSTEM_V1@1.0.0`; роли и required capabilities — с `PRH_FAMILY_AUTH_V1@1.0.0`. Planner только сообщает `PROFILE_EDIT`/`HOUSEHOLD_ADMIN` и всегда имеет `authorization_granted=false`, `mutation_executed=false`, `financial_write=false`. Storage/network/IdP provisioning authority отсутствует; public evidence synthetic-only; telemetry raw IDs/display names не содержит.
+`PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0` остаётся configuration-domain authority; planner не выдаёт authorization и не выполняет financial write.
 
 PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются; private Web App остаётся `MYSELF`.
+
+## R3 / Planning, Wealth, Decision Intelligence — текущий writer
+
+- `TREND-030` Long-term Trends — **IN_PROGRESS**, Issue #164, branch `agent/TREND-030-long-term-trends`.
+
+TREND-030 authority = `PRH_LONG_TERM_TRENDS_V1@1.0.0`. Он переиспользует `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0` и существующий ANL-010/KPI Dictionary evaluator. Поддержаны explicit/rolling-90/rolling-365/YTD, MONTH/QUARTER/YEAR и optional `YEAR_OVER_YEAR`; partial/leap/comparison-quality semantics передаются из ANL-071. `BUDGET_VARIANCE`, calculated/window metrics, CAGR, forecast и benchmarks в scope не входят. `formula_layer_added=false`, `financial_write=false`, storage/network authority=false, public evidence synthetic-only, `FREE_ONLY` mandatory.
 
 ## R4 / Yandex Cloud shadow platform
 
@@ -80,11 +86,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-PROF-020 остаётся открытым до `Household preferences` + DESIGN/AUTH/AI/LANG-RU/docs/privacy/FREE_ONLY/FIN/MIG/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+TREND-030 остаётся открытым до `Long-term trends` + Period/Semantic/KPI/AI/profile/LANG-RU/docs/privacy/FREE_ONLY/FIN/MIG/full layered/UI/PWA PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. PROF-020 — pure configuration-domain layer и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script; family UI: private `MYSELF` Apps Script Web Dashboard. Public GitHub evidence is independently generated synthetic only. TREND-030 — pure analytics orchestration и не меняет runtime financial state/backend storage. `FREE_ONLY` mandatory.
 
 ## Source precedence
 
