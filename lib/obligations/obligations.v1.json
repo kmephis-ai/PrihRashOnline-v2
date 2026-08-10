@@ -1,0 +1,66 @@
+{
+  "schema": "PRH_OBLIGATIONS_V1",
+  "version": "1.0.0",
+  "roadmap_id": "OBL-020",
+  "upstream": {
+    "canonical_transaction": "PRH_CANONICAL_TRANSACTION_V1",
+    "design_system": "PRH_DESIGN_SYSTEM_V1@1.0.0"
+  },
+  "schemas": {
+    "plan": "PRH_OBLIGATION_PLAN_V1",
+    "occurrence": "PRH_OBLIGATION_OCCURRENCE_V1",
+    "view": "PRH_OBLIGATIONS_VIEW_V1"
+  },
+  "window": {
+    "bounds": "START_INCLUSIVE_END_EXCLUSIVE",
+    "max_days": 366,
+    "upcoming_days": 30,
+    "max_occurrences": 256
+  },
+  "recurrence": {
+    "supported": ["ONCE", "WEEKLY", "MONTHLY"],
+    "weekly_interval_min": 1,
+    "weekly_interval_max": 52,
+    "monthly_interval_min": 1,
+    "monthly_interval_max": 12,
+    "monthly_day_policy": "CLAMP_TO_LAST_DAY"
+  },
+  "states": {
+    "OVERDUE": "DUE_DATE_LT_AS_OF",
+    "DUE": "DUE_DATE_EQ_AS_OF",
+    "UPCOMING": "DUE_DATE_GT_AS_OF_AND_WITHIN_30_DAYS",
+    "FORECAST": "DUE_DATE_GT_AS_OF_AND_BEYOND_30_DAYS"
+  },
+  "identity": {
+    "occurrence": "SHA256(PRH_OBLIGATION_OCCURRENCE_V1|PLAN_ID|DUE_DATE)",
+    "source_position_authority": false
+  },
+  "completion": {
+    "explicit_completed_due_dates": true,
+    "fuzzy_transaction_matching": false,
+    "auto_transaction_creation": false
+  },
+  "planning": {
+    "directions": ["INFLOW", "OUTFLOW"],
+    "amount_is_financial_truth": false,
+    "forecast_is_financial_truth": false,
+    "mixed_currency_view": "FAIL_CLOSED"
+  },
+  "authority": {
+    "canonical_transaction": false,
+    "financial_truth": false,
+    "financial_formula": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "real_plan_public": false,
+    "telemetry_allowlist": ["schema", "version", "query_hash", "plan_count", "occurrence_count", "state_count", "status", "reason_code"]
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false
+  }
+}

@@ -27,11 +27,7 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS.
 - `TEST-010` — **DONE**, Issue #100 Main Verification PASS.
 - `OBS-010` — **DONE**, Issue #103 Main Verification PASS.
-- `PERF-010` — **DONE**, Issue #105 Main Verification PASS.
-- `PERF-011` — **DONE**, Issue #108 Main Verification PASS.
-- `PERF-012` — **DONE**, Issue #110 Main Verification PASS.
-- `PERF-013` — **DONE**, Issue #112 Main Verification PASS.
-- `PERF-014` — **DONE**, Issue #114 Main Verification PASS.
+- `PERF-010` — **DONE**; `PERF-011` — **DONE**; `PERF-012` — **DONE**; `PERF-013` — **DONE**; `PERF-014` — **DONE**.
 - `DOC-010` — **DONE**, Issue #116 Main Verification PASS.
 
 FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA-010 authority: `PRH_CANONICAL_TRANSACTION_V1`. ARCH-010: `PRH_APPLICATION_CORE_V1`, `io_authority: false`. ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. ANL-010: `PRH_ANALYTICS_CONTRACT_V1@1.0.0`; `financial_write=false`.
@@ -48,25 +44,26 @@ FIN-010 authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA-010 auth
 - `TX-020` — **DONE**, Issue #124 Main Verification PASS.
 - `EXP-020` — **DONE**, Issue #126 Main Verification PASS.
 - `INC-020` — **DONE**, Issue #128 Main Verification PASS.
-- `CF-020` — **DONE**, Issue #130 Main Verification PASS, merge `35262221f9e773b652903818c971bb9f2297567d`.
-- `BUD-020` Budget Control dashboard — **IN_PROGRESS**, Issue #132; current R2 writer, branch `agent/BUD-020-budget-control`.
+- `CF-020` — **DONE**, Issue #130 Main Verification PASS.
+- `BUD-020` — **DONE**, Issue #132 Main Verification PASS, merge `6ab8db5b07c31cebc0d942be576a7b2a712dded1`.
+- `OBL-020` Obligations & recurring dashboard — **IN_PROGRESS**, Issue #134; current R2 writer, branch `agent/OBL-020-obligations-recurring`.
 
-### BUD-020 current boundary
+### OBL-020 current boundary
 
-`PRH_BUDGET_CONTROL_V1@1.0.0` вводит explicit `TOTAL_EXPENSE_LINEAR_PERIOD_V1` budget scope поверх FIN-010/VIZ-020/TX-020 без новой financial truth.
+`PRH_OBLIGATIONS_V1@1.0.0` — read-only planning model обязательств и повторяющихся потоков поверх DATA-010/DESIGN-020.
 
-- full-period budget, explicit period/currency и `as_of_exclusive` задаются планом;
-- elapsed budget вычисляется deterministic integer `ROUND_HALF_UP_POSITIVE` по elapsed_days/total_days;
-- exact elapsed fact и `BUDGET_VARIANCE` вычисляет только FIN-010 для того же окна/currency/budget;
-- run-rate/projection — planning-only, не FIN-TRUTH;
-- `BUDGET_ALERT_V1`: `OVER_BUDGET` при elapsed FIN variance < 0; `AT_RISK` при variance >= 0 и projected utilization >= 9500 bp; иначе `ON_TRACK`;
-- VIZ specs configuration-only, runtime financial rows separate/private;
-- TX drill ограничен elapsed window и типами `expense/refund`; navigation не содержит денежных значений и не даёт write authority;
-- Budget Control не является account-balance/liquidity truth;
-- generic runtime save остаётся `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`;
+- explicit bounded planning window `[window_start, window_end)`, максимум 366 дней;
+- recurrence v1: `ONCE`, `WEEKLY`, `MONTHLY`; monthly policy `CLAMP_TO_LAST_DAY`;
+- stable occurrence identity = `SHA256(PRH_OBLIGATION_OCCURRENCE_V1|PLAN_ID|DUE_DATE)`;
+- completion задаётся только explicit `completed_due_dates`; fuzzy transaction matching отсутствует;
+- states: `OVERDUE`, `DUE`, `UPCOMING`, `FORECAST` относительно explicit `as_of`;
+- planning amount/direction и forecast **не являются FIN-TRUTH**;
+- mixed-currency view fail-closed;
+- OBL не создаёт canonical transactions автоматически и не получает storage/network/financial-write authority;
+- public telemetry не содержит amount/label/private plan IDs;
 - public evidence — independently generated synthetic only; `FREE_ONLY` mandatory.
 
-Normative doc: `docs/analytics/BUDGET_CONTROL.md`. Core: `lib/budget/budget_control.js`. Tests: `tests/budget_control_contract_test.js`, `tests/budget_control_visual_test.js`.
+Normative doc: `docs/analytics/OBLIGATIONS_RECURRING.md`. Core: `lib/obligations/obligations.js`. Tests: `tests/obligations_contract_test.js`, `tests/obligations_visual_test.js`.
 
 ## MIG-010 historical safety boundary
 
@@ -101,7 +98,7 @@ Private primary store/runtime: Google Sheets + Apps Script; family UI: private `
 
 ## Что намеренно не утверждается
 
-BUD-020 не считается DONE до autonomous merge + Main Verification/Issue close. Budget projection не является FIN-TRUTH или balance/liquidity truth. BUD-020 не разрешает Google write. Historical MIG-010 authorization не переносится на future mutation. Private Dashboard не сделан публичным.
+OBL-020 не считается DONE до autonomous merge + Main Verification/Issue close. Obligation forecast не является financial fact. OBL-020 не разрешает Google write и не создаёт операции автоматически. Historical MIG-010 authorization не переносится на future mutation. Private Dashboard не сделан публичным.
 
 ## Source precedence
 
