@@ -65,12 +65,12 @@ Offline shell — только безопасная статическая об�
 3. регистрирует настоящий service worker и после reload требует `navigator.serviceWorker.controller`;
 4. проверяет ровно пять explicit shell cache entries;
 5. выполняет synthetic private route online и доказывает отсутствие этого URL в CacheStorage;
-6. переводит browser context offline;
-7. повторно загружает cached shell;
-8. доказывает, что private route offline падает по сети и не появляется в cache;
+6. **физически закрывает localhost origin**, моделируя реальное отсутствие сети/сервера для service-worker fetch вместо недетерминированной Playwright offline-emulation;
+7. повторно загружает cached shell через уже активный service worker;
+8. доказывает, что private `NETWORK_ONLY` route к закрытому origin падает по сети и не появляется в CacheStorage;
 9. проверяет desktop/laptop/mobile layout.
 
-Evidence public-safe и содержит только contract/cache/control/offline/count/status metadata.
+Такой outage сильнее проверки UI-флага offline: тест доказывает cache behavior при фактической недоступности origin. Evidence public-safe и содержит только contract/cache/control/offline/count/status metadata.
 
 ## Machine evidence
 
