@@ -66,6 +66,8 @@ jobs:
           set -euo pipefail
           node tools/language-policy-scan.js
           node tests/language_policy_contract_test.js
+      - name: AI model/cost routing
+        run: node tests/ai_model_cost_routing_contract_test.js
       - name: R1 documentation contract
         run: node tests/r1_documentation_contract_test.js
       - name: Design system
