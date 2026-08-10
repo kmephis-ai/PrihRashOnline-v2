@@ -4,171 +4,132 @@
 
 Google Sheets остаётся private primary store/current adapter. Public GitHub не является финансовой базой и не содержит real/real-derived household finance data.
 
-R1 (`FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`) завершён Main Verification; `MASTER-G3 / Canonical platform` complete. R2 `DESIGN-020` и `VIZ-020` также DONE. Текущий единственный R2 writer — `HOME-020`; он добавляет derived Financial Home view model и не меняет canonical/write semantics.
-
-Canonical lineage: `docs/data/R1_DATA_LINEAGE.md`. Machine documentation map: `PRH_R1_DOCUMENTATION_V1@1.0.0`. Presentation: `PRH_DESIGN_SYSTEM_V1@1.0.0`. Visualization: `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0`. Home: `PRH_FINANCIAL_HOME_V1@1.0.0`.
+R1 (`FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`) завершён Main Verification; `MASTER-G3 / Canonical platform` complete. R2 `DESIGN-020`, `VIZ-020`, `HOME-020` — DONE. Текущий единственный writer — `TX-020`.
 
 ## Основные private sheets
 
 | Лист | Роль | Write boundary |
 |---|---|---|
-| `01 Операции` | canonical transaction surface | Dashboard/Home read-only; future mutation only by separately proven policy |
-| `09 Настройки` | technical settings/status | bounded technical writes only |
-| `10 Контроль` | private KPI/control snapshots | only separately authorized append/readback |
-| `11 Предпросмотр` | quality proposal staging/review | proposal state, not canonical transaction truth |
+| `01 Операции` | canonical transaction surface | Dashboard/Home/TX read-only; mutation only by separately proven policy |
+| `09 Настройки` | technical settings/status | bounded technical writes |
+| `10 Контроль` | private KPI/control snapshots | separately authorized append/readback |
+| `11 Предпросмотр` | proposal staging/review | proposal state, not canonical truth |
 | `13 Журнал` | privacy-safe technical audit | bounded technical append |
-| `14 Аналитика` | existing spreadsheet analytics/fallback | not canonical analytics/FIN truth |
+| `14 Аналитика` | spreadsheet analytics/fallback | not canonical FIN truth |
 
-Наличие UI, query, cache, visualization или Home contract не является разрешением записи. Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+Generic Google canonical write remains fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 ## Financial truth
 
-KPI Dictionary `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1` задаёт authoritative semantics Income / Expense / Cash Flow / Savings / Budget variance, transfer neutrality, refund behavior, integer minor units и period/currency rules.
+`PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1` owns Income / Expense / Cash Flow / Savings / Budget variance semantics, transfer/refund behavior, integer minor units and explicit period/currency rules.
 
-Legacy totals/cells не являются golden truth. Analytics, performance read models, visualization и Home не дублируют formulas.
+Legacy totals are not golden truth. Analytics, performance, VIZ, HOME and TX do not create alternative financial formulas.
 
 ## Canonical Transaction v1
 
-`PRH_CANONICAL_TRANSACTION_V1` определяет portable record со stable transaction identity, RFC3339 occurred time, type/status, integer `amount_minor`, currency, dimensions и provenance.
+`PRH_CANONICAL_TRANSACTION_V1` defines stable transaction identity, RFC3339 occurred time, type/status, integer `amount_minor`, currency, household dimensions and provenance.
 
-`source_position` — mutable adapter provenance и **не является logical identity**. Google column layout/header naming — adapter concern.
+`source_position` is mutable adapter provenance and **не является logical identity**. Spreadsheet columns/header order are adapter concerns.
 
-## Repository / storage boundary
+## Repository / storage
 
-`PRH_TRANSACTION_REPOSITORY_V1` отделяет canonical model от storage. Current Google adapter поддерживает read/query. In-memory synthetic fake может иметь explicit test write authority. Current Google generic write всегда blocked `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+`PRH_TRANSACTION_REPOSITORY_V1` separates canonical data from storage. Current Google adapter supports read/query. Generic Google write is blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## AnalyticsQuery / AnalyticsResult — ANL-010 — DONE
+## Analytics / performance — DONE
 
-`PRH_ANALYTICS_CONTRACT_V1@1.0.0` renderer/storage-neutral. `AnalyticsResult` — derived read model, не новый financial source of truth или persistence authority. Real analytics results/aggregates остаются private.
+`ANL-010` — DONE; `PRH_ANALYTICS_RESULT_V1` is a derived read model, not persistence/financial authority.  
+`PERF-010..014` — DONE; projection/cache/single-scan/incremental aggregates/synthetic scale are derived read/performance layers and do not authorize writes.
 
-ANL-010 — DONE; завершён и не является current writer.
+## DESIGN / VIZ / HOME — DONE
 
-## DESIGN-020 — DONE
+Design theme/layout state is presentation-only. VIZ specs are configuration-only; real renderer datasets/options remain private transient data. `PRH_FINANCIAL_HOME_VIEW_V1` is a derived private Home view model and does not create storage authority.
 
-`PRH_DESIGN_SYSTEM_V1@1.0.0` описывает visual tokens/theme/focus/motion/breakpoints. Theme/layout state не меняет canonical records, FIN-TRUTH или AnalyticsQuery/Result и не получает persistence/write authority.
+HOME budget is explicit-only; missing plan -> `NOT_CONFIGURED`. Liquidity has no value until a versioned balance observation source; `UNAVAILABLE_PENDING_BALANCE_SOURCE` prevents cash-flow-as-balance drift.
 
-## VIZ-020 — DONE
+## TX-020 Transaction Explorer view model
 
-`PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` разделяет:
+Machine contract: `PRH_TRANSACTION_EXPLORER_V1@1.0.0`.
 
-- configuration-only `PRH_CHART_SPEC_V1` / `PRH_WIDGET_SPEC_V1`;
-- deterministic `PRH_FILTER_CONTEXT_V1` / `PRH_DRILL_CONTEXT_V1`;
-- transient `PRH_VISUALIZATION_RENDER_DATASET_V1` для private runtime rendering.
+Explorer adds **no canonical entity and no persistent table**. It operates over validated canonical records and returns `PRH_TRANSACTION_EXPLORER_ROW_V1` projections.
 
-ChartSpec/WidgetSpec рекурсивно запрещают rows/data/transactions/amount payload. Real renderer dataset/compiled option остаются private in-memory data, не persistence model и не public evidence. VIZ layer не получает query/storage/network/financial-write authority.
+### Query state
 
-## HOME-020 — derived Financial Home view model
+`PRH_TRANSACTION_EXPLORER_QUERY_V1` contains only query configuration:
 
-Machine contract: `PRH_FINANCIAL_HOME_V1@1.0.0`. Runtime view schema: `PRH_FINANCIAL_HOME_VIEW_V1`.
+- explicit date range;
+- account/category/member/type/status filter IDs;
+- bounded text search;
+- allowlisted sort field/direction;
+- offset/limit;
+- deterministic SHA-256 query identity.
 
-Home view является **derived private read/view model**, а не canonical entity или storage table.
+Query state contains no calculated KPI truth. A private query may reference private IDs in memory; those IDs are not public telemetry/evidence.
 
-### Financial cards
+### Result rows
 
-`INCOME`, `EXPENSE`, `CASH_FLOW`, `SAVINGS` и `BUDGET` происходят из одного FIN-010 `evaluateKpis()` result. Home не вычисляет KPI formulas повторно и не записывает полученные значения обратно в source sheets.
+Explorer result rows contain canonical display fields including transaction identity, occurred time, dimensions and exact canonical `amount_minor`. These values remain private at runtime. Public tests/screenshots use independently generated synthetic records only.
 
-### Explicit budget input
+Result rows are not aggregates, cache authority or new storage. Explorer does not rewrite canonical values during projection.
 
-Budget допускается только как explicit `budget_minor` того же period/currency, переданный FIN-010 evaluator. Home не сохраняет budget plan и не выводит его из history.
+### Edit draft
 
-Без explicit plan:
-
-```text
-BUDGET.state = NOT_CONFIGURED
-budget_minor = null
-variance_minor = null
-```
-
-### Liquidity is not cash flow
-
-HOME-020 намеренно не создаёт liquidity value без versioned balance observation source:
+`PRH_TRANSACTION_EDIT_DRAFT_V1` is transient validation state:
 
 ```text
-LIQUIDITY.state = UNAVAILABLE_PENDING_BALANCE_SOURCE
-value_minor = null
-source = null
-cash_flow_proxy_used = false
-future_dependency = BAL-030
+original canonical transaction
+        + allowlisted patch
+        ↓
+PRH_CANONICAL_TRANSACTION_V1 validator
+        ↓
+VALID | INVALID
 ```
 
-Cash flow — period flow metric, не stock/balance. Использование `CASH_FLOW` как liquidity balance proxy запрещено. HOME-020 имеет `balance_observation=false` authority.
+Immutable fields: schema, schema_version, transaction_id and provenance/source identity. `VALID` means schema-valid only; it does not mean write-authorized.
 
-### Explainable alerts
+### Save state
 
-Home alerts — derived capability/read state, не persisted financial records:
-
-- `NEGATIVE_CASH_FLOW` sourced from FIN KPI `CASH_FLOW`;
-- `BUDGET_OVERRUN` sourced from FIN KPI `BUDGET_VARIANCE`;
-- `BUDGET_NOT_CONFIGURED` sourced from explicit budget capability state;
-- `LIQUIDITY_SOURCE_UNAVAILABLE` sourced from missing versioned balance capability.
-
-Alerts не создают hidden financial formulas или writes.
-
-### Drill/filter navigation state
-
-`PRH_HOME_DRILL_ENVELOPE_V1` переносит explicit FIN period + VIZ `PRH_DRILL_CONTEXT_V1` / `PRH_FILTER_CONTEXT_V1`. Navigation state содержит semantic filters/context hash, но не financial values (`amount_minor`, income/expense/cash-flow/budget values).
-
-### Home visualization data
-
-Home WidgetSpecs configuration-only. Real `PRH_FINANCIAL_HOME_VIEW_V1`, render dataset и renderer option остаются private runtime data. Public Home tests/screenshots используют independently generated synthetic values only.
-
-### Persistence authority
-
-HOME-020 не создаёт новую таблицу/sheet/cache и имеет:
+Current TX save path is explicitly:
 
 ```text
-financial_truth = false
-query = false
-storage = false
-network = false
-financial_write = false
-balance_observation = false
+WRITE_BLOCKED
+reason = GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED
+financial_write_authorized = false
 ```
 
-Откат HOME-020 не требует data migration или financial rollback.
+No new sheet/table/cache/write log is created by TX-020. A future write-enabled editor requires a separate versioned financial-write policy with idempotency, preconditions, backup, readback, reconciliation and rollback.
 
-## R1 performance/read-model layers — PERF-010..014 — DONE
+## MIG-010 historical boundary
 
-- `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0` — minimal mapped Google reads;
-- `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` — exact-revision read reuse;
-- `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` — one immutable snapshot per bounded refresh;
-- `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` — affected-bucket derived materializations;
-- `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` — independently generated synthetic 20k/50k regression gate.
+MIG-010 deterministic full-history migration — **DONE / OWNER_VERIFIED**. Private post-write evidence: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, provenance complete, idempotent rerun verified.
 
-PERF-010..014 — DONE; завершены, не являются current writer, не становятся canonical truth и не открывают writes. PERF-014 timings — CI guardrails, не production SLA.
-
-## Source-to-canonical provenance / MIG-010
-
-MIG-010 full-history migration DONE/OWNER_VERIFIED. Private post-write reconciliation: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, provenance complete, idempotent rerun verified.
-
-Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound/non-reusable. GitHub Actions/AI не могут создать или повторно использовать её для future mutations. Generic Google write authority не изменилась.
+Owner-confirmed occurrence identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable; GitHub Actions/AI cannot reuse it for future edits. Generic Google write authority remains false.
 
 ## Recovery / observability
 
-DR-001 owner backup остаётся private/encrypted. OBS-001/OBS-010 принимают allowlisted technical evidence; financial values, canonical rows, private analytics/Home aggregates/render options не telemetry.
+DR-001 owner backup is private/encrypted. OBS telemetry permits technical metadata only; financial values, canonical rows, private Explorer query/result/edit candidates are not public telemetry.
+
+TX public telemetry allowlist: schema/version/query hash, matched/page counts, offset/limit, elapsed time, edit state and reason code.
 
 ## Public GitHub privacy boundary
 
-Допустимы code/contracts/docs, independently generated synthetic finance/Home/render fixtures и technical PASS/FAIL/hash/count/timing evidence.
+Allowed: code/contracts/docs, independently generated synthetic finance/Home/Explorer/render fixtures and technical PASS/FAIL/hash/count/timing evidence.
 
-Запрещены real или **real-derived** transaction rows/IDs/amounts/totals/aggregates/category distributions/seasonality, real Home view/render payload, private screenshots/exports/reports, authenticated Dashboard/API bodies, OAuth/private clasp, backup bytes/key и private deployment locators.
+Forbidden: real or **real-derived** transaction rows/IDs/amounts/totals/aggregates/category distributions/seasonality, private Explorer/Home/render payload, screenshots/exports/reports, authenticated responses, OAuth/private clasp, backup bytes/key or private deployment locators.
 
-`FREE_ONLY` mandatory. External paid/cloud/CDN dependency для DESIGN/VIZ/HOME не требуется.
+`FREE_ONLY` mandatory. External paid search/table/CDN provider is not required.
 
-## Canonical / view hierarchy
+## Canonical / derived hierarchy
 
 ```text
-PRH_CANONICAL_TRANSACTION_V1       canonical data
+PRH_CANONICAL_TRANSACTION_V1       canonical data authority
         ↓
 FIN-TRUTH-v1 / KPI Dictionary     financial semantics
         ↓
-PRH_ANALYTICS_RESULT_V1            derived analytics read model
+Analytics/read models              derived analysis
         ↓
-VIZ transient render dataset       private renderer input
-        ↓
-PRH_FINANCIAL_HOME_VIEW_V1         derived private Home composition
+Home / Transaction Explorer       derived private view state
         ↓
 UI                                presentation only
 ```
 
-Ни один lower layer не может переопределить higher financial/data authority. `HOME-020` — единственный current R2 writer; dependent Roadmap work не начинается до его Main Verification.
+Lower layers cannot override higher financial/data authority. `TX-020` is the single current R2 writer.
