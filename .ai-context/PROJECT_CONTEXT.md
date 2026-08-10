@@ -18,6 +18,8 @@ Chat history/memory и stale Roadmap copies not authority.
 
 R1 DONE/Main Verification PASS: `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`.
 
+`DOC-010` — **DONE**, Main Verification PASS; `PRH_R1_DOCUMENTATION_V1@1.0.0` remains the verified R1 documentation-coherence authority.
+
 Private MIG-010 full-history reconciliation = PASS. Independently generated synthetic 20k/50k performance = PASS.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
