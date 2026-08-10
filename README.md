@@ -2,7 +2,7 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с приватным семейным Web Dashboard и GitHub как инженерным control plane.
 
-> **Текущий статус:** доказаны **R0 platform baseline** (`MASTER-G0`, `MASTER-G1`, `MASTER-G2` complete) и **R1 Canonical Financial Platform** (`MASTER-G3` complete). R2 `DESIGN-020`, `VIZ-020`, `HOME-020` прошли Main Verification. Текущий единственный writer — **TX-020 Transaction Explorer**, Issue #124.
+> **Текущий статус:** доказаны **R0 platform baseline** (`MASTER-G0`, `MASTER-G1`, `MASTER-G2` complete) и **R1 Canonical Financial Platform** (`MASTER-G3` complete). R2 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020` прошли Main Verification. Текущий единственный writer — **EXP-020 Expense Analytics**, Issue #126.
 
 ## Принципы
 
@@ -27,41 +27,29 @@
 | Design | `PRH_DESIGN_SYSTEM_V1@1.0.0` — DONE |
 | Visualization | `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — DONE |
 | Financial Home | `PRH_FINANCIAL_HOME_V1@1.0.0` — DONE |
-| Transaction Explorer | `PRH_TRANSACTION_EXPLORER_V1@1.0.0` — IN_PROGRESS |
+| Transaction Explorer | `PRH_TRANSACTION_EXPLORER_V1@1.0.0` — DONE |
+| Expense Analytics | `PRH_EXPENSE_ANALYTICS_V1@1.0.0` — IN_PROGRESS |
 
 R1 20k/50k performance profiles are CI regression guardrails, not production SLA. Correctness/privacy remain higher priority than latency.
 
-## TX-020 Transaction Explorer
+## EXP-020 Expense Analytics
 
-Canonical document: [`docs/architecture/TRANSACTION_EXPLORER.md`](docs/architecture/TRANSACTION_EXPLORER.md).
+Canonical document: [`docs/analytics/EXPENSE_ANALYTICS.md`](docs/analytics/EXPENSE_ANALYTICS.md).
 
-TX-020 adds:
+EXP-020 строит read-only аналитику расходов без новой финансовой формулы:
 
-- deterministic search/filter/sort by date, account, category, member, type and status;
-- bounded text search over allowlisted display fields;
-- stable sorting with `transaction_id` tie-breaker;
-- SHA-256 normalized query identity;
-- bounded pagination (default 50, max 200);
-- independently generated synthetic 20k/50k scale tests;
-- responsive desktop/laptop/mobile browser surface `TransactionExplorerWebApp.html`;
-- edit-draft validation through the canonical DATA-010 validator.
+- current/comparison Expense totals берутся из FIN-010 `evaluateKpis()`;
+- trend bucket totals каждый раз проверяются через FIN-010 и обязаны суммироваться в period EXPENSE;
+- category mix использует FIN-TRUTH partition: expense добавляет, refund уменьшает, transfer нейтрален;
+- comparable periods — только явно заданные equal-day windows, без implicit proration;
+- drivers показывают category contribution к изменению расходов, а их сумма обязана точно равняться total delta;
+- VIZ-020 `LINE` / `DONUT` / `BAR` WidgetSpecs остаются configuration-only;
+- drill-down сохраняет period/account/category/member context и ведёт в TX-020 Transaction Explorer без денежных значений в navigation state;
+- `ExpenseAnalyticsWebApp.html` + Playwright дают synthetic responsive desktop/laptop/mobile evidence.
 
-Explorer is a canonical row projection, not a KPI engine. It does not calculate Income/Expense/Cash Flow or redefine FIN-TRUTH.
+Expense Analytics не меняет FIN-TRUTH, canonical schema, AnalyticsQuery/Result или Google write policy.
 
-### Editing safety
-
-A draft can become `VALID` only after `PRH_CANONICAL_TRANSACTION_V1` validation. `schema`, `schema_version`, `transaction_id` and provenance identity are immutable in TX-020.
-
-A valid draft **still cannot write to Google**. Current save state is:
-
-```text
-WRITE_BLOCKED
-GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED
-```
-
-A future write-enabled editor must separately prove idempotency, preconditions, backup, readback, reconciliation and rollback. Historical MIG-010 authorization is not reusable.
-
-## R2 completed foundations
+## R2 verified foundations
 
 ### DESIGN-020
 
@@ -75,14 +63,18 @@ A future write-enabled editor must separately prove idempotency, preconditions, 
 
 `PRH_FINANCIAL_HOME_V1@1.0.0` derives Home cards from one FIN-010 evaluation. Budget without explicit plan is `NOT_CONFIGURED`; liquidity remains `UNAVAILABLE_PENDING_BALANCE_SOURCE` until BAL-030 rather than using cash flow as a fake balance.
 
+### TX-020
+
+`PRH_TRANSACTION_EXPLORER_V1@1.0.0` provides deterministic canonical transaction search/filter/sort/pagination and schema-valid edit drafts. Explorer is a row projection, not a KPI engine. Runtime save remains `WRITE_BLOCKED` with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED` until a separately proven write policy exists.
+
 ## Private runtime
 
-Web Dashboard remains private with access boundary `MYSELF`. **Private deployment URL is not published in README or release commits.** Existing Dashboard/Home surfaces remain compatible while TX-020 is developed; TX browser surface does not silently create a new private route.
+Web Dashboard remains private with access boundary `MYSELF`. **Private deployment URL is not published in README or release commits.** Existing Dashboard/Home/TX surfaces remain compatible; EXP synthetic browser surface does not silently create a new private route.
 
 ## Privacy and financial safety
 
 - public tests do not use real or **real-derived** transaction rows, amounts, IDs, aggregates, distributions or screenshots;
-- private Analytics/Home/Explorer/render payload is not public telemetry;
+- private Analytics/Home/Explorer/Expense/render payload is not public telemetry;
 - generic Google financial write stays blocked until separately proven;
 - historical `IRREVERSIBLE_ACTION_AUTHORIZED` from MIG-010 was exact-bound and cannot be reused;
 - merge to `main` does not by itself authorize PROD cutover/destructive financial mutation.
@@ -126,6 +118,7 @@ Manual merge, release-snapshot branches, anonymous private health probes and pos
 - [R1 data lineage](docs/data/R1_DATA_LINEAGE.md)
 - [Canonical Transaction](docs/data/CANONICAL_TRANSACTION_SCHEMA.md)
 - [KPI Dictionary](docs/finance/KPI_DICTIONARY.md)
+- [Expense Analytics](docs/analytics/EXPENSE_ANALYTICS.md)
 - [Transaction Explorer](docs/architecture/TRANSACTION_EXPLORER.md)
 - [Design system](docs/design/DESIGN_SYSTEM.md)
 - [Visualization foundation](docs/architecture/VISUALIZATION_FOUNDATION.md)
@@ -135,4 +128,4 @@ Manual merge, release-snapshot branches, anonymous private health probes and pos
 
 ## Что дальше
 
-Текущий Roadmap item — `TX-020`. До его Main Verification соседний writer не стартует. После TX-020 следующий item снова выбирается по `docs/ROADMAP.md` dependencies/priority/order, а не вручную из chat history.
+Текущий Roadmap item — `EXP-020`. До его Main Verification соседний writer не стартует. После EXP-020 следующий item выбирается строго по `docs/ROADMAP.md` dependencies/priority/order и live GitHub lifecycle.
