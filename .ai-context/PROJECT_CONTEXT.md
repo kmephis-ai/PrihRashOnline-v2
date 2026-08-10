@@ -6,6 +6,8 @@
 
 Русский язык — единственный нормативный язык human-facing документации, GitHub metadata и AI instructions. Machine identifiers, API/schema fields, library/protocol/standard names, команды и технические пути сохраняются без перевода. Параллельный English source of truth запрещён.
 
+Для AI-агента это означает практическое правило: объяснения решений, описание причин изменений, критерии приёмки, ограничения, эксплуатационные инструкции и итоговые выводы должны быть понятны русскоязычному владельцу проекта без необходимости обращаться к параллельной английской версии. Английские технические термины допустимы там, где они являются устойчивыми именами интерфейсов, библиотек, стандартов, полей схемы или машинных кодов. Они не должны вытеснять русский смысловой текст и не создают отдельный нормативный документ. Если новый файл предназначен человеку и становится источником архитектурных, эксплуатационных или процессных правил, его основной поясняющий текст пишется по-русски.
+
 ## Канонические источники
 
 1. `/AGENTS.md` — AI operating contract.
@@ -62,7 +64,7 @@ Rules:
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DOC-002 language contract must be `POLICY_GOVERNANCE` and named `Language policy` gate must execute `tools/language-policy-scan.js` plus its behavioral contract.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. DOC-002 language contract is `POLICY_GOVERNANCE`; named `Language policy` gate executes `tools/language-policy-scan.js` plus behavioral contract.
 
 ## MIG-010 historical verified boundary
 
