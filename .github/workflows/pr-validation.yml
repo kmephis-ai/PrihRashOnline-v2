@@ -85,6 +85,8 @@ jobs:
         run: node tests/repository_cache_adapter_contract_test.js
       - name: Single-scan refresh pipeline
         run: node tests/repository_refresh_pipeline_adapter_contract_test.js
+      - name: Incremental analytics aggregates
+        run: node tests/incremental_analytics_aggregates_contract_test.js
       - name: Analytics extension contract
         shell: bash
         run: |
