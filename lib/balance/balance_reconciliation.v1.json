@@ -1,0 +1,72 @@
+{
+  "schema": "PRH_BALANCE_RECONCILIATION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "BAL-030",
+  "dependencies": {
+    "canonical_transactions": "PRH_CANONICAL_TRANSACTION_V1",
+    "financial_truth_policy": "FIN-TRUTH-v1",
+    "disaster_recovery": "DR-001"
+  },
+  "schemas": {
+    "observation": "PRH_BALANCE_OBSERVATION_V1",
+    "result": "PRH_BALANCE_RECONCILIATION_RESULT_V1",
+    "telemetry": "PRH_BALANCE_RECONCILIATION_TELEMETRY_V1"
+  },
+  "observation": {
+    "money": "SIGNED_SAFE_INTEGER_MINOR_UNITS",
+    "currency": "ISO_4217_UPPERCASE_3",
+    "observed_at": "RFC3339_INSTANT",
+    "provenance_required": true,
+    "capture_methods": ["MANUAL_DECLARED", "STATEMENT_DECLARED", "SYNTHETIC_TEST"],
+    "canonical_transaction_claim": false
+  },
+  "absolute_balance_policy": {
+    "anchor_observation_required": true,
+    "zero_origin_assumed": false,
+    "same_account_required": true,
+    "same_currency_required": true,
+    "target_after_anchor_required": true,
+    "interval": "ANCHOR_EXCLUSIVE_TARGET_INCLUSIVE"
+  },
+  "account_delta_policy": {
+    "included_status": "posted",
+    "income_source_account": "PLUS_AMOUNT",
+    "expense_source_account": "MINUS_AMOUNT",
+    "refund_source_account": "PLUS_AMOUNT",
+    "transfer_source_account": "MINUS_AMOUNT",
+    "transfer_destination_account": "PLUS_AMOUNT",
+    "adjustment_current_semantics": "ZERO_ONLY",
+    "pending_void": "IGNORE",
+    "foreign_currency_touching_account": "FAIL"
+  },
+  "reconciliation": {
+    "mismatch_formula": "OBSERVED_MINUS_CALCULATED",
+    "states": ["MATCH", "MISMATCH"],
+    "mismatch_proposal": "REVIEW_CANONICAL_OR_OBSERVATION",
+    "deterministic_id": "SHA256_NORMALIZED_INPUT_V1",
+    "idempotent": true,
+    "input_mutation": false
+  },
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "state",
+    "reason_code",
+    "transaction_count",
+    "included_transaction_count",
+    "delta_direction",
+    "proposal_kind"
+  ],
+  "public_evidence": "SYNTHETIC_ONLY",
+  "authorities": {
+    "financial_truth": false,
+    "canonical_mutation": false,
+    "observation_mutation": false,
+    "financial_write": false,
+    "storage": false,
+    "network": false,
+    "runtime": false,
+    "deployment": false
+  },
+  "free_only": true
+}
