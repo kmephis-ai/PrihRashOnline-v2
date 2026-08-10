@@ -75,7 +75,7 @@ HOME-020 вводит `PRH_FINANCIAL_HOME_V1@1.0.0` и `PRH_FINANCIAL_HOME_VIEW_
 
 ## MIG-010 historical safety boundary
 
-Owner-private MIG-010 evidence: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Generic repository write authority не изменилась.
+Owner-private MIG-010 evidence: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Private post-write reconciliation = PASS. Generic repository write authority не изменилась.
 
 Owner-confirmed duplicate-preservation capability remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это public-safe имя identity strategy без private resolution payload.
 
