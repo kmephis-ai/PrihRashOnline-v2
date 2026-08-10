@@ -45,7 +45,7 @@ function prhR2FinType_(value) {
 function prhR2FinStatus_(value) {
   var key = String(value == null ? '' : value).trim().toLowerCase();
   var map = {
-    '': 'posted', 'проведено': 'posted', 'оплачено': 'posted', 'ok': 'posted', 'posted': 'posted',
+    '': 'posted', 'проведено': 'posted', 'оплачено': 'posted', 'перенесено': 'posted', 'ok': 'posted', 'posted': 'posted',
     'ожидает': 'pending', 'черновик': 'pending', 'pending': 'pending',
     'отменено': 'void', 'void': 'void'
   };
