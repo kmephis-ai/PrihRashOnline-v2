@@ -11,6 +11,12 @@ const {
   validateLifecycleTransition,
   assertPublicSafe
 } = require('../tools/roadmap-task-protocol');
+const {
+  ROADMAP_ID_RE,
+  parseProjectStatusEntries,
+  currentRoadmapWriters,
+  branchRoadmapId
+} = require('../lib/testing/structured_contract_parsers');
 
 function item(overrides = {}) {
   return {
@@ -54,6 +60,41 @@ assert.deepStrictEqual(REQUIRED_DELIVERY_GATES, [
   'AUTONOMOUS_MERGE',
   'MAIN_VERIFICATION'
 ]);
+
+// Structured lifecycle parsers must support canonical multi-segment Roadmap IDs.
+assert.strictEqual(ROADMAP_ID_RE.test('GOAL-030'), true);
+assert.strictEqual(ROADMAP_ID_RE.test('UI-MIG-020'), true);
+assert.strictEqual(ROADMAP_ID_RE.test('ABC-DEF-GHI-123'), true);
+assert.strictEqual(ROADMAP_ID_RE.test('UI--MIG-020'), false);
+assert.strictEqual(ROADMAP_ID_RE.test('ui-MIG-020'), false);
+{
+  const statusMarkdown = [
+    '- `NW-030` — **DONE**, Issue #171.',
+    '- `UI-MIG-020` — **IN_PROGRESS**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`.'
+  ].join('\n');
+  assert.deepStrictEqual(parseProjectStatusEntries(statusMarkdown).map((entry) => [entry.id, entry.lifecycle]), [
+    ['NW-030', 'DONE'],
+    ['UI-MIG-020', 'IN_PROGRESS']
+  ]);
+  assert.deepStrictEqual(currentRoadmapWriters(statusMarkdown), ['UI-MIG-020']);
+  assert.strictEqual(branchRoadmapId({ GITHUB_HEAD_REF: 'agent/UI-MIG-020-canonical-r2-cutover' }), 'UI-MIG-020');
+  assert.strictEqual(branchRoadmapId({ GITHUB_HEAD_REF: 'agent/GOAL-030-goals-wishlist' }), 'GOAL-030');
+  assert.strictEqual(branchRoadmapId({ GITHUB_HEAD_REF: 'agent/UI--MIG-020-invalid' }), '');
+}
+
+{
+  const normalized = normalizeRoadmapItem(item({
+    roadmap_id: 'UI-MIG-020',
+    issue: 172,
+    status: 'READY',
+    priority: 'P1',
+    wave: 'R2',
+    order: 999,
+    branch_slug: 'canonical-r2-cutover',
+    depends_on: []
+  }));
+  assert.strictEqual(normalized.roadmap_id, 'UI-MIG-020');
+}
 
 {
   const result = resolveContinuation([
@@ -229,6 +270,8 @@ console.log('roadmap_task_protocol_contract_test: OK', {
   dependencyEvidence: true,
   deterministicOrdering: true,
   completeTaskPacket: true,
+  multiSegmentRoadmapIds: true,
+  multiSegmentWriterBranch: true,
   mainVerificationRequiredForDone: true,
   privateContextRejected: true
 });
