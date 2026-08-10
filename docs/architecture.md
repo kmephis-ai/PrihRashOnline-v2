@@ -189,11 +189,15 @@ Named gates: `Financial Home`, `Financial Home visual gate`.
 
 PERF-010..014 — DONE; завершены и не являются current writer. Они не создают альтернативную FIN truth и не открывают financial writes. PERF-014 wall-clock ceilings — CI guardrails, не production SLA.
 
-## MIG-010 historical boundary
+## MIG-010 historical boundary — DONE
 
-MIG-010 завершён OWNER_VERIFIED private reconciliation: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, provenance complete, idempotent rerun verified.
+Machine contract: `PRH_FULL_HISTORY_MIGRATION_V1@1.0.0`.
 
-Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound/non-reusable. GitHub Actions/AI не могут создать или повторно использовать её для future mutations. Generic repository write authority не изменилась.
+**Current write authority = false.** The **owner-verified MIG-010 private full-history reconciliation** remains the completed correctness proof; it does not grant future generic write authority.
+
+Private verified evidence remains `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, provenance complete and idempotent rerun verified. Owner-confirmed preserve-all identity strategy is `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
+
+Historical `IRREVERSIBLE_ACTION_AUTHORIZED` была exact-bound/non-reusable. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions/AI не могут повторно использовать её для future mutations. Generic repository write authority не изменилась.
 
 ## Trust/privacy boundaries
 
