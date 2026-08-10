@@ -34,6 +34,7 @@
     {"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},
     {"path":"docs/analytics/EXPLORATION_STATE.md","kind":"ANALYTICS","min_cyrillic_letters":260},
     {"path":"docs/planning/CASH_FLOW_PROJECTION.md","kind":"PLANNING","min_cyrillic_letters":300},
+    {"path":"docs/planning/GOALS_WISHLIST.md","kind":"PLANNING","min_cyrillic_letters":260},
     {"path":".github/ISSUE_TEMPLATE/roadmap.yml","kind":"ISSUE_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/PULL_REQUEST_TEMPLATE.md","kind":"PR_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/RELEASE_TEMPLATE.md","kind":"RELEASE_TEMPLATE","min_cyrillic_letters":40}
@@ -57,8 +58,9 @@
     "state_hash", "INHERIT_GLOBAL", "OVERRIDE", "READ_ONLY", "Main Verification", "Trusted DEV Deploy",
     "Trusted Runtime Health", "PRH_AI_PLAYBOOK_CATALOG_V1", "PRH_AI_EVAL_SUITE_V1",
     "PRH_AI_EVAL_BASELINE_V1", "PRH_AI_EVAL_REPORT_V1", "PRH_HOUSEHOLD_PREFERENCES_V1",
-    "PRH_LONG_TERM_TRENDS_V1", "PRH_CASH_FLOW_PROJECTION_V1", "BACKTEST_MAE_SYMMETRIC",
-    "ROLLING_MEAN_3_COMPLETE_MONTHS_V1", "PROFILE_EDIT", "HOUSEHOLD_ADMIN", "SYSTEM", "LIGHT", "DARK"
+    "PRH_LONG_TERM_TRENDS_V1", "PRH_CASH_FLOW_PROJECTION_V1", "PRH_GOAL_PLANNING_V1",
+    "DECLARED_PLANNING", "BACKTEST_MAE_SYMMETRIC", "ROLLING_MEAN_3_COMPLETE_MONTHS_V1",
+    "PROFILE_EDIT", "HOUSEHOLD_ADMIN", "SYSTEM", "LIGHT", "DARK"
   ],
   "parallel_english_normative_path_patterns": [
     "(^|/)docs/en(/|$)",
