@@ -31,7 +31,7 @@ Legacy totals/cells не являются golden truth. Analytics, performance r
 
 `PRH_CANONICAL_TRANSACTION_V1` определяет portable record со stable transaction identity, RFC3339 occurred time, type/status, integer `amount_minor`, currency, dimensions и provenance.
 
-`source_position` — mutable adapter provenance и не logical identity. Google column layout/header naming — adapter concern.
+`source_position` — mutable adapter provenance и **не является logical identity**. Google column layout/header naming — adapter concern.
 
 ## Repository / storage boundary
 
