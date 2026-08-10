@@ -73,7 +73,7 @@
       .filters { grid-template-columns:1fr 1fr; padding:14px; }
       .filters .search-field { grid-column:1/-1; }
       .tx-head { display:none; }
-      .tx-row { grid-template-columns:1fr 1fr; gap:10px 14px; padding:14px; }
+      .tx-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 14px; padding:14px; }
       .cell .mobile-label { display:block; }
       .money { text-align:left; }
       .pager { align-items:flex-start; flex-direction:column; }
@@ -83,7 +83,7 @@
     @media (max-width:430px) {
       .filters { grid-template-columns:1fr; }
       .filters .search-field { grid-column:auto; }
-      .tx-row { grid-template-columns:1fr; }
+      .tx-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
     }
     @media (prefers-reduced-motion:reduce) { .drawer { transition:none; } }
   </style>
