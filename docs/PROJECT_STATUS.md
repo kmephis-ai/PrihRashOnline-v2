@@ -29,8 +29,9 @@
 - `PERF-010` Query projection/minimal ranges — **DONE**, Issue #105 Main Verification PASS.
 - `PERF-011` Revision-aware read cache — **DONE**, Issue #108 Main Verification PASS.
 - `PERF-012` Single-scan refresh pipeline — **DONE**, Issue #110 Main Verification PASS.
-- `PERF-013` Incremental analytics aggregates — **IN_PROGRESS**, Issue #112; current R1 writer.
-- последующие `PERF-014`, `DOC-010` и другие items остаются dependency/priority-gated.
+- `PERF-013` Incremental analytics aggregates — **DONE**, Issue #112 Main Verification PASS.
+- `PERF-014` Synthetic scale performance gates — **IN_PROGRESS**, Issue #114; current R1 writer.
+- `DOC-010` и другие items остаются dependency/priority-gated.
 
 FIN-010: `PRH_KPI_DICTIONARY_V1` / `FIN-TRUTH-v1`.  
 DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
@@ -41,21 +42,26 @@ TEST-010: `PRH_TEST_ARCHITECTURE_V1@1.0.0`.
 OBS-010: `PRH_SLO_ERROR_BUDGET_V1@1.0.0`.  
 PERF-010: `PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0`.  
 PERF-011: `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`.  
-PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`.
+PERF-012: `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`.  
+PERF-013: `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`.
 
-## PERF-013 current truth
+## PERF-014 current truth
 
-PERF-013 вводит `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0`: versioned materialized projections `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` для основных FIN-010 measures без UI coupling.
+PERF-014 вводит `PRH_SYNTHETIC_SCALE_GATE_V1@1.0.0` как блокирующий CI guardrail на independently generated synthetic datasets размером 20 000 и 50 000 canonical operations. Это regression contract, а не пользовательский production SLA.
 
-Financial formulas не дублируются: bucket recompute использует `evaluateKpis()`, а correctness parity проверяется с ANL-010 `evaluateAnalytics()`. `BUDGET_VARIANCE` не материализуется, потому что budget input query-scoped и grouped budget variance в ANL-010 fail-closed.
+`PRH_SYNTHETIC_SCALE_FIXTURE_V1` генерирует детерминированные synthetic income/expense/refund/transfer rows только в памяти. Generator не читает private runtime, не использует production-derived values/distributions и не сохраняет 20k/50k dataset как repository fixture или CI artifact.
 
-State связывает exact canonical revision, projection rows и private membership index SHA-256 `state_hash`. Incremental update требует exact `expected_base_revision`; tampered/unknown state fail-closed. Delta по `transaction_id` + stable canonical fingerprint классифицирует `ADDED/REMOVED/CHANGED`; пересчитываются только old/new affected buckets из next canonical snapshot. Не затронутые rows переносятся только из hash-verified prior state.
+Для обоих профилей versioned ceilings покрывают authoritative `repositoryRevision()`, ANL-010 full recompute, PERF-012 linked single-scan refresh, PERF-013 aggregate full build, bounded incremental update и fresh aggregate rebuild для parity proof. Ceiling breach возвращает non-zero и блокирует PR; запас выбран для shared GitHub-hosted runner variability.
 
-Это оптимизация recompute scope, а не ручная арифметика денег: refund/transfer/status semantics по-прежнему вычисляет FIN-010. Identical revision возвращает deterministic `NOOP`; mixed currency fail-closed до FX layer.
+PERF-012 benchmark доказывает `canonical_reads_per_refresh_cycle = 1` и `financial_writes = 0`. PERF-013 benchmark применяет bounded delta 100/250 rows, требует `recomputed_bucket_count == affected_bucket_count` и exact equality incremental state с fresh full aggregate rebuild.
 
-Public evidence содержит только operation/status, domain-separated revision hash prefixes, delta counts и affected/recomputed bucket counts. Aggregate values, bucket labels, transaction IDs и canonical payload не публикуются. `financial_write=false`, external/paid provider не требуется.
+Public-safe benchmark evidence содержит только profile/operation counts, elapsed milliseconds, read/write counts, delta/affected/recomputed bucket counts и PASS/FAIL. Transaction IDs, bucket labels, financial values, canonical rows и source fingerprints запрещены.
 
-Normative runbook: `docs/operations/PERF013_INCREMENTAL_AGGREGATES.md`. Named canonical PR gate: `Incremental analytics aggregates`.
+`financial_write=false`; correctness gates имеют приоритет над latency. External/paid provider не требуется. Normative runbook: `docs/operations/PERF014_SYNTHETIC_SCALE_GATE.md`. Named canonical PR gate: `Synthetic scale performance`.
+
+## PERF-013 verified boundary
+
+PERF-013 завершён Main Verification. `PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0` materializes `MONTH`, `CATEGORY_ID`, `ACCOUNT_ID` projections, связывает state exact canonical revision + SHA-256 hash и пересчитывает только affected buckets по deterministic `ADDED/REMOVED/CHANGED` delta. Financial formulas остаются FIN-010 authority; exact parity с ANL-010/fresh full rebuild доказана. Mixed currency fail-closed; public evidence financial-payload-free.
 
 ## PERF-012 verified boundary
 
@@ -125,11 +131,11 @@ Root `AGENTS.md` is the public-safe repository AI operating contract.
 
 ## Что намеренно не утверждается
 
-- PERF-013 не считается DONE до CI-003 merge + Main Verification/Issue close;
-- aggregate state не заменяет canonical dataset или ANL-010 full recompute authority;
-- PERF-013 не вводит PERF-014 20k/50k performance gate;
-- incremental recompute не использует собственные финансовые формулы;
-- private aggregate contents не разрешены в public telemetry/evidence;
+- PERF-014 не считается DONE до CI-003 merge + Main Verification/Issue close;
+- 20k/50k wall-clock ceilings — CI guardrails, а не production/user-facing SLA;
+- benchmark не использует private/production-derived finance data;
+- latency PASS не может отменить financial correctness/parity failure;
+- PERF-013 aggregate state не заменяет canonical dataset или ANL-010 authority;
 - PERF-011 cache HIT по-прежнему требует exact revision proof;
 - owner authorization MIG-010 не переносится на future mutations;
 - hidden MIG staging/rollback cleanup не выполнен автоматически;
