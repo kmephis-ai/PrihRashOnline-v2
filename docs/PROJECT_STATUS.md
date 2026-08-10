@@ -2,6 +2,8 @@
 
 Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Этот файл не может отменять красный gate.
 
+Machine release-model label: `EXACT_SHA_AUTONOMOUS`; delivery authority закреплена `CI-003` и trusted exact-SHA chain.
+
 ## R0 — завершён
 
 ### MASTER-G0 / Truth — **complete**
