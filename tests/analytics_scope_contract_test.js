@@ -204,7 +204,7 @@ const query = {
   measures: ['EXPENSE'],
   dimensions: [],
   filters: [],
-  time_range: null,
+  time_range: { start: '2026-06-01', end: '2026-07-01' },
   grain: 'NONE',
   comparison: { mode: 'NONE' },
   sort: [],
