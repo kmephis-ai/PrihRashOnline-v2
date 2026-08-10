@@ -31,32 +31,38 @@
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private `OWNER_VERIFIED` reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
-- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, candidate `efffce37a4b63fad899b6096cfda28bce8af129a`, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`; authority `PRH_AI_EVAL_SUITE_V1@1.0.0`.
+- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`, authority `PRH_AI_EVAL_SUITE_V1@1.0.0`.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-AI regression eval remains local deterministic: 12 synthetic golden tasks, versioned baseline, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
+AI regression eval remains local deterministic: synthetic golden baseline, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
 
 ## Current R2 truth
 
-DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020 and PWA-020 are DONE/Main Verification PASS.
+DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020 and PROF-020 are DONE/Main Verification PASS.
 
-`PROF-020` — **current writer**, Issue #162, branch `agent/PROF-020-household-preferences`; IN_PROGRESS до Main Verification.
+`PROF-020` Issue #162 — DONE/Main Verification PASS, candidate `1ba5d7e8e73c74c2195418cf2fb43aaafcf7c5a1`, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`; authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
 
-PROF-020 machine authority: `lib/profile/household_preferences.v1.json` (`PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`). Core: `lib/profile/household_preferences.js`. Contract test: `tests/household_preferences_contract_test.js`. Normative doc: `docs/product/HOUSEHOLD_PREFERENCES.md`. Named gate: `Household preferences`.
+`NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
 
-PROF-020 rules:
+## Current R3 truth
 
-- configuration domain отделён от FIN-TRUTH/canonical transactions; financial payload в profile/preferences запрещён;
-- preferences: theme SYSTEM/LIGHT/DARK, density COMFORTABLE/COMPACT, locale ru-RU, reduced motion, high contrast, text scale 0.90..1.30 step 0.05, default landing zone;
-- LIGHT/DARK и accessibility preferences сверяются с `PRH_DESIGN_SYSTEM_V1@1.0.0`; SYSTEM не создаёт третью design theme;
-- member roles exact `OWNER|EDITOR|VIEWER` сверяются с `PRH_FAMILY_AUTH_V1@1.0.0`; минимум один ACTIVE OWNER обязателен;
-- `planMutation()` только сообщает required capability: self profile/preferences → `PROFILE_EDIT`, household/member/role/membership → `HOUSEHOLD_ADMIN`;
-- planner всегда `authorization_granted=false`, `mutation_executed=false`, `financial_write=false`; реальная auth authority остаётся AUTH-040;
-- storage/network/identity-provider provisioning/public-exposure authority отсутствует;
-- public telemetry требует injected HMAC key и содержит только allowlisted technical metadata/hashes, без raw household/member IDs/display names;
-- current Web App остаётся private `MYSELF`; `NOT_PROVEN_CURRENT_HOST` для PWA service-worker activation сохраняется;
-- public evidence independently generated synthetic only; `FREE_ONLY` mandatory.
+`TREND-030` — **current writer**, Issue #164, branch `agent/TREND-030-long-term-trends`; IN_PROGRESS до Main Verification.
+
+TREND-030 machine authority: `lib/analytics/long_term_trends.v1.json` (`PRH_LONG_TERM_TRENDS_V1@1.0.0`). Core: `lib/analytics/long_term_trends.js`. Contract test: `tests/long_term_trends_contract_test.js`. Normative doc: `docs/analytics/LONG_TERM_TRENDS.md`. Named gate: `Long-term trends`.
+
+TREND-030 rules:
+
+- financial truth остаётся `FIN-TRUTH-v1` / `PRH_KPI_DICTIONARY_V1@1.0.0`; TREND не определяет KPI formulas;
+- execution authority = `PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0`; bucket-level AnalyticsQuery остаётся `grain=NONE`, `comparison=NONE`;
+- selectors: `EXPLICIT_RANGE`, `ROLLING_90`, `ROLLING_365`, `YTD`; grains: `MONTH`, `QUARTER`, `YEAR`; comparison: `NONE|YEAR_OVER_YEAR`;
+- measures — additive semantic measures, `BUDGET_VARIANCE` temporal trend запрещён;
+- допускается 0..1 groupable semantic dimension; execution filters проходят через existing AnalyticsQuery, но public-safe definition serialization хранит только `filter_count`, не filter values;
+- partial bucket flags, YoY calendar alignment, leap adjustment и comparison quality передаются из ANL-071 без silent proration;
+- calculated/window metrics, CAGR, forecast/projection и benchmark logic отсутствуют; `formula_layer_added=false`;
+- result сохраняет period/analytics/semantic/KPI/FIN provenance и exact period bucket results;
+- telemetry содержит только selector/grain/comparison/counts/partial/comparison-quality/leap metadata без financial values/private IDs;
+- `financial_write=false`, canonical mutation=false, io/network/storage/renderer/ui authority=false; public evidence synthetic only; `FREE_ONLY` mandatory.
 
 ## Current R4 truth
 
@@ -78,11 +84,11 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `household_preferences_contract_test.js` belongs to `PURE_DOMAIN_APPLICATION`; named `Household preferences` runs after Design system and before downstream UI gates. `ai_playbook_contract_test.js` and `ai_eval_suite_contract_test.js` remain `POLICY_GOVERNANCE`.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `long_term_trends_contract_test.js` belongs to `PURE_DOMAIN_APPLICATION`; named `Long-term trends` runs after `Period/comparison engine`. `household_preferences_contract_test.js` remains PURE_DOMAIN_APPLICATION; AI playbook/eval tests remain POLICY_GOVERNANCE.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. PROF-020 introduces no paid dependency.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. TREND-030 requires no external provider.
 
 ## MIG-010 historical verified boundary
 
@@ -102,7 +108,7 @@ PR Validation
 -> Main Verification
 ```
 
-PROF-020 remains open until Household preferences + DESIGN/AUTH/AI/LANG-RU/docs/privacy/FREE_ONLY/FIN/MIG/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #162.
+TREND-030 remains open until Long-term trends + Period/Semantic/KPI/AI/profile/LANG-RU/docs/privacy/FREE_ONLY/FIN/MIG/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #164.
 
 ## Read-only multi-AI review
 
@@ -110,8 +116,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. PROF-020 is pure configuration-domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. TREND-030 is pure analytics orchestration with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, R2 P1 baseline, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `PROF-020` is the single active writer.
+All R0 critical items, R1 core + AIENG-005, complete R2 baseline including PROF-020, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 are BLOCKED without writer authority. `MASTER-G3 = complete`. `TREND-030` is the single active writer.
