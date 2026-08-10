@@ -22,6 +22,7 @@
     {"path":"docs/architecture/YDB_SERVERLESS_POC.md","kind":"ARCHITECTURE","min_cyrillic_letters":120},
     {"path":"docs/operations/AIENG006_MODEL_COST_ROUTING.md","kind":"AI_OPERATIONS","min_cyrillic_letters":180},
     {"path":"docs/analytics/SEMANTIC_REGISTRY.md","kind":"ANALYTICS","min_cyrillic_letters":220},
+    {"path":"docs/analytics/ANALYTICS_SCOPES.md","kind":"ANALYTICS","min_cyrillic_letters":220},
     {"path":".github/ISSUE_TEMPLATE/roadmap.yml","kind":"ISSUE_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/PULL_REQUEST_TEMPLATE.md","kind":"PR_TEMPLATE","min_cyrillic_letters":40},
     {"path":".github/RELEASE_TEMPLATE.md","kind":"RELEASE_TEMPLATE","min_cyrillic_letters":40}
@@ -39,7 +40,8 @@
     "HMAC-SHA256", "RFC 2104", "NIST SP 800-63B-4", "FREE_ONLY", "FIN-TRUTH-v1",
     "PRH_CANONICAL_TRANSACTION_V1", "PRH_TRANSACTION_REPOSITORY_V1", "GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED",
     "GitHub Actions", "Google Apps Script", "ECharts", "Playwright", "Node.js", "Sol", "Terra", "Luna",
-    "ChatGPT", "OpenAI API", "AnalyticsQuery", "AnalyticsResult"
+    "ChatGPT", "OpenAI API", "AnalyticsQuery", "AnalyticsResult", "ALL_CANONICAL", "DEFAULT_ANALYSIS",
+    "EMERGENCY_FUND_ONLY", "EXCLUDE_FROM_ANALYSIS", "EMERGENCY_FUND"
   ],
   "parallel_english_normative_path_patterns": [
     "(^|/)docs/en(/|$)",
