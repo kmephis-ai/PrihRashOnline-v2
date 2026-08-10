@@ -89,7 +89,7 @@ Canonical R1 maps remain `docs/architecture/R1_C4_CONTEXT.md`, `docs/data/R1_DAT
 
 ## ANL / FIN / PERF authority
 
-`PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010. PERF-010..014 optimize reads/reuse/recompute but cannot redefine financial truth. HOME-020 consumes FIN results and VIZ configuration; it does not become a second analytics or finance authority.
+`PRH_ANALYTICS_CONTRACT_V1@1.0.0` remains renderer/storage-neutral and delegates KPI semantics to FIN-010; analytics authority explicitly remains `financial_write=false`. PERF-010..014 optimize reads/reuse/recompute but cannot redefine financial truth. HOME-020 consumes FIN results and VIZ configuration; it does not become a second analytics or finance authority.
 
 ## MIG-010 historical verified boundary
 
@@ -130,7 +130,7 @@ FIN-010: `FIN-TRUTH-v1`.
 DATA-010: `PRH_CANONICAL_TRANSACTION_V1`.  
 ARCH-010: `PRH_APPLICATION_CORE_V1`; no I/O/network/financial-write authority.  
 ARCH-011: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google mutation blocked.  
-ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; no financial-write authority.  
+ANL-010: `PRH_ANALYTICS_CONTRACT_V1`; `financial_write=false`.  
 TEST-010: `PRH_TEST_ARCHITECTURE_V1`; test authority only.  
 OBS-010: `PRH_SLO_ERROR_BUDGET_V1`; technical SLO authority only.  
 PERF-010..014: read/performance authority only.  
