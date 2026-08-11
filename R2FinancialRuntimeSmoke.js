@@ -22,8 +22,11 @@ function prhR2FinancialHomeReadSmokeToken() {
     throw new Error('R2_HOME_RUNTIME_CARDS_INCOMPLETE');
   }
   if (!view.provenance || view.provenance.ui_financial_formula_used !== false ||
-      view.provenance.legacy_total_cells_used !== false) {
+      view.provenance.legacy_total_cells_used !== false ||
+      view.provenance.generated_from_canonical_lib !== true ||
+      view.provenance.financial_formula_copy !== false ||
+      view.provenance.runtime_bridge !== 'GENERATED_CANONICAL_LIB_BUNDLE') {
     throw new Error('R2_HOME_RUNTIME_PROVENANCE_INVALID');
   }
-  return 'PRH_R2_HOME_READ_V1|OK|7';
+  return 'PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7';
 }
