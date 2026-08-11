@@ -7,6 +7,7 @@ const { generateSyntheticDashboardFixture } = require('./fixtures/synthetic_dash
 const root = path.join(__dirname, '..');
 const htmlPath = path.join(root, 'DashboardWebApp.html');
 const service = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
+const canonicalRouter = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const executive = fs.readFileSync(path.join(root, 'DashboardWebExecutiveService.js'), 'utf8');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
@@ -17,11 +18,21 @@ expect(html.includes('id="executive-secondary"'), 'Dashboard must be prepared th
 expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 RC before contract tests');
 
 [
-  'function doGet(e)', 'function prhGetWebDashboardData(', 'function prhOpenWebDashboard()',
+  'function prhGetWebDashboardData(', 'function prhOpenWebDashboard()',
   "OPERATIONS_SHEET: '01 Операции'", "QUALITY_CELL: 'E396'", "VERSION: '1.2.0'",
   "HtmlService.createHtmlOutputFromFile('DashboardWebApp')", 'HtmlService.createHtmlOutput(html)',
   'function prhWebAppSmokeToken()', 'ScriptApp.getService().getUrl()'
 ].forEach((required) => expect(service.includes(required), `Missing base service contract: ${required}`));
+
+// UI-MIG-020 deliberately moves the single Web App entry point out of the legacy
+// data service. Keep the rollback renderer/data API intact, but make canonical R2
+// the only doGet authority so the legacy contract cannot accidentally reclaim it.
+expect(!service.includes('function doGet('),
+  'Legacy dashboard data service must not own canonical doGet after UI-MIG-020');
+[
+  'function doGet(e)', "DEFAULT_SURFACE: 'home'", "LEGACY_SURFACE: 'legacy'",
+  'function prhR2RenderLegacy_('
+].forEach((required) => expect(canonicalRouter.includes(required), `Missing canonical R2 router contract: ${required}`));
 
 expect(!service.includes("HtmlService.createTemplateFromFile('DashboardWebApp')"),
   'Dashboard must not reintroduce Apps Script template parser for DashboardWebApp');
@@ -86,6 +97,8 @@ console.log('dashboard_web_contract_test: OK', {
   htmlLength: html.length,
   renderMode: 'RAW_HTML_OUTPUT_PLACEHOLDER_INJECTION',
   templateParserUsed: false,
+  canonicalDoGetOwner: 'CanonicalR2WebAppService.js',
+  legacyRollbackRetained: true,
   syntheticYears: synthetic.yearlyIncome.length,
   syntheticMonthRows: synthetic.drilldowns.month.rows.length
 });
