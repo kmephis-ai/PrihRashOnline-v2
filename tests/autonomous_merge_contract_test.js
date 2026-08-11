@@ -7,6 +7,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const pr = fs.readFileSync(path.join(root, '.github/workflows/pr-validation.yml'), 'utf8');
 const runtime = fs.readFileSync(path.join(root, '.github/workflows/trusted-runtime-health.yml'), 'utf8');
+const recovery = fs.readFileSync(path.join(root, '.github/workflows/ci003-postmerge-recovery.yml'), 'utf8');
 const main = fs.readFileSync(path.join(root, '.github/workflows/main-verification.yml'), 'utf8');
 
 assert(!/startsWith\([^\n]*agent\/release\//.test(pr), 'release branches must use the same PR Validation gate');
@@ -20,6 +21,21 @@ assert(/-f sha="\$\{CANDIDATE_SHA\}"/.test(runtime), 'merge API must atomically 
 assert(/head\.repo\.full_name/.test(runtime) && /base\.ref/.test(runtime) && /head\.sha/.test(runtime), 'same-repo/main/exact-head checks are required');
 assert(/trusted-dev-deploy/.test(runtime) && /trusted-runtime-health/.test(runtime), 'merge must re-check trusted candidate statuses');
 assert(/Closes/.test(runtime) && /roadmap_id/.test(runtime) && /IN_PROGRESS/.test(runtime), 'only linked in-progress Roadmap Issues are autonomous-merge eligible');
+
+// CI-003 post-merge recovery is deliberately not a second merge/Issue-close authority.
+assert(/name:\s*CI-003 Post-Merge Recovery/.test(recovery));
+assert(/on:\s*\n\s*push:\s*\n\s*branches:\s*\[main\]/.test(recovery), 'recovery must run only after a main push');
+assert(/merged_by\.login/.test(recovery) && /github-actions\[bot\]/.test(recovery), 'recovery must prove automation-owned merge');
+assert(/merge_commit_sha/.test(recovery) && /head\.sha/.test(recovery) && /base\.ref/.test(recovery), 'recovery must prove exact merged PR identity');
+assert(/trusted-dev-deploy/.test(recovery) && /trusted-runtime-health/.test(recovery), 'recovery must require trusted exact candidate gates');
+assert(/seq 1 12/.test(recovery) && /sleep 5/.test(recovery), 'recovery must allow the normal CI-003 pipeline a bounded grace period');
+assert(/autonomous-merge-reason:POSTMERGE_RECOVERED/.test(recovery), 'recovery evidence must be explicit and machine-visible');
+assert(/ci003-main-verification/.test(recovery), 'recovery must delegate final verification to Main Verification');
+assert(/main-verification-dispatch-reason:POSTMERGE_RECOVERED/.test(recovery), 'recovered dispatch must be explicit');
+assert(!/pulls\/\$\{?[^\n]*\/merge/.test(recovery) && !/merge_method/.test(recovery), 'post-merge recovery must not own merge authority');
+assert(!/state:\s*["']?closed/i.test(recovery) && !/issues\/\$\{?[^\n]*PATCH/i.test(recovery), 'post-merge recovery must not close Roadmap Issues');
+assert(!/\$\{\{\s*secrets\./.test(recovery), 'post-merge recovery must not require secrets');
+
 assert(/repository_dispatch/.test(main) && /ci003-main-verification/.test(main), 'main verification must be a separate default-branch dispatch workflow');
 assert(/merged_by\.login/.test(main) && /github-actions\[bot\]/.test(main), 'main verification must prove automation-owned merge');
 assert(/merge_base_commit\.sha/.test(main), 'main verification must prove merge SHA remains on main');
@@ -30,7 +46,7 @@ assert(!/^```/m.test(main), 'workflow source must not contain unindented markdow
 assert(!/<<EOF/.test(main), 'Main Verification evidence append must avoid fragile unindented heredocs');
 assert(/printf 'main_verification:\\n'/.test(main), 'Main Verification must append bounded technical evidence from an indented shell block');
 
-const autonomousSurface = `${pr}\n${runtime}\n${main}`;
+const autonomousSurface = `${pr}\n${runtime}\n${recovery}\n${main}`;
 [
   /manual[_ -]?marker/i,
   /release[_ -]?snapshot/i,
@@ -43,6 +59,10 @@ console.log('autonomous_merge_contract_test: OK', {
   exactHead: true,
   squash: true,
   runtimeHealthRequired: true,
+  postMergeRecovery: true,
+  recoveryMergeAuthority: false,
+  recoveryIssueCloseAuthority: false,
+  recoveryGraceSeconds: 60,
   releaseBranchSkip: false,
   manualMarker: false,
   snapshotGate: false,
