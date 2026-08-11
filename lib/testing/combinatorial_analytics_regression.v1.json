@@ -1,0 +1,81 @@
+{
+  "schema": "PRH_COMBINATORIAL_ANALYTICS_REGRESSION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "TEST-070",
+  "upstream": {
+    "analytics": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "period_engine": "PRH_ANALYTICS_PERIOD_ENGINE_V1@1.0.0",
+    "calculated_metrics": "PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0",
+    "analytics_scope": "PRH_ANALYTICS_SCOPE_V1@1.0.0",
+    "personal_benchmark": "PRH_PERSONAL_BENCHMARK_V1@1.0.0",
+    "pivot_olap": "PRH_PIVOT_OLAP_V1@1.0.0",
+    "query_planner_cache": "PRH_ANALYTICS_QUERY_PLANNER_CACHE_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "generator": {
+    "default_seed": 7341824,
+    "dataset_rows": 720,
+    "representative_case_count": 48,
+    "max_case_count": 96,
+    "sampling": "SEEDED_BOUNDED_ROTATION",
+    "full_cartesian_product": false,
+    "failure_reproduction_identity": ["seed", "case_id"]
+  },
+  "matrix": {
+    "measures": ["EXPENSE", "INCOME", "CASH_FLOW"],
+    "dimensions": ["SCALAR", "CATEGORY_ID", "ACCOUNT_ID", "MEMBER_ID", "PROJECT_ID", "CATEGORY_ACCOUNT"],
+    "filters": ["NONE", "POSTED", "EXPENSE", "EXPENSE_OR_REFUND", "ACCOUNT", "CATEGORY", "TAG"],
+    "time": ["FULL", "YEAR_2024", "YEAR_2025", "YEAR_2026"],
+    "grains": ["NONE", "MONTH", "YEAR"],
+    "scopes": ["ALL_CANONICAL", "DEFAULT_ANALYSIS", "EMERGENCY_FUND_ONLY"],
+    "comparison_paths": ["NONE", "PREVIOUS_COMPARABLE_PERIOD", "PERSONAL_ROLLING_BASELINE"],
+    "execution_paths": ["CANONICAL_EVALUATOR", "AGGREGATE_REUSE", "MEMORY_CACHE", "PIVOT_OLAP"]
+  },
+  "invariants": [
+    "QUERY_NORMALIZATION_DETERMINISTIC",
+    "QUERY_HASH_DETERMINISTIC",
+    "INTEGER_MINOR_EXACT",
+    "ADDITIVE_RECONCILIATION",
+    "TRANSFER_NEUTRAL_CASH_FLOW",
+    "NO_SILENT_CURRENCY_CONVERSION",
+    "SCOPE_COMPOSITION_NO_BROADEN",
+    "PERIOD_CALCULATED_PROVENANCE",
+    "BENCHMARK_NOT_FINANCIAL_TRUTH",
+    "PIVOT_TOTAL_RECONCILIATION",
+    "PLANNER_CANONICAL_PARITY",
+    "REVISION_STALE_CACHE_FORBIDDEN",
+    "UNSUPPORTED_STATE_FAIL_CLOSED",
+    "PUBLIC_EVIDENCE_NO_FINANCIAL_PAYLOAD"
+  ],
+  "runtime_budget": {
+    "max_ms": 20000,
+    "kind": "CI_REGRESSION_CEILING_NOT_USER_SLA"
+  },
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "seed",
+    "case_count",
+    "query_hash_prefix_count",
+    "status",
+    "reason"
+  ],
+  "privacy": {
+    "public_fixture": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "raw_rows_in_evidence": false,
+    "financial_values_in_evidence": false,
+    "private_dimension_values_in_evidence": false,
+    "real_or_real_derived_data": false
+  },
+  "authorities": {
+    "financial_truth": false,
+    "financial_write": false,
+    "storage": false,
+    "network": false,
+    "runtime": false,
+    "deployment": false,
+    "ui": false,
+    "renderer": false
+  },
+  "free_only": true
+}
