@@ -24,7 +24,7 @@ Recovery state после owner-authenticated UI UAT:
 - `UI-REC-001` #221 — BLOCKED: deployed exact candidate `ba34d244…` имел Home initial load >60s и Product E2E FAIL; corrected UI candidate `7a322d59…` engineering-green, PR #229 draft/no writer authority до PERF recovery;
 - Apps Script project observed at version 191/200, поэтому intermediate recovery deployments запрещены;
 - current live Home выполняет synchronous full-history canonical build до HTML response;
-- `PERF-011`/`PERF-012` существуют как validated contracts, но до PERF-REC-001 не входили в live Home path;
+- `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` и `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` существуют как validated R1 contracts, но до recovery не входили в live Home path;
 - `ANL-090` #217 / PR #218 остаётся BLOCKED/draft `PAUSED_REBASELINE` без writer authority.
 
 Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%. Home — единственная из восьми Daily surfaces с private financial binding; семь routes fail-closed `RUNTIME_BINDING_NOT_PROVEN`. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не deployed private Studio. Current charts не доказывают working ECharts product renderer. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
@@ -95,7 +95,7 @@ STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082, DASH-083, DASH-084, DASH-085
 
 ## PERF-REC-001 runtime boundary
 
-PERF recovery не получает financial semantics/write authority. Live cold path обязан materialize canonical transactions через `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` (PERF-012) с одним underlying `readAll`; revision-aware cache identity/freshness использует `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` (PERF-011). Apps Script persistence layer допускается только private user-scoped cache; cache MISS/eviction обязан безопасно возвращаться к canonical cold read. Telemetry = phase durations/read counts/revision hash prefixes/cache decision only; financial values, labels, IDs и Web App locator запрещены.
+PERF recovery не получает financial semantics/write authority. Live cold path обязан materialize canonical transactions через `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` с одним underlying `readAll`; revision-aware cache identity/freshness использует `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`. Apps Script persistence layer допускается только private user-scoped cache; cache MISS/eviction обязан безопасно возвращаться к canonical cold read. Telemetry = phase durations/read counts/revision hash prefixes/cache decision only; financial values, labels, IDs и Web App locator запрещены.
 
 ## TEST-010 boundary
 
