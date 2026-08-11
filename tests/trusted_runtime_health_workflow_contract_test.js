@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const executor = require('../tools/apps-script-api-exec');
 
 const root = path.join(__dirname, '..');
 const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'trusted-runtime-health.yml'), 'utf8');
@@ -40,6 +41,25 @@ assert(workflow.includes('sourceTreeHash'), 'runtime health must verify source t
 assert(workflow.includes('artifactHash'), 'runtime health must preserve immutable artifact evidence');
 assert(workflow.includes('DEV_VERIFIED'), 'successful authenticated health must produce DEV_VERIFIED');
 assert(workflow.includes('trusted-runtime-health failed closed'), 'health failure must block the gate');
+
+assert.strictEqual(executor.HEALTH_BUILD_RETRY_ATTEMPTS, 12, 'build propagation retry count must be fixed and bounded');
+assert.strictEqual(executor.HEALTH_BUILD_RETRY_DELAY_MS, 5000, 'build propagation retry delay must be fixed and bounded');
+assert((executor.HEALTH_BUILD_RETRY_ATTEMPTS - 1) * executor.HEALTH_BUILD_RETRY_DELAY_MS <= 60000,
+  'maximum propagation wait must remain <= 60 seconds');
+assert.strictEqual(executor.isRetryableBuildPropagationFailure('prhReleaseHealthCheckToken', 'RUNTIME_HEALTH_BUILD_MISMATCH'), true,
+  'only exact-build stale materialization may be retried');
+for (const [functionName, reason] of [
+  ['prhRuntimeTransportPing', 'RUNTIME_HEALTH_BUILD_MISMATCH'],
+  ['prhReleaseHealthCheckToken', 'RUNTIME_HEALTH_WORKBOOK_UNAVAILABLE'],
+  ['prhReleaseHealthCheckToken', 'RUNTIME_HEALTH_R2_HOME_READ_FAILED'],
+  ['prhReleaseHealthCheckToken', 'OAUTH_SCRIPT_RUNTIME_SCOPES_REQUIRED'],
+  ['prhReleaseHealthCheckToken', 'AUTHENTICATED_EXECUTION_SERVER_ERROR'],
+  ['prhReleaseHealthCheckToken', 'SCRIPT_EXECUTION_TIMEOUT'],
+  ['prhReleaseHealthCheckToken', 'HEALTH_TOKEN_MISSING_OR_MISMATCH']
+]) {
+  assert.strictEqual(executor.isRetryableBuildPropagationFailure(functionName, reason), false,
+    `${functionName}/${reason} must fail fast without propagation retry`);
+}
 
 assert(workflow.includes('statuses: write'), 'runtime health requires commit-status visibility');
 assert(workflow.includes('contents: write'), 'CI-003 runtime gate needs repository content write permission solely for exact-head merge and repository dispatch');
@@ -86,6 +106,12 @@ console.log('trusted_runtime_health_workflow_contract_test: OK', {
   oauthClientPreflight: true,
   directScriptsRun: true,
   exactBuild: true,
+  buildPropagationRetry: {
+    reason: 'RUNTIME_HEALTH_BUILD_MISMATCH',
+    attempts: executor.HEALTH_BUILD_RETRY_ATTEMPTS,
+    maxWaitMs: (executor.HEALTH_BUILD_RETRY_ATTEMPTS - 1) * executor.HEALTH_BUILD_RETRY_DELAY_MS,
+    otherFailuresFailFast: true
+  },
   machineVisibleStatus: true,
   machineVisibleReason: true,
   autonomousMerge: 'health-gated exact-head squash',
