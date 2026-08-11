@@ -74,29 +74,24 @@ Google остаётся authoritative; cloud blockers не создают billin
 
 VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`: BAR/LINE/DONUT, exact query-dimension coverage, query-hash invariant retype, ECHARTS_6 replaceable local/bundled renderer и `SEMANTIC_TABLE_V1` accessible fallback. Registry не получает query/financial/storage/network authority.
 
-## R8 / Analytics Studio, privacy и dashboard composer
+## R8 / Analytics Studio, privacy и dashboard widgets
 
 - `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
 - `PRIV-080` — **DONE**, canonical Issue #79 Main Verification PASS, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
-- `DASH-080` — **IN_PROGRESS**, canonical Issue #198, branch `agent/DASH-080-responsive-grid-composer`; единственный current writer.
+- `DASH-080` — **DONE**, Issue #198 Main Verification PASS, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
+- `DASH-081` — **IN_PROGRESS**, canonical Issue #200, branch `agent/DASH-081-widget-factory-semantic-bindings`; единственный current writer.
 
-STUDIO-080 сохранил `DAILY -> EXPLORE -> STUDIO`, default Financial Home и opt-in `surface=studio`. Trusted runtime defect exact-string launcher check был исправлен regression `dashboard_studio_htmlservice_normalization_test.js`; Main Verification подтвердил canonical Apps Script route.
+STUDIO-080 сохранил `DAILY -> EXPLORE -> STUDIO`, default Financial Home и opt-in `surface=studio`. PRIV-080 сохраняет pre-render privacy modes `NORMAL/MASKED/DEMO/ZEN` без выдачи authorization authority.
 
-PRIV-080 ввёл `PRH_PRIVACY_PRESENTATION_V1@1.0.0`. Это presentation policy, а не security boundary: `security_boundary=false`, `authorization_boundary=false`. PROF-020/AUTH-040/MYSELF остаются источниками доступа.
+DASH-080 реализовал `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: canonical desktop 12-column grid, deterministic repair, tablet/mobile derivation, immutable ADD/MOVE/RESIZE/DUPLICATE/REMOVE/RESET и session-only layout. Placeholder widgets остаются `semantic_binding_status=UNBOUND`; layout contract запрещает AnalyticsQuery/ChartSpec/financial payload и не получает semantic authority.
 
-`NORMAL` сохраняет уже авторизованный presentation view. `MASKED` до HTML serialization заменяет sensitive monetary/private-dimension leaves на `null`, а массивы presentation data — на `[]`; исходный canonical view не мутируется. CSS blur/opacity не считается privacy evidence.
+DASH-081 вводит `PRH_WIDGET_FACTORY_V1@1.0.0` как отдельный configuration-only semantic binding layer для `KPI`, `CARD`, `CHART`, `TABLE`, `PIVOT`. Каждый binding использует canonical normalized `PRH_ANALYTICS_QUERY_V1`; query identity вычисляется upstream Analytics engine, а dashboard layer фиксирует `query_modified=false` и не исполняет query.
 
-`DEMO` использует только independently generated `PUBLIC_SYNTHETIC` view и не вызывает private Financial Home adapter; runtime gate требует `privateReads=0` и `private_runtime_read=false`. DEMO явно маркируется `DEMO_SYNTHETIC_NOT_FIN_TRUTH`.
+`CHART` валидируется через `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; `PIVOT` — через `PRH_PIVOT_SPEC_V1`/ANL-073. KPI/CARD требуют single-measure ungrouped query, TABLE требует exact selected-field coverage. Broken bindings fail closed со stable reason codes и без silent downgrade.
 
-`ZEN` читает canonical view только server-side внутри существующей authorization boundary, после чего отдельная safe page получает только allowlisted structural/status metadata. Amounts, transaction rows и private dimension labels в ZEN DOM отсутствуют; canonical R2 navigation сохраняется.
+DASH-080 placeholder не мутируется при binding: `PRH_DASHBOARD_BOUND_WIDGET_V1` хранит semantic descriptor отдельно, `geometry_mutation=false`, `layout_identity_authority=false`. Implicit auto-bind запрещён. Binding может содержать private-runtime query configuration, поэтому public tests synthetic-only, а telemetry ограничена schema/version/kind/hash-prefix/decision/reason без filter values/private IDs/financial values.
 
-Studio имеет keyboard/a11y privacy selector `Normal / Masked / Demo / Zen`. Preference `prh.privacyPresentation.mode.v1` содержит только schema/version/mode; URL `privacy` переводит выбор в server-side pre-render path. Financial/query/filter/private identifier payload в preference запрещён.
-
-DASH-080 реализует `PRH_DASHBOARD_COMPOSER_V1@1.0.0` как configuration-only слой Analytics Studio. Canonical desktop grid = 12 columns; tablet/mobile layouts выводятся детерминированно, а invalid/out-of-bounds/overlap layout repair выполняется canonical row-major policy. Placeholder widgets остаются `semantic_binding_status=UNBOUND`; AnalyticsQuery/ChartSpec/FIN-TRUTH authority не передаётся composer.
-
-Composer поддерживает immutable ADD/MOVE/RESIZE/DUPLICATE/REMOVE/RESET и session-only состояние. `surface=composer` не читает private financial runtime и не использует financial/query/filter payload; saved dashboards остаются scope DASH-084. Browser/visual evidence покрывает 390x844, 768x1024 и 1440x900, keyboard/a11y controls и отсутствие horizontal overflow.
-
-Named gates для current writer: `Dashboard composer` (`RUNTIME_INTEGRATION`) и `Dashboard composer visual gate` (`UI_E2E`). Existing PRIV-080/STUDIO-080/VIZ-070/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
+Named gate current writer: `Widget factory semantic bindings` (`PURE_DOMAIN_APPLICATION`). Existing Dashboard composer/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
 
@@ -127,11 +122,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-DASH-080 остаётся открытым до green `Dashboard composer` + `Dashboard composer visual gate` + existing PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-081 остаётся открытым до green `Widget factory semantic bindings` + existing DASH-080/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. PRIV-080 уже применяет pre-render presentation transform и independently generated DEMO fixture. DASH-080 добавляет opt-in configuration-only `surface=composer` без private financial runtime read; placeholder widgets не являются финансовыми данными и остаются UNBOUND до DASH-081. Financial calculations, canonical data, write ownership и authentication не переходят в privacy/composer layers. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. PRIV-080 применяет pre-render presentation transform; DASH-080 предоставляет opt-in configuration-only composer. DASH-081 добавляет semantic binding contracts, но не получает private financial runtime read/query execution authority и не меняет default Home route. Financial calculations, canonical data, write ownership и authentication не переходят в dashboard layers. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
