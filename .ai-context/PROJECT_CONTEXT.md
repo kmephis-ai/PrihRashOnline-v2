@@ -75,13 +75,18 @@ FinOps truth, worst-case budget, owner estimate и model routing сохраня�
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка сохраняется явно: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff является lifecycle anchor и не заменяется current writer.
 
-Real или real-derived household finance data остаются private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence.
+Real or real-derived household finance data stays private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence.
 
 ## Current R1 truth
 
 `MASTER-G3 / Canonical platform` — complete; historical pre-close state: open.
 
-- `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE/Main Verification PASS.
+- `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
+- `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
+- `ARCH-010` — **DONE**, Main Verification PASS, Issue #89.
+- `ARCH-011` — **DONE**, Main Verification PASS, Issue #91.
+- `MIG-010` — **DONE**, Main Verification PASS, Issue #96.
+- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE/Main Verification PASS.
 - FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.
 - DATA authority = `PRH_CANONICAL_TRANSACTION_V1`.
 - Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`.
