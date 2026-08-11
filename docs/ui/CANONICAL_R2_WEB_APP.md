@@ -52,7 +52,24 @@ Bridge:
 5. для Home chart projection использует canonical `financial_reconciliation.aggregateTransactions()` и проверяет parity с Home cards;
 6. не использует legacy total cells и не выполняет `setValue`, `setValues`, `appendRow` или другие financial writes.
 
-Required gate `R2 Financial runtime parity` исполняет именно generated bundle в VM с Apps Script `Utilities`/gateway shims и сравнивает private-bridge output с canonical Node `evaluateKpis()` на synthetic adversarial fixture. Тест дополнительно запрещает наличие собственного `prhR2FinAggregate_` или копий income/expense/refund/cash-flow формул в bridge.
+### Human labels → canonical runtime IDs
+
+Текущая книга хранит human-facing dimension labels, а `PRH_CANONICAL_TRANSACTION_V1` требует machine-safe IDs. UI-MIG не имеет права объявлять label постоянным canonical ID и не создаёт новый ID registry в Google Sheets.
+
+Для read-only private Home действует versioned projection `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1@1.0.0`:
+
+- label нормализуется только технически: trim, collapse whitespace, lowercase;
+- ID = `<kind>:SHA256(schema|kind|normalized_label)` для `account`, `category`, `member`, `project`;
+- kind входит в hash input, поэтому одинаковый текст в разных dimension domains не получает общую identity;
+- полный SHA-256 сохраняется, ID соответствует canonical machine-safe regex;
+- повтор того же normalized label детерминированно даёт тот же ID;
+- collision между разными normalized labels fail-closed;
+- reverse map `projected ID → display label` существует только в памяти private render pass и нужен, например, чтобы Home показывал название категории вместо hash;
+- projection не сохраняется, не записывается в книгу и имеет `persistent_identity_authority=false`, `write_authority=false`.
+
+Это временная adapter-boundary identity для read-only UI. Она не заменяет будущую явную persistent dimension identity policy и не меняет DATA-010 authority.
+
+Required gate `R2 Financial runtime parity` исполняет generated bundle в VM с Apps Script `Utilities`/gateway shims и сравнивает private-bridge output с canonical Node `evaluateKpis()` на synthetic adversarial fixture. Fixture специально использует human-facing Unicode labels, проверяет stable machine-safe IDs, private reverse-label projection и collision fail-closed. Тест также запрещает наличие собственного `prhR2FinAggregate_` или копий income/expense/refund/cash-flow формул в bridge.
 
 Budget card остаётся `NOT_CONFIGURED`, пока explicit budget runtime binding не доказан. Liquidity не подменяется cash-flow proxy. BAL-030 как domain contract завершён, но его private runtime observation binding не предполагается автоматически.
 
@@ -72,9 +89,11 @@ Authenticated technical render smoke возвращает `PRH_WEBAPP_SMOKE_V3|R
 - не читает financial rows;
 - не публикует private Web App URL.
 
-Отдельный authenticated private read smoke возвращает только `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`. Перед выдачей scalar он реально строит private Home через generated canonical bundle и проверяет provenance `generated_from_canonical_lib=true`, `financial_formula_copy=false`; сами суммы, категории, account IDs и runtime locator наружу не возвращаются.
+Отдельный authenticated private read smoke возвращает только `PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7`. Перед выдачей scalar он реально строит private Home через generated canonical bundle, выполняет deterministic dimension projection и проверяет provenance `generated_from_canonical_lib=true`, `financial_formula_copy=false`, `persistent_identity_authority=false`; сами суммы, labels, IDs и runtime locator наружу не возвращаются.
 
-После обычного PR Validation immutable exact candidate обязан пройти Trusted DEV Deploy и Trusted Runtime Health. Только затем `CI-003` может выполнить autonomous squash merge. Ручной merge не является штатным путём.
+Если private Home падает, smoke разрешает наружу только bounded machine reason `RUNTIME_HEALTH_HOME_<CODE>` при безопасном uppercase code. Raw error message, financial payload или dimension label не возвращаются. Это позволяет отличить invalid type/status/category/date contract от parser line number без ослабления privacy.
+
+После обычного PR Validation immutable exact candidate обязан пройти Trusted DEV Deploy и Trusted Runtime Health. Только затем `CI-003` может выполнить autonomous squash merge. Ручной merge не является штатным путём для UI-MIG-020.
 
 ## Rollback
 
@@ -82,4 +101,4 @@ Rollback UI-MIG-020 ограничен маршрутизацией: верну�
 
 ## Границы authority
 
-UI-MIG-020 не получает financial truth, canonical transaction, storage, financial write, runtime write или deployment authority. Generic Google write по-прежнему fail-closed через `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`; исторический `IRREVERSIBLE_ACTION_AUTHORIZED` не переиспользуется. `FREE_ONLY` обязателен.
+UI-MIG-020 не получает financial truth, canonical transaction, persistent dimension identity, storage, financial write, runtime write или deployment authority. Generic Google write по-прежнему fail-closed через `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`; исторический `IRREVERSIBLE_ACTION_AUTHORIZED` не переиспользуется. `FREE_ONLY` обязателен.
