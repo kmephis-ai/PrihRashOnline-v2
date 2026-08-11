@@ -49,7 +49,8 @@ UI-MIG-020 machine authority:
 
 - contract: `lib/ui/canonical_r2_web_app.v1.json` (`PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`);
 - router: `CanonicalR2WebAppService.js`;
-- read-only Home adapter: `R2FinancialRuntimeService.js` (`PRH_R2_FIN_RUNTIME_ADAPTER_V1`);
+- read-only Home bridge: `R2FinancialRuntimeService.js` (`PRH_R2_FIN_RUNTIME_BRIDGE_V1`);
+- generated exact-candidate runtime: `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`), built from canonical versioned `lib/**` by `tools/build-apps-script-runtime-bundle.js`;
 - normative doc: `docs/ui/CANONICAL_R2_WEB_APP.md`;
 - required gates: `R2 Financial runtime parity`, `Canonical R2 cutover`, `Canonical R2 navigation visual gate`.
 
@@ -59,13 +60,16 @@ UI-MIG-020 rules:
 - primary navigation contains exactly Home, Transactions, Expenses, Income, Cash Flow, Budget, Obligations, Data Quality;
 - legacy remains only bounded rollback route `?surface=legacy` until post-cutover verification;
 - private exposure stays `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary remains unchanged;
-- Home runtime reads `01 Операции` only through `prhGoogleRepositoryReadOperationsTable_` and explicit `currency` from existing `09 Настройки`;
-- Home runtime projection is parity-guarded against canonical `evaluateKpis()` / `PRH_KPI_DICTIONARY_V1@1.0.0`; it has no independent financial formula authority;
+- Home bridge reads `01 Операции` only through `prhGoogleRepositoryReadOperationsTable_` and explicit `currency` from existing `09 Настройки`;
+- immutable candidate generates the Home runtime from canonical Google repository adapter + `financial_reconciliation` + KPI Dictionary + `financial_home`; `generated_from_canonical_lib=true`, `financial_formula_copy=false`;
+- Home financial projection calls canonical `financial_home.buildFinancialHome()`; visual aggregation calls canonical `financial_reconciliation.aggregateTransactions()` and parity-checks Home cards; bridge has no independent financial formula authority;
+- generated runtime file is included in exact `sourceTreeHash` and trusted reconstruction, so it cannot become an independent source of truth;
 - posted income/expense/refund/transfer/zero-adjustment semantics remain `FIN-TRUTH-v1`; integer minor units and no implicit rounding;
 - legacy total cells are not financial truth; `legacy_total_cells_used=false`;
 - browser synthetic fixtures remain valid only for public CI/Playwright; private runtime fallback to `SYN-*` is forbidden;
 - routes without proven private binding use `SAFE_UNBOUND_FAIL_CLOSED` and do not read financial rows or display synthetic values as household truth;
 - authenticated technical render smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK` and does not read financial rows;
+- authenticated private Home read smoke = `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`; it builds the real private read-only Home but returns only a constant technical scalar;
 - `financial_write=false`, `canonical_mutation=false`, storage/runtime-write/deployment authority=false; `FREE_ONLY` mandatory.
 
 ### Пояснение текущего переключения
@@ -74,7 +78,7 @@ UI-MIG-020 rules:
 
 Особенно важно различать готовность внешнего вида и готовность подключения реальных данных. Наличие красивого экрана ещё не доказывает, что он безопасно связан с приватным хранилищем. Поэтому неподключённые разделы не должны молча показывать тестовые суммы и операции. Пока машинная проверка не подтверждает приватное чтение, такой раздел обязан явно сообщать, что подключение ещё не доказано. Это предотвращает ситуацию, когда демонстрационные данные выглядят как настоящие семейные финансы.
 
-Главная страница подключается к существующим операциям только для чтения. Валюта берётся из уже существующей настройки, денежные значения переводятся в точные целые минимальные единицы, а результат проверяется на совпадение с каноническими финансовыми правилами. Любое расхождение между адаптером интерфейса и финансовым ядром должно остановить доставку до развёртывания. Интерфейс не получает права самостоятельно определять формулы доходов, расходов, возвратов, переводов или денежного потока.
+Главная страница подключается к существующим операциям только для чтения. Bridge не содержит второй копии финансовых формул: trusted packager собирает runtime из тех же versioned `lib/**`, которые являются canonical source в Node tests. Валюта берётся из уже существующей настройки, а `R2 Financial runtime parity` исполняет generated bundle и сравнивает результат с canonical `evaluateKpis()`. Любое расхождение должно остановить доставку до развёртывания; UI не получает права самостоятельно определять формулы доходов, расходов, возвратов, переводов или денежного потока.
 
 ## Current R3 truth
 
@@ -106,7 +110,7 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. UI-MIG adds runtime-integration tests for FIN parity/canonical routing and a UI_E2E responsive navigation visual gate. Full layered inventory remains mandatory; no red gate can be bypassed.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. UI-MIG adds runtime-integration tests for generated canonical FIN runtime/canonical routing and a UI_E2E responsive navigation visual gate. Full layered inventory remains mandatory; no red gate can be bypassed.
 
 ## AI model/cost routing boundary
 
@@ -138,7 +142,7 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. UI-MIG only changes routing/render orchestration and read-only Home projection; `financial_write=false`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. UI-MIG only changes routing/render orchestration and adds a read-only bridge to generated canonical-lib Home runtime; `financial_write=false`. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
