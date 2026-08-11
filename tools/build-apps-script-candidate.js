@@ -103,8 +103,12 @@ function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, cand
   const runtimeBundle = generateRuntime
     ? descriptorFromGenerated(GENERATED_RUNTIME_BUNDLE, buildRuntimeBundleSource(repository))
     : null;
-  const sourceIdentityFiles = (runtimeBundle ? [...sourceFiles, runtimeBundle] : [...sourceFiles])
-    .sort((a, b) => a.path.localeCompare(b.path));
+  // Dormant mode must preserve the exact legacy source identity order. The
+  // previous trusted packager hashes listDeployFiles()/Array.sort() order and
+  // therefore must not be silently changed to localeCompare ordering.
+  const sourceIdentityFiles = runtimeBundle
+    ? [...sourceFiles, runtimeBundle].sort((a, b) => a.path.localeCompare(b.path))
+    : sourceFiles;
   const sourceTreeHash = stableFileSetHash(sourceIdentityFiles);
   const buildInfoBytes = Buffer.from(buildInfoSource(candidateSha, sourceTreeHash), 'utf8');
   const generatedFile = {
