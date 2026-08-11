@@ -88,8 +88,8 @@ function prhPerfRecSourceRevision_() {
     var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     if (!spreadsheet || typeof spreadsheet.getId !== 'function') prhPerfRecFail_('PERF_REC_SPREADSHEET_REQUIRED');
     var file = DriveApp.getFileById(spreadsheet.getId());
-    var updated = file && file.getLastUpdated ? file.getLastUpdated() : null;
-    var updatedMs = updated instanceof Date ? updated.getTime() : NaN;
+    var updated = file && typeof file.getLastUpdated === 'function' ? file.getLastUpdated() : null;
+    var updatedMs = updated && typeof updated.getTime === 'function' ? Number(updated.getTime()) : NaN;
     if (!Number.isSafeInteger(updatedMs) || updatedMs < 1) prhPerfRecFail_('PERF_REC_SOURCE_MODIFIED_TIME_INVALID');
     var sheet = getSheetRequired_(PR_CONFIG.SHEETS.OPERATIONS);
     var lastRow = Number(sheet.getLastRow());
@@ -132,7 +132,7 @@ function prhPerfRecHomeCacheKey_(sourceRevision) {
 
 function prhPerfRecUtf8Size_(value) {
   var text = String(value || '');
-  if (Utilities && typeof Utilities.newBlob === 'function') {
+  if (typeof Utilities !== 'undefined' && Utilities && typeof Utilities.newBlob === 'function') {
     return Utilities.newBlob(text, 'application/json').getBytes().length;
   }
   return unescape(encodeURIComponent(text)).length;
