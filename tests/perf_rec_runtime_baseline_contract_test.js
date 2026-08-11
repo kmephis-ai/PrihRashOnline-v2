@@ -5,10 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const { summarize, EVIDENCE_SCHEMA } = require('../tools/perf-rec-baseline-summary');
 const executor = require('../tools/perf-rec-baseline-exec');
+const oauthProbe = require('../tools/oauth-drive-scope-probe');
 
 const root = path.join(__dirname, '..');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/trusted-perf-rec-baseline.yml'), 'utf8');
+const diagnosticWorkflow = fs.readFileSync(path.join(root, '.github/workflows/perf-rec-safe-live-diagnostic.yml'), 'utf8');
 const executorSource = fs.readFileSync(path.join(root, 'tools/perf-rec-baseline-exec.js'), 'utf8');
+const oauthProbeSource = fs.readFileSync(path.join(root, 'tools/oauth-drive-scope-probe.js'), 'utf8');
 const sha = 'b'.repeat(40);
 
 function sample(mode, pair, totalMs) {
@@ -87,12 +90,34 @@ assert.strictEqual(executor.FUNCTION_NAME, 'prhPerfRecBaselineProbeJson');
 assert.match(executorSource, /const FUNCTION_NAME = 'prhPerfRecBaselineProbeJson'/);
 assert.doesNotMatch(executorSource, /process\.argv\[3\].*function/i);
 assert.doesNotMatch(executorSource, /console\.log\(runPayload/);
+
+assert.strictEqual(oauthProbe.classifyDriveApiResponse(200, { kind: 'drive#about' }), 'OAUTH_DRIVE_API_ACCESS_OK');
+assert.strictEqual(oauthProbe.classifyDriveApiResponse(403, {
+  error: { status: 'PERMISSION_DENIED', errors: [{ reason: 'insufficientPermissions' }], message: 'Request had insufficient authentication scopes.' }
+}), 'OAUTH_DRIVE_SCOPE_MISSING');
+assert.strictEqual(oauthProbe.classifyDriveApiResponse(401, {
+  error: { status: 'UNAUTHENTICATED', message: 'Invalid Credentials' }
+}), 'OAUTH_ACCESS_TOKEN_INVALID');
+assert.strictEqual(oauthProbe.classifyDriveApiResponse(403, {
+  error: { status: 'PERMISSION_DENIED', errors: [{ reason: 'forbidden' }], message: 'Forbidden' }
+}), 'OAUTH_DRIVE_API_PERMISSION_DENIED');
+assert.match(oauthProbeSource, /drive\/v3\/about\?fields=kind/);
+assert.doesNotMatch(oauthProbeSource, /console\.log/);
+assert.doesNotMatch(oauthProbeSource, /emit\([^\n]*accessToken/);
+
 assert.match(workflow, /workflow_run:/);
 assert.match(workflow, /workflows: \[Trusted DEV Deploy\]/);
 assert.match(workflow, /environment: DEV/);
 assert.match(workflow, /seq 1 20/);
 assert.match(workflow, /perf-rec-baseline/);
 assert.doesNotMatch(workflow, /pull_request_target/);
+
+assert.match(diagnosticWorkflow, /environment: DEV/);
+assert.match(diagnosticWorkflow, /oauth-drive-scope-probe\.js/);
+assert.match(diagnosticWorkflow, /OAUTH_DRIVE_API_ACCESS_OK/);
+assert.match(diagnosticWorkflow, /perf-rec-baseline-exec\.js COLD/);
+assert.doesNotMatch(diagnosticWorkflow, /echo[^\n]*RAW/);
+assert.doesNotMatch(diagnosticWorkflow, /pull_request_target/);
 
 console.log('perf_rec_runtime_baseline_contract_test: OK', {
   schema: EVIDENCE_SCHEMA,
@@ -101,5 +126,6 @@ console.log('perf_rec_runtime_baseline_contract_test: OK', {
   privacySafeSummary: true,
   routeSwitchOverclaim: false,
   trustedExecutorNarrow: true,
+  oauthDriveScopeDiagnosticSafe: true,
   homeSloGate: true
 });
