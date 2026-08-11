@@ -76,6 +76,14 @@ function filterContext(filters = []) {
   };
 }
 
+function baseFilterContext(normalized) {
+  return {
+    schema: normalized.schema,
+    contract_version: normalized.contract_version,
+    filters: normalized.filters
+  };
+}
+
 function equivalentQuery(input) {
   const copy = JSON.parse(JSON.stringify(input));
   copy.filters = copy.filters.slice().reverse().map((item) => ({
@@ -226,6 +234,7 @@ const donutFilter = VIZ.filterContextFromSelection(donutRetype.widget.chart_spec
   operator: 'INCLUDE'
 }, filterContext());
 assert.deepStrictEqual(donutFilter, barFilter);
+const barFilterBase = baseFilterContext(barFilter);
 
 const barDrill = VIZ.drillContextFromSelection(baseWidget, {
   encoding: 'x',
@@ -243,12 +252,12 @@ let session = EXPLORATION.createSession();
 session = EXPLORATION.dispatch(session, {
   type: 'SET_WIDGET_CONTEXT',
   widget_id: baseWidget.id,
-  filter_context: barFilter,
+  filter_context: barFilterBase,
   scope_mode: 'INHERIT_GLOBAL',
   scope_spec: null
 });
 const effective = EXPLORATION.effectiveWidgetContext(session.present, baseWidget.id);
-assert.deepStrictEqual(effective.filter_context, barFilter);
+assert.deepStrictEqual(effective.filter_context, barFilterBase);
 assert.strictEqual(effective.scope_source, 'GLOBAL_INHERITED');
 
 // Existing ECharts adapter remains usable and replaceable; registry does not compile financial formulas.
