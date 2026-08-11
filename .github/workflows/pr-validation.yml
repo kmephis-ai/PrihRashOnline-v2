@@ -163,6 +163,8 @@ jobs:
         run: node tests/calculated_metrics_contract_test.js
       - name: Personal benchmark comparisons
         run: node tests/personal_benchmark_contract_test.js
+      - name: Pivot/OLAP engine
+        run: node tests/pivot_olap_contract_test.js
       - name: Long-term trends
         run: node tests/long_term_trends_contract_test.js
       - name: Cash-flow projection
