@@ -9,13 +9,6 @@ const ENTRY_MODULES = Object.freeze({
   financialReconciliation: 'lib/finance/financial_reconciliation.js',
   kpiDictionary: 'lib/finance/kpi_dictionary.js',
   home: 'lib/home/financial_home.js',
-  explorer: 'lib/explorer/transaction_explorer.js',
-  expense: 'lib/expense/expense_analytics.js',
-  income: 'lib/income/income_analytics.js',
-  cashFlow: 'lib/cashflow/cash_flow_dashboard.js',
-  budget: 'lib/budget/budget_control.js',
-  obligations: 'lib/obligations/obligations.js',
-  dataQuality: 'lib/data_quality/data_quality_center.js',
   googleAdapter: 'lib/adapters/google_sheets_transaction_repository.js'
 });
 
