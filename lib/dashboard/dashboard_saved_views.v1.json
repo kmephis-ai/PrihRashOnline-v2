@@ -1,0 +1,83 @@
+{
+  "schema": "PRH_DASHBOARD_SAVED_VIEWS_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-084",
+  "store_schema": "PRH_DASHBOARD_SAVED_VIEW_STORE_V1",
+  "view_schema": "PRH_DASHBOARD_SAVED_VIEW_V1",
+  "revision_schema": "PRH_DASHBOARD_SAVED_VIEW_REVISION_V1",
+  "preset_schema": "PRH_DASHBOARD_PRESET_V1",
+  "migration_receipt_schema": "PRH_DASHBOARD_SAVED_VIEW_MIGRATION_V1",
+  "legacy_schema": "PRH_DASHBOARD_SAVED_VIEW_V0",
+  "identity_algorithm": "SHA256_CANONICAL_JSON_V1",
+  "upstream": {
+    "dashboard_composer": "PRH_DASHBOARD_COMPOSER_V1@1.0.0",
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "presets": ["FAMILY", "EXPENSE", "INCOME", "CASH_FLOW", "BUDGET", "NET_WORTH", "RISK", "SUBSCRIPTIONS"],
+  "operations": ["CREATE", "CREATE_FROM_PRESET", "SAVE_VERSION", "CLONE", "RENAME", "RESET", "RESTORE_REVISION", "DELETE", "MIGRATE"],
+  "limits": {
+    "max_views": 24,
+    "max_revisions_per_view": 6,
+    "max_name_length": 80,
+    "max_configuration_bytes": 7000,
+    "max_view_document_bytes": 8000,
+    "max_index_bytes": 6000
+  },
+  "storage": {
+    "adapter": "APPS_SCRIPT_USER_PROPERTIES_V1",
+    "namespace": "PRH_DASH084_V1",
+    "index_key": "PRH_DASH084_V1:INDEX",
+    "view_key_prefix": "PRH_DASH084_V1:VIEW:",
+    "user_scoped": true,
+    "script_properties_allowed": false,
+    "document_properties_allowed": false,
+    "browser_storage_required": false,
+    "financial_sheet_storage_allowed": false,
+    "optimistic_generation_required": true,
+    "single_batch_commit_required": true
+  },
+  "principles": {
+    "configuration_only": true,
+    "dashboard_layout_authority_reused": true,
+    "widget_binding_authority_reused": true,
+    "financial_dataset_snapshot_allowed": false,
+    "analytics_result_snapshot_allowed": false,
+    "transaction_rows_allowed": false,
+    "financial_output_values_allowed": false,
+    "query_configuration_allowed": true,
+    "private_dimension_filter_ids_allowed_in_private_store": true,
+    "revision_history_immutable": true,
+    "identical_save": "NOOP",
+    "restore_appends_revision": true,
+    "timestamps_in_identity": false,
+    "public_financial_evidence": "SYNTHETIC_ONLY",
+    "free_only": true
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "action", "view_hash_prefix", "revision_hash_prefix",
+    "view_count", "revision_count", "decision", "reason"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "canonical_financial_mutation": false,
+    "authorization": false,
+    "network": false,
+    "deployment": false,
+    "renderer": false,
+    "layout": false,
+    "dashboard_config_storage": true
+  },
+  "privacy": {
+    "runtime_store": "PRIVATE_USER_PROPERTIES",
+    "public_evidence": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "telemetry_view_names": false,
+    "telemetry_filter_values": false,
+    "telemetry_private_ids": false,
+    "telemetry_financial_values": false,
+    "telemetry_runtime_locators": false
+  }
+}

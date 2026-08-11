@@ -110,6 +110,8 @@ jobs:
         run: node tests/dashboard_interaction_bus_contract_test.js
       - name: Dashboard drill-through
         run: node tests/dashboard_drill_through_contract_test.js
+      - name: Dashboard saved views
+        run: node tests/dashboard_saved_views_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
       - name: R2 Financial runtime parity
