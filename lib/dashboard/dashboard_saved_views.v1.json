@@ -18,7 +18,7 @@
   "operations": ["CREATE", "CREATE_FROM_PRESET", "SAVE_VERSION", "CLONE", "RENAME", "RESET", "RESTORE_REVISION", "DELETE", "MIGRATE"],
   "limits": {
     "max_views": 24,
-    "max_revisions_per_view": 12,
+    "max_revisions_per_view": 6,
     "max_name_length": 80,
     "max_configuration_bytes": 7000,
     "max_view_document_bytes": 8000,
