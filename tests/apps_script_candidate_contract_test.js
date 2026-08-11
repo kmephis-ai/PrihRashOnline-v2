@@ -8,7 +8,10 @@ const {
   GENERATED_BUILD_INFO,
   buildCandidate,
   verifyCandidate,
-  listDeployFiles
+  listDeployFiles,
+  stableFileSetHash,
+  sha256,
+  runtimeBundleEnabled
 } = require('../tools/build-apps-script-candidate');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'prh-candidate-'));
@@ -24,6 +27,13 @@ fs.mkdirSync(path.join(source, 'tests'));
 fs.writeFileSync(path.join(source, 'tests', 'not-deployed.js'), 'throw new Error("not deployed");\n');
 
 assert.deepStrictEqual(listDeployFiles(source), ['Code.js', 'Dashboard.html', 'appsscript.json']);
+assert.strictEqual(runtimeBundleEnabled(source), false, 'runtime bundle must remain dormant without the explicit R2 marker');
+
+const legacyIdentityDescriptors = listDeployFiles(source).map((name) => {
+  const bytes = fs.readFileSync(path.join(source, name));
+  return { path: name, sha256: sha256(bytes), size: bytes.length };
+});
+const legacySourceTreeHash = stableFileSetHash(legacyIdentityDescriptors);
 
 const sha = 'a'.repeat(40);
 const first = buildCandidate({ sourceRoot: source, outRoot: artifact, candidateSha: sha });
@@ -31,6 +41,10 @@ const second = buildCandidate({ sourceRoot: source, outRoot: expected, candidate
 assert.deepStrictEqual(second, first, 'same tree + SHA must create the same manifest');
 assert.strictEqual(first.fileCount, 4);
 assert.strictEqual(first.candidateSha, sha);
+assert.strictEqual(first.sourceTreeHash, legacySourceTreeHash,
+  'dormant runtime capability must preserve the exact legacy sourceTreeHash ordering');
+assert.strictEqual(first.generatedRuntimeBundle, undefined,
+  'dormant runtime capability must not alter the legacy candidate manifest');
 assert(/^[0-9a-f]{64}$/.test(first.sourceTreeHash));
 assert(/^[0-9a-f]{64}$/.test(first.artifactHash));
 assert(first.files.some((item) => item.path === GENERATED_BUILD_INFO), 'generated BuildInfo.js must be deployed');
