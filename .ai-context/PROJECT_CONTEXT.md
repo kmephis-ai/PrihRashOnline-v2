@@ -86,7 +86,8 @@ Real or real-derived household finance data stays private. Public repo соде�
 - `ARCH-010` — **DONE**, Main Verification PASS, Issue #89.
 - `ARCH-011` — **DONE**, Main Verification PASS, Issue #91.
 - `MIG-010` — **DONE**, Main Verification PASS, Issue #96.
-- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE/Main Verification PASS.
+- `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
+- `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE/Main Verification PASS.
 - FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.
 - DATA authority = `PRH_CANONICAL_TRANSACTION_V1`.
 - Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`.
