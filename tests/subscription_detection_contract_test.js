@@ -130,7 +130,7 @@ const descriptionOnly = [
 const descriptionResult = detector.detectSubscriptions(descriptionOnly);
 assert.strictEqual(descriptionResult.findings.length, 1);
 assert.strictEqual(descriptionResult.findings[0].status, 'CANDIDATE');
-assert.strictEqual(descriptionResult.findings[0].display_label, 'СИН ОПИСАНИЕ', 'deterministic sort uses earliest transaction display label');
+assert.strictEqual(descriptionResult.findings[0].display_label, 'СИН Описание', 'deterministic display label comes from earliest normalized occurrence');
 
 // Existing OBL comparison is explicit signature_hash -> plan_id only.
 const plan = {
