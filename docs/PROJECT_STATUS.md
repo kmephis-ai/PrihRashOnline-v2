@@ -58,7 +58,7 @@ BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero ba
 
 Google остаётся authoritative; cloud blockers не создают billing-backed resources и не меняют canonical write ownership.
 
-## R7 / Semantic Analytics — текущий writer
+## R7 / Semantic Analytics — exit gate завершён, текущий writer VIZ-070
 
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
@@ -68,23 +68,23 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
 - `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
 - `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
-- `TEST-070` — **IN_PROGRESS**, Issue #190, branch `agent/TEST-070-combinatorial-analytics-regression`.
+- `TEST-070` — **DONE**, Issue #190 Main Verification PASS, candidate `dee4b1cb87158a78014fd07c723b595c516c2114`, merge `b4391e6ce24927baf0ec18e1892d8f2244615951`.
+- `MASTER-G7 / Semantic analytics` — **complete**.
+- `VIZ-070` — **IN_PROGRESS**, Issue #192, branch `agent/VIZ-070-visualization-registry-v2`.
 
-TEST-070 вводит `PRH_COMBINATORIAL_ANALYTICS_REGRESSION_V1@1.0.0` как bounded test-only evidence layer. Он не создаёт новой business/financial semantics и не меняет upstream FIN-TRUTH, AnalyticsQuery/AnalyticsResult, Period, Calculated Metrics, Scope, Benchmark, Pivot или Planner contracts.
+VIZ-070 вводит `PRH_VISUALIZATION_REGISTRY_V2@2.0.0` как configuration-only presentation registry поверх VIZ-020 и ANL-074. Version 2 поддерживает только канонические `BAR`, `LINE`, `DONUT`; advanced chart pack остаётся отдельным VIZ-090.
 
-Version 1 использует independently generated synthetic dataset из 720 canonical transactions, фиксированный seed и 48 representative cases (`max_case_count=96`). Sampling = `SEEDED_BOUNDED_ROTATION`; полный Cartesian product намеренно запрещён. Любая case failure воспроизводится через `seed + case_id`.
+Registry валидирует semantic bindings против normalized AnalyticsQuery: encoded dimensions должны точно покрывать effective query dimensions, measure bindings должны присутствовать в query. Registry не имеет права добавлять/удалять measures, dimensions, filters, period, comparison, scope или sort. Каждый plan/retype сохраняет exact canonical query hash, `query_modified=false`, provenance `FIN-TRUTH-v1`.
 
-Representative matrix покрывает scalar/category/account/member/project/category+account queries, `EXPENSE|INCOME|CASH_FLOW`, posted/type/account/category/tag filters, full-history и year windows, native `NONE|MONTH|YEAR` grains. Для каждой комбинации проверяются normalized query/hash determinism, `FIN-TRUTH-v1` provenance, integer-minor exactness, additive reconciliation и PERF-070 cold/warm canonical parity.
+Safe retype `BAR <-> LINE` сохраняет x/y/series. `BAR|LINE -> DONUT` разрешён только без series через однозначное `x->category`, `y->value`; hidden dimension loss завершается `VIZ070_RETYPE_SERIES_AMBIGUOUS`. DONUT -> BAR/LINE использует обратное mapping.
 
-Отдельные cross-layer checks связывают `ALL_CANONICAL|DEFAULT_ANALYSIS|EMERGENCY_FUND_ONLY`, ANL-074 exploration include/exclude composition, ANL-071 period comparison, ANL-072 moving average, BENCH-070 rolling/previous references, ANL-073 Pivot+Top-N reconciliation и PERF-070 revision invalidation. Transfer-only `CASH_FLOW=0`; EUR query на RUB-only fixture не получает implicit FX conversion. Unsupported grouped `BUDGET_VARIANCE` и truncated Pivot остаются fail-closed.
+Renderer registry сохраняет `ECHARTS_6` primary/local-or-bundled/replaceable и добавляет `SEMANTIC_TABLE_V1` как встроенный accessible fallback. Renderer не получает query/financial truth/storage/network authority. Responsive plan детерминирован для MOBILE/TABLET/DESKTOP; semantic table + text summary обязательны, interaction-only evidence запрещён.
 
-Public TEST-070 evidence содержит только schema/version/seed/case-count/query-hash-prefix-count/status/reason. Raw rows, amounts, account/category/member/project values и filters в telemetry запрещены. Runtime ceiling 20 s — только CI regression guard, не пользовательский SLA.
-
-Named gate `Combinatorial analytics regression`; TEST-010 class `PURE_DOMAIN_APPLICATION`; `financial_truth=false`, `financial_write=false`, `storage=false`, `network=false`, `deployment=false`, `ui=false`, `renderer=false`; `FREE_ONLY` mandatory.
+Public VIZ-070 telemetry содержит только schema/version/chart/renderer/responsive/a11y/query-hash-prefix/decision/reason; financial values, raw query/filter payload и private dimension values запрещены. Named gate `Visualization registry v2`; TEST-010 class `PURE_DOMAIN_APPLICATION`; `FREE_ONLY` mandatory.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
 
-После TEST-070 Main Verification `MASTER-G7 / Semantic analytics` становится complete, если остальные R7 items остаются DONE. Следующий готовый `VIZ-070` остаётся отдельным P2 renderer-registry item и не реализуется внутри TEST-070.
+После VIZ-070 Main Verification registry становится presentation dependency для R8 `DASH-080` и будущего `VIZ-090`; сам VIZ-070 не реализует Studio/Dashboard composer или advanced chart families.
 
 ## MIG-010 historical safety boundary
 
@@ -113,11 +113,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-TEST-070 остаётся открытым до `Combinatorial analytics regression` + existing PERF/ANL/BENCH/Pivot/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+VIZ-070 остаётся открытым до `Visualization registry v2` + existing VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. TEST-070 — synthetic-only test/evidence layer; он не меняет current R2 routing, production financial calculations, financial writes или external providers. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. VIZ-070 — renderer-neutral configuration/presentation layer; он не меняет current R2 routing, production financial calculations, financial writes или external providers. ECharts остаётся replaceable local/bundled adapter; public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
