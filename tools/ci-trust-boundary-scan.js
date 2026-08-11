@@ -9,6 +9,7 @@ const TRUSTED_WORKFLOW = '.github/workflows/trusted-dev-deploy.yml';
 const RUNTIME_WORKFLOW = '.github/workflows/trusted-runtime-health.yml';
 const RECOVERY_WORKFLOW = '.github/workflows/ci003-postmerge-recovery.yml';
 const MAIN_VERIFY_WORKFLOW = '.github/workflows/main-verification.yml';
+const VERSION_RETENTION_WORKFLOW = '.github/workflows/apps-script-version-retention.yml';
 const LEGACY_WORKFLOW = '.github/workflows/chat-driven-dev-release.yml';
 
 function read(root, file) {
@@ -120,6 +121,24 @@ function scanMainVerification(text) {
   return findings;
 }
 
+function scanVersionRetentionWorkflow(text) {
+  const findings = [];
+  if (!/workflow_run:\s*\n\s*workflows:\s*\[Main Verification\]/.test(text)) findings.push('retention-not-chained-from-main-verification');
+  if (!/github\.event_name\s*==\s*'workflow_dispatch'\s*\|\|\s*github\.event\.workflow_run\.conclusion\s*==\s*'success'/.test(text)) {
+    findings.push('retention-success-or-owner-dispatch-guard-missing');
+  }
+  if (/\bpull_request(?:_target)?:/.test(text)) findings.push('retention-pr-trigger-forbidden');
+  if (!/permissions:\s*\n\s*contents:\s*read\b/.test(text) || /contents:\s*write\b/.test(text)) findings.push('retention-permissions-not-read-only');
+  if (!/environment:\s*DEV\b/.test(text)) findings.push('retention-dev-environment-missing');
+  if (!/ref:\s*\$\{\{\s*github\.event\.repository\.default_branch\s*\}\}/.test(text)) findings.push('retention-default-branch-policy-checkout-missing');
+  if (!/\$\{\{\s*secrets\.APPS_SCRIPT_ID\s*\}\}/.test(text) || !/\$\{\{\s*secrets\.CLASPRC_JSON\s*\}\}/.test(text)) {
+    findings.push('retention-owner-secrets-missing');
+  }
+  if (!/apps-script-version-retention\.js --apply/.test(text)) findings.push('retention-tool-missing');
+  if (hasAny(text, [/candidate-source\//, /\beval\b/, /\bgit\s+push\b/, /contents:\s*write\b/])) findings.push('retention-untrusted-or-repository-mutation-present');
+  return findings;
+}
+
 function scanLegacyWorkflow(text) {
   const findings = [];
   if (/\$\{\{\s*secrets\./.test(text)) findings.push('legacy-still-references-secrets');
@@ -129,7 +148,7 @@ function scanLegacyWorkflow(text) {
 }
 
 function scan(root = ROOT) {
-  const required = [PR_WORKFLOW, TRUSTED_WORKFLOW, RUNTIME_WORKFLOW, RECOVERY_WORKFLOW, MAIN_VERIFY_WORKFLOW, LEGACY_WORKFLOW];
+  const required = [PR_WORKFLOW, TRUSTED_WORKFLOW, RUNTIME_WORKFLOW, RECOVERY_WORKFLOW, MAIN_VERIFY_WORKFLOW, VERSION_RETENTION_WORKFLOW, LEGACY_WORKFLOW];
   const missing = required.filter((file) => !fs.existsSync(path.join(root, file)));
   const findings = missing.map((file) => ({ file, rule: 'required-workflow-missing' }));
   if (!missing.includes(PR_WORKFLOW)) scanPrWorkflow(read(root, PR_WORKFLOW)).forEach((rule) => findings.push({ file: PR_WORKFLOW, rule }));
@@ -137,6 +156,7 @@ function scan(root = ROOT) {
   if (!missing.includes(RUNTIME_WORKFLOW)) scanRuntimeWorkflow(read(root, RUNTIME_WORKFLOW)).forEach((rule) => findings.push({ file: RUNTIME_WORKFLOW, rule }));
   if (!missing.includes(RECOVERY_WORKFLOW)) scanRecoveryWorkflow(read(root, RECOVERY_WORKFLOW)).forEach((rule) => findings.push({ file: RECOVERY_WORKFLOW, rule }));
   if (!missing.includes(MAIN_VERIFY_WORKFLOW)) scanMainVerification(read(root, MAIN_VERIFY_WORKFLOW)).forEach((rule) => findings.push({ file: MAIN_VERIFY_WORKFLOW, rule }));
+  if (!missing.includes(VERSION_RETENTION_WORKFLOW)) scanVersionRetentionWorkflow(read(root, VERSION_RETENTION_WORKFLOW)).forEach((rule) => findings.push({ file: VERSION_RETENTION_WORKFLOW, rule }));
   if (!missing.includes(LEGACY_WORKFLOW)) scanLegacyWorkflow(read(root, LEGACY_WORKFLOW)).forEach((rule) => findings.push({ file: LEGACY_WORKFLOW, rule }));
   return findings;
 }
@@ -169,6 +189,7 @@ module.exports = {
   scanRuntimeWorkflow,
   scanRecoveryWorkflow,
   scanMainVerification,
+  scanVersionRetentionWorkflow,
   scanLegacyWorkflow,
   scan
 };

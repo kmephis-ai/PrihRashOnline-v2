@@ -2,6 +2,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  candidateVersionDescription,
+  listAllVersions,
+  pruneUnusedVersions,
+  selectReusableVersion
+} = require('./apps-script-version-retention');
 
 const WEB_DESCRIPTION = 'PrihRashOnline Web Dashboard DEV WebApp';
 const API_DESCRIPTION = 'CI-002 authenticated runtime verification';
@@ -163,12 +169,14 @@ async function main() {
     const scriptId = String(process.env.APPS_SCRIPT_ID || '');
     const apiDeploymentId = String(process.env.APPS_SCRIPT_API_DEPLOYMENT_ID || '');
     const candidateSha = String(process.env.CANDIDATE_SHA || '');
+    const sourceTreeHash = String(process.env.SOURCE_TREE_HASH || '');
     const profileName = String(process.env.CLASP_USER || 'prihrash-ci');
     const authPath = process.env.CLASPRC_PATH || path.join(process.env.HOME || '', '.clasprc.json');
 
     if (!/^[A-Za-z0-9_-]{20,}$/.test(scriptId)) return emit({ ok: false, reason: 'APPS_SCRIPT_ID_INVALID' });
     if (!/^AKfy[A-Za-z0-9_-]+$/.test(apiDeploymentId)) return emit({ ok: false, reason: 'API_DEPLOYMENT_ID_INVALID' });
     if (!/^[0-9a-f]{40}$/.test(candidateSha)) return emit({ ok: false, reason: 'CANDIDATE_SHA_INVALID' });
+    if (!/^[0-9a-f]{64}$/.test(sourceTreeHash)) return emit({ ok: false, reason: 'SOURCE_TREE_HASH_INVALID' });
 
     const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
     const profile = auth && auth.tokens && auth.tokens[profileName];
@@ -212,17 +220,50 @@ async function main() {
     const previousWebVersion = deploymentVersion(webDeployment);
     if (!previousApiVersion || !previousWebVersion) return emit({ ok: false, reason: 'DEPLOYMENT_PREVIOUS_VERSION_INVALID' });
 
-    const versionResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/versions`, {
-      method: 'POST',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ description: `CI exact candidate ${candidateSha}` })
+    const versionInventory = await listAllVersions(scriptId, headers);
+    if (!versionInventory.ok) return emit({ ok: false, reason: versionInventory.reason });
+    const reusableVersion = selectReusableVersion(
+      versionInventory.versions,
+      listed.deployments,
+      candidateSha,
+      sourceTreeHash
+    );
+    const retention = await pruneUnusedVersions({
+      scriptId,
+      headers,
+      deployments: listed.deployments,
+      versions: versionInventory.versions,
+      extraProtectedVersions: reusableVersion ? [reusableVersion] : []
     });
-    const versionPayload = await readResponse(versionResponse);
-    if (!versionResponse.ok || !versionPayload.json) {
-      return emit({ ok: false, reason: classifyApiFailure('VERSION_CREATE', versionResponse, versionPayload.json) });
+    if (!retention.ok) return emit({ ok: false, reason: retention.reason });
+
+    let versionNumber = reusableVersion;
+    let versionReused = Boolean(reusableVersion);
+    if (!versionNumber) {
+      const versionResponse = await fetch(`https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/versions`, {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({ description: candidateVersionDescription(candidateSha, sourceTreeHash) })
+      });
+      const versionPayload = await readResponse(versionResponse);
+      if (!versionResponse.ok || !versionPayload.json) {
+        return emit({ ok: false, reason: classifyApiFailure('VERSION_CREATE', versionResponse, versionPayload.json) });
+      }
+      versionNumber = Number(versionPayload.json.versionNumber);
+      versionReused = false;
     }
-    const versionNumber = Number(versionPayload.json.versionNumber);
     if (!Number.isInteger(versionNumber) || versionNumber <= 0) return emit({ ok: false, reason: 'VERSION_CREATE_RESPONSE_INVALID' });
+
+    if (previousApiVersion === versionNumber && previousWebVersion === versionNumber) {
+      return emit({
+        ok: true,
+        versionNumber,
+        versionReused: true,
+        deploymentsChanged: false,
+        retentionReason: retention.reason,
+        versionsDeleted: Number(retention.evidence && retention.evidence.deleted_count || 0)
+      });
+    }
 
     const apiUpdated = await updateDeployment(scriptId, apiDeploymentId, versionNumber, API_DESCRIPTION, headers, 'API_DEPLOYMENT_UPDATE');
     if (!apiUpdated.ok) return emit({ ok: false, reason: apiUpdated.reason });
@@ -249,7 +290,14 @@ async function main() {
       return emit({ ok: false, reason });
     }
 
-    return emit({ ok: true, versionNumber });
+    return emit({
+      ok: true,
+      versionNumber,
+      versionReused,
+      deploymentsChanged: true,
+      retentionReason: retention.reason,
+      versionsDeleted: Number(retention.evidence && retention.evidence.deleted_count || 0)
+    });
   } catch (_) {
     return emit({ ok: false, reason: 'DEPLOYMENT_PROMOTION_INTERNAL_ERROR' });
   }
