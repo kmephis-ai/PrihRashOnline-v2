@@ -139,7 +139,6 @@ jobs:
         if: steps.auth.outcome == 'success'
         env:
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
-          CLASPRC_PATH: ${{ runner.home }}/.clasprc.json
           APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
         shell: bash
         run: |
