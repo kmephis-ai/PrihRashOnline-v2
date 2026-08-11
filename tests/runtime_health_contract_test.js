@@ -8,6 +8,7 @@ const vm = require('vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'RuntimeHealth.js'), 'utf8');
 const candidateSha = 'a'.repeat(40);
 const sourceTreeHash = 'b'.repeat(64);
+const HOME_SMOKE = 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7';
 
 function createContext(options = {}) {
   const existingSheets = new Set(options.sheets || ['operations', 'settings', 'control']);
@@ -59,7 +60,7 @@ function createContext(options = {}) {
     context.prhR2FinancialHomeReadSmokeToken = function () {
       homeReadSmokeCounter.value += 1;
       if (options.homeReadSmokeThrows) throw new Error('synthetic home read failure');
-      return options.homeReadSmokeToken || 'PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7';
+      return options.homeReadSmokeToken || HOME_SMOKE;
     };
   }
   vm.createContext(context);
@@ -117,7 +118,7 @@ assert.throws(() => createContext({ webSmokeMissing: true }).context.prhReleaseH
 assert.throws(() => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V3|R2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
 assert.throws(() => createContext({ webSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic web smoke failure/);
 assert.throws(() => createContext({ homeReadSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_MISSING/);
-assert.throws(() => createContext({ homeReadSmokeToken: 'PRH_R2_HOME_READ_V2|CANONICAL_LIB|FAIL|0' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
+assert.throws(() => createContext({ homeReadSmokeToken: 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|FAIL|0' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
 assert.throws(() => createContext({ homeReadSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic home read failure/);
 
 console.log('runtime_health_contract_test: OK', {
@@ -126,7 +127,7 @@ console.log('runtime_health_contract_test: OK', {
   transportPing: true,
   privateSchemaRead: true,
   webAppRenderSmoke: 'V3_R2',
-  privateHomeReadSmoke: 'V2_CANONICAL_LIB',
+  privateHomeReadSmoke: 'V3_CANONICAL_LIB_DIMENSION_HASH',
   scalarEntrypoint: true,
   financialPayload: false
 });
