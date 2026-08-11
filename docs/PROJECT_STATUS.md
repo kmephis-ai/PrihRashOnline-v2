@@ -37,11 +37,13 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `UI-MIG-020` authority = `PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`. Default private Web App route переключается на R2 `FinancialHomeWebApp`; primary navigation содержит Home / Transactions / Expenses / Income / Cash Flow / Budget / Obligations / Data Quality. Legacy Dashboard больше не default и остаётся только bounded rollback route `?surface=legacy` до post-cutover verification.
 
-Financial Home private binding использует `PRH_R2_FIN_RUNTIME_ADAPTER_V1`: read-only `01 Операции` через существующий Google gateway и explicit currency из `09 Настройки`. Adapter не является новым financial truth: gate `R2 Financial runtime parity` сравнивает его с canonical `evaluateKpis()` (`PRH_KPI_DICTIONARY_V1@1.0.0`) на synthetic adversarial fixtures. `legacy_total_cells_used=false`, `ui_financial_formula_authority=false`, `financial_write=false`.
+Financial Home private binding использует тонкий `PRH_R2_FIN_RUNTIME_BRIDGE_V1`, а не второй финансовый калькулятор. Immutable candidate детерминированно генерирует `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`) непосредственно из canonical versioned `lib/**`: Google repository adapter, FIN reconciliation, KPI Dictionary, Financial Home и их локальных contracts/dependencies. Generated bundle входит в `sourceTreeHash`/trusted reconstruction; `generated_from_canonical_lib=true`, `financial_formula_copy=false`.
+
+Bridge читает `01 Операции` только через существующий read-only Google gateway, берёт explicit currency из `09 Настройки` и вызывает canonical `financial_home.buildFinancialHome()`. Gate `R2 Financial runtime parity` реально исполняет generated bundle в VM и сравнивает private bridge output с canonical Node `evaluateKpis()` на synthetic adversarial fixture. `legacy_total_cells_used=false`, `ui_financial_formula_authority=false`, `financial_write=false`.
 
 Остальные семь R2 destinations пока имеют `SAFE_UNBOUND_FAIL_CLOSED`: canonical navigation доступна, но private runtime не подставляет browser `SYN-*` fixture как household truth, пока binding не доказан отдельным machine gate. Это намеренная safety boundary, а не скрытая готовность.
 
-Authenticated technical smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`; он доказывает R2 shell + Home default + bounded legacy link без чтения financial rows. Private Web App остаётся `MYSELF`. `FREE_ONLY` обязателен.
+Authenticated technical smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`; он доказывает R2 shell + Home default + bounded legacy link без чтения financial rows. Отдельный authenticated private Home read smoke реально строит Home через generated canonical bundle и наружу возвращает только technical scalar `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`. Private Web App остаётся `MYSELF`. `FREE_ONLY` обязателен.
 
 PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются.
 
@@ -99,7 +101,7 @@ UI-MIG-020 остаётся открытым до `R2 Financial runtime parity` 
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Current writer меняет только canonical UI routing/render path и read-only Home projection. Реальные financial/storage данные не мигрируют и не записываются. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. Current writer меняет canonical UI routing/render path и добавляет только read-only Home bridge к generated canonical-lib runtime; duplicate FIN formulas не вводятся. Реальные financial/storage данные не мигрируют и не записываются. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
