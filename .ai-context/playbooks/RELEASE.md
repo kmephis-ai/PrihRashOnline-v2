@@ -10,7 +10,9 @@ Playbook сопровождает уже открытый Roadmap PR через 
 
 ## Каноническая цепочка
 
-`PR Validation → Trusted DEV Deploy → Trusted Runtime Health → CI-003 autonomous squash merge → Main Verification`.
+Engineering: `PR Validation → Trusted DEV Deploy → Trusted Runtime Health → CI-003 autonomous squash merge → Main Verification`.
+
+User-facing: между Runtime Health и merge обязателен exact-candidate `Product Ready E2E`; Runtime Health не является его заменой.
 
 **ручной merge запрещён**. Manual marker, review approval или текстовый комментарий не заменяют red required check.
 
@@ -22,7 +24,8 @@ Playbook сопровождает уже открытый Roadmap PR через 
 4. Проверить `Trusted DEV Deploy` exact candidate reconstruction/promotion.
 5. Проверить authenticated `Trusted Runtime Health` для того же candidate SHA/build identity.
 6. Только после runtime PASS проверить `autonomous-merge=success` от CI-003; playbook сам merge не выполняет.
-7. Проверить merge SHA и `Main Verification`; только Main Verification переводит Issue в DONE.
+7. Для `work_class=user_facing` проверить `product_stage=PRODUCT_READY` и `product-ready-e2e=success`.
+8. Проверить merge SHA и stage-aware `Main Verification`; engineering Issue получает DONE_ENGINEERING, user-facing — DONE.
 
 ## Recovery
 

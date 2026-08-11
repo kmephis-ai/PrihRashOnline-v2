@@ -15,6 +15,8 @@
     {"path":"README.md","kind":"PROJECT_ENTRY","min_cyrillic_letters":120},
     {"path":"AGENTS.md","kind":"AI_INSTRUCTIONS","min_cyrillic_letters":250},
     {"path":"docs/ROADMAP.md","kind":"ROADMAP","min_cyrillic_letters":500},
+    {"path":"docs/audits/PRODUCT_RUNTIME_FORENSIC_AUDIT_2026-08-11.md","kind":"AUDIT","min_cyrillic_letters":500},
+    {"path":"docs/adr/ADR-GOV-REC-001-PRODUCT-READINESS.md","kind":"ADR","min_cyrillic_letters":300},
     {"path":"docs/PROJECT_STATUS.md","kind":"STATUS","min_cyrillic_letters":250},
     {"path":".ai-context/PROJECT_CONTEXT.md","kind":"AI_CONTEXT","min_cyrillic_letters":250},
     {"path":".ai-context/playbooks/ROADMAP_EXECUTION.md","kind":"AI_PLAYBOOK","min_cyrillic_letters":180},
@@ -62,6 +64,8 @@
   "required_markers": {
     "AGENTS.md": ["LANG-RU", "русский"],
     "docs/ROADMAP.md": ["LANG-RU", "Русский язык"],
+    "docs/audits/PRODUCT_RUNTIME_FORENSIC_AUDIT_2026-08-11.md": ["GOV-REC-001", "MASTER-GUX", "REQUIRES_LIVE_MEASUREMENT"],
+    "docs/adr/ADR-GOV-REC-001-PRODUCT-READINESS.md": ["GOV-REC-001", "product-ready-e2e", "DONE_ENGINEERING"],
     ".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],
     "docs/visualization/ADVANCED_VISUALIZATION_PACK.md": ["VIZ-090", "PRH_ADVANCED_VISUALIZATION_PACK_V1"],
     "docs/dashboard/DASHBOARD_COMPOSER.md": ["DASH-080", "PRH_DASHBOARD_COMPOSER_V1"],

@@ -2,7 +2,7 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с приватным семейным Web Dashboard и GitHub как инженерным control plane.
 
-> **Текущий статус:** доказаны **R0 platform baseline** (`MASTER-G0`, `MASTER-G1`, `MASTER-G2` complete) и **R1 Canonical Financial Platform** (`MASTER-G3` complete). R2 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020` прошли Main Verification. Текущий единственный writer — **INC-020 Income Analytics**, Issue #128.
+> **Текущий статус:** R0/R1 canonical/security/delivery foundation доказан. Forensic baseline на 107 items: 75/107 = 70,1%; после добавления Recovery Wave текущая формальная доля = 75/116 = 64,7%. Ни один из этих issue-count показателей не равен overall Product Readiness ≈25%: private runtime binding есть у Home, остальные семь Daily routes не интегрированы. Текущий единственный writer — **GOV-REC-001**, Issue #219; R9/R10 frozen, ANL-090/PR #218 paused.
 
 ## Принципы
 
@@ -23,17 +23,17 @@
 | Pure application | `PRH_APPLICATION_CORE_V1` — DONE |
 | Repository port | `PRH_TRANSACTION_REPOSITORY_V1` — DONE |
 | Analytics | `PRH_ANALYTICS_CONTRACT_V1@1.0.0` — DONE |
-| Read/performance | `PERF-010..014` — DONE |
-| Design | `PRH_DESIGN_SYSTEM_V1@1.0.0` — DONE |
-| Visualization | `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — DONE |
-| Financial Home | `PRH_FINANCIAL_HOME_V1@1.0.0` — DONE |
-| Transaction Explorer | `PRH_TRANSACTION_EXPLORER_V1@1.0.0` — DONE |
-| Expense Analytics | `PRH_EXPENSE_ANALYTICS_V1@1.0.0` — DONE |
-| Income Analytics | `PRH_INCOME_ANALYTICS_V1@1.0.0` — IN_PROGRESS |
+| Read/performance | `PERF-010..014` — DONE_ENGINEERING; canonical integration partial |
+| Design | `PRH_DESIGN_SYSTEM_V1@1.0.0` — DONE_ENGINEERING |
+| Visualization | `PRH_VISUALIZATION_FOUNDATION_V1@1.0.0` — DONE_ENGINEERING; browser ECharts adapter unbound |
+| Financial Home | `PRH_FINANCIAL_HOME_V1@1.0.0` — private-bound, product partial |
+| Transaction Explorer | `PRH_TRANSACTION_EXPLORER_V1@1.0.0` — DONE_ENGINEERING, private route unbound |
+| Expense Analytics | `PRH_EXPENSE_ANALYTICS_V1@1.0.0` — DONE_ENGINEERING, private route unbound |
+| Income Analytics | `PRH_INCOME_ANALYTICS_V1@1.0.0` — DONE_ENGINEERING, private route unbound |
 
 R1 20k/50k performance profiles are CI regression guardrails, not production SLA. Correctness/privacy remain higher priority than latency.
 
-## INC-020 Income Analytics
+## INC-020 Income Analytics — engineering scope
 
 Canonical document: [`docs/analytics/INCOME_ANALYTICS.md`](docs/analytics/INCOME_ANALYTICS.md).
 
@@ -52,7 +52,7 @@ INC-020 строит read-only аналитику доходов без альт
 
 Income Analytics не меняет FIN-TRUTH, canonical schema, AnalyticsQuery/Result или Google write policy.
 
-## R2 verified foundations
+## R2 engineering foundations
 
 ### DESIGN-020
 
@@ -76,7 +76,7 @@ Income Analytics не меняет FIN-TRUTH, canonical schema, AnalyticsQuery/R
 
 ## Private runtime
 
-Web Dashboard remains private with access boundary `MYSELF`. **Private deployment URL is not published in README or release commits.** Existing Dashboard/Home/TX/EXP surfaces remain compatible; INC synthetic browser surface does not silently create a new private route.
+Web Dashboard remains private with access boundary `MYSELF`. **Private deployment URL is not published in README or release commits.** Current canonical router private-binds Home; TX/EXP/INC/CF/BUD/OBL/DQ fail closed until Recovery items prove bindings. Synthetic browser surfaces do not create private routes.
 
 ## Privacy and financial safety
 
@@ -101,11 +101,13 @@ Trusted DEV Deploy
         ↓
 Trusted Runtime Health
         ↓
+Product Ready E2E (только work_class=user_facing)
+        ↓
 CI-003 autonomous squash merge
         ↓
 Main Verification
         ↓
-Issue: DONE
+Issue: DONE_ENGINEERING или user-facing DONE
 ```
 
 Manual merge, release-snapshot branches, anonymous private health probes and post-merge deployment-URL commits are not the normal delivery model.
@@ -120,6 +122,8 @@ Manual merge, release-snapshot branches, anonymous private health probes and pos
 
 - [Executable Roadmap](docs/ROADMAP.md)
 - [Текущий статус](docs/PROJECT_STATUS.md)
+- [Product/Runtime forensic audit](docs/audits/PRODUCT_RUNTIME_FORENSIC_AUDIT_2026-08-11.md)
+- [ADR Product Readiness governance](docs/adr/ADR-GOV-REC-001-PRODUCT-READINESS.md)
 - [Архитектура](docs/architecture.md)
 - [R1 C4/context](docs/architecture/R1_C4_CONTEXT.md)
 - [R1 data lineage](docs/data/R1_DATA_LINEAGE.md)

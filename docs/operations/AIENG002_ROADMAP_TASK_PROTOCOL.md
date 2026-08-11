@@ -4,7 +4,7 @@
 
 Roadmap Autopilot must resolve a short continuation command such as `делай далее` into one concrete, bounded Roadmap task. The task must not depend on chat memory alone and must not allow two writers to mutate the same work item concurrently.
 
-The executable reference implementation is `tools/roadmap-task-protocol.js`. The versioned packet schema is `.ai-context/roadmap-task-packet.schema.json` (`PRH_ROADMAP_TASK_V1`).
+The executable reference implementation is `tools/roadmap-task-protocol.js`. The versioned packet schema is `.ai-context/roadmap-task-packet.schema.json` (`PRH_ROADMAP_TASK_V2`). V2 вводит отдельные engineering/product stages после Product Recovery rebaseline 2026-08-11.
 
 ## Normalized Roadmap item
 
@@ -13,13 +13,16 @@ The resolver consumes public-safe normalized Roadmap state. Each candidate item 
 - `roadmap_id`;
 - GitHub `issue` number;
 - lifecycle `status` (`BACKLOG | READY | IN_PROGRESS | BLOCKED | DONE`);
+- `work_class` (`engineering | user_facing`), `engineering_status`, `product_stage` и `target_stage`;
 - `priority` (`P0..P3`), `wave` and deterministic `order`;
 - `branch_slug`;
 - `goal` and non-empty `non_goals`;
 - `depends_on` Roadmap IDs;
+- `depends_on_product_ready` для dependencies, которым недостаточно engineering `DONE`;
 - `data_touched`, `privacy_class`, `cost_class`;
 - non-empty `acceptance` and `evidence_required`;
-- `rollback`.
+- `rollback`;
+- `blocking_product_gate` (`n/a` только для engineering item).
 
 `cost_class` is currently required to be `FREE_ONLY`. A task requiring paid execution must remain policy-blocked rather than entering the ordinary autonomous writer path.
 
@@ -35,12 +38,12 @@ If the active writer has a declared dependency that is missing/not `DONE`, conti
 
 ### No active writer
 
-When no writer is active, only explicit `READY` items whose every declared dependency resolves to `DONE` are eligible.
+When no writer is active, only explicit `READY` items whose every declared dependency resolves to required stage are eligible. `depends_on` требует закрытого engineering lifecycle; `depends_on_product_ready` требует `status=DONE` и `product_stage=DONE` у user-facing dependency.
 
 Eligible items are sorted deterministically by:
 
 1. priority (`P0` before `P1` before `P2` before `P3`);
-2. wave number;
+2. wave number (`R2R` располагается между R2 и R3);
 3. Roadmap order;
 4. Roadmap ID lexical tie-break.
 
@@ -50,9 +53,10 @@ Master-gate/wave eligibility remains part of canonical Roadmap state: an R1 item
 
 ## Task packet
 
-For `START_READY` or `CONTINUE_ACTIVE`, the resolver emits a `PRH_ROADMAP_TASK_V1` packet with:
+For `START_READY` or `CONTINUE_ACTIVE`, the resolver emits a `PRH_ROADMAP_TASK_V2` packet with:
 
 - concrete Roadmap ID + GitHub Issue;
+- `work_class`, engineering/product/target stages;
 - goal;
 - non-goals;
 - dependency evidence (`roadmap_id`, `DONE`, Issue);
@@ -62,18 +66,21 @@ For `START_READY` or `CONTINUE_ACTIVE`, the resolver emits a `PRH_ROADMAP_TASK_V
 - acceptance criteria;
 - required evidence;
 - rollback;
+- blocking Product gate;
 - canonical writer branch `agent/<ROADMAP-ID>-<slug>`;
 - canonical PR close line `Closes #<Issue>`;
 - required machine delivery gates;
 - `one_active_writer: true`.
 
-The required delivery gates are fixed:
+Engineering delivery gates are fixed:
 
 1. `PR_VALIDATION`;
 2. `TRUSTED_DEV_DEPLOY`;
 3. `TRUSTED_RUNTIME_HEALTH`;
 4. `AUTONOMOUS_MERGE`;
 5. `MAIN_VERIFICATION`.
+
+Для `work_class=user_facing` packet дополнительно и обязательно содержит `PRODUCT_READY_E2E`. `TRUSTED_RUNTIME_HEALTH` подтверждает exact-SHA engineering runtime health, но не заменяет browser Product gate.
 
 ## Lifecycle
 
@@ -87,7 +94,9 @@ IN_PROGRESS -> BLOCKED
 IN_PROGRESS -> DONE
 ```
 
-`IN_PROGRESS -> DONE` is rejected unless evidence explicitly reports PASS for PR Validation, Trusted DEV Deploy, Trusted Runtime Health, Autonomous Merge and Main Verification.
+`IN_PROGRESS -> DONE` для engineering item rejected, пока пять engineering gates не PASS или `target_stage != DONE_ENGINEERING`.
+
+Для user-facing item дополнительно требуются `target_stage=DONE`, `product_stage=PRODUCT_READY` и `productReadyE2E=PASS`. Synthetic/file-local/render-smoke/contract evidence не удовлетворяет это условие.
 
 A GitHub merge alone is therefore insufficient to claim `DONE`.
 
@@ -116,6 +125,10 @@ A caller may provide a public-safe JSON file:
       "roadmap_id": "AIENG-002",
       "issue": 70,
       "status": "READY",
+      "work_class": "engineering",
+      "engineering_status": "IN_PROGRESS",
+      "product_stage": "CODE_COMPLETE",
+      "target_stage": "DONE_ENGINEERING",
       "priority": "P1",
       "wave": "R0",
       "order": 20,
@@ -123,12 +136,14 @@ A caller may provide a public-safe JSON file:
       "goal": "...",
       "non_goals": ["..."],
       "depends_on": ["AIENG-001"],
+      "depends_on_product_ready": [],
       "data_touched": "none",
       "privacy_class": "public-safe",
       "cost_class": "FREE_ONLY",
       "acceptance": ["..."],
       "evidence_required": ["..."],
-      "rollback": "..."
+      "rollback": "...",
+      "blocking_product_gate": "n/a"
     }
   ]
 }

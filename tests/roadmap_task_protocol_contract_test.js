@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const {
   TASK_SCHEMA,
+  ENGINEERING_DELIVERY_GATES,
+  PRODUCT_READY_GATE,
   REQUIRED_DELIVERY_GATES,
   normalizeRoadmapItem,
   resolveContinuation,
@@ -23,6 +25,10 @@ function item(overrides = {}) {
     roadmap_id: 'AIENG-002',
     issue: 70,
     status: 'READY',
+    work_class: 'engineering',
+    engineering_status: 'IN_PROGRESS',
+    product_stage: 'CODE_COMPLETE',
+    target_stage: 'DONE_ENGINEERING',
     priority: 'P1',
     wave: 'R0',
     order: 20,
@@ -30,12 +36,14 @@ function item(overrides = {}) {
     goal: 'Resolve continuation to one concrete task.',
     non_goals: ['Do not implement multi-AI review.'],
     depends_on: ['AIENG-001'],
+    depends_on_product_ready: [],
     data_touched: 'none',
     privacy_class: 'public-safe',
     cost_class: 'FREE_ONLY',
     acceptance: ['Concrete Roadmap ID is selected.'],
     evidence_required: ['Protocol contracts PASS.'],
     rollback: 'Revert protocol files.',
+    blocking_product_gate: 'n/a',
     ...overrides
   };
 }
@@ -45,6 +53,7 @@ function done(id, issue, order = 1) {
     roadmap_id: id,
     issue,
     status: 'DONE',
+    engineering_status: 'DONE_ENGINEERING',
     priority: 'P1',
     order,
     branch_slug: 'done-item',
@@ -52,7 +61,9 @@ function done(id, issue, order = 1) {
   });
 }
 
-assert.strictEqual(TASK_SCHEMA, 'PRH_ROADMAP_TASK_V1');
+assert.strictEqual(TASK_SCHEMA, 'PRH_ROADMAP_TASK_V2');
+assert.deepStrictEqual(ENGINEERING_DELIVERY_GATES, REQUIRED_DELIVERY_GATES);
+assert.strictEqual(PRODUCT_READY_GATE, 'PRODUCT_READY_E2E');
 assert.deepStrictEqual(REQUIRED_DELIVERY_GATES, [
   'PR_VALIDATION',
   'TRUSTED_DEV_DEPLOY',
@@ -94,6 +105,15 @@ assert.strictEqual(ROADMAP_ID_RE.test('ui-MIG-020'), false);
     depends_on: []
   }));
   assert.strictEqual(normalized.roadmap_id, 'UI-MIG-020');
+}
+
+{
+  const normalized = normalizeRoadmapItem(item({
+    roadmap_id: 'GOV-REC-001',
+    wave: 'R2R',
+    depends_on: []
+  }));
+  assert.strictEqual(normalized.wave, 'R2R');
 }
 
 {
@@ -208,7 +228,13 @@ assert.strictEqual(ROADMAP_ID_RE.test('ui-MIG-020'), false);
     item()
   ]);
   assert.strictEqual(result.task.roadmap_id, 'AIENG-002');
-  assert.deepStrictEqual(result.task.dependencies, [{ roadmap_id: 'AIENG-001', status: 'DONE', issue: 68 }]);
+  assert.deepStrictEqual(result.task.dependencies, [{
+    roadmap_id: 'AIENG-001',
+    status: 'DONE',
+    issue: 68,
+    product_stage: 'CODE_COMPLETE',
+    required_stage: 'DONE_ENGINEERING'
+  }]);
   assert.deepStrictEqual(result.task.non_goals, ['Do not implement multi-AI review.']);
   assert.strictEqual(result.task.data_touched, 'none');
   assert.strictEqual(result.task.privacy_class, 'public-safe');
@@ -234,7 +260,80 @@ assert.strictEqual(validateLifecycleTransition('IN_PROGRESS', 'DONE', {
   trustedDevDeploy: 'PASS',
   trustedRuntimeHealth: 'PASS',
   autonomousMerge: 'PASS',
-  mainVerification: 'PASS'
+  mainVerification: 'PASS',
+  workClass: 'engineering',
+  targetStage: 'DONE_ENGINEERING'
+}), true);
+
+{
+  const productItem = item({
+    roadmap_id: 'UI-REC-001',
+    issue: 220,
+    wave: 'R2R',
+    work_class: 'user_facing',
+    product_stage: 'CODE_COMPLETE',
+    target_stage: 'DONE',
+    blocking_product_gate: 'MASTER-GUX',
+    depends_on: [],
+    branch_slug: 'canonical-navigation'
+  });
+  const result = resolveContinuation([productItem]);
+  assert.strictEqual(result.status, 'RESOLVED');
+  assert.strictEqual(result.task.work_class, 'user_facing');
+  assert.deepStrictEqual(result.task.required_delivery_gates,
+    ENGINEERING_DELIVERY_GATES.concat(PRODUCT_READY_GATE));
+}
+
+{
+  const productDependency = item({
+    roadmap_id: 'UI-REC-001',
+    issue: 220,
+    status: 'DONE',
+    work_class: 'user_facing',
+    engineering_status: 'DONE_ENGINEERING',
+    product_stage: 'PRODUCT_READY',
+    target_stage: 'DONE',
+    blocking_product_gate: 'MASTER-GUX',
+    depends_on: [],
+    branch_slug: 'canonical-navigation'
+  });
+  const consumer = item({
+    roadmap_id: 'DATA-REC-001',
+    issue: 221,
+    depends_on: [],
+    depends_on_product_ready: ['UI-REC-001'],
+    branch_slug: 'private-detail'
+  });
+  const blocked = resolveContinuation([productDependency, consumer]);
+  assert.strictEqual(blocked.status, 'BLOCKED');
+  assert.strictEqual(blocked.reason, 'NO_DEPENDENCY_READY_ITEM');
+  productDependency.product_stage = 'DONE';
+  const ready = resolveContinuation([productDependency, consumer]);
+  assert.strictEqual(ready.status, 'RESOLVED');
+  assert.strictEqual(ready.roadmap_id, 'DATA-REC-001');
+  assert.strictEqual(ready.task.dependencies[0].required_stage, 'PRODUCT_READY');
+}
+
+assert.throws(() => validateLifecycleTransition('IN_PROGRESS', 'DONE', {
+  prValidation: 'PASS',
+  trustedDevDeploy: 'PASS',
+  trustedRuntimeHealth: 'PASS',
+  autonomousMerge: 'PASS',
+  mainVerification: 'PASS',
+  workClass: 'user_facing',
+  targetStage: 'DONE',
+  productStage: 'PRODUCT_READY'
+}), /ROADMAP_PRODUCT_DONE_EVIDENCE_INCOMPLETE/);
+assert.strictEqual(validateLifecycleTransition('IN_PROGRESS', 'DONE', {
+  prValidation: 'PASS',
+  trustedDevDeploy: 'PASS',
+  trustedRuntimeHealth: 'PASS',
+  autonomousMerge: 'PASS',
+  mainVerification: 'PASS',
+  workClass: 'user_facing',
+  targetStage: 'DONE',
+  productStage: 'PRODUCT_READY',
+  productReadyE2E: 'PASS'
 }), true);
 
 assert.strictEqual(assertPublicSafe({ roadmap_id: 'AIENG-002', reason: 'OK' }), true);
@@ -258,6 +357,11 @@ assert(schema.required.includes('non_goals'));
 assert(schema.required.includes('dependencies'));
 assert(schema.required.includes('data_touched'));
 assert(schema.required.includes('privacy_class'));
+assert(schema.required.includes('work_class'));
+assert(schema.required.includes('engineering_status'));
+assert(schema.required.includes('product_stage'));
+assert(schema.required.includes('target_stage'));
+assert(schema.required.includes('blocking_product_gate'));
 assert(schema.required.includes('acceptance'));
 assert(schema.required.includes('evidence_required'));
 assert(schema.required.includes('branch'));
@@ -273,5 +377,7 @@ console.log('roadmap_task_protocol_contract_test: OK', {
   multiSegmentRoadmapIds: true,
   multiSegmentWriterBranch: true,
   mainVerificationRequiredForDone: true,
+  productReadyE2ERequiredForUserFacingDone: true,
+  productStageDependencies: true,
   privateContextRejected: true
 });

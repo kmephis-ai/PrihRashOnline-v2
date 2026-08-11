@@ -2,16 +2,30 @@
 
 const fs = require('fs');
 
-const TASK_SCHEMA = 'PRH_ROADMAP_TASK_V1';
-const REQUIRED_DELIVERY_GATES = Object.freeze([
+const TASK_SCHEMA = 'PRH_ROADMAP_TASK_V2';
+const ENGINEERING_DELIVERY_GATES = Object.freeze([
   'PR_VALIDATION',
   'TRUSTED_DEV_DEPLOY',
   'TRUSTED_RUNTIME_HEALTH',
   'AUTONOMOUS_MERGE',
   'MAIN_VERIFICATION'
 ]);
+const PRODUCT_READY_GATE = 'PRODUCT_READY_E2E';
+const REQUIRED_DELIVERY_GATES = ENGINEERING_DELIVERY_GATES;
 const PRIORITY_ORDER = Object.freeze({ P0: 0, P1: 1, P2: 2, P3: 3 });
 const ITEM_STATUSES = new Set(['BACKLOG', 'READY', 'IN_PROGRESS', 'BLOCKED', 'DONE']);
+const WORK_CLASSES = new Set(['engineering', 'user_facing']);
+const ENGINEERING_STATUSES = new Set(['BACKLOG', 'IN_PROGRESS', 'CODE_COMPLETE', 'DONE_ENGINEERING']);
+const PRODUCT_STAGES = new Set([
+  'NOT_APPLICABLE',
+  'NOT_STARTED',
+  'CODE_COMPLETE',
+  'RUNTIME_INTEGRATED',
+  'REAL_E2E_VERIFIED',
+  'PRODUCT_READY',
+  'DONE'
+]);
+const TARGET_STAGES = new Set(['DONE_ENGINEERING', 'DONE']);
 const ROADMAP_ID_RE = /^[A-Z][A-Z0-9-]*-[0-9]{3}$/;
 const BRANCH_SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 
@@ -44,10 +58,24 @@ function normalizeRoadmapItem(input) {
   if (!Number.isInteger(issue) || issue < 1) fail('ROADMAP_ISSUE_INVALID');
   const status = String(item.status || '').trim();
   if (!ITEM_STATUSES.has(status)) fail('ROADMAP_STATUS_INVALID');
+  const workClass = String(item.work_class || '').trim();
+  if (!WORK_CLASSES.has(workClass)) fail('ROADMAP_WORK_CLASS_INVALID');
+  const engineeringStatus = String(item.engineering_status || '').trim();
+  if (!ENGINEERING_STATUSES.has(engineeringStatus)) fail('ROADMAP_ENGINEERING_STATUS_INVALID');
+  const productStage = String(item.product_stage || '').trim();
+  if (!PRODUCT_STAGES.has(productStage)) fail('ROADMAP_PRODUCT_STAGE_INVALID');
+  const targetStage = String(item.target_stage || '').trim();
+  if (!TARGET_STAGES.has(targetStage)) fail('ROADMAP_TARGET_STAGE_INVALID');
+  if (workClass === 'engineering' && targetStage !== 'DONE_ENGINEERING') fail('ROADMAP_ENGINEERING_TARGET_INVALID');
+  if (workClass === 'user_facing' && targetStage !== 'DONE') fail('ROADMAP_PRODUCT_TARGET_INVALID');
+  if (workClass === 'engineering' && !['NOT_APPLICABLE', 'CODE_COMPLETE'].includes(productStage)) {
+    fail('ROADMAP_ENGINEERING_PRODUCT_STAGE_INVALID');
+  }
+  if (workClass === 'user_facing' && productStage === 'NOT_APPLICABLE') fail('ROADMAP_PRODUCT_STAGE_REQUIRED');
   const priority = String(item.priority || '').trim();
   if (!Object.prototype.hasOwnProperty.call(PRIORITY_ORDER, priority)) fail('ROADMAP_PRIORITY_INVALID');
   const wave = String(item.wave || '').trim();
-  if (!/^R[0-9]+$/.test(wave)) fail('ROADMAP_WAVE_INVALID');
+  if (!/^R(?:[0-9]+|[0-9]+R)$/.test(wave)) fail('ROADMAP_WAVE_INVALID');
   const order = item.order === undefined ? 999999 : Number(item.order);
   if (!Number.isInteger(order) || order < 0) fail('ROADMAP_ORDER_INVALID');
   const branchSlug = String(item.branch_slug || '').trim();
@@ -62,11 +90,20 @@ function normalizeRoadmapItem(input) {
   if (costClass !== 'FREE_ONLY') fail('ROADMAP_COST_CLASS_NOT_FREE_ONLY');
   const rollback = String(item.rollback || '').trim();
   if (!rollback) fail('ROADMAP_ROLLBACK_INVALID');
+  const blockingProductGate = String(item.blocking_product_gate || '').trim();
+  if (!blockingProductGate) fail('ROADMAP_BLOCKING_PRODUCT_GATE_INVALID');
+  if (workClass === 'user_facing' && blockingProductGate.toLowerCase() === 'n/a') {
+    fail('ROADMAP_PRODUCT_GATE_REQUIRED');
+  }
 
   return {
     roadmap_id: roadmapId,
     issue,
     status,
+    work_class: workClass,
+    engineering_status: engineeringStatus,
+    product_stage: productStage,
+    target_stage: targetStage,
     priority,
     wave,
     order,
@@ -74,12 +111,14 @@ function normalizeRoadmapItem(input) {
     goal,
     non_goals: normalizeStringArray(item.non_goals, 'NON_GOALS', false),
     depends_on: normalizeStringArray(item.depends_on || [], 'DEPENDENCIES', true),
+    depends_on_product_ready: normalizeStringArray(item.depends_on_product_ready || [], 'PRODUCT_DEPENDENCIES', true),
     data_touched: dataTouched,
     privacy_class: privacyClass,
     cost_class: costClass,
     acceptance: normalizeStringArray(item.acceptance, 'ACCEPTANCE', false),
     evidence_required: normalizeStringArray(item.evidence_required, 'EVIDENCE', false),
-    rollback
+    rollback,
+    blocking_product_gate: blockingProductGate
   };
 }
 
@@ -101,23 +140,42 @@ function stateIndex(items) {
 }
 
 function dependencyEvidence(item, index) {
-  return item.depends_on.map((roadmapId) => {
+  const ordinary = item.depends_on.map((roadmapId) => ({ roadmapId, requiredStage: 'DONE_ENGINEERING' }));
+  const product = item.depends_on_product_ready.map((roadmapId) => ({ roadmapId, requiredStage: 'PRODUCT_READY' }));
+  const seen = new Set();
+  return ordinary.concat(product).map(({ roadmapId, requiredStage }) => {
+    const key = `${roadmapId}:${requiredStage}`;
+    if (seen.has(key)) fail('ROADMAP_DEPENDENCY_DUPLICATE');
+    seen.add(key);
     const dependency = index.get(roadmapId);
     if (!dependency) fail('ROADMAP_DEPENDENCY_MISSING');
     return {
       roadmap_id: roadmapId,
       status: dependency.status,
-      issue: dependency.issue || null
+      issue: dependency.issue || null,
+      product_stage: dependency.product_stage,
+      required_stage: requiredStage
     };
   });
 }
 
 function dependenciesDone(item, index) {
-  return dependencyEvidence(item, index).every((entry) => entry.status === 'DONE');
+  return dependencyEvidence(item, index).every((entry) => {
+    if (entry.status !== 'DONE') return false;
+    if (entry.required_stage === 'PRODUCT_READY') return entry.product_stage === 'DONE';
+    return true;
+  });
 }
 
 function waveNumber(wave) {
-  return Number(String(wave).slice(1));
+  const value = String(wave).slice(1);
+  return value.endsWith('R') ? Number(value.slice(0, -1)) + 0.5 : Number(value);
+}
+
+function requiredDeliveryGates(item) {
+  return item.work_class === 'user_facing'
+    ? ENGINEERING_DELIVERY_GATES.concat(PRODUCT_READY_GATE)
+    : ENGINEERING_DELIVERY_GATES.slice();
 }
 
 function compareReadyItems(a, b) {
@@ -158,18 +216,24 @@ function assertPublicSafe(value) {
 
 function buildTaskPacket(item, index, action) {
   const dependencies = dependencyEvidence(item, index);
-  if (!dependencies.every((entry) => entry.status === 'DONE')) fail('ROADMAP_DEPENDENCY_NOT_DONE');
+  if (!dependenciesDone(item, index)) fail('ROADMAP_DEPENDENCY_NOT_DONE');
   const packet = {
     schema: TASK_SCHEMA,
     action,
     roadmap_id: item.roadmap_id,
     issue: item.issue,
+    work_class: item.work_class,
+    engineering_status: item.engineering_status,
+    product_stage: item.product_stage,
+    target_stage: item.target_stage,
     goal: item.goal,
     non_goals: item.non_goals.slice(),
     dependencies: dependencies.map((entry) => ({
       roadmap_id: entry.roadmap_id,
       status: 'DONE',
-      issue: entry.issue
+      issue: entry.issue,
+      product_stage: entry.product_stage,
+      required_stage: entry.required_stage
     })),
     data_touched: item.data_touched,
     privacy_class: item.privacy_class,
@@ -177,9 +241,10 @@ function buildTaskPacket(item, index, action) {
     acceptance: item.acceptance.slice(),
     evidence_required: item.evidence_required.slice(),
     rollback: item.rollback,
+    blocking_product_gate: item.blocking_product_gate,
     branch: `agent/${item.roadmap_id}-${item.branch_slug}`,
     pr_close_line: `Closes #${item.issue}`,
-    required_delivery_gates: REQUIRED_DELIVERY_GATES.slice(),
+    required_delivery_gates: requiredDeliveryGates(item),
     one_active_writer: true
   };
   assertTaskPacket(packet);
@@ -191,13 +256,24 @@ function assertTaskPacket(packet) {
   if (!['START_READY', 'CONTINUE_ACTIVE'].includes(packet.action)) fail('ROADMAP_TASK_ACTION_INVALID');
   if (!ROADMAP_ID_RE.test(String(packet.roadmap_id || ''))) fail('ROADMAP_TASK_ID_INVALID');
   if (!Number.isInteger(packet.issue) || packet.issue < 1) fail('ROADMAP_TASK_ISSUE_INVALID');
+  if (!WORK_CLASSES.has(String(packet.work_class || ''))) fail('ROADMAP_TASK_WORK_CLASS_INVALID');
+  if (!ENGINEERING_STATUSES.has(String(packet.engineering_status || ''))) fail('ROADMAP_TASK_ENGINEERING_STATUS_INVALID');
+  if (!PRODUCT_STAGES.has(String(packet.product_stage || ''))) fail('ROADMAP_TASK_PRODUCT_STAGE_INVALID');
+  if (!TARGET_STAGES.has(String(packet.target_stage || ''))) fail('ROADMAP_TASK_TARGET_STAGE_INVALID');
   if (!Array.isArray(packet.non_goals) || packet.non_goals.length === 0) fail('ROADMAP_TASK_NON_GOALS_INVALID');
   if (String(packet.cost_class || '') !== 'FREE_ONLY') fail('ROADMAP_TASK_COST_CLASS_INVALID');
   if (!Array.isArray(packet.acceptance) || packet.acceptance.length === 0) fail('ROADMAP_TASK_ACCEPTANCE_INVALID');
   if (!Array.isArray(packet.evidence_required) || packet.evidence_required.length === 0) fail('ROADMAP_TASK_EVIDENCE_INVALID');
+  const expectedGates = packet.work_class === 'user_facing'
+    ? ENGINEERING_DELIVERY_GATES.concat(PRODUCT_READY_GATE)
+    : ENGINEERING_DELIVERY_GATES;
   if (!Array.isArray(packet.required_delivery_gates)
-      || JSON.stringify(packet.required_delivery_gates) !== JSON.stringify(REQUIRED_DELIVERY_GATES)) {
+      || JSON.stringify(packet.required_delivery_gates) !== JSON.stringify(expectedGates)) {
     fail('ROADMAP_TASK_GATES_INVALID');
+  }
+  if (!String(packet.blocking_product_gate || '').trim()) fail('ROADMAP_TASK_PRODUCT_GATE_INVALID');
+  if (packet.work_class === 'user_facing' && String(packet.blocking_product_gate).toLowerCase() === 'n/a') {
+    fail('ROADMAP_TASK_PRODUCT_GATE_INVALID');
   }
   if (packet.one_active_writer !== true) fail('ROADMAP_TASK_WRITER_POLICY_INVALID');
   const branchPattern = new RegExp(`^agent/${packet.roadmap_id}-[a-z0-9][a-z0-9-]{1,63}$`);
@@ -248,6 +324,15 @@ function validateLifecycleTransition(from, to, evidence) {
     const proof = evidence && typeof evidence === 'object' ? evidence : {};
     const required = ['prValidation', 'trustedDevDeploy', 'trustedRuntimeHealth', 'autonomousMerge', 'mainVerification'];
     if (!required.every((key) => String(proof[key] || '') === 'PASS')) fail('ROADMAP_DONE_EVIDENCE_INCOMPLETE');
+    const workClass = String(proof.workClass || '');
+    if (!WORK_CLASSES.has(workClass)) fail('ROADMAP_DONE_WORK_CLASS_INVALID');
+    if (workClass === 'engineering') {
+      if (String(proof.targetStage || '') !== 'DONE_ENGINEERING') fail('ROADMAP_DONE_TARGET_INVALID');
+    } else if (String(proof.targetStage || '') !== 'DONE'
+      || String(proof.productStage || '') !== 'PRODUCT_READY'
+      || String(proof.productReadyE2E || '') !== 'PASS') {
+      fail('ROADMAP_PRODUCT_DONE_EVIDENCE_INCOMPLETE');
+    }
   }
   return true;
 }
@@ -277,6 +362,8 @@ if (require.main === module) main();
 
 module.exports = {
   TASK_SCHEMA,
+  ENGINEERING_DELIVERY_GATES,
+  PRODUCT_READY_GATE,
   REQUIRED_DELIVERY_GATES,
   PRIORITY_ORDER,
   normalizeRoadmapItem,
@@ -284,6 +371,7 @@ module.exports = {
   stateIndex,
   dependencyEvidence,
   dependenciesDone,
+  requiredDeliveryGates,
   compareReadyItems,
   assertPublicSafe,
   buildTaskPacket,

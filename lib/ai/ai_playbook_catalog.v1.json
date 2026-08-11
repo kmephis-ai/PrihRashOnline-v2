@@ -19,7 +19,7 @@
     "docs/ROADMAP.md",
     "live GitHub Issues",
     "exact-SHA code/tests/workflows/machine evidence",
-    "PRH_ROADMAP_TASK_V1",
+    "PRH_ROADMAP_TASK_V2",
     "PRH_MULTI_AI_REVIEW_V1",
     "FIN-TRUTH-v1",
     "PRH_TEST_ARCHITECTURE_V1@1.0.0",
@@ -44,7 +44,7 @@
       "ordered_steps": ["LOAD_AUTHORITY","RESOLVE_TASK","VERIFY_ONE_WRITER","IMPLEMENT_SCOPE","RUN_MACHINE_GATES","RECOVER_RED_IN_SAME_ITEM","FREEZE_EXACT_SHA","FOLLOW_TRUSTED_CHAIN","VERIFY_MAIN","RESOLVE_NEXT"],
       "stop_conditions": ["MULTIPLE_ACTIVE_WRITERS","DEPENDENCY_NOT_DONE","POLICY_GATED_ACTION_REQUIRES_OWNER","PRIVATE_DATA_REQUIRED_IN_PUBLIC_CONTEXT","UNRESOLVED_RED_GATE"],
       "outputs": ["roadmap_id","issue_number","branch","pr_number","candidate_sha","machine_evidence","main_verification"],
-      "required_markers": ["PRH_ROADMAP_TASK_V1","один active writer","same Roadmap item","red machine gate","Main Verification","FREE_ONLY"],
+      "required_markers": ["PRH_ROADMAP_TASK_V2","один active writer","same Roadmap item","red machine gate","Main Verification","FREE_ONLY"],
       "min_cyrillic_letters": 180,
       "max_bytes": 10000
     },

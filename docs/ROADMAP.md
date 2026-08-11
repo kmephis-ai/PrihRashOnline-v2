@@ -1,9 +1,9 @@
-# PrihRashOnline-v2 — Executable GitHub Roadmap v2.3
+# PrihRashOnline-v2 — Executable GitHub Roadmap v2.4
 
-Дата: 2026-08-09  
-Источник решений: `Master Audit v2.1` + `Analytics-first Finance OS` + согласованный Ghostfolio product/architecture benchmark  
+Дата: 2026-08-11
+Источник решений: `Master Audit v2.1` + независимый `Product/Runtime Forensic Audit 2026-08-11` + согласованный владельцем Product Recovery rebaseline
 Назначение: публично-безопасный исполняемый backlog для GitHub  
-Статус документа: FINAL / EXECUTABLE / ANALYTICS-FIRST / GHOSTFOLIO-BENCHMARK EXTENSION
+Статус документа: APPROVED / EXECUTABLE / PRODUCT-RECOVERY-FIRST
 
 ## 1. Контракт Roadmap
 
@@ -31,12 +31,30 @@ Roadmap является единственным публичным источ�
 | ANALYTICS-FIRST | Финансовый смысл задаётся canonical domain/KPI/semantic layer; dashboard/chart не содержит собственной альтернативной бизнес-логики. Новые аналитические возможности проектируются как комбинации measures/dimensions/filters/time, а не как набор hard-coded отчётов. |
 | SIMPLE-BY-DEFAULT | Повседневный интерфейс остаётся простым; `Analytics/Studio/Expert` раскрываются progressive disclosure и не являются обязательными для базового домашнего бюджетирования. |
 | VIZ-PORTABLE | Визуализации получают данные через versioned `AnalyticsQuery/AnalyticsResult` и renderer-neutral `ChartSpec`; сохранённые dashboard specs не содержат фактических финансовых payload. |
+| PRODUCT-EVIDENCE | User-facing `DONE` требует authenticated deployed browser journey на exact candidate SHA, sanitized product evidence и blocking Product Ready gate; synthetic/file-local/contracts/render-smoke/exact-SHA identity по отдельности недостаточны. |
 | LANG-RU | **Русский язык — единственный нормативный язык человеческой части проекта:** README, Roadmap, ADR, Issues, PR/commit descriptions, Release Notes, CHANGELOG, runbooks, AI context/prompts/playbooks, пользовательская документация и поясняющие domain-комментарии ведутся на русском. Английский сохраняется для machine-facing identifiers, API/schema fields, имён библиотек/протоколов/стандартов и технических путей/branch slug там, где этого требует tooling. |
 | REF-CLEANROOM | Внешние open-source проекты используются как product/architecture benchmark. Их идеи и паттерны переосмысливаются независимо; исходный код с несовместимой/обязывающей лицензией не копируется в PrihRashOnline без отдельного ADR и явного license review. |
 
 ### 1.2. Жизненный цикл единицы работы
 
-`BACKLOG -> READY -> IN_PROGRESS -> PR_OPEN -> DEV_VERIFIED -> DONE`
+Engineering lifecycle:
+
+`BACKLOG -> READY -> IN_PROGRESS -> PR_OPEN -> DEV_VERIFIED -> CODE_COMPLETE -> DONE_ENGINEERING`
+
+Product lifecycle для `work_class=user_facing`:
+
+`CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`
+
+GitHub Issue сохраняет совместимый execution `status` (`BACKLOG | READY | IN_PROGRESS | BLOCKED | DONE`), но отдельно и обязательно содержит:
+
+- `work_class: engineering | user_facing`;
+- `engineering_status`;
+- `product_stage`;
+- `target_stage: DONE_ENGINEERING | DONE`.
+
+`DONE_ENGINEERING` подтверждает code/contracts/tests в объявленном engineering scope. Он не означает working product и не удовлетворяет dependency, которая явно требует `PRODUCT_READY`.
+
+Для user-facing work `DONE` недоступен без exact-candidate status `product-ready-e2e=success`, `product_stage=PRODUCT_READY` и sanitized evidence authenticated deployed flow.
 
 Допустимое исключение: `BLOCKED`. Оно выставляется только при наличии machine-readable evidence: failed dependency, failed invariant, quota/cost circuit breaker, unavailable provider или irreversible-action policy gate.
 
@@ -45,17 +63,20 @@ Roadmap является единственным публичным источ�
 - одна canonical work item = один GitHub Issue с ID из этой Roadmap;
 - branch: `agent/<ID>-<slug>`;
 - PR title: `[<ID>] <result>`;
-- PR закрывает Issue только после всех acceptance checks;
-- зависимости считаются выполненными только при `DONE` всех `depends_on`;
+- PR закрывает Issue только после acceptance checks объявленного `work_class` и stage-specific evidence;
+- обычные engineering dependencies считаются выполненными при `status=DONE`; dependencies, объявленные через `depends_on_product_ready`, требуют `product_stage=DONE` соответствующего user-facing item;
 - status Roadmap выводится автоматически из GitHub Issues/PR/checks, а не редактируется вручную;
 - колонка `Status` в таблицах этого документа задаёт только исходное/плановое состояние; для Autopilot и lifecycle текущее состояние GitHub Issue всегда имеет приоритет над табличным значением, даже если документ ещё не пересобран;
 - public CI evidence содержит только synthetic results и технический PASS/FAIL;
 - private source/canonical reconciliation публикует наружу только итог gate, без real-derived значений.
+- private Web App URL/locator не публикуется: product gate сохраняет только exact SHA, route/status/timing distribution и sanitized PASS/FAIL artifact;
 - human-readable Issue/PR/commit/release text ведётся на русском; допустимы технические английские ID/prefix (`[FIN-010]`, `feat:`, API names) с русским смысловым описанием.
 
 ### 1.4. Product contract — `Analytics-first Finance OS`
 
 Целевая идентичность PrihRashOnline-v2: **простой семейный финансовый центр сверху и глубокая персональная BI/OLAP-платформа внутри**. Масштаб аналитики является конкурентным преимуществом, но сложность всегда опциональна.
+
+После rebaseline пользовательский outcome имеет приоритет над количеством реализованных contracts. `Architecture complete`, `Runtime integrated`, `Functional` и `Product Ready` — разные состояния и не сворачиваются в один процент.
 
 Уровни интерфейса:
 
@@ -151,7 +172,73 @@ Roadmap является единственным публичным источ�
 | PROF-020 | P2 | DESIGN-020 | Household/preferences center | family member/profile/preferences/accessibility settings separated from financial domain | BACKLOG |
 | PWA-020 | P1 | HOME-020,TX-020 | Installable PWA baseline | install manifest, responsive offline shell/read cache policy, update strategy, private-cache safety tests | BACKLOG |
 
-## 5. Wave R3 — Planning, Wealth, Decision Intelligence
+## 5. Wave R2R — Product Recovery
+
+Цель: превратить накопленную engineering architecture в быстрый, честно доступный и реально работающий private household product. R2R имеет абсолютный product priority над дальнейшим R9/R10 feature expansion.
+
+| ID | Priority | depends_on | Deliverable | Product acceptance / evidence | Status |
+|---|---|---|---|---|---|
+| GOV-REC-001 | P0 | — | Product lifecycle и evidence governance | Roadmap/task protocol/Main Verification различают `engineering` и `user_facing`; synthetic-only evidence не закрывает user-facing Issue; R2R и Product status matrix canonical | IN_PROGRESS |
+| UI-REC-001 | P0 | GOV-REC-001 | Truthful canonical navigation | R2 Home остаётся default; primary nav показывает только `runtime_private_data=true`; Legacy — явный rollback; owner-authenticated desktop/mobile route evidence | BACKLOG |
+| PERF-REC-001 | P0 | GOV-REC-001 | Live Apps Script baseline + revision snapshot | не менее 20 cold/20 warm samples; phase/read counters; один logical canonical snapshot на revision; PERF-011/012 реально подключены; cache invalidation/parity доказаны | BACKLOG |
+| DATA-REC-001 | P0 | UI-REC-001,PERF-REC-001 | Private Transactions + Data Quality | private canonical rows/filters/drill и DQ scan работают на одном snapshot; no writes; loading/empty/error; deployed authenticated journey | BACKLOG |
+| FIN-REC-001 | P0 | DATA-REC-001 | Private Expenses/Income/Cash Flow | общий period/filter state; FIN parity; meaningful trend/compare/drill; no duplicated formulas; deployed authenticated E2E | BACKLOG |
+| PLAN-REC-001 | P1 | GOV-REC-001,DATA-REC-001 | Budget/Obligations/Liquidity authorities | approved source/schema/ownership; real private setup/empty/drill flows; отсутствующий balance source не маскируется под KPI | BACKLOG |
+| VIZ-REC-001 | P1 | FIN-REC-001,PLAN-REC-001 | Local ECharts adapter + household visual redesign | pinned local renderer реально выполняет ChartSpec; 6+ period cash-flow или honest insufficient-data; Top-N+Other; responsive/a11y/table fallback; owner UAT | BACKLOG |
+| E2E-REC-001 | P0 | UI-REC-001,PERF-REC-001,DATA-REC-001,FIN-REC-001,PLAN-REC-001,VIZ-REC-001 | Authenticated deployed Product gate | exact-SHA owner-authenticated route journey; filters/drills/back-forward/empty/error/privacy; cold/warm distribution; zero hangs; sanitized evidence | BACKLOG |
+| STUDIO-REC-001 | P2 | E2E-REC-001 (`depends_on_product_ready`) | Bind existing R7/R8/VIZ-090 to private runtime | private query -> bound widget -> save -> reload -> restore -> drill; query budget/cache/privacy/a11y; no `UNBOUND` within accepted scope | BACKLOG |
+
+### R2R gates
+
+- `MASTER-GREC-0 / GOVERNANCE-READY`: `GOV-REC-001 = DONE_ENGINEERING`.
+- `MASTER-GREC-1 / CANONICAL-UI-SAFE`: `UI-REC-001 = PRODUCT_READY`.
+- `MASTER-GREC-2 / RUNTIME-SLO-BASELINED`: `PERF-REC-001 = DONE_ENGINEERING` и owner-authenticated baseline PASS.
+- `MASTER-GREC-3 / PRIVATE-DETAIL-READY`: `DATA-REC-001 = PRODUCT_READY`.
+- `MASTER-GREC-4 / DAILY-FINANCE-READY`: `FIN-REC-001 = PRODUCT_READY`.
+- `MASTER-GREC-5 / PLANNING-DATA-READY`: `PLAN-REC-001 = PRODUCT_READY`.
+- `MASTER-GREC-6 / VISUAL-READY`: `VIZ-REC-001 = PRODUCT_READY`.
+- `MASTER-GUX / PRODUCT-READY`: все `MASTER-GREC-1..6` PASS и `E2E-REC-001 = DONE`.
+- `MASTER-GSTUDIO / STUDIO-READY`: `MASTER-GUX + STUDIO-REC-001 = DONE`.
+
+### MASTER-GUX blocking evidence
+
+`MASTER-GUX` невозможно пройти только unit/contracts/synthetic/file-local/browser markers. Обязательны:
+
+1. owner-authenticated canonical Web App exact candidate SHA;
+2. advertised routes используют approved private authorities;
+3. полный `Home -> Transactions -> Expenses -> Income -> Cash Flow -> Budget -> Obligations -> Data Quality` journey;
+4. FIN parity summary/detail и no-write/no-leak evidence;
+5. cold/warm timing distribution и zero-hang criterion, а не единичный `latencyMs`;
+6. empty/malformed/source-unavailable/cache-invalidation recovery;
+7. desktop/mobile UAT, useful charts и отсутствие internal contract vocabulary;
+8. sanitized artifacts без private values, labels, identifiers или Web App locator.
+
+До первой live baseline действуют provisional SLO: cold first usable p95 ≤ 8 s, warm Home p95 ≤ 3 s, warm route switch p95 ≤ 2 s, zero hangs > 15 s. После baseline пороги изменяются только явным owner-approved Roadmap decision.
+
+### Product status matrix после forensic rebaseline
+
+| ID/group | Engineering status | Product status | Recovery/action |
+|---|---|---|---|
+| R0 + FIN/DATA/ARCH core | DONE | FOUNDATION_READY | KEEP DONE |
+| OBS-010 | DONE_ENGINEERING | NOT_OPERATING_SLO | PERF-REC-001/E2E-REC-001 |
+| PERF-010 | CODE_COMPLETE | PARTIALLY_INTEGRATED | PERF-REC-001 |
+| PERF-011/012/013/070 | DONE_ENGINEERING | BLOCKED_INTEGRATION | PERF-REC-001 |
+| PERF-014 | DONE_ENGINEERING | SYNTHETIC_GATE_ONLY | KEEP; no product credit |
+| DESIGN-020/HOME-020 | DONE_ENGINEERING | PARTIAL_PRODUCT | UI/PERF/VIZ recovery |
+| TX/EXP/INC/CF/BUD/OBL/DQ-020 | DONE_ENGINEERING | BLOCKED_INTEGRATION | DATA/FIN/PLAN recovery |
+| UI-MIG-020 | HISTORICAL_DONE | SUPERSEDED_PRODUCT_CLAIM | UI-REC-001 |
+| PROF-020/PWA-020 | DONE_ENGINEERING | NOT_CANONICAL | defer until reprioritized |
+| R3 implemented items | DONE_ENGINEERING | NOT_INTEGRATED | post-GUX planning backlog |
+| R7 all items | DONE_ENGINEERING | ENGINE_READY_NOT_PRODUCT | STUDIO-REC-001 |
+| STUDIO-080/DASH-080..086/VIZ-070 | DONE_ENGINEERING | BLOCKED_INTEGRATION | STUDIO-REC-001 |
+| PRIV-080 | NARROW_RUNTIME_SCOPE_DONE | NEEDS_DEPLOYED_E2E | E2E/STUDIO recovery |
+| MASTER-G8-ENGINEERING | ENGINEERING_PASS | SUPERSEDED_PRODUCT_GATE | MASTER-GSTUDIO |
+| VIZ-090 | DONE_ENGINEERING | NOT_RENDERED_NOT_BOUND | VIZ/STUDIO recovery |
+| ANL-090 | CODE_COMPLETE candidate | PAUSED_REBASELINE | resume only after MASTER-GSTUDIO decision |
+
+Исторические закрытые Issues не переоткрываются массово: их GitHub lifecycle сохраняется, а Product status и recovery link фиксируют фактическую зрелость без переписывания истории.
+
+## 6. Wave R3 — Planning, Wealth, Decision Intelligence
 
 | ID | Priority | depends_on | Deliverable | Machine DoD / evidence | Status |
 |---|---|---|---|---|---|
@@ -164,7 +251,7 @@ Roadmap является единственным публичным источ�
 | FX-030 | P2 | FIN-010 | Multi-currency layer | transaction currency/base currency/rate provenance; reproducible historical conversion; no paid rate API requirement | BACKLOG |
 | RISK-030 | P2 | NW-030,PROJ-030 | Liquidity & financial risk | emergency runway/scenario indicators use documented KPI definitions and explainable inputs | BACKLOG |
 
-## 6. Wave R4 — Yandex Cloud Shadow Platform and Cutover
+## 7. Wave R4 — Yandex Cloud Shadow Platform and Cutover
 
 Цель: перенести canonical backend без big-bang migration. Google остаётся adapter/bridge до доказанной parity. Любой cloud workload обязан удовлетворять `ZERO-COST` policy.
 
@@ -178,7 +265,7 @@ Roadmap является единственным публичным источ�
 | YC-044 | P1 | YC-043,DR-001 | Controlled canonical cutover | backup + rollback checkpoint; parity/SLO/free-only gates green; write ownership changes exactly once and is auditable | BACKLOG |
 | YC-045 | P2 | YC-044 | Google backend retirement/bridge mode | legacy writes disabled; export/restore retained; remaining bridge responsibilities documented and tested | BACKLOG |
 
-## 7. Wave R5 — Data Science
+## 8. Wave R5 — Data Science
 
 Все DS-функции строятся поверх canonical dataset и могут быть отключены без потери core budgeting. Обязательной платной ML-инфраструктуры нет.
 
@@ -192,7 +279,7 @@ Roadmap является единственным публичным источ�
 | DS-055 | P2 | DS-050,DS-051,DS-052 | Model evaluation registry | dataset/model/schema versions; metrics; drift signals; deterministic reproduction metadata | BACKLOG |
 | DS-056 | P2 | DS-055,OBS-010 | Model drift/quality monitoring | non-sensitive aggregate quality telemetry; thresholds disable degraded optional model safely | BACKLOG |
 
-## 8. Wave R6 — Private AI Assistance and Optional Intelligence
+## 9. Wave R6 — Private AI Assistance and Optional Intelligence
 
 | ID | Priority | depends_on | Deliverable | Machine DoD / evidence | Status |
 |---|---|---|---|---|---|
@@ -202,7 +289,7 @@ Roadmap является единственным публичным источ�
 | AI-063 | P3 | AI-060,SEC-002,FINOPS-001 | AI privacy/cost policy | provider allowlist, data minimization, budget=free-only by default, kill switch, audit events without financial payload | BACKLOG |
 | OCR-060 | P3 | TX-020 | Receipt capture/OCR | local/free-first OCR; parsed result is proposal; canonical validation before any save | BACKLOG |
 
-## 9. Wave R7 — Semantic Analytics & Exploration
+## 10. Wave R7 — Semantic Analytics & Exploration
 
 Цель: превратить canonical finance core в универсальный аналитический движок. Пользователь должен комбинировать период, measure, dimension, filter и comparison без появления отдельной hard-coded функции под каждый новый отчёт. R7 не требует завершения Yandex cutover, Data Science или AI, если явная dependency ниже отсутствует.
 
@@ -219,18 +306,18 @@ Roadmap является единственным публичным источ�
 | PERF-070 | P1 | PERF-014,ANL-073 | Analytics query planner + cache | query fingerprint включает semantic/query/data revision; compatible aggregates переиспользуются; stale requests cancel/discard; versioned synthetic cold/warm interaction budgets green | BACKLOG |
 | TEST-070 | P1 | ANL-071,ANL-072,ANL-073,ANL-074,SCOPE-070,BENCH-070,PERF-070 | Combinatorial analytics regression gate | seeded generator перебирает representative periods/dimensions/filters/scopes/comparisons/benchmarks; invariants, query determinism, cache parity и privacy checks обязательны для analytics PR | BACKLOG |
 
-### R7 exit gate — `MASTER-G7 / Semantic analytics`
+### R7 engineering gate — `MASTER-G7-ENGINEERING / Semantic engine CODE_COMPLETE`
 
-`ANL-070 + SCOPE-070 + ANL-071 + ANL-072 + BENCH-070 + ANL-073 + ANL-074 + PERF-070 + TEST-070 = DONE`; произвольные поддержанные комбинации аналитики воспроизводимы, canonical-correct и не требуют отдельного dashboard-specific calculation code.
+`ANL-070 + SCOPE-070 + ANL-071 + ANL-072 + BENCH-070 + ANL-073 + ANL-074 + PERF-070 + TEST-070 + VIZ-070 = DONE_ENGINEERING`; pure semantic engine воспроизводим и canonical-correct. Gate не утверждает deployed private query/UI integration.
 
-## 10. Wave R8 — Analytics Studio & Dashboard Composer
+## 11. Wave R8 — Analytics Studio & Dashboard Composer
 
 Цель: дать пользователю профессиональную BI-глубину без ухудшения простого ежедневного UX. `Studio/Expert` является opt-in режимом; curated default dashboards сохраняются.
 
 | ID | Priority | depends_on | Deliverable | Machine DoD / evidence | Status |
 |---|---|---|---|---|---|
-| STUDIO-080 | P2 | MASTER-G7,DESIGN-020 | Progressive Analytics Studio shell | `Daily -> Explore -> Studio` раскрывается без дублирования domain logic; mode preference обратима; mobile/tablet/desktop + keyboard/a11y smoke green | BACKLOG |
-| PRIV-080 | P2 | MASTER-G7,DESIGN-020,SEC-002,PROF-020 | Режимы приватности / ограниченный / демо / дзен | presentation/query visibility policy поддерживает full, percentage/restricted и hidden-value views; sensitive values редактируются до response/render boundary, а не только CSS; Demo использует synthetic adapter без private dataset; Zen скрывает secondary UI без изменения данных; cache/screenshot/visual privacy tests green | BACKLOG |
+| STUDIO-080 | P2 | MASTER-G7-ENGINEERING,DESIGN-020 | Progressive Analytics Studio shell | `Daily -> Explore -> Studio` раскрывается без дублирования domain logic; mode preference обратима; mobile/tablet/desktop + keyboard/a11y smoke green | BACKLOG |
+| PRIV-080 | P2 | MASTER-G7-ENGINEERING,DESIGN-020,SEC-002,PROF-020 | Режимы приватности / ограниченный / демо / дзен | presentation/query visibility policy поддерживает full, percentage/restricted и hidden-value views; sensitive values редактируются до response/render boundary, а не только CSS; Demo использует synthetic adapter без private dataset; Zen скрывает secondary UI без изменения данных; cache/screenshot/visual privacy tests green | BACKLOG |
 | DASH-080 | P2 | STUDIO-080,VIZ-070 | Responsive grid dashboard composer | add/move/resize/duplicate/remove widgets; responsive layouts versioned; invalid overlap/layout repaired deterministically; visual regression green | BACKLOG |
 | DASH-081 | P2 | DASH-080,ANL-073 | Widget factory + semantic bindings | widget связывает `AnalyticsQuery` и `ChartSpec`; KPI/card/chart/table/pivot widgets используют единый registry; broken bindings дают объяснимую validation error | BACKLOG |
 | DASH-082 | P2 | DASH-081,ANL-074 | Global filters, cross-filter and brush | click/selection/brush одного widget изменяет только разрешённый shared filter context; циклы событий предотвращены; reset/back state reproducible; interaction tests green | BACKLOG |
@@ -239,47 +326,47 @@ Roadmap является единственным публичным источ�
 | DASH-085 | P2 | DASH-081,DESIGN-020 | Wide visual customization | theme/light/dark, palette, chart type, axes, labels, legend, stack, sort, Top-N, number format и density используют design tokens/semantic constraints; accessibility fallback green | BACKLOG |
 | DASH-086 | P2 | DASH-084,DASH-085,SEC-002 | Safe dashboard spec import/export | versioned JSON schema + migration; export содержит layout/query/config IDs, но не transaction rows/financial values; hostile/invalid spec rejected; privacy scan green | BACKLOG |
 
-### R8 exit gate — `MASTER-G8 / Analytics Studio`
+### R8 engineering gate — `MASTER-G8-ENGINEERING / Studio contracts CODE_COMPLETE`
 
-`STUDIO-080 + PRIV-080 + DASH-080 + DASH-081 + DASH-082 + DASH-083 + DASH-084 + DASH-085 + DASH-086 = DONE`; пользователь может собрать, сохранить и восстановить собственный responsive dashboard, не изменяя canonical financial semantics, а приватное/демонстрационное представление не раскрывает реальные финансовые значения.
+`STUDIO-080 + PRIV-080 + DASH-080 + DASH-081 + DASH-082 + DASH-083 + DASH-084 + DASH-085 + DASH-086 = DONE_ENGINEERING`; contracts/shells/configuration boundaries завершены. Работающий private Studio утверждается только `MASTER-GSTUDIO`.
 
-## 11. Wave R9 — Advanced Financial Analytics & Visual Intelligence
+## 12. Wave R9 — Advanced Financial Analytics & Visual Intelligence — FROZEN
 
-Цель: дать PrihRashOnline уровень визуального и аналитического исследования, заметно превосходящий типичное приложение домашнего бюджета. Каждая сложная визуализация обязана иметь содержательный финансовый use case, deterministic data contract и доступный табличный fallback.
+Цель после `MASTER-GSTUDIO`: дать PrihRashOnline глубокое визуальное исследование. До Product Recovery новые R9 writers запрещены; ANL-090/PR #218 сохраняются `PAUSED_REBASELINE`.
 
 | ID | Priority | depends_on | Deliverable | Machine DoD / evidence | Status |
 |---|---|---|---|---|---|
-| VIZ-090 | P2 | MASTER-G8,VIZ-070 | Advanced visualization pack | line/area, grouped/stacked/100% bar, waterfall, Sankey, treemap/sunburst, calendar/matrix heatmap, Pareto, scatter/bubble, histogram/box/violin, small multiples и bullet/KPI templates имеют semantic compatibility rules + synthetic golden tests | BACKLOG |
-| ANL-090 | P2 | MASTER-G7,VIZ-090 | Contribution and change decomposition | period delta раскладывается по категориям/счетам/участникам/проектам/tags; contributions reconcile до canonical total; waterfall/driver views drill-through to evidence | BACKLOG |
-| ANL-091 | P2 | MASTER-G7,VIZ-090 | Seasonality, distribution and concentration | calendar/weekday/month seasonality, percentiles/distribution, Pareto/ABC и concentration metrics versioned; edge cases и sparse periods tested | BACKLOG |
+| VIZ-090 | P2 | MASTER-G8-ENGINEERING,VIZ-070 | Advanced visualization pack | semantic compatibility contracts + synthetic golden tests; actual renderer/private integration принадлежит VIZ-REC/STUDIO-REC | DONE_ENGINEERING |
+| ANL-090 | P2 | MASTER-GSTUDIO,VIZ-090 | Contribution and change decomposition | engineering candidate сохранён в draft PR #218; execution paused до отдельного post-GSTUDIO decision | BLOCKED |
+| ANL-091 | P2 | MASTER-GSTUDIO,VIZ-090 | Seasonality, distribution and concentration | calendar/weekday/month seasonality, percentiles/distribution, Pareto/ABC и concentration metrics versioned; edge cases и sparse periods tested | BACKLOG |
 | XRAY-090 | P2 | ANL-090,ANL-091,RISK-030,BAL-030,SCOPE-070 | Финансовый рентген семьи | versioned deterministic rule registry выдаёт typed findings с severity/score, threshold/version, explanation и evidence query; baseline покрывает emergency-fund coverage/runway, savings stability, income dependence, mandatory-spend/budget pressure, recurring commitments, cash-flow deficits и concentration/trend risks; missing-data state explicit; каждый finding drill-through; LLM не требуется; synthetic rule/golden tests green | BACKLOG |
 | ANL-092 | P3 | ANL-073,VIZ-090 | Relationship/correlation explorer | scatter/correlation matrix поддерживает выбранные numeric measures; sample size/missing-data semantics explicit; UI не формулирует correlation как causation | BACKLOG |
 | DS-090 | P3 | DS-051,DS-052,VIZ-090 | Forecast/anomaly visual overlays | forecast bands/anomaly markers получают model/version/confidence provenance; отключение DS не ломает base chart; degraded model скрывается согласно quality policy | BACKLOG |
 | DASH-090 | P2 | ANL-090,ANL-091,XRAY-090,DASH-084 | Expert dashboard gallery | curated advanced presets демонстрируют cash-flow decomposition, spending drivers, seasonality, concentration, long-term trends, wealth/risk и Financial Health X-Ray; каждый preset редактируем/клонируем | BACKLOG |
-| PERF-090 | P1 | PERF-070,MASTER-G8,VIZ-090 | Studio-scale rendering/performance gate | lazy widget execution, virtualization/downsampling там где семантически безопасно, cancellation и render budgets проверяются на synthetic 20k/50k scale; hidden widgets не создают лишнюю query load | BACKLOG |
+| PERF-090 | P1 | PERF-070,MASTER-GSTUDIO,VIZ-090 | Studio-scale rendering/performance gate | lazy widget execution, virtualization/downsampling там где семантически безопасно, cancellation и render budgets проверяются на synthetic 20k/50k scale; hidden widgets не создают лишнюю query load | BACKLOG |
 
-### R9 exit gate — `MASTER-G9 / Advanced analytics`
+### R9 future engineering gate — `MASTER-G9-ENGINEERING / Advanced analytics`
 
-`VIZ-090 + ANL-090 + ANL-091 + XRAY-090 + DASH-090 + PERF-090 = DONE`. `ANL-092` и `DS-090` расширяют глубину, но не блокируют core advanced analytics и могут быть отключены без деградации базовой финансовой истины.
+Gate frozen до `MASTER-GSTUDIO`. Его будущий PASS подтверждает engineering completeness, но advertised capabilities получают product credit только через deployed E2E evidence.
 
-## 12. Wave R10 — Intelligent Analytics, Explanation & Storytelling
+## 13. Wave R10 — Intelligent Analytics, Explanation & Storytelling — FROZEN
 
 Цель: поверх детерминированной аналитики добавить объяснение и исследование естественным языком. ИИ никогда не является калькулятором финансовой истины: он получает уже вычисленные facts/query provenance и формирует объяснение либо валидируемое предложение.
 
 | ID | Priority | depends_on | Deliverable | Machine DoD / evidence | Status |
 |---|---|---|---|---|---|
-| INSIGHT-100 | P2 | MASTER-G9,XRAY-090,ANL-090,ANL-091 | Deterministic insight facts engine | X-Ray findings, top changes, contribution shifts, trend breaks, concentration/seasonality signals и DS signals при наличии формируются как typed facts с threshold/version/provenance; без LLM доступны те же numeric facts | BACKLOG |
+| INSIGHT-100 | P2 | MASTER-G9-ENGINEERING,MASTER-GSTUDIO,XRAY-090,ANL-090,ANL-091 | Deterministic insight facts engine | X-Ray findings, top changes, contribution shifts, trend breaks, concentration/seasonality signals и DS signals при наличии формируются как typed facts с threshold/version/provenance; без LLM доступны те же numeric facts | BACKLOG |
 | AI-100 | P3 | INSIGHT-100,AI-060,AI-063 | `Explain this` for current analytic context | AI получает только allowlisted computed facts + query metadata; ответ ссылается на period/filters/provenance; golden tests ловят fabricated totals/unsupported causal claims; provider optional under `FREE_ONLY` | BACKLOG |
-| AI-101 | P3 | MASTER-G7,AI-060,AI-063 | Natural-language to AnalyticsQuery proposal | natural-language request преобразуется только в schema-validated read-only query proposal; preview показывает interpreted filters/measures/period; arbitrary code/financial writes невозможны | BACKLOG |
-| AI-102 | P3 | MASTER-G8,AI-060,AI-063 | Dashboard Copilot proposal | AI предлагает diff к `DashboardSpec/ChartSpec`, а не мутирует finance data; schema/privacy/compatibility validation обязательна до apply; deterministic rollback to prior spec | BACKLOG |
-| STORY-100 | P3 | MASTER-G8,INSIGHT-100 | Analytical story/bookmarks | пользователь сохраняет последовательность reproducible views/filter contexts с annotations; story references queries/specs вместо копирования private dataset в public artifacts | BACKLOG |
+| AI-101 | P3 | MASTER-G7-ENGINEERING,MASTER-GSTUDIO,AI-060,AI-063 | Natural-language to AnalyticsQuery proposal | natural-language request преобразуется только в schema-validated read-only query proposal; preview показывает interpreted filters/measures/period; arbitrary code/financial writes невозможны | BACKLOG |
+| AI-102 | P3 | MASTER-GSTUDIO,AI-060,AI-063 | Dashboard Copilot proposal | AI предлагает diff к `DashboardSpec/ChartSpec`, а не мутирует finance data; schema/privacy/compatibility validation обязательна до apply; deterministic rollback to prior spec | BACKLOG |
+| STORY-100 | P3 | MASTER-GSTUDIO,INSIGHT-100 | Analytical story/bookmarks | пользователь сохраняет последовательность reproducible views/filter contexts с annotations; story references queries/specs вместо копирования private dataset в public artifacts | BACKLOG |
 | INSIGHT-101 | P3 | INSIGHT-100,DASH-090 | Prioritized insight feed | ranking объединяет deterministic materiality/novelty signals; dismiss/snooze/preferences локальны; каждое insight ведёт к explaining dashboard/drill path; public telemetry financial-payload-free | BACKLOG |
 
-### R10 exit gate — `MASTER-G10 / Intelligent analytics`
+### R10 future engineering gate — `MASTER-G10-ENGINEERING / Intelligent analytics`
 
 `INSIGHT-100 = DONE` является deterministic foundation. AI/Story items остаются optional intelligence: отсутствие бесплатного/разрешённого AI provider не блокирует budgeting, R7–R9 или доступ к вычисленным аналитическим facts.
 
-## 13. Required checks and gate ownership
+## 14. Required checks and gate ownership
 
 | Check | Blocks | Required evidence |
 |---|---|---|
@@ -300,22 +387,28 @@ Roadmap является единственным публичным источ�
 | `xray-rules` | Financial Health X-Ray changes | versioned rule thresholds, missing-data behavior, explanation/evidence links and deterministic golden findings green |
 | `ai-analytics-grounding` | R10 AI explanation/query changes | model consumes allowlisted computed facts/provenance; fabricated totals, unsupported write paths and unsafe query proposals fail golden/security tests |
 | `language-policy` | human-facing docs/meta changes | normative documentation, Issue/PR/Release/AI context text is Russian; machine-facing identifiers/standard names follow explicit allowlist |
-| `trusted-runtime-health` | release candidate | authenticated deployed exact-SHA health from trusted workflow |
+| `trusted-runtime-health` | release candidate | authenticated Execution API/exact-SHA engineering health; `not_product_e2e=true` до отдельного browser gate |
+| `product-ready-e2e` | every `work_class=user_facing` target `DONE` | owner-authenticated deployed browser journey, private binding, route/filter/drill/parity/SLO/privacy/UAT; sanitized artifact only |
 | `private-reconciliation` | migration/cutover/financial release | PASS only; no real-derived values leave private environment |
 | `backup-restore` | migration/cutover | backup verified and restore drill/checkpoint green |
 | `free-only` | cloud/AI changes | projected + observed usage below configured safety envelope; circuit breaker green |
 
-## 14. Issue template contract
+## 15. Issue template contract
 
 Каждый автоматически материализованный Roadmap Issue обязан иметь поля:
 
 ```yaml
 roadmap_id: <ID>
-wave: <R0..R10>
+wave: <R0..R10|R2R>
 priority: <P0..P3>
 status: BACKLOG
 language: ru
+work_class: <engineering|user_facing>
+engineering_status: <BACKLOG|IN_PROGRESS|CODE_COMPLETE|DONE_ENGINEERING>
+product_stage: <NOT_APPLICABLE|NOT_STARTED|CODE_COMPLETE|RUNTIME_INTEGRATED|REAL_E2E_VERIFIED|PRODUCT_READY|DONE>
+target_stage: <DONE_ENGINEERING|DONE>
 depends_on: [<ID>]
+depends_on_product_ready: [<ID>]
 goal: <one measurable outcome>
 non_goals: [<explicit exclusions>]
 data_touched: <synthetic|private-runtime|none>
@@ -325,13 +418,14 @@ acceptance:
   - <machine-verifiable condition>
 evidence:
   - <check/artifact name>
+blocking_product_gate: <n/a|MASTER-GUX|MASTER-GSTUDIO|other approved gate>
 rollback: <required for mutation/migration/deploy>
 observability: <SLI/log/metric or n/a>
 ```
 
-Issue automation должна отклонять work item без dependencies/acceptance/evidence и запрещать копирование приватных reconciliation details в issue/PR body.
+Issue automation должна отклонять work item без `work_class`/stage/dependencies/acceptance/evidence и запрещать копирование приватных reconciliation details, Web App locator или authenticated payload в issue/PR body. User-facing `DONE` без `product-ready-e2e=success` отклоняется fail-closed.
 
-## 15. GitHub automation target
+## 16. GitHub automation target
 
 Целевой набор бесплатных GitHub-возможностей:
 
@@ -353,73 +447,66 @@ Issue automation должна отклонять work item без dependencies/a
 
 Не использовать как постоянные gates: ручной SHA-marker, лимит числа commits в PR, snapshot-equality release branch, manual runtime approval, direct post-merge commits в `main`, self-hosted runner как обязательную инфраструктуру, отдельно оплачиваемый AI API/API-key GitHub Action при `FREE_ONLY`.
 
-## 16. Definition of Done проекта по стадиям
+## 17. Definition of Done проекта по стадиям
 
-### Safe autonomous development
+### Engineering foundation
 
-`MASTER-G0 + MASTER-G1 + MASTER-G2 = PASS`.
+`MASTER-G0 + MASTER-G1 + MASTER-G2 + MASTER-G3 = PASS` сохраняет proven safety, delivery, recoverability и canonical financial foundation.
 
-После этого агент может штатно выполнять обычные инженерные work items end-to-end без ручного approve, пока machine policies green.
+Engineering item получает `DONE_ENGINEERING`, когда acceptance/tests/docs/exact-SHA delivery/Main Verification green. Это не product readiness.
 
-### Canonical product foundation
+### Historical R2 engineering cutover
 
-`MASTER-G3 = PASS`.
+`UI-MIG-020 = HISTORICAL_DONE`: default route переключён на R2 Home. Это не доказывает работоспособность семи advertised Daily surfaces и superseded как product claim.
 
-После этого product/BI dashboards строятся только на canonical API/KPI Dictionary.
+### Canonical R2 Product Ready
 
-### Analytics-ready UI foundation
+`MASTER-GUX = PASS`.
 
-`MASTER-G3 = PASS` и `VIZ-020 = DONE`.
+Только после этого все advertised Daily surfaces private-bound, correctness/performance/UX verified и продукт можно называть работающим canonical Web App.
 
-После этого curated R2 dashboards и будущий Studio используют общий semantic/query/visualization contract вместо dashboard-specific financial calculations.
+### Semantic/Studio engineering capital
 
-### Canonical R2 Daily UI
+`MASTER-G7-ENGINEERING + MASTER-G8-ENGINEERING = PASS` означает, что semantic/query/dashboard contracts code-complete. Это не production Studio.
 
-`UI-MIG-020 = DONE`.
+### Analytics Studio Product Ready
 
-После этого private canonical Web App по default route использует новый R2 responsive shell и Financial Home, а curated R2 surfaces доступны из основной навигации; legacy Dashboard не является default и сохраняется только как ограниченный rollback path до подтверждённого post-cutover verification.
+`MASTER-GSTUDIO = PASS`.
 
-### Analytics Studio
-
-`MASTER-G7 + MASTER-G8 = PASS`.
-
-После этого arbitrary-period/dimension exploration, scopes/system tags, personal benchmarks, Pivot/OLAP, cross-filter/drill, Privacy/Demo/Zen и пользовательские dashboard specs считаются production-ready расширением, но остаются opt-in относительно `Daily` UX.
+Только после этого private query, bound widgets, save/restore и drill-through считаются поддерживаемым Studio product.
 
 ### Advanced analytics
 
-`MASTER-G9 = PASS`.
+Future `MASTER-G9-ENGINEERING` не даёт production claim автоматически. Каждая advertised capability требует deployed product evidence после `MASTER-GSTUDIO`.
 
-После этого advanced visualization/decomposition/seasonality/concentration, `Family Financial Health X-Ray` и expert presets входят в поддерживаемый аналитический слой. DS overlays остаются optional.
+### User-facing DONE rule
+
+`CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
+
+`contract tests`, synthetic Playwright, render smoke, exact-SHA health и Main Verification остаются необходимыми engineering gates, но не являются достаточными Product Ready evidence. Main Verification обязан требовать `product-ready-e2e=success` для `work_class=user_facing`.
 
 ### Cloud cutover
 
 `YC-044 = DONE` только при одновременно green: correctness parity, restore/rollback, SLO, authentication и `FREE_ONLY`.
 
-## 17. Приоритет исполнения
+## 18. Приоритет исполнения
 
 Порядок dependency-driven запуска:
 
-1. R0 tasks без зависимостей запускаются параллельно.
-2. Dependency engine переводит downstream задачи в `READY` автоматически.
-3. До `MASTER-G0` блокируются новые финансовые KPI/features.
-4. До `MASTER-G1` не считается завершённой автономизация delivery.
-5. До `MASTER-G2` блокируются full-history mutation и cloud cutover.
-6. До `MASTER-G3` блокируется перенос canonical write ownership в Yandex Cloud.
-7. `ANL-010` входит в `MASTER-G3`, а `VIZ-020` выполняется до dashboard work items R2: это небольшая обязательная цена за отсутствие крупного BI-рефакторинга позже.
-8. R2/R3 допускают параллельную UX-разработку после соответствующих gates; R5/R6 никогда не блокируют core budgeting.
-9. R7 может стартовать после `MASTER-G3 + VIZ-020`, не ожидая Yandex cutover, Data Science или AI; это основной post-core product track.
-10. `SCOPE-070` и `BENCH-070` входят в `MASTER-G7`: гибкие scopes/system tags и personal benchmarks являются частью semantic analytics, а не dashboard-specific hacks.
-11. R8 начинается после `MASTER-G7`; `PRIV-080` входит в `MASTER-G8`, чтобы Privacy/Restricted/Demo/Zen были системным свойством, а не косметическим CSS-режимом.
-12. R9 считается production-ready по `MASTER-G9`, включая deterministic `XRAY-090`; `DS-090` не входит в обязательный gate и gracefully отсутствует без DS models.
-13. R10 использует только deterministic facts/provenance; AI items зависят от `AI-060/AI-063`, остаются optional и не обходят `FREE_ONLY`.
-14. R4 cloud migration может идти параллельно analytics track после своих gates; смена backend не должна менять `AnalyticsQuery/Result` и dashboard specs.
-15. Ghostfolio остаётся benchmark, а не dependency: изменения upstream не меняют Roadmap автоматически и принимаются только через отдельный audit/ADR/work item.
-16. `LANG-RU` действует немедленно для всей новой human-facing разработки; `DOC-002` нормализует исторические нормативные материалы отдельным non-critical-path item; английские machine identifiers не считаются нарушением политики.
-17. `UI-MIG-020` — P1 R2 switch-over item: после готовности declared dependencies он должен перевести canonical private Web App на уже реализованные R2 surfaces до возврата resolver к готовым P2 product/Studio work; наличие текущего active writer не обходится — AIENG-002 сначала завершает его штатный lifecycle.
+1. `R2R` имеет абсолютный product priority над R5/R6/R9/R10 и любыми новыми P2/P3 UI/analytics work items.
+2. `GOV-REC-001` — единственный active writer; после `MASTER-GREC-0` параллельно READY только `UI-REC-001` и `PERF-REC-001`, при сохранении one-writer execution.
+3. `ANL-090` Issue #217 остаётся `BLOCKED / PAUSED_REBASELINE`, PR #218 — draft; код не удаляется и не merge до post-`MASTER-GSTUDIO` decision.
+4. `MASTER-GUX` разблокирует working Daily product; только затем `STUDIO-REC-001`; `MASTER-GSTUDIO` разблокирует дальнейшие R9/R10 features.
+5. `MASTER-G7-ENGINEERING` и `MASTER-G8-ENGINEERING` остаются reusable engineering capital и не удовлетворяют Product Ready dependency.
+6. R4 cloud work может продолжаться только если не забирает critical Recovery capacity и не меняет Google canonical ownership; YC-041/042 сохраняют owner blockers.
+7. R5/R6/R9/R10 feature expansion frozen до соответствующего product gate.
+8. `LANG-RU`, `FREE_ONLY`, `DATA-PUBLIC`, `FIN-TRUTH`, `MYSELF`, exact-SHA delivery и recovery policies не ослабляются Recovery Wave.
+9. Ghostfolio остаётся benchmark, а не dependency; изменения принимаются только отдельным audit/ADR/work item.
+10. Dependency resolver не может трактовать `DONE_ENGINEERING` как `PRODUCT_READY`, если downstream объявляет `depends_on_product_ready`.
 
 Эта Roadmap намеренно не содержит фактических финансовых значений или агрегатов исходной книги. Их evidence хранится только в приватном Master Audit/закрытом runtime и используется как PASS/FAIL gate.
 
-## 18. Change record — v2.2
+## 19. Change record — v2.2
 
 - Зафиксировано согласованное владельцем продуктовое направление `Analytics-first Finance OS`: **simple by default, deep by choice**.
 - В R1 добавлен `ANL-010`, а `PERF-013` сделан dimension-aware, чтобы будущая аналитика не зависела от набора hard-coded dashboard queries.
@@ -428,7 +515,7 @@ Issue automation должна отклонять work item без dependencies/a
 - Добавлены `MASTER-G7..G10` и analytics-specific machine checks.
 - Политики `ZERO-COST`, `DATA-PUBLIC`, `FIN-TRUTH`, автономный GitHub delivery и приватность финансовых данных сохранены без ослабления.
 
-## 19. Журнал изменений — v2.3
+## 20. Журнал изменений — v2.3
 
 - Зафиксирован `Ghostfolio` как внешний product/architecture benchmark, но не runtime/source-code dependency; добавлена clean-room/license boundary policy `REF-CLEANROOM`.
 - Добавлена обязательная `LANG-RU`: русский — единственный нормативный язык human-facing документации и разработки; `DOC-002` нормализует уже существующие нормативные материалы без изменения R0 exit gates; Issue template получил `language: ru`, required checks — `language-policy`.
@@ -440,9 +527,21 @@ Issue automation должна отклонять work item без dependencies/a
 - Число executable work items увеличено с **100 до 106**: пять Ghostfolio-inspired product items + один language-governance item `DOC-002`; R0 critical path, `FREE_ONLY`, `DATA-PUBLIC`, `FIN-TRUTH`, recovery/privacy и autonomous-delivery policies не ослаблены.
 - Исправлена фактическая последовательность AI Engineering: `AIENG-003` зависит от `AIENG-002`, чтобы Autopilot не запускал второй writer до завершения executable Roadmap-to-agent protocol; live lifecycle всегда берётся из GitHub Issues.
 
-## 20. Дополнение Roadmap — 2026-08-10
+## 21. Дополнение Roadmap — 2026-08-10
 
 - Добавлен `UI-MIG-020 / Canonical Web Dashboard -> R2 UI` с приоритетом **P1**. Он закрывает ранее явно оставленный разрыв между готовыми `DESIGN-020`/`VIZ-020`/curated R2 surfaces и фактическим default route текущего private Web App.
 - `UI-MIG-020` не создаёт новую financial semantics, storage/write authority или provider dependency: задача только переключает canonical navigation/render path на уже реализованные R2 contracts и сохраняет legacy Dashboard как ограниченный rollback route до post-cutover verification.
 - Для завершения обязательны authenticated exact-SHA Web App render smoke, responsive synthetic visual/interaction evidence и сохранение `MYSELF`, privacy, `FREE_ONLY` и действующих fail-closed write boundaries.
 - Текущее число executable work items Roadmap после дополнения: **107**.
+
+## 22. Product Recovery rebaseline — v2.4 / 2026-08-11
+
+- Независимый forensic audit на `main@82c3b4af5c4f06a0a8884a3c4d9fd9a1850aa623` установил разрыв между audited legacy 75/107 = 70,1% formal completion и приблизительно 25% overall Product Readiness; после добавления R2R формальный issue-count denominator даёт 75/116 = 64,7% и всё равно не является product metric.
+- Подтверждено: canonical private binding существует у Home, семь Daily routes fail-closed; R7/R8/VIZ-090 преимущественно engineering contracts/shells; current Main Verification не доказывает deployed browser journey.
+- Введён двухосевой lifecycle `engineering_status + product_stage`; user-facing `DONE` требует `product-ready-e2e=success`.
+- Добавлена Recovery Wave R2R из девяти bounded items и gates `MASTER-GREC-0..6`, `MASTER-GUX`, `MASTER-GSTUDIO`.
+- R2 Home остаётся canonical default, но UI-REC-001 должен скрыть неподключённые primary routes; Legacy остаётся emergency rollback.
+- `MASTER-G7`/`MASTER-G8` переименованы в engineering gates; их historical implementation сохраняется, production claims superseded.
+- R9/R10 frozen; ANL-090 Issue #217 переведён в `BLOCKED / PAUSED_REBASELINE`, PR #218 сохранён draft.
+- Foundation R0/R1, FIN-TRUTH, canonical data, ports/adapters, privacy, `FREE_ONLY`, exact-SHA delivery и recovery сохраняются без rewrite.
+- Roadmap теперь содержит **116 executable work items**: прежние 107 + 9 Product Recovery items.
