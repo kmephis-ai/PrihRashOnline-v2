@@ -11,17 +11,21 @@
  * - normalize through canonical `google_sheets_transaction_repository`;
  * - evaluate FIN/KPI/Home through canonical `financial_reconciliation`,
  *   `kpi_dictionary` and `financial_home` modules;
+ * - project current human-facing dimension labels to deterministic, machine-safe
+ *   read-only IDs without creating persistent identity authority;
  * - read explicit currency from existing `09 Настройки`;
  * - never write financial data and never use legacy total cells as truth.
  */
 var PRH_R2_FIN_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_R2_FIN_RUNTIME_BRIDGE_V1',
-  VERSION: '1.1.0',
+  VERSION: '1.2.0',
   CANONICAL_RUNTIME_SCHEMA: 'PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1',
   FINANCIAL_TRUTH_POLICY: 'FIN-TRUTH-v1',
   KPI_DICTIONARY_VERSION: '1.0.0',
   HOME_VIEW_SCHEMA: 'PRH_FINANCIAL_HOME_VIEW_V1',
+  DIMENSION_RESOLVER_SCHEMA: 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1',
   WRITE_AUTHORITY: false,
+  PERSISTENT_IDENTITY_AUTHORITY: false,
   UI_FINANCIAL_FORMULA_AUTHORITY: false,
   FINANCIAL_FORMULA_COPY: false,
   FREE_ONLY: true
@@ -57,36 +61,98 @@ function prhR2FinCurrency_() {
   return currency;
 }
 
-function prhR2FinIdentityResolver_(value) {
-  var normalized = String(value == null ? '' : value).trim();
-  if (!normalized) prhR2FinFail_('R2_RUNTIME_DIMENSION_EMPTY');
-  return normalized;
+function prhR2FinNormalizeDimensionLabel_(value) {
+  var display = String(value == null ? '' : value).trim().replace(/\s+/g, ' ');
+  if (!display) prhR2FinFail_('R2_RUNTIME_DIMENSION_EMPTY');
+  return Object.freeze({ display: display, normalized: display.toLowerCase() });
+}
+
+function prhR2FinSha256Hex_(value) {
+  var bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(value),
+    Utilities.Charset.UTF_8
+  );
+  if (!bytes || bytes.length !== 32) prhR2FinFail_('R2_RUNTIME_DIMENSION_HASH_INVALID');
+  return bytes.map(function(byte) {
+    var unsigned = byte < 0 ? byte + 256 : byte;
+    return ('0' + unsigned.toString(16)).slice(-2);
+  }).join('');
+}
+
+function prhR2FinCreateDimensionResolverState_() {
+  var byKind = {};
+  ['account', 'category', 'member', 'project'].forEach(function(kind) {
+    byKind[kind] = { normalized_by_id: {}, display_by_id: {} };
+  });
+
+  function resolver(kind) {
+    if (!Object.prototype.hasOwnProperty.call(byKind, kind)) {
+      prhR2FinFail_('R2_RUNTIME_DIMENSION_KIND_INVALID');
+    }
+    return function(value) {
+      var label = prhR2FinNormalizeDimensionLabel_(value);
+      var digest = prhR2FinSha256Hex_(
+        PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA + '|' + kind + '|' + label.normalized
+      );
+      var id = kind + ':' + digest;
+      var registry = byKind[kind];
+      if (Object.prototype.hasOwnProperty.call(registry.normalized_by_id, id) &&
+          registry.normalized_by_id[id] !== label.normalized) {
+        prhR2FinFail_('R2_RUNTIME_DIMENSION_HASH_COLLISION');
+      }
+      registry.normalized_by_id[id] = label.normalized;
+      if (!Object.prototype.hasOwnProperty.call(registry.display_by_id, id)) {
+        registry.display_by_id[id] = label.display;
+      }
+      return id;
+    };
+  }
+
+  return Object.freeze({
+    schema: PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA,
+    version: '1.0.0',
+    persistent_identity_authority: false,
+    resolvers: Object.freeze({
+      account: resolver('account'),
+      category: resolver('category'),
+      member: resolver('member'),
+      project: resolver('project')
+    }),
+    displayLabel: function(kind, id) {
+      if (!Object.prototype.hasOwnProperty.call(byKind, kind)) {
+        prhR2FinFail_('R2_RUNTIME_DIMENSION_KIND_INVALID');
+      }
+      var label = byKind[kind].display_by_id[String(id || '')];
+      if (!label) prhR2FinFail_('R2_RUNTIME_DIMENSION_DISPLAY_LABEL_MISSING');
+      return label;
+    }
+  });
 }
 
 function prhR2FinReadTransactions_() {
   var runtime = prhR2CanonicalRuntime_();
   var currency = prhR2FinCurrency_();
+  var dimensions = prhR2FinCreateDimensionResolverState_();
   var gateway = Object.freeze({
     readOperationsTable: function(request) {
       return prhGoogleRepositoryReadOperationsTable_(request);
     }
   });
-  var identityResolvers = Object.freeze({
-    account: prhR2FinIdentityResolver_,
-    category: prhR2FinIdentityResolver_,
-    member: prhR2FinIdentityResolver_,
-    project: prhR2FinIdentityResolver_
-  });
   var repository = runtime.googleAdapter.createGoogleSheetsTransactionRepository(gateway, {
     default_currency: currency,
-    resolvers: identityResolvers
+    resolvers: dimensions.resolvers
   });
   if (!repository || repository.capabilities.read !== true || repository.capabilities.write !== false) {
     prhR2FinFail_('R2_RUNTIME_REPOSITORY_CAPABILITY_INVALID');
   }
   var transactions = repository.readAll();
   if (!Array.isArray(transactions) || !transactions.length) prhR2FinFail_('R2_RUNTIME_NO_TRANSACTIONS');
-  return Object.freeze({ currency: currency, transactions: Object.freeze(transactions.slice()) });
+  return Object.freeze({
+    currency: currency,
+    transactions: Object.freeze(transactions.slice()),
+    dimensions: dimensions
+  });
 }
 
 function prhR2FinIsoDay_(date) {
@@ -117,8 +183,8 @@ function prhR2FinPeriodTransactions_(transactions, period) {
   });
 }
 
-function prhR2FinVisualData_(runtime, transactions, homeView) {
-  var periodTransactions = prhR2FinPeriodTransactions_(transactions, homeView.period);
+function prhR2FinVisualData_(runtime, source, homeView) {
+  var periodTransactions = prhR2FinPeriodTransactions_(source.transactions, homeView.period);
   var aggregate = runtime.financialReconciliation.aggregateTransactions(periodTransactions);
   if (aggregate.policy_version !== PRH_R2_FIN_RUNTIME.FINANCIAL_TRUTH_POLICY) {
     prhR2FinFail_('R2_RUNTIME_FIN_POLICY_MISMATCH');
@@ -129,7 +195,9 @@ function prhR2FinVisualData_(runtime, transactions, homeView) {
     prhR2FinFail_('R2_RUNTIME_HOME_FIN_PARITY_FAILED');
   }
   var expenseMix = Object.keys(aggregate.by_expense_category_minor)
-    .map(function(category) { return [category, aggregate.by_expense_category_minor[category]]; })
+    .map(function(categoryId) {
+      return [source.dimensions.displayLabel('category', categoryId), aggregate.by_expense_category_minor[categoryId]];
+    })
     .filter(function(row) { return row[1] !== 0; })
     .sort(function(left, right) { return right[1] - left[1] || left[0].localeCompare(right[0]); });
   return Object.freeze({
@@ -151,7 +219,7 @@ function prhR2BuildFinancialHomeRuntime_() {
       canonicalHome.kpi_dictionary_version !== PRH_R2_FIN_RUNTIME.KPI_DICTIONARY_VERSION) {
     prhR2FinFail_('R2_RUNTIME_HOME_CONTRACT_INVALID');
   }
-  var visualData = prhR2FinVisualData_(runtime, source.transactions, canonicalHome);
+  var visualData = prhR2FinVisualData_(runtime, source, canonicalHome);
   var provenance = {};
   Object.keys(canonicalHome.provenance || {}).forEach(function(key) {
     provenance[key] = canonicalHome.provenance[key];
@@ -160,6 +228,8 @@ function prhR2BuildFinancialHomeRuntime_() {
   provenance.generated_from_canonical_lib = true;
   provenance.financial_formula_copy = false;
   provenance.google_repository_adapter = 'PRH_GOOGLE_SHEETS_TRANSACTION_ADAPTER_V1';
+  provenance.dimension_resolver = PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA;
+  provenance.persistent_identity_authority = false;
   provenance.legacy_total_cells_used = false;
 
   return Object.freeze({
