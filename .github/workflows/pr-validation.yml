@@ -88,6 +88,8 @@ jobs:
         run: node tests/household_preferences_contract_test.js
       - name: Visualization foundation
         run: node tests/visualization_foundation_contract_test.js
+      - name: Visualization registry v2
+        run: node tests/visualization_registry_v2_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
       - name: R2 Financial runtime parity
