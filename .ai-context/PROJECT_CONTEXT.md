@@ -16,27 +16,22 @@
 
 ## Текущая инженерная задача
 
-`GOV-REC-001` — единственный **current writer**, canonical Issue #219, branch `agent/GOV-REC-001-product-readiness-governance`.
+`PERF-REC-001` — единственный **current writer**, canonical Issue #222, branch `agent/PERF-REC-001-live-snapshot-baseline`.
 
-Owner-approved forensic rebaseline 2026-08-11 установил:
+Recovery state после owner-authenticated UI UAT:
 
-- audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%;
-- Home — единственная из восьми Daily surfaces с private financial binding;
-- семь routes fail-closed `RUNTIME_BINDING_NOT_PROVEN`;
-- R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не deployed private Studio;
-- canonical Home делает full-history `readAll()` и не использует PERF-011..013/PERF-070;
-- current charts — hand-written CSS presentation, а не реально подключённый ECharts runtime;
-- Main Verification/exact-SHA health/synthetic Playwright доказывали engineering/delivery correctness, но не Product Ready.
+- `GOV-REC-001` #219 — DONE/Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`;
+- `UI-REC-001` #221 — BLOCKED: deployed exact candidate `ba34d244…` имел Home initial load >60s и Product E2E FAIL; corrected UI candidate `7a322d59…` engineering-green, PR #229 draft/no writer authority до PERF recovery;
+- Apps Script project observed at version 191/200, поэтому intermediate recovery deployments запрещены;
+- current live Home выполняет synchronous full-history canonical build до HTML response;
+- `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` и `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` существуют как validated R1 contracts, но до recovery не входили в live Home path;
+- `ANL-090` #217 / PR #218 остаётся BLOCKED/draft `PAUSED_REBASELINE` без writer authority.
 
-`ANL-090` Issue #217 переведён в `BLOCKED / PAUSED_REBASELINE`; PR #218 draft. Его код не удалён и не получает writer authority до отдельного post-`MASTER-GSTUDIO` decision.
+Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%. Home — единственная из восьми Daily surfaces с private financial binding; семь routes fail-closed `RUNTIME_BINDING_NOT_PROVEN`. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не deployed private Studio. Current charts не доказывают working ECharts product renderer. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
 
-Новый product lifecycle:
+Новый product lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
 
-`CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
-
-Wave R2R: `GOV-REC-001 -> UI/PERF -> DATA -> FIN/PLAN -> VIZ -> E2E -> MASTER-GUX -> STUDIO -> MASTER-GSTUDIO`.
-
-R2 canonical decision: Home остаётся default, UI-REC-001 скрывает unbound primary routes; Legacy сохраняется emergency rollback. R9/R10 feature expansion frozen.
+Wave R2R: `GOV-REC-001 -> UI/PERF -> DATA -> FIN/PLAN -> VIZ -> E2E -> MASTER-GUX -> STUDIO -> MASTER-GSTUDIO`. Сейчас execution = `PERF-REC-001`; после его DONE_ENGINEERING возвращается blocked UI-REC revalidation/UAT. R9/R10 feature expansion frozen.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -74,7 +69,7 @@ Post-R1 handoff historically начинается с `DESIGN-020`; этот anch
 
 R2 через `UI-MIG-020` — historical engineering DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory. Product claim superseded: Home private-bound, остальные семь Daily routes unbound/fail-closed; R2 Product Ready только после `MASTER-GUX`.
 
-R2R Product Recovery — current critical path. `GOV-REC-001` IN_PROGRESS; UI/PERF/DATA/FIN/PLAN/VIZ/E2E/STUDIO recovery items materialize as BACKLOG and obey gates `MASTER-GREC-0..6`, `MASTER-GUX`, `MASTER-GSTUDIO`.
+R2R Product Recovery — current critical path. `GOV-REC-001` DONE; `UI-REC-001` BLOCKED by owner UAT; `PERF-REC-001` IN_PROGRESS and is the only writer. DATA/FIN/PLAN/VIZ/E2E/STUDIO recovery items remain downstream and obey gates `MASTER-GREC-0..6`, `MASTER-GUX`, `MASTER-GSTUDIO`.
 
 R3 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS; canonical product integration не доказана и не получает product credit до отдельного post-GUX scope.
 
@@ -98,9 +93,13 @@ STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082, DASH-083, DASH-084, DASH-085
 
 `VIZ-090` / Issue #215 — DONE_ENGINEERING/Main Verification PASS; 18-family semantic planner не подключён к browser renderer/private query runtime. `ANL-090` / Issue #217 — BLOCKED `PAUSED_REBASELINE`, PR #218 draft. R9/R10 frozen до `MASTER-GSTUDIO`.
 
+## PERF-REC-001 runtime boundary
+
+PERF recovery не получает financial semantics/write authority. Live cold path обязан materialize canonical transactions через `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0` с одним underlying `readAll`; revision-aware cache identity/freshness использует `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0`. Apps Script persistence layer допускается только private user-scoped cache; cache MISS/eviction обязан безопасно возвращаться к canonical cold read. Telemetry = phase durations/read counts/revision hash prefixes/cache decision only; financial values, labels, IDs и Web App locator запрещены.
+
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `advanced_visualization_pack_contract_test.js = PURE_DOMAIN_APPLICATION`; named gate `Advanced visualization pack` обязателен вместе с existing VIZ-070/DASH-086..080/ANL/PRIV/STUDIO/DESIGN/FIN/MIG/privacy/FREE_ONLY gates. Red-gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `perf_rec_runtime_cache_contract_test.js` попадает в `RUNTIME_INTEGRATION`; full layered обязан включать его. Existing named gates VIZ/DASH/ANL/PRIV/STUDIO/DESIGN/FIN/MIG/privacy/FREE_ONLY остаются обязательны. Red-gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -130,4 +129,4 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Scope handoff
 
-R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, но product status reclassified в Roadmap v2.4. YC-041/YC-042 remain BLOCKED. `GOV-REC-001` / Issue #219 — единственный active writer; ANL-090/PR #218 paused.
+R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, но product status reclassified в Roadmap v2.4. YC-041/YC-042 remain BLOCKED. `PERF-REC-001` / Issue #222 — единственный active writer; UI-REC-001/PR #229 и ANL-090/PR #218 paused/blocked without writer authority.
