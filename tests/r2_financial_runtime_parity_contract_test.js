@@ -97,7 +97,11 @@ vm.runInContext(bridgeSource, context, { filename: 'R2FinancialRuntimeService.js
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.schema, RUNTIME_SCHEMA);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.generated_from_canonical_lib, true);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.financial_formula_copy, false);
-assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), ['financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary']);
+assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), [
+  'financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary', 'revisionAwareCache', 'singleScanRefresh'
+].sort());
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.revisionAwareCache.CONTRACT.roadmap_id, 'PERF-011');
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.singleScanRefresh.CONTRACT.roadmap_id, 'PERF-012');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.SCHEMA, 'PRH_R2_FIN_RUNTIME_BRIDGE_V1');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA, 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.PERSISTENT_IDENTITY_AUTHORITY, false);
