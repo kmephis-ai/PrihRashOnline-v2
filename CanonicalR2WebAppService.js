@@ -157,7 +157,7 @@ function prhR2RenderHomeWithPrivacy_(params) {
 
   var privateView = prhR2BuildFinancialHomeRuntime_();
   var transformed = prhPrivacyTransform_(privateView, mode, PRH_PRIVACY_PRESENTATION_RUNTIME.PRIVATE_SOURCE);
-  if (mode === 'ZEN') return prhPrivacyRenderZen_(transformed);
+  if (mode === 'ZEN') return prhPrivacyRenderZenCanonical_(transformed);
   return prhPrivacyDecorateOutput_(
     prhR2RenderFile_('home', transformed.payload),
     transformed.mode,
@@ -174,7 +174,10 @@ function doGet(e) {
     return prhR2RenderHomeWithPrivacy_(params);
   }
   if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
-    return prhR2RenderFile_('studio', null);
+    return prhPrivacyDecorateStudioOutput_(
+      prhR2RenderFile_('studio', null),
+      params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]
+    );
   }
   return prhR2RenderUnavailable_(surface, 'RUNTIME_BINDING_NOT_PROVEN');
 }
