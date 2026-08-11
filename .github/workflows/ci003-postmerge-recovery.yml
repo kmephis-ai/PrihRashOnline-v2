@@ -1,0 +1,203 @@
+name: CI-003 Post-Merge Recovery
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: read
+  statuses: write
+
+concurrency:
+  group: ci003-postmerge-recovery-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      MERGE_SHA: ${{ github.sha }}
+    steps:
+      - name: Resolve exact automation-owned Roadmap merge
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'eligible=false' >> "$GITHUB_OUTPUT"
+          echo 'reason=NOT_ROADMAP_AUTOMATION_MERGE' >> "$GITHUB_OUTPUT"
+
+          [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || exit 0
+          [[ "${MERGE_SHA}" =~ ^[0-9a-f]{40}$ ]] || exit 0
+
+          ASSOCIATED_PRS="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${MERGE_SHA}/pulls")"
+          PR_NUMBER="$(jq -r \
+            --arg sha "${MERGE_SHA}" \
+            --arg repo "${GITHUB_REPOSITORY}" \
+            --arg base "${DEFAULT_BRANCH}" \
+            '[.[] | select(.merged == true and .merge_commit_sha == $sha and .head.repo.full_name == $repo and .base.ref == $base)] | if length == 1 then .[0].number else empty end' \
+            <<<"${ASSOCIATED_PRS}")"
+          [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]] || exit 0
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          [[ "$(jq -r '.merged // false' <<<"${PR_JSON}")" == 'true' ]] || exit 0
+          [[ "$(jq -r '.merge_commit_sha // empty' <<<"${PR_JSON}")" == "${MERGE_SHA}" ]] || exit 0
+          [[ "$(jq -r '.merged_by.login // empty' <<<"${PR_JSON}")" == 'github-actions[bot]' ]] || {
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=MERGE_NOT_AUTOMATION_OWNED' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          CANDIDATE_SHA="$(jq -r '.head.sha // empty' <<<"${PR_JSON}")"
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=CANDIDATE_SHA_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          PR_BODY="$(jq -r '.body // ""' <<<"${PR_JSON}")"
+          mapfile -t ISSUE_REFS < <(printf '%s\n' "${PR_BODY}" | grep -Eio '^[[:space:]]*Closes[[:space:]]+#[0-9]+[[:space:]]*$' | grep -Eo '[0-9]+' || true)
+          [[ "${#ISSUE_REFS[@]}" -eq 1 ]] || {
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=ROADMAP_ISSUE_REFERENCE_AMBIGUOUS' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          ISSUE_NUMBER="${ISSUE_REFS[0]}"
+          ISSUE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          ISSUE_BODY="$(jq -r '.body // ""' <<<"${ISSUE_JSON}")"
+          if [[ "$(jq -r '.state' <<<"${ISSUE_JSON}")" == 'closed' ]]; then
+            echo 'reason=ISSUE_ALREADY_CLOSED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(jq -r 'has("pull_request")' <<<"${ISSUE_JSON}")" == 'true' ]] || \
+             ! grep -Eq '^roadmap_id:[[:space:]]*[A-Z0-9-]+[[:space:]]*$' <<<"${ISSUE_BODY}" || \
+             [[ "$(grep -Ec '^status:[[:space:]]*IN_PROGRESS[[:space:]]*$' <<<"${ISSUE_BODY}" || true)" -ne 1 ]]; then
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=ROADMAP_ISSUE_STATE_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo 'eligible=true' >> "$GITHUB_OUTPUT"
+          echo 'reason=READY' >> "$GITHUB_OUTPUT"
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Grace period for normal CI-003 completion
+        id: grace
+        if: steps.resolve.outputs.eligible == 'true' && steps.resolve.outputs.reason == 'READY'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.resolve.outputs.candidate_sha }}
+          ISSUE_NUMBER: ${{ steps.resolve.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'recovery_needed=true' >> "$GITHUB_OUTPUT"
+          echo 'reason=POSTMERGE_STATUS_MISSING' >> "$GITHUB_OUTPUT"
+          for attempt in $(seq 1 12); do
+            STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+            AUTO_STATE="$(jq -r '[.statuses[] | select(.context == "autonomous-merge")][0].state // empty' <<<"${STATUS_JSON}")"
+            DISPATCH_STATE="$(jq -r '[.statuses[] | select(.context == "main-verification-dispatch")][0].state // empty' <<<"${STATUS_JSON}")"
+            ISSUE_STATE="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --jq '.state')"
+            if [[ "${ISSUE_STATE}" == 'closed' || ( "${AUTO_STATE}" == 'success' && "${DISPATCH_STATE}" == 'success' ) ]]; then
+              echo 'recovery_needed=false' >> "$GITHUB_OUTPUT"
+              echo 'reason=NORMAL_CI003_COMPLETED' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 5
+          done
+
+      - name: Recover missing autonomous merge evidence and dispatch
+        id: recover
+        if: steps.grace.outputs.recovery_needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.resolve.outputs.candidate_sha }}
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
+          ISSUE_NUMBER: ${{ steps.resolve.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=POSTMERGE_RECOVERY_NOT_COMPLETED' >> "$GITHUB_OUTPUT"
+
+          STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+          DEPLOY_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-dev-deploy")][0].state // empty' <<<"${STATUS_JSON}")"
+          HEALTH_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-runtime-health")][0].state // empty' <<<"${STATUS_JSON}")"
+          if [[ "${DEPLOY_STATE}" != 'success' || "${HEALTH_STATE}" != 'success' ]]; then
+            echo 'reason=TRUSTED_EXACT_CANDIDATE_GATES_NOT_GREEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.merged // false' <<<"${PR_JSON}")" != 'true' || \
+                "$(jq -r '.merge_commit_sha // empty' <<<"${PR_JSON}")" != "${MERGE_SHA}" || \
+                "$(jq -r '.head.sha // empty' <<<"${PR_JSON}")" != "${CANDIDATE_SHA}" || \
+                "$(jq -r '.merged_by.login // empty' <<<"${PR_JSON}")" != 'github-actions[bot]' ]]; then
+            echo 'reason=AUTOMATION_MERGE_IDENTITY_MISMATCH' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state='success' \
+            -f context='autonomous-merge' \
+            -f description='CI-003 post-merge recovered' >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state='success' \
+            -f context='autonomous-merge-reason:POSTMERGE_RECOVERED' \
+            -f description='CI-003 technical reason' >/dev/null
+
+          PAYLOAD="$(jq -nc \
+            --arg merge_sha "${MERGE_SHA}" \
+            --arg candidate_sha "${CANDIDATE_SHA}" \
+            --argjson pr_number "${PR_NUMBER}" \
+            --argjson issue_number "${ISSUE_NUMBER}" \
+            '{event_type:"ci003-main-verification",client_payload:{merge_sha:$merge_sha,candidate_sha:$candidate_sha,pr_number:$pr_number,issue_number:$issue_number}}')"
+          printf '%s' "${PAYLOAD}" | gh api --method POST "repos/${GITHUB_REPOSITORY}/dispatches" --input - >/dev/null
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state='success' \
+            -f context='main-verification-dispatch' \
+            -f description='CI-003 post-merge dispatch recovered' >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state='success' \
+            -f context='main-verification-dispatch-reason:POSTMERGE_RECOVERED' \
+            -f description='CI-003 technical reason' >/dev/null
+
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=POSTMERGE_RECOVERED' >> "$GITHUB_OUTPUT"
+
+      - name: Enforce fail-closed recovery
+        if: always()
+        env:
+          ELIGIBLE: ${{ steps.resolve.outputs.eligible }}
+          RESOLVE_REASON: ${{ steps.resolve.outputs.reason }}
+          RECOVERY_NEEDED: ${{ steps.grace.outputs.recovery_needed }}
+          RECOVERY_RESULT: ${{ steps.recover.outputs.result }}
+          RECOVERY_REASON: ${{ steps.recover.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${ELIGIBLE}" != 'true' ]]; then
+            echo "CI-003 post-merge recovery: SKIP ${RESOLVE_REASON:-NOT_ELIGIBLE}"
+            exit 0
+          fi
+          if [[ "${RESOLVE_REASON}" != 'READY' ]]; then
+            echo "::error::CI-003 post-merge identity gate failed: ${RESOLVE_REASON}"
+            exit 1
+          fi
+          if [[ "${RECOVERY_NEEDED}" != 'true' ]]; then
+            echo 'CI-003 post-merge recovery: SKIP normal pipeline completed'
+            exit 0
+          fi
+          if [[ "${RECOVERY_RESULT}" != 'PASS' ]]; then
+            echo "::error::CI-003 post-merge recovery failed: ${RECOVERY_REASON:-POSTMERGE_RECOVERY_NOT_COMPLETED}"
+            exit 1
+          fi
+          echo 'CI-003 post-merge recovery: PASS'
