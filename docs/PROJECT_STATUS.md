@@ -28,22 +28,22 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic regression gate: synthetic golden tasks, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
 
-## R2 / Family Finance Center — текущий writer
+## R2 / Family Finance Center — canonical R2 cutover завершён
 
-`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020` — DONE/Main Verification PASS.
+`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS.
 
 - `PROF-020` — **DONE**, Issue #162 Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
-- `UI-MIG-020` — **IN_PROGRESS**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`.
+- `UI-MIG-020` — **DONE**, Issue #172 Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-`UI-MIG-020` authority = `PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`. Default private Web App route переключается на R2 `FinancialHomeWebApp`; primary navigation содержит Home / Transactions / Expenses / Income / Cash Flow / Budget / Obligations / Data Quality. Legacy Dashboard больше не default и остаётся только bounded rollback route `?surface=legacy` до post-cutover verification.
+`UI-MIG-020` authority = `PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`. Default private Web App route теперь R2 `FinancialHomeWebApp`; primary navigation содержит Home / Transactions / Expenses / Income / Cash Flow / Budget / Obligations / Data Quality. Legacy Dashboard больше не default и остаётся bounded rollback route `?surface=legacy`.
 
-Financial Home private binding использует тонкий `PRH_R2_FIN_RUNTIME_BRIDGE_V1`, а не второй финансовый калькулятор. Immutable candidate детерминированно генерирует `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`) непосредственно из canonical versioned `lib/**`: Google repository adapter, FIN reconciliation, KPI Dictionary, Financial Home и их локальных contracts/dependencies. Generated bundle входит в `sourceTreeHash`/trusted reconstruction; `generated_from_canonical_lib=true`, `financial_formula_copy=false`.
+Financial Home private binding использует тонкий `PRH_R2_FIN_RUNTIME_BRIDGE_V1`, а не второй финансовый калькулятор. Immutable candidate детерминированно генерирует `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`) непосредственно из canonical versioned `lib/**`: Google repository adapter, FIN reconciliation, KPI Dictionary, Financial Home и локальные contracts/dependencies. Generated bundle входит в `sourceTreeHash`/trusted reconstruction; `generated_from_canonical_lib=true`, `financial_formula_copy=false`.
 
-Bridge читает `01 Операции` только через существующий read-only Google gateway, берёт explicit currency из `09 Настройки` и вызывает canonical `financial_home.buildFinancialHome()`. Gate `R2 Financial runtime parity` реально исполняет generated bundle в VM и сравнивает private bridge output с canonical Node `evaluateKpis()` на synthetic adversarial fixture. `legacy_total_cells_used=false`, `ui_financial_formula_authority=false`, `financial_write=false`.
+Bridge читает `01 Операции` только через существующий read-only Google gateway, берёт explicit currency из `09 Настройки` и вызывает canonical `financial_home.buildFinancialHome()`. Human-readable dimension labels преобразуются в deterministic private hash IDs на bridge boundary и сохраняются как private display labels; canonical ID schema не ослабляется. `legacy_total_cells_used=false`, `ui_financial_formula_authority=false`, `financial_write=false`.
 
-Остальные семь R2 destinations пока имеют `SAFE_UNBOUND_FAIL_CLOSED`: canonical navigation доступна, но private runtime не подставляет browser `SYN-*` fixture как household truth, пока binding не доказан отдельным machine gate. Это намеренная safety boundary, а не скрытая готовность.
+Остальные семь R2 destinations используют `SAFE_UNBOUND_FAIL_CLOSED`: canonical navigation доступна, но private runtime не подставляет browser `SYN-*` fixture как household truth, пока binding не доказан отдельным machine gate.
 
-Authenticated technical smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`; он доказывает R2 shell + Home default + bounded legacy link без чтения financial rows. Отдельный authenticated private Home read smoke реально строит Home через generated canonical bundle и наружу возвращает только technical scalar `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`. Private Web App остаётся `MYSELF`. `FREE_ONLY` обязателен.
+Authenticated technical smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`; отдельный authenticated private Home read smoke = `PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7`. Private Web App остаётся `MYSELF`. `FREE_ONLY` обязателен.
 
 PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются.
 
@@ -66,9 +66,17 @@ BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero ba
 
 Google остаётся authoritative; cloud blockers не создают billing-backed resources и не меняют canonical write ownership.
 
-## R7 / Semantic Analytics
+## R7 / Semantic Analytics — текущий writer
 
-`ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-074` — DONE/Main Verification PASS. ANL-072/BENCH-070/ANL-073 остаются P2 backlog; `PERF-070`/`TEST-070` пока dependency-blocked.
+- `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
+- `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
+- `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
+- `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
+- `ANL-072` — **IN_PROGRESS**, Issue #178, branch `agent/ANL-072-safe-calculated-metrics`.
+
+ANL-072 вводит `PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0` как pure transformation layer над canonical `AnalyticsResult` и period result. Разрешены только `SHARE`, `DELTA_ABS`, `DELTA_PCT`, `CUMULATIVE`, `MOVING_AVERAGE`, `MOVING_MEDIAN`, `TOP_N_OTHER`; arbitrary executable formulas, `eval` и SQL expressions запрещены. Ratio использует integer PPM (`1 000 000 = 100%`), money остаётся integer minor units, а промежуточные risk-of-overflow операции используют exact integer arithmetic.
+
+ANL-072 не переопределяет KPI/FIN-TRUTH и не получает financial/storage/network/write/UI authority. Share и Top-N обязаны reconcile к исходному canonical total; percent delta имеет явные zero-reference states; moving windows имеют bounded size и explicit partial-window policy. Public tests synthetic-only, telemetry не содержит financial payload/private dimension values. После ANL-072 dependency-ready становятся `BENCH-070` и `ANL-073`; `PERF-070` остаётся зависим от ANL-073.
 
 ## MIG-010 historical safety boundary
 
@@ -97,11 +105,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-UI-MIG-020 остаётся открытым до `R2 Financial runtime parity` + `Canonical R2 cutover` + `Canonical R2 navigation visual gate` + existing FIN/DATA/ANL/DESIGN/VIZ/HOME/TX/EXP/INC/CF/BUD/OBL/DQ/PWA/MIG/privacy/FREE_ONLY/full layered PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+ANL-072 остаётся открытым до `Calculated/window metrics` + existing FIN/DATA/ANL/SCOPE/TREND/privacy/FREE_ONLY/full layered/UI/PWA gates PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Current writer меняет canonical UI routing/render path и добавляет только read-only Home bridge к generated canonical-lib runtime; duplicate FIN formulas не вводятся. Реальные financial/storage данные не мигрируют и не записываются. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. ANL-072 не меняет private runtime, маршрутизацию или данные: текущий writer добавляет storage-neutral pure analytics transformations поверх уже типизированных canonical analytics results. Реальные financial/storage данные не мигрируют и не записываются. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
