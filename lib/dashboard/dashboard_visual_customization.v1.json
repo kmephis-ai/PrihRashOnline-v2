@@ -1,0 +1,83 @@
+{
+  "schema": "PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-085",
+  "language": "ru",
+  "upstream": {
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
+    "design_system": "PRH_DESIGN_SYSTEM_V1@1.0.0",
+    "visualization_registry": "PRH_VISUALIZATION_REGISTRY_V2@2.0.0",
+    "calculated_metrics": "PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "schemas": {
+    "customization": "PRH_DASHBOARD_WIDGET_CUSTOMIZATION_V1",
+    "result": "PRH_DASHBOARD_WIDGET_CUSTOMIZATION_RESULT_V1",
+    "telemetry": "PRH_DASHBOARD_VISUAL_CUSTOMIZATION_TELEMETRY_V1"
+  },
+  "themes": ["SYSTEM", "LIGHT", "DARK"],
+  "densities": ["COMFORTABLE", "COMPACT"],
+  "palette_registry": {
+    "DEFAULT": ["primary", "link", "positive_text", "warning_text", "danger_text"],
+    "CALM": ["primary", "text_secondary", "link", "positive_text", "warning_text"],
+    "STATUS": ["positive_text", "warning_text", "danger_text", "link", "primary"],
+    "MONO": ["text", "text_secondary", "text_muted", "border_strong", "primary"]
+  },
+  "chart_types": ["BAR", "LINE", "DONUT"],
+  "axis_modes": ["AUTO", "SHOW", "HIDE"],
+  "visibility_modes": ["AUTO", "SHOW", "HIDE"],
+  "stack_modes": ["AUTO", "ON", "OFF"],
+  "sort": {
+    "directions": ["NONE", "ASC", "DESC"],
+    "by": ["VALUE", "LABEL"]
+  },
+  "top_n": {
+    "operator": "TOP_N_OTHER",
+    "min": 1,
+    "max": 20,
+    "remainder": "OTHER"
+  },
+  "number_format": {
+    "styles": ["AUTO", "GROUPED", "COMPACT"],
+    "fraction_digits_min": 0,
+    "fraction_digits_max": 2,
+    "sign_modes": ["AUTO", "ALWAYS"]
+  },
+  "principles": {
+    "configuration_only": true,
+    "design_token_only": true,
+    "arbitrary_css_allowed": false,
+    "arbitrary_html_allowed": false,
+    "arbitrary_url_allowed": false,
+    "query_mutation_allowed": false,
+    "financial_formula_allowed": false,
+    "financial_payload_allowed": false,
+    "advanced_chart_pack_in_scope": false,
+    "data_hidden_for_density_allowed": false,
+    "semantic_table_fallback_required_for_charts": true,
+    "text_summary_required_for_charts": true,
+    "free_only": true
+  },
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query": false,
+    "query_execution": false,
+    "canonical_mutation": false,
+    "storage": false,
+    "network": false,
+    "auth": false,
+    "deploy": false,
+    "renderer": false
+  },
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "theme",
+    "chart_type",
+    "density",
+    "customization_hash_prefix",
+    "decision",
+    "reason"
+  ]
+}
