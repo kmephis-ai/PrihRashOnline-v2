@@ -78,8 +78,15 @@ function prhPrivacyMask_(value, evidence) {
     var child = value[key];
     evidence.field_count += 1;
     if (prhPrivacySensitiveKey_(key)) {
-      evidence.suppressed_count += Array.isArray(child) ? (child.length || 1) : 1;
-      output[key] = Array.isArray(child) ? [] : null;
+      if (Array.isArray(child)) {
+        evidence.suppressed_count += child.length || 1;
+        output[key] = [];
+      } else if (child && typeof child === 'object') {
+        output[key] = prhPrivacyMask_(child, evidence);
+      } else {
+        evidence.suppressed_count += 1;
+        output[key] = null;
+      }
       return;
     }
     output[key] = prhPrivacyMask_(child, evidence);
