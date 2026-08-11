@@ -2,10 +2,12 @@
  * UI-MIG-020 canonical R2 Web App router/runtime bridge.
  *
  * Default route is R2 Financial Home. Home receives private read-only data from
- * the parity-guarded FIN runtime adapter. Other R2 routes are visible in primary
- * navigation but fail closed until their private runtime binding is separately proven.
- * Synthetic preview values are never substituted for private runtime truth.
- * Legacy Dashboard remains an explicit bounded rollback route.
+ * the parity-guarded FIN runtime adapter. STUDIO-080 adds an explicit opt-in,
+ * configuration-only Analytics Studio shell that never reads financial runtime
+ * data. Other R2 routes are visible in primary navigation but fail closed until
+ * their private runtime binding is separately proven. Synthetic preview values
+ * are never substituted for private runtime truth. Legacy Dashboard remains an
+ * explicit bounded rollback route.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
@@ -13,7 +15,8 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   DEFAULT_SURFACE: 'home',
   ROUTE_PARAMETER: 'surface',
   LIVE_SURFACES: Object.freeze({
-    home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Financial Home' })
+    home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Financial Home', financial_runtime: true }),
+    studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Analytics Studio', financial_runtime: false })
   }),
   SAFE_UNBOUND_SURFACES: Object.freeze({
     transactions: 'Транзакции',
@@ -34,6 +37,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
     Object.freeze(['obligations', 'Обязательства']),
     Object.freeze(['data-quality', 'Качество данных'])
   ]),
+  STUDIO_SURFACE: 'studio',
   LEGACY_SURFACE: 'legacy',
   FINANCIAL_WRITE: false,
   CANONICAL_MUTATION: false,
@@ -71,10 +75,12 @@ function prhR2NavigationHtml_(activeSurface) {
     return '<a data-r2-nav="' + prhR2EscapeHtml_(id) + '"' + current +
       ' href="?surface=' + encodeURIComponent(id) + '">' + prhR2EscapeHtml_(label) + '</a>';
   }).join('');
+  var studioCurrent = activeSurface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE ? ' aria-current="page"' : '';
+  var studio = '<a data-r2-studio-launcher="1"' + studioCurrent + ' href="?surface=studio&mode=explore" title="Опциональный режим аналитики">Explore / Studio</a>';
   return '<nav id="prh-r2-canonical-nav" data-prh-canonical-r2-shell="1" data-active-surface="' +
-    prhR2EscapeHtml_(activeSurface) + '" aria-label="Основная навигация PrihRashOnline">' + links +
+    prhR2EscapeHtml_(activeSurface) + '" aria-label="Основная навигация PrihRashOnline">' + links + studio +
     '<a data-r2-nav="legacy" href="?surface=legacy" title="Ограниченный rollback route">Legacy</a></nav>' +
-    '<style id="prh-r2-canonical-nav-style">#prh-r2-canonical-nav{position:sticky;top:0;z-index:1000;display:flex;gap:6px;overflow-x:auto;padding:9px 12px;background:#061d37;color:#fff;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif;scrollbar-width:thin}#prh-r2-canonical-nav a{flex:0 0 auto;color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent}#prh-r2-canonical-nav a:hover,#prh-r2-canonical-nav a:focus-visible{background:#123f66;color:#fff}#prh-r2-canonical-nav a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-canonical-nav a[data-r2-nav="legacy"]{margin-left:auto;border-color:rgba(255,255,255,.24);color:#bfdbfe}@media(max-width:620px){#prh-r2-canonical-nav a[data-r2-nav="legacy"]{margin-left:0}}</style>';
+    '<style id="prh-r2-canonical-nav-style">#prh-r2-canonical-nav{position:sticky;top:0;z-index:1000;display:flex;gap:6px;overflow-x:auto;padding:9px 12px;background:#061d37;color:#fff;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif;scrollbar-width:thin}#prh-r2-canonical-nav a{flex:0 0 auto;color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent}#prh-r2-canonical-nav a:hover,#prh-r2-canonical-nav a:focus-visible{background:#123f66;color:#fff}#prh-r2-canonical-nav a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-canonical-nav a[data-r2-studio-launcher="1"]{border-color:rgba(143,197,255,.45);color:#bfdbfe}#prh-r2-canonical-nav a[data-r2-nav="legacy"]{margin-left:auto;border-color:rgba(255,255,255,.24);color:#bfdbfe}@media(max-width:620px){#prh-r2-canonical-nav a[data-r2-nav="legacy"]{margin-left:0}}</style>';
 }
 
 function prhR2InjectShell_(html, activeSurface) {
@@ -108,9 +114,13 @@ function prhR2RenderFile_(surface, payload) {
   if (!spec) throw new Error('R2_LIVE_SURFACE_UNKNOWN');
   var output = HtmlService.createHtmlOutputFromFile(spec.file);
   var html = output.getContent();
-  var placeholder = '<' + '?!= ' + spec.placeholder + ' ?' + '>';
-  if (html.indexOf(placeholder) < 0) throw new Error('R2_SURFACE_PAYLOAD_PLACEHOLDER_MISSING');
-  html = html.replace(placeholder, prhR2SerializeJson_(payload));
+  if (spec.placeholder) {
+    var placeholder = '<' + '?!= ' + spec.placeholder + ' ?' + '>';
+    if (html.indexOf(placeholder) < 0) throw new Error('R2_SURFACE_PAYLOAD_PLACEHOLDER_MISSING');
+    html = html.replace(placeholder, prhR2SerializeJson_(payload));
+  } else if (payload != null) {
+    throw new Error('R2_STATIC_SURFACE_PAYLOAD_FORBIDDEN');
+  }
   if (surface === 'home') html = prhR2HardenPrivateHome_(html);
   html = prhR2InjectShell_(html, surface);
   var rendered = HtmlService.createHtmlOutput(html);
@@ -138,6 +148,9 @@ function doGet(e) {
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
   if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) {
     return prhR2RenderFile_('home', prhR2BuildFinancialHomeRuntime_());
+  }
+  if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
+    return prhR2RenderFile_('studio', null);
   }
   return prhR2RenderUnavailable_(surface, 'RUNTIME_BINDING_NOT_PROVEN');
 }
@@ -175,6 +188,7 @@ function prhCanonicalR2WebAppSmokeToken() {
   if (!html || html.indexOf('data-prh-canonical-r2-shell="1"') < 0 ||
       html.indexOf('data-active-surface="home"') < 0 || html.indexOf('Financial Home') < 0 ||
       html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0 ||
+      html.indexOf('?surface=studio&mode=explore') < 0 ||
       html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0) {
     throw new Error('R2_CANONICAL_RENDER_SMOKE_FAILED');
   }
