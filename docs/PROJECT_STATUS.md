@@ -58,33 +58,41 @@ BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero ba
 
 Google остаётся authoritative; cloud blockers не создают billing-backed resources и не меняют canonical write ownership.
 
-## R7 / Semantic Analytics — exit gate завершён, текущий writer VIZ-070
+## R7 / Semantic Analytics — завершена
 
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
 - `ANL-072` — **DONE**, Issue #178 Main Verification PASS, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
-- `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, candidate `4da05a25669b87cc7711bde5d8502c457af71f09`, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
+- `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
 - `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
 - `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
 - `TEST-070` — **DONE**, Issue #190 Main Verification PASS, candidate `dee4b1cb87158a78014fd07c723b595c516c2114`, merge `b4391e6ce24927baf0ec18e1892d8f2244615951`.
+- `VIZ-070` — **DONE**, Issue #192 Main Verification PASS, candidate `444067f9e411f798668c4a109eb751903c9d5720`, merge `13091bb5ba731673bae5357ae7b22b64475592c3`.
 - `MASTER-G7 / Semantic analytics` — **complete**.
-- `VIZ-070` — **IN_PROGRESS**, Issue #192, branch `agent/VIZ-070-visualization-registry-v2`.
 
-VIZ-070 вводит `PRH_VISUALIZATION_REGISTRY_V2@2.0.0` как configuration-only presentation registry поверх VIZ-020 и ANL-074. Version 2 поддерживает только канонические `BAR`, `LINE`, `DONUT`; advanced chart pack остаётся отдельным VIZ-090.
+VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`: BAR/LINE/DONUT, exact query-dimension coverage, query-hash invariant retype, ECHARTS_6 replaceable local/bundled renderer и `SEMANTIC_TABLE_V1` accessible fallback. Registry не получает query/financial/storage/network authority.
 
-Registry валидирует semantic bindings против normalized AnalyticsQuery: encoded dimensions должны точно покрывать effective query dimensions, measure bindings должны присутствовать в query. Registry не имеет права добавлять/удалять measures, dimensions, filters, period, comparison, scope или sort. Каждый plan/retype сохраняет exact canonical query hash, `query_modified=false`, provenance `FIN-TRUTH-v1`.
+## R8 / Analytics Studio — текущий writer
 
-Safe retype `BAR <-> LINE` сохраняет x/y/series. `BAR|LINE -> DONUT` разрешён только без series через однозначное `x->category`, `y->value`; hidden dimension loss завершается `VIZ070_RETYPE_SERIES_AMBIGUOUS`. DONUT -> BAR/LINE использует обратное mapping.
+- `STUDIO-080` — **IN_PROGRESS**, Issue #194, branch `agent/STUDIO-080-progressive-analytics-studio-shell`.
 
-Renderer registry сохраняет `ECHARTS_6` primary/local-or-bundled/replaceable и добавляет `SEMANTIC_TABLE_V1` как встроенный accessible fallback. Renderer не получает query/financial truth/storage/network authority. Responsive plan детерминирован для MOBILE/TABLET/DESKTOP; semantic table + text summary обязательны, interaction-only evidence запрещён.
+STUDIO-080 вводит `PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0` и progressive режимы `DAILY -> EXPLORE -> STUDIO`. `DAILY` остаётся default и ведёт на canonical Financial Home; invalid explicit mode fail-safe возвращается в DAILY, а expert mode никогда не включается неявно.
 
-Public VIZ-070 telemetry содержит только schema/version/chart/renderer/responsive/a11y/query-hash-prefix/decision/reason; financial values, raw query/filter payload и private dimension values запрещены. Named gate `Visualization registry v2`; TEST-010 class `PURE_DOMAIN_APPLICATION`; `FREE_ONLY` mandatory.
+`EXPLORE` и `STUDIO` используют отдельный opt-in `surface=studio`. Этот live Web App surface configuration-only: он не вызывает `prhR2BuildFinancialHomeRuntime_()`, не содержит `google.script.run`, private financial payload placeholder или synthetic financial preview. Default route `home`, legacy rollback route и private exposure `MYSELF` не меняются.
+
+Browser preference `prh.analyticsStudio.mode.v1` хранит только schema/version/mode. URL `mode` имеет приоритет для воспроизводимого открытия режима. Financial values, AnalyticsQuery, filters, scope/private identifiers, credentials и runtime locators в preference/telemetry запрещены.
+
+Explore объявляет готовые semantic capabilities R7 без собственной query execution. Studio добавляет только `UPCOMING` affordances для `DASH-080`, `DASH-081` и `DASH-084`; dashboard composer/widget factory/layout/saved views в STUDIO-080 не реализуются.
+
+Mode tabs используют `role=tablist/tab/tabpanel`, `aria-selected`, focus-visible и клавиши ArrowLeft/ArrowRight/Home/End. `prefers-reduced-motion` соблюдается. Visual gate проверяет 390x844, 768x1024 и 1440x900, отсутствие body overflow и отсутствие private financial runtime fetch на Studio route.
+
+Named gates: `Analytics Studio shell` (`RUNTIME_INTEGRATION`) и `Analytics Studio visual gate` (`UI_E2E`). `financial_truth=false`, `financial_write=false`, `query_execution=false`, `query_mutation=false`, `canonical_mutation=false`, `storage=false`, `network=false`, `deployment=false`; `FREE_ONLY` mandatory.
+
+После STUDIO-080 Main Verification dependency-ready становится `DASH-080`; `PRIV-080` остаётся отдельным готовым P2 item и не реализуется внутри shell.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
-
-После VIZ-070 Main Verification registry становится presentation dependency для R8 `DASH-080` и будущего `VIZ-090`; сам VIZ-070 не реализует Studio/Dashboard composer или advanced chart families.
 
 ## MIG-010 historical safety boundary
 
@@ -113,11 +121,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-VIZ-070 остаётся открытым до `Visualization registry v2` + existing VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+STUDIO-080 остаётся открытым до green `Analytics Studio shell` + `Analytics Studio visual gate` + existing R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. VIZ-070 — renderer-neutral configuration/presentation layer; он не меняет current R2 routing, production financial calculations, financial writes или external providers. ECharts остаётся replaceable local/bundled adapter; public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. STUDIO-080 добавляет только opt-in static/configuration shell и mode-only browser preference; financial calculations, canonical data and writes не переходят в shell. Public GitHub evidence configuration/synthetic-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 

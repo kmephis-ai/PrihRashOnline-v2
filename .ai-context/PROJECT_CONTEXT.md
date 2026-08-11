@@ -16,19 +16,19 @@
 
 ## Текущая инженерная задача
 
-`VIZ-070` — единственный **current writer**, Issue #192, branch `agent/VIZ-070-visualization-registry-v2`. Его зависимости VIZ-020 и ANL-074 уже DONE/Main Verification PASS. TEST-070 завершил semantic exit gate; `MASTER-G7 / Semantic analytics = complete`.
+`STUDIO-080` — единственный **current writer**, Issue #194, branch `agent/STUDIO-080-progressive-analytics-studio-shell`. `MASTER-G7 / Semantic analytics` и DESIGN-020 уже complete/DONE; VIZ-070 также DONE/Main Verification PASS и доступен как upstream presentation registry.
 
-VIZ-070 вводит `PRH_VISUALIZATION_REGISTRY_V2@2.0.0` как configuration-only registry поверх VIZ-020 ChartSpec/WidgetSpec/FilterContext/DrillContext и ANL-074 Exploration State. Registry не вычисляет KPI, не читает transactions, не меняет AnalyticsQuery и не создаёт альтернативную FIN-TRUTH.
+STUDIO-080 вводит `PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0` как progressive presentation shell `DAILY -> EXPLORE -> STUDIO`. Daily остаётся default и maps to canonical Financial Home. Explore/Studio — explicit opt-in уровни; invalid explicit mode всегда fail-safe в DAILY.
 
-Version 2 поддерживает только BAR, LINE и DONUT. Advanced waterfall/Sankey/treemap/heatmap/scatter/distribution chart families остаются отдельным VIZ-090.
+Shell не вычисляет KPI, не читает transactions, не исполняет AnalyticsQuery и не меняет FIN-TRUTH. Explore только объявляет готовые R7 capabilities. Studio дополнительно показывает future affordances DASH-080/DASH-081/DASH-084 со status `UPCOMING`; composer/widget/layout/saved views не реализуются внутри STUDIO-080.
 
-Query compatibility требует exact coverage effective query dimensions: `query.dimensions + time_bucket` при grain != NONE должны совпасть с DIMENSION bindings chart. Каждый MEASURE binding обязан существовать в query.measures. Hidden query dimension нельзя потерять ради chart conversion. Registry никогда не добавляет/удаляет filters/measures/dimensions/period/comparison/scope/sort.
+Canonical router сохраняет default `surface=home`, legacy rollback и private exposure `MYSELF`. Новый `surface=studio` live/static/configuration-only: `financial_runtime=false`, payload placeholder отсутствует, `prhR2BuildFinancialHomeRuntime_()` не вызывается. Основной массив R2 navigation не меняется; отдельный launcher `Explore / Studio` является opt-in.
 
-Safe retype BAR<->LINE сохраняет x/y/series и query_ref. BAR|LINE -> DONUT разрешён только без series, mapping x->category, y->value. DONUT -> BAR|LINE использует обратное mapping. До/после retype exact query hash идентичен, `query_modified=false`; ambiguity fail closed.
+Browser preference `prh.analyticsStudio.mode.v1` содержит только schema/version/mode; URL `mode` имеет приоритет. Financial/query/filter/private identifier payload запрещён. Mode transition reversible и всегда `query_execution=false`, `financial_write=false`.
 
-Renderer registry: `ECHARTS_6` остаётся primary, local-or-bundled, replaceable, без external CDN/network/query/financial authority. `SEMANTIC_TABLE_V1` — built-in accessible fallback. Responsive modes MOBILE/TABLET/DESKTOP дают chart-specific presentation strategy без изменения query/data semantics. Semantic table + textual summary обязательны; interaction-only evidence запрещён.
+Keyboard/a11y: tablist/tab/tabpanel, aria-selected, focus-visible, ArrowLeft/ArrowRight/Home/End, reduced-motion. Responsive smoke: 390x844 / 768x1024 / 1440x900, без horizontal body overflow. Studio visual test рендерит canonical router с financial runtime stub, который падает при любом вызове, тем самым доказывая отсутствие private financial fetch.
 
-Public telemetry содержит только schema/version/chart_type/renderer/responsive_mode/strategy/a11y flags/query_hash_prefix/query_modified/decision/reason. Raw query, rows, values, filters, widget/query refs и private dimension values запрещены. `financial_truth=false`, `financial_write=false`, `network=false`, `storage=false`, `persistence=false`; `FREE_ONLY` обязателен.
+Public telemetry содержит только schema/version/mode/previous_mode/source/viewport_class/decision/reason. `financial_truth=false`, `financial_write=false`, `query_execution=false`, `query_mutation=false`, `canonical_mutation=false`, `storage=false`, `network=false`, `deployment=false`; `FREE_ONLY` обязателен.
 
 ## Current R0 truth
 
@@ -88,33 +88,40 @@ Google remains authoritative. Blocked cloud items не дают writer authority
 - `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
 - `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
 - `TEST-070` — **DONE**, Issue #190 Main Verification PASS, candidate `dee4b1cb87158a78014fd07c723b595c516c2114`, merge `b4391e6ce24927baf0ec18e1892d8f2244615951`.
+- `VIZ-070` — **DONE**, Issue #192 Main Verification PASS, candidate `444067f9e411f798668c4a109eb751903c9d5720`, merge `13091bb5ba731673bae5357ae7b22b64475592c3`.
 - `MASTER-G7 / Semantic analytics` — **complete**.
-- `VIZ-070` — **current writer**, Issue #192, branch `agent/VIZ-070-visualization-registry-v2`; IN_PROGRESS до Main Verification.
 
-Trusted delivery reliability bootstrap #185 merged в `main` commit `7794f1d73631cc50ac1d603758ddec85acdec6b5`: trusted Apps Script executor допускает bounded retry только `prhReleaseHealthCheckToken + RUNTIME_HEALTH_BUILD_MISMATCH` (12 attempts, 5000 ms, max sleep 55 s); OAuth/transport/workbook/R2 smoke/timeout и другие failures остаются fail-fast. Exact SHA/sourceTreeHash acceptance не ослаблена.
+VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; ECHARTS_6 replaceable/local-bundled, SEMANTIC_TABLE_V1 accessible fallback, chart retype query-hash invariant, no financial/query authority.
 
-VIZ-070 machine boundary:
+## Current R8 truth
 
-- contract `lib/visualization/visualization_registry_v2.v2.json` — `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`;
-- implementation `lib/visualization/visualization_registry_v2.js`;
-- test `tests/visualization_registry_v2_contract_test.js`;
-- normative doc `docs/visualization/VISUALIZATION_REGISTRY_V2.md`;
-- named gate `Visualization registry v2`;
-- TEST-010 class `PURE_DOMAIN_APPLICATION`;
-- chart set = BAR/LINE/DONUT only; advanced pack excluded;
-- exact query dimension coverage + measure binding validation;
-- chart retype preserves query_ref/query_hash and `query_modified=false`;
-- series-dropping DONUT conversion fail closed;
-- ECHARTS_6 remains replaceable local/bundled primary renderer;
-- SEMANTIC_TABLE_V1 accessible fallback;
-- deterministic MOBILE/TABLET/DESKTOP strategies;
-- VIZ FilterContext/DrillContext + ANL-074 Exploration State remain upstream interaction contracts;
-- public telemetry technical-only, no financial/private payload;
-- `financial_truth=false`, `financial_write=false`, `network=false`, `storage=false`, `persistence=false`; `FREE_ONLY` mandatory.
+- `STUDIO-080` — **current writer**, Issue #194, branch `agent/STUDIO-080-progressive-analytics-studio-shell`; IN_PROGRESS до Main Verification.
+- `PRIV-080` — dependency-ready separate P2 item; не реализуется внутри STUDIO-080.
+
+STUDIO-080 machine boundary:
+
+- contract `lib/studio/analytics_studio_shell.v1.json` — `PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0`;
+- implementation `lib/studio/analytics_studio_shell.js`;
+- live shell `AnalyticsStudioWebApp.html`;
+- canonical router registration `surface=studio`, no financial runtime payload;
+- tests `tests/analytics_studio_shell_contract_test.js` + `tests/analytics_studio_shell_visual_test.js`;
+- normative doc `docs/studio/ANALYTICS_STUDIO_SHELL.md`;
+- named gates `Analytics Studio shell` and `Analytics Studio visual gate`;
+- default mode DAILY / invalid explicit mode DAILY_FAIL_SAFE;
+- URL mode override > mode-only browser preference > DAILY default;
+- capability monotonicity Daily -> Explore -> Studio;
+- future dashboard/widget/layout/saved-view affordances remain UPCOMING;
+- default Financial Home route + legacy rollback + private MYSELF unchanged;
+- no google.script.run/private finance fetch on Studio shell;
+- responsive + keyboard/a11y contract;
+- public telemetry technical-only, no financial/query/private payload;
+- all financial/query/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
+
+После STUDIO-080 Main Verification `DASH-080` становится dependency-ready при сохранении DONE VIZ-070/ANL-074. `PRIV-080` остаётся отдельной privacy-mode веткой Roadmap.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `visualization_registry_v2_contract_test.js` принадлежит `PURE_DOMAIN_APPLICATION`. Named gate `Visualization registry v2` обязателен вместе с существующими semantic/VIZ gates; red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `analytics_studio_shell_contract_test.js` принадлежит `RUNTIME_INTEGRATION`, `analytics_studio_shell_visual_test.js` — `UI_E2E`. Named gates `Analytics Studio shell` и `Analytics Studio visual gate` обязательны; red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -134,7 +141,7 @@ PR Validation
 -> Main Verification
 ```
 
-VIZ-070 остаётся открытым до green `Visualization registry v2` + existing VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+STUDIO-080 остаётся открытым до green `Analytics Studio shell` + `Analytics Studio visual gate` + existing R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -142,4 +149,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040 и semantic R7 через TEST-070 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `VIZ-070` — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040 и R7 через VIZ-070 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `STUDIO-080` — единственный active writer.
