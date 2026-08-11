@@ -59,6 +59,15 @@ vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js'
 assert.strictEqual(cutoverContract.schema, 'PRH_CANONICAL_R2_WEB_APP_V1');
 assert.strictEqual(cutoverContract.synthetic_policy.private_runtime_fallback_allowed, false);
 assert.strictEqual(cutoverContract.synthetic_policy.unproven_binding_behavior, 'FAIL_CLOSED_NO_SYNTHETIC_TRUTH');
+assert.strictEqual(cutoverContract.runtime_fin_adapter.dimension_resolver.schema, 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1');
+assert.strictEqual(cutoverContract.runtime_fin_adapter.dimension_resolver.identity, 'KIND_SCOPED_SHA256_OF_NORMALIZED_LABEL');
+assert.strictEqual(cutoverContract.runtime_fin_adapter.dimension_resolver.private_reverse_label_projection, true);
+assert.strictEqual(cutoverContract.runtime_fin_adapter.dimension_resolver.persistent_identity_authority, false);
+assert.strictEqual(cutoverContract.runtime_fin_adapter.dimension_resolver.write_authority, false);
+assert.strictEqual(cutoverContract.runtime_fin_adapter.dimension_resolver.collision_behavior, 'FAIL_CLOSED');
+assert.strictEqual(cutoverContract.authority.persistent_dimension_identity, false);
+assert.strictEqual(cutoverContract.trusted_delivery.private_home_read_smoke_token, 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7');
+assert.strictEqual(cutoverContract.trusted_delivery.runtime_failure_reason_private_payload, false);
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.SCHEMA, 'PRH_CANONICAL_R2_WEB_APP_V1');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE, 'home');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.PRIVATE_EXPOSURE, 'MYSELF');
@@ -115,7 +124,7 @@ assert(legacy.includes('"legacy":true'));
 
 const smoke = context.prhCanonicalR2WebAppSmokeToken();
 assert.strictEqual(smoke, 'PRH_WEBAPP_SMOKE_V3|R2|OK');
-assert.strictEqual(homeRuntimeCalls, 1, 'technical smoke must not call the private financial runtime adapter');
+assert.strictEqual(homeRuntimeCalls, 1, 'technical smoke must not call the private financial runtime bridge');
 
 const doGetCount = (routerSource.match(/function\s+doGet\s*\(/g) || []).length + (legacySource.match(/function\s+doGet\s*\(/g) || []).length;
 assert.strictEqual(doGetCount, 1, 'canonical Web App must have one doGet authority');
@@ -130,6 +139,8 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   primaryNavigationCount: 8,
   liveBoundRoutes: ['home'],
   unboundPolicy: 'FAIL_CLOSED_NO_SYNTHETIC_TRUTH',
+  dimensionResolver: 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1',
+  persistentDimensionIdentityAuthority: false,
   privateHomeParseFallback: 'FAIL_CLOSED',
   legacyRollback: true,
   privateExposure: 'MYSELF',
