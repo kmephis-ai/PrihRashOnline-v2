@@ -1,0 +1,97 @@
+{
+  "schema": "PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-085",
+  "preference_schema": "PRH_DASHBOARD_VISUAL_PREFERENCE_V1",
+  "widget_override_schema": "PRH_DASHBOARD_WIDGET_VISUAL_OVERRIDE_V1",
+  "plan_schema": "PRH_DASHBOARD_VISUAL_PLAN_V1",
+  "top_n_result_schema": "PRH_DASHBOARD_TOP_N_PRESENTATION_V1",
+  "identity_algorithm": "SHA256_CANONICAL_JSON_V1",
+  "upstream": {
+    "design_system": "PRH_DESIGN_SYSTEM_V1@1.0.0",
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
+    "visualization_registry": "PRH_VISUALIZATION_REGISTRY_V2@2.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "themes": ["SYSTEM", "LIGHT", "DARK"],
+  "densities": ["COMPACT", "COMFORTABLE"],
+  "number_formats": ["AUTO", "MONEY", "INTEGER", "PERCENT", "COMPACT"],
+  "label_modes": ["AUTO", "SHOW", "HIDE"],
+  "legend_modes": ["AUTO", "SHOW", "HIDE"],
+  "legend_positions": ["AUTO", "TOP", "RIGHT", "BOTTOM"],
+  "axis_modes": ["AUTO", "SHOW", "HIDE"],
+  "stack_modes": ["NONE", "NORMAL"],
+  "sort_modes": ["NONE", "ASC", "DESC"],
+  "palette_registry": {
+    "DEFAULT": {
+      "series": ["#0b6570", "#1558b0", "#704400", "#8a1c2d", "#136c3b", "#52657d"],
+      "high_contrast_fallback": "MONO"
+    },
+    "COLORBLIND": {
+      "series": ["#0072b2", "#e69f00", "#009e73", "#cc79a7", "#d55e00", "#56b4e9"],
+      "high_contrast_fallback": "MONO"
+    },
+    "MONO": {
+      "series": ["DESIGN:text", "DESIGN:text_secondary", "DESIGN:text_muted"],
+      "high_contrast_fallback": "MONO"
+    }
+  },
+  "density_tokens": {
+    "COMPACT": {"spacing_token":"2", "font_size_token":"sm", "line_height_token":"normal", "min_hit_target_px":44},
+    "COMFORTABLE": {"spacing_token":"4", "font_size_token":"md", "line_height_token":"relaxed", "min_hit_target_px":44}
+  },
+  "top_n": {
+    "min": 1,
+    "max": 50,
+    "other_policy": "REMAINDER",
+    "other_key": "__OTHER__",
+    "conservation_required": true
+  },
+  "principles": {
+    "presentation_only": true,
+    "raw_css_allowed": false,
+    "arbitrary_color_allowed": false,
+    "arbitrary_formatter_allowed": false,
+    "query_mutation_allowed": false,
+    "binding_mutation_allowed": false,
+    "financial_formula_allowed": false,
+    "financial_truth_owned": false,
+    "top_n_changes_financial_total": false,
+    "design_tokens_required": true,
+    "viz_retype_required": true,
+    "external_asset_required": false,
+    "paid_dependency_required": false,
+    "free_only": true
+  },
+  "accessibility": {
+    "focus_visible_required": true,
+    "reduced_motion_required": true,
+    "high_contrast_fallback_required": true,
+    "minimum_hit_target_px": 44,
+    "system_color_scheme_supported": true
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "theme", "density", "widget_kind",
+    "customization_hash_prefix", "query_hash_prefix", "decision", "reason"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "binding_mutation": false,
+    "canonical_mutation": false,
+    "authorization": false,
+    "storage": false,
+    "network": false,
+    "deployment": false,
+    "renderer": false
+  },
+  "privacy": {
+    "public_evidence": "CONFIGURATION_ONLY_SYNTHETIC",
+    "financial_values_in_preferences": false,
+    "filter_values_in_preferences": false,
+    "private_labels_in_preferences": false,
+    "transaction_ids_in_preferences": false
+  }
+}
