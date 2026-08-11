@@ -16,33 +16,50 @@
 
 ## Текущая инженерная задача
 
-`DASH-085` — единственный **current writer**, canonical Issue #208, branch `agent/DASH-085-wide-visual-customization`. Объявленные зависимости `DASH-081` и `DESIGN-020` DONE/Main Verification PASS; dependency-order predecessor `DASH-084` также DONE/Main Verification PASS.
+`DASH-086` — единственный **current writer**, canonical Issue #213, branch `agent/DASH-086-safe-dashboard-import-export`. Dependencies `DASH-084`, `DASH-085`, `SEC-002` — DONE/Main Verification PASS. Это финальный item R8 перед `MASTER-G8 / Analytics Studio` exit gate.
 
-`DASH-084` завершён: Issue #206 **DONE**, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
+`DASH-085` завершён: canonical Issue #208 **DONE/Main Verification PASS**. Product PR #211 candidate `285f191be613355fd698260419bf5ac509ac19fa`; recovery PR #212 candidate `f6a427e0bff57857dad69c745b0850346524d745`; final recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`. Duplicate Issue #209 / PR #210 закрыты без merge и имеют `writer_authority=false`.
 
-DASH-085 вводит `PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1@1.0.0` как configuration-only presentation overlay поверх canonical DASH-081 binding. Он не изменяет canonical `AnalyticsQuery`, `query_hash`, FIN-TRUTH, KPI Dictionary, canonical transactions или financial values.
+DASH-086 вводит `PRH_DASHBOARD_PORTABLE_SPEC_V1@1.0.0` как configuration-only portability boundary поверх DASH-080/081/084/085. Portable layer не получает query/financial/storage authority.
 
-Theme = `SYSTEM / LIGHT / DARK`. Palette хранит только bounded semantic token IDs DESIGN-020; arbitrary CSS/HTML/URL, executable browser strings и external asset references запрещены fail-closed. Semantic palette token обязан существовать одновременно в light и dark DESIGN-020 theme registry.
+Current core:
 
-Chart types в scope = `BAR / LINE / DONUT`. Любой retype делегируется `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; `query_hash` до/после обязан совпадать и `query_modified=false`. Ambiguous `BAR/LINE` с series -> `DONUT` остаётся fail-closed по VIZ-070, а advanced chart families остаются VIZ-090.
+- `lib/dashboard/dashboard_portable_spec.v1.json`;
+- `lib/dashboard/dashboard_portable_spec.js`;
+- `tests/dashboard_safe_import_export_contract_test.js`;
+- `docs/dashboard/DASHBOARD_SAFE_IMPORT_EXPORT.md`;
+- TEST-010 classification = `PURE_DOMAIN_APPLICATION`;
+- named gate `Dashboard safe import/export`;
+- LANG-RU inventory/markers registered.
 
-Axes/labels/legend/stack являются presentation-only. DONUT axes всегда hidden; legend не включается для non-chart widgets; stack ON допустим только для BAR/LINE с уже существующим canonical series binding.
+Portable payload состоит только из canonical DASH-084 saved configuration (`DashboardSpec` + separately validated DASH-081 bound descriptors) и separately validated DASH-085 customization descriptors. Upstream derived identities не доверяются из файла: canonical validators заново нормализуют layout/bindings/customization и проверяют query/binding identity.
 
-Sort/Top-N не переписывают `AnalyticsQuery.sort`. Sort разрешён только для CHART/TABLE с effective dimension. Top-N использует существующий `ANL-072 / TOP_N_OTHER`, N bounded `1..20`, remainder `OTHER`; DASH-085 не владеет альтернативной формулой.
+Запрещены рекурсивно: AnalyticsResult/result rows, canonical transaction rows/datasets, amount/balance/KPI/measure output values, OAuth/access/refresh/id tokens, credentials/secrets/password/API keys, Apps Script/spreadsheet/deployment IDs, runtime locators/URLs, arbitrary CSS/HTML/JavaScript/code/formatter/callback/function/URL payload.
 
-Number format = `AUTO/GROUPED/COMPACT`, fraction digits `0..2`, sign `AUTO/ALWAYS`; это display metadata, не mutation integer-minor values. Density = `COMFORTABLE/COMPACT`; density не может скрыть данные как единственный responsive/a11y механизм. Для CHART mandatory semantic-table fallback + textual summary; DESIGN-020 focus-visible/reduced-motion сохраняются.
+Portable file имеет privacy class `PRIVATE_CONFIGURATION`, warning `PRIVATE_CONFIGURATION_NOT_PUBLIC_SAFE`. Private query/filter/dimension identifiers могут быть частью пользовательской конфигурации, поэтому export не считается public-safe. Public GitHub evidence использует только independently generated synthetic IDs/configuration.
 
-Core current writer:
+Current limits: portable JSON <= 64 KiB, JSON depth <= 32, string <= 8192 chars, widgets/bindings/customizations <= 48. Это bounded transport, согласованный с DASH-080 `max_widgets=48`.
 
-- `lib/dashboard/dashboard_visual_customization.v1.json`;
-- `lib/dashboard/dashboard_visual_customization.js`;
-- `tests/dashboard_visual_customization_contract_test.js`;
-- `docs/dashboard/DASHBOARD_VISUAL_CUSTOMIZATION.md`;
-- TEST-010 exact classification `PURE_DOMAIN_APPLICATION`;
-- named gate `Dashboard visual customization`;
-- LANG-RU inventory/markers updated.
+Import order обязателен:
 
-DASH-085 authorities all false: `financial_truth`, `financial_write`, `query`, `query_execution`, `canonical_mutation`, `storage`, `network`, `auth`, `deploy`, `renderer`. Public evidence = independently generated synthetic/configuration-only. Telemetry = schema/version/theme/chart type/density/customization hash prefix/decision/reason. `FREE_ONLY` mandatory.
+1. bounded parser;
+2. duplicate-key/prototype-pollution rejection;
+3. exact schema/shape;
+4. checksum raw payload verification;
+5. semantic validation/recomputation через DASH-080/081/084/085;
+6. canonical counts + round-trip identity verification.
+
+Parser запрещает duplicate keys и `__proto__/prototype/constructor`, не исполняет imported code и не использует eval/Function. Unknown/future schema fail closed.
+
+Current V1 import возвращает `PRH_DASHBOARD_PORTABLE_IMPORT_RESULT_V1` с `decision=DRY_RUN_ONLY`, `persistence_performed=false`, `persistence_authority=false`. Persistence требует отдельного explicit DASH-084 saved-view lifecycle/storage call. Portable core не вызывает `PropertiesService`, `SpreadsheetApp`, `UrlFetchApp`, `setProperties()` или financial write API; partial mutation невозможна.
+
+Legacy migration допускается только explicit `PRH_DASHBOARD_PORTABLE_SPEC_V0@0.9.0 -> PRH_DASHBOARD_PORTABLE_SPEC_V1@1.0.0`. Receipt = `PRH_DASHBOARD_PORTABLE_MIGRATION_V1`, deterministic source/target/migration hashes; migration остаётся dry-run.
+
+Canonical current-V1 import/re-export обязан быть byte-identical. Object key ordering не влияет на identity. Даже если внешний источник пересчитает checksum после подмены derived `binding_hash`, upstream DASH-084/DASH-081 recomputation обязано reject’нуть несогласованную identity.
+
+DASH-086 telemetry allowlist = schema/version/action/payload_hash_prefix/byte_count/widget_count/binding_count/customization_count/decision/reason. Raw widget IDs, names, query/filter values, private IDs, financial values, credentials/runtime locators запрещены.
+
+Все DASH-086 authorities = false: `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `binding_mutation`, `canonical_mutation`, `authorization`, `storage`, `persistence`, `network`, `deployment`, `renderer`. `FREE_ONLY` mandatory.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -50,128 +67,83 @@ DASH-085 authorities all false: `financial_truth`, `financial_write`, `query`, `
 
 Перед любой задачей, способной создать внешний расход, writer обязан сформировать **worst-case budget** и **owner estimate** как явный handoff владельцу до irreversible/billing-backed действия. Owner estimate не является machine authorization и не подменяет cost gate; если стоимость не доказана как допустимая в рамках текущего policy, действие fail-closed/blocked.
 
-`AIENG-006` / `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` определяет model routing handoff: required machine gates всегда `LOCAL_DETERMINISTIC`; интерактивная ChatGPT subscription surface отделена от OpenAI API billing; `OPENAI_API enabled=false` для required engineering. При exhaustion/unknown capacity используется разрешённый Sol/Terra/Luna fallback или pause/defer, но **не** автоматический paid API fallback и не bypass красного machine gate.
+`AIENG-006` / `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0`: required machine gates всегда `LOCAL_DETERMINISTIC`; ChatGPT subscription surface отделена от OpenAI API billing; `OPENAI_API enabled=false` для required engineering. При exhaustion/unknown capacity используется разрешённый Sol/Terra/Luna fallback или pause/defer, но не automatic paid API fallback и не bypass красного machine gate.
 
-Таким образом, FinOps truth, worst-case budget, owner estimate и model routing должны сохраняться при каждом writer handoff независимо от текущего Roadmap ID.
+FinOps truth, worst-case budget, owner estimate и model routing сохраняются при каждом writer handoff независимо от Roadmap ID.
 
 ## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка канонизирована: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; далее `AIENG-004`, `AIENG-005` и `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff остаётся обязательным lifecycle anchor и не заменяется текущим writer.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка сохраняется явно: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff является lifecycle anchor и не заменяется current writer.
 
-Real or real-derived household finance data stays private. Public repository содержит только public-safe contracts, synthetic finance fixtures и privacy-safe machine evidence; private OAuth, runtime locators, реальные строки/агрегаты и owner-private payload не публикуются.
+Real или real-derived household finance data остаются private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence.
 
 ## Current R1 truth
 
-`MASTER-G3` — complete.
+`MASTER-G3 / Canonical platform` — complete; historical pre-close state: open.
 
-- `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
-- `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
-- `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
-- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private stage `OWNER_VERIFIED`.
-- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`, `AIENG-005` — DONE/Main Verification PASS.
+- `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE/Main Verification PASS.
+- FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.
+- DATA authority = `PRH_CANONICAL_TRANSACTION_V1`.
+- Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`.
+- Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`; repository authority = `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
-
-Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor обязан оставаться в lifecycle docs даже после завершения R2.
+Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после завершения R2.
 
 ## Current R2 truth
 
-`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. `TX-020` Issue #124 завершён, merge `38a6d6bece459f61a2cf3d9af2cd8419274b258b`. `UI-MIG-020` Issue #172 завершён, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
+`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. Canonical private Web App default = R2 Financial Home. Web App остаётся `MYSELF`; PWA boundary `NOT_PROVEN_CURRENT_HOST`; `FREE_ONLY` mandatory.
 
-Canonical private Web App default = R2 Financial Home. Generated exact-candidate runtime строится из canonical `lib/**`; `financial_formula_copy=false`. `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` остаётся transient read-only adapter identity без persistent authority. Authenticated private Home smoke V3 и Trusted Runtime Health PASS. Web App остаётся `MYSELF`; PWA boundary `NOT_PROVEN_CURRENT_HOST`; `FREE_ONLY` обязателен.
+## Current R3/R4/R7 truth
 
-## Current R3 truth
+R3 completed items `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE/Main Verification PASS.
 
-- `TREND-030` — DONE, Issue #164 Main Verification PASS.
-- `PROJ-030` — DONE, Issue #166 Main Verification PASS.
-- `GOAL-030` — DONE, Issue #168 Main Verification PASS.
-- `BAL-030` — DONE, Issue #76 Main Verification PASS.
-- `NW-030` — DONE, Issue #171 Main Verification PASS.
-- `SUB-030` — DONE, Issue #179 Main Verification PASS.
+`YC-040` и `AUTH-040` — DONE/Main Verification PASS. `YC-041` = BLOCKED `OWNER_CLOUD_BOOTSTRAP_REQUIRED`; `YC-042` = BLOCKED `OWNER_YDB_TARGET_REQUIRED`; оба `writer_authority=false`, не создают billing-backed resources и не меняют canonical ownership.
 
-SUB-030 detector remains precision-first: `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не authority.
-
-## Current R4 truth
-
-- `YC-040` — DONE/Main Verification PASS.
-- `AUTH-040` — DONE/Main Verification PASS.
-- `YC-041` — **BLOCKED**, Issue #148, `OWNER_CLOUD_BOOTSTRAP_REQUIRED`, `writer_authority=false`.
-- `YC-042` — **BLOCKED**, Issue #149, `OWNER_YDB_TARGET_REQUIRED`, `writer_authority=false`.
-
-Google remains authoritative. Blocked cloud items не дают writer authority, не создают billing-backed resources и не меняют canonical write ownership.
-
-## Current R7 truth
-
-- `ANL-070` — DONE.
-- `SCOPE-070` — DONE.
-- `ANL-071` — DONE.
-- `ANL-072` — DONE.
-- `BENCH-070` — DONE.
-- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
-- `ANL-073` — DONE, Issue #186 Main Verification PASS.
-- `PERF-070` — DONE.
-- `TEST-070` — DONE.
-- `VIZ-070` — DONE, Issue #192 Main Verification PASS.
-- `MASTER-G7 / Semantic analytics` — **complete**.
-
-ANL-074 authority = `PRH_EXPLORATION_STATE_V1@1.0.0`: deterministic state hash/history, global/widget contexts, drill, RESET/BACK. Dashboard saved-view persistence не заменяет exploration state authority.
-
-VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; ECHARTS_6 replaceable/local-bundled, SEMANTIC_TABLE_V1 accessible fallback, chart retype query-hash invariant, no financial/query authority.
+R7 `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE/Main Verification PASS; `MASTER-G7` complete. VIZ-070 remains `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`, no financial/query authority.
 
 ## Current R8 truth
 
-- `STUDIO-080` — DONE, Issue #194 Main Verification PASS.
-- `PRIV-080` — DONE, Issue #79 Main Verification PASS.
-- `DASH-080` — DONE, Issue #198 Main Verification PASS, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
-- `DASH-081` — DONE, Issue #200 Main Verification PASS, merge `da42188741dcd035684cec900728ea53d5c961a2`.
-- `DASH-082` — DONE, Issue #202 Main Verification PASS, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`.
-- `DASH-083` — DONE, Issue #204 Main Verification PASS, candidate `c2fc3810c54a88c8aeca8b89ebd86e3784dbef46`, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`.
-- `DASH-084` — DONE, Issue #206 Main Verification PASS, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
-- `DASH-085` — **current writer**, Issue #208, branch `agent/DASH-085-wide-visual-customization`; IN_PROGRESS до Main Verification.
+- `STUDIO-080` — DONE.
+- `PRIV-080` — DONE.
+- `DASH-080` — DONE.
+- `DASH-081` — DONE.
+- `DASH-082` — DONE.
+- `DASH-083` — DONE.
+- `DASH-084` — DONE, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
+- `DASH-085` — DONE/Main Verification PASS, Issue #208, recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`.
+- `DASH-086` — **current writer**, Issue #213, branch `agent/DASH-086-safe-dashboard-import-export`; IN_PROGRESS until Main Verification.
 
-PRIV-080 boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`; presentation mode не является authorization/security boundary.
-
-DASH-080 boundary сохраняется: `PRH_DASHBOARD_COMPOSER_V1@1.0.0`, deterministic responsive layout, session-only composer state, no financial/query authority.
-
-DASH-081 boundary сохраняется: `PRH_WIDGET_FACTORY_V1@1.0.0`, explicit semantic binding only, no implicit auto-bind, no financial/query execution authority.
-
-DASH-082 boundary сохраняется: `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`, global filter interaction only, deterministic event/session identity, origin dedup/hop, ANL-074 RESET/BACK delegation.
-
-DASH-083 boundary сохраняется: `PRH_DASHBOARD_DRILL_V1@1.0.0`, hierarchy/drill orchestration, TX-020 selection authority, FIN-backed reconciliation, mismatch fail-closed.
-
-DASH-084 boundary сохраняется: `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`, private dashboard configuration storage only; immutable bounded revisions; UserProperties per-user adapter; no financial snapshots, no financial Sheets, no global shared properties, no data-write/query execution authority.
-
-DASH-085 boundary: presentation config only; DESIGN-020 semantic palettes/themes; VIZ-070 retype; ANL-072 `TOP_N_OTHER`; query hash invariant; no arbitrary CSS/HTML/URL, financial payload or authority expansion.
+DASH-084 remains private per-user configuration persistence only. DASH-085 remains presentation-only. DASH-086 adds only portable envelope/dry-run validation and cannot silently persist imported config.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `dashboard_visual_customization_contract_test.js` = `PURE_DOMAIN_APPLICATION`; named gate `Dashboard visual customization` обязателен вместе с existing DASH-084..080/ANL/PRIV/STUDIO/VIZ/DESIGN/R2/FIN/MIG gates. Red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies tracked tests fail-closed. `dashboard_safe_import_export_contract_test.js = PURE_DOMAIN_APPLICATION`; named gate `Dashboard safe import/export` is mandatory together with existing DASH-085..080/DESIGN/VIZ/ANL/PRIV/STUDIO/FIN/MIG/privacy/security/FREE_ONLY gates. Red-gate bypass prohibited.
 
 ## MIG-010 historical verified boundary
 
-Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
+Owner-private migration remains DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
 
-Historical authorized execution policy = `MIG010_EXECUTION_POLICY_V1@1.0.0`, strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize execution состояние обязано оставаться `FINALIZED_PENDING_RECONCILIATION`; это **не** verified completion. Только отдельная owner-private post-write reconciliation с `unexplainedMismatch=0` переводит historical migration lifecycle в подтверждённое завершение/`OWNER_VERIFIED`.
+Historical execution policy = `MIG010_EXECUTION_POLICY_V1@1.0.0`, strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize execution state должен оставаться `FINALIZED_PENDING_RECONCILIATION`; это **не** verified completion. Только отдельная owner-private post-write reconciliation с `unexplainedMismatch=0` переводит lifecycle в `OWNER_VERIFIED`.
 
-GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не могут переиспользовать historical authorization для будущей financial mutation. **Current write authority = false**.
+GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не могут переиспользовать historical authorization для будущей financial mutation. **Current write authority = false**. Любой будущий irreversible financial write требует fresh exact-bound owner authorization.
 
 ## Current delivery
 
 ```text
 PR Validation
+-> immutable exact candidate
 -> Trusted DEV Deploy
 -> Trusted Runtime Health
 -> CI-003 autonomous squash merge
 -> Main Verification
 ```
 
-DASH-085 остаётся открытым до green `Dashboard visual customization` + existing DASH-084..080/ANL/PRIV/STUDIO/VIZ/DESIGN/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-086 остаётся open до green `Dashboard safe import/export` + full existing gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
-Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers = `READ_ONLY`, `writer_authority=false`; review не может отменять красный machine gate.
+Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers = `READ_ONLY`, `writer_authority=false`; review cannot override red machine gate.
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080 и DASH-080..084 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-085` / Issue #208 — единственный active writer.
+Все R0/R1/R2, completed R3, YC-040/AUTH-040, R7, STUDIO-080, PRIV-080 и DASH-080..085 — DONE. YC-041/YC-042 remain BLOCKED. `DASH-086` / Issue #213 — единственный active writer.
