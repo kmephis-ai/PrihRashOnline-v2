@@ -74,23 +74,28 @@ Google остаётся authoritative; cloud blockers не создают billin
 
 VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`: BAR/LINE/DONUT, exact query-dimension coverage, query-hash invariant retype, ECHARTS_6 replaceable local/bundled renderer и `SEMANTIC_TABLE_V1` accessible fallback. Registry не получает query/financial/storage/network authority.
 
-## R8 / Analytics Studio — текущий writer
+## R8 / Analytics Studio и privacy modes
 
-- `STUDIO-080` — **IN_PROGRESS**, Issue #194, branch `agent/STUDIO-080-progressive-analytics-studio-shell`.
+- `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
+- `PRIV-080` — **IN_PROGRESS**, canonical Issue #79, branch `agent/PRIV-080-privacy-presentation-modes-v2`; единственный current writer.
 
-STUDIO-080 вводит `PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0` и progressive режимы `DAILY -> EXPLORE -> STUDIO`. `DAILY` остаётся default и ведёт на canonical Financial Home; invalid explicit mode fail-safe возвращается в DAILY, а expert mode никогда не включается неявно.
+STUDIO-080 сохранил `DAILY -> EXPLORE -> STUDIO`, default Financial Home и opt-in `surface=studio`. Trusted runtime defect exact-string launcher check был исправлен regression `dashboard_studio_htmlservice_normalization_test.js`; Main Verification подтвердил canonical Apps Script route.
 
-`EXPLORE` и `STUDIO` используют отдельный opt-in `surface=studio`. Этот live Web App surface configuration-only: он не вызывает `prhR2BuildFinancialHomeRuntime_()`, не содержит `google.script.run`, private financial payload placeholder или synthetic financial preview. Default route `home`, legacy rollback route и private exposure `MYSELF` не меняются.
+PRIV-080 вводит `PRH_PRIVACY_PRESENTATION_V1@1.0.0`. Это presentation policy, а не security boundary: `security_boundary=false`, `authorization_boundary=false`. PROF-020/AUTH-040/MYSELF остаются источниками доступа.
 
-Browser preference `prh.analyticsStudio.mode.v1` хранит только schema/version/mode. URL `mode` имеет приоритет для воспроизводимого открытия режима. Financial values, AnalyticsQuery, filters, scope/private identifiers, credentials и runtime locators в preference/telemetry запрещены.
+`NORMAL` сохраняет уже авторизованный presentation view. `MASKED` до HTML serialization заменяет sensitive monetary/private-dimension leaves на `null`, а массивы presentation data — на `[]`; исходный canonical view не мутируется. CSS blur/opacity не считается privacy evidence.
 
-Explore объявляет готовые semantic capabilities R7 без собственной query execution. Studio добавляет только `UPCOMING` affordances для `DASH-080`, `DASH-081` и `DASH-084`; dashboard composer/widget factory/layout/saved views в STUDIO-080 не реализуются.
+`DEMO` использует только independently generated `PUBLIC_SYNTHETIC` view и не вызывает private Financial Home adapter; runtime gate требует `privateReads=0` и `private_runtime_read=false`. DEMO явно маркируется `DEMO_SYNTHETIC_NOT_FIN_TRUTH`.
 
-Mode tabs используют `role=tablist/tab/tabpanel`, `aria-selected`, focus-visible и клавиши ArrowLeft/ArrowRight/Home/End. `prefers-reduced-motion` соблюдается. Visual gate проверяет 390x844, 768x1024 и 1440x900, отсутствие body overflow и отсутствие private financial runtime fetch на Studio route.
+`ZEN` читает canonical view только server-side внутри существующей authorization boundary, после чего отдельная safe page получает только allowlisted structural/status metadata. Amounts, transaction rows и private dimension labels в ZEN DOM отсутствуют; canonical R2 navigation сохраняется.
 
-Named gates: `Analytics Studio shell` (`RUNTIME_INTEGRATION`) и `Analytics Studio visual gate` (`UI_E2E`). `financial_truth=false`, `financial_write=false`, `query_execution=false`, `query_mutation=false`, `canonical_mutation=false`, `storage=false`, `network=false`, `deployment=false`; `FREE_ONLY` mandatory.
+Studio получает keyboard/a11y privacy selector `Normal / Masked / Demo / Zen`. Preference `prh.privacyPresentation.mode.v1` содержит только schema/version/mode; URL `privacy` переводит выбор в server-side pre-render path. Financial/query/filter/private identifier payload в preference запрещён.
 
-После STUDIO-080 Main Verification dependency-ready становится `DASH-080`; `PRIV-080` остаётся отдельным готовым P2 item и не реализуется внутри shell.
+Adversarial tests внедряют nested secret amounts/labels, filter arrays, chart series, widget/query refs и доказывают отсутствие этих токенов после MASKED/ZEN serialization. Runtime parity сравнивает Node reference и Apps Script adapter. Playwright visual gate проверяет DOM text/HTML и canonical viewports 390x844, 768x1024, 1440x900.
+
+Named gates: `Privacy presentation modes` (`RUNTIME_INTEGRATION`) и `Privacy modes visual gate` (`UI_E2E`). `financial_write=false`, `query_execution=false`, `query_mutation=false`, `canonical_mutation=false`, `authorization=false`, `storage=false`, `network=false`, `deployment=false`; `FREE_ONLY` mandatory.
+
+`DASH-080` уже dependency-ready после STUDIO-080, но resolver не берёт его, пока canonical Issue #79 не завершит Main Verification.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
 
@@ -121,11 +126,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-STUDIO-080 остаётся открытым до green `Analytics Studio shell` + `Analytics Studio visual gate` + existing R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+PRIV-080 остаётся открытым до green `Privacy presentation modes` + `Privacy modes visual gate` + existing Studio/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. STUDIO-080 добавляет только opt-in static/configuration shell и mode-only browser preference; financial calculations, canonical data and writes не переходят в shell. Public GitHub evidence configuration/synthetic-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. PRIV-080 добавляет только pre-render presentation transform и independently generated DEMO fixture; financial calculations, canonical data, write ownership и authentication не переходят в privacy layer. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
