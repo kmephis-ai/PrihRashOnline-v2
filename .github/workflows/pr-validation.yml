@@ -90,6 +90,8 @@ jobs:
         run: node tests/visualization_foundation_contract_test.js
       - name: Visualization registry v2
         run: node tests/visualization_registry_v2_contract_test.js
+      - name: Advanced visualization pack
+        run: node tests/advanced_visualization_pack_contract_test.js
       - name: Analytics Studio shell
         run: node tests/analytics_studio_shell_contract_test.js
       - name: Privacy presentation modes
