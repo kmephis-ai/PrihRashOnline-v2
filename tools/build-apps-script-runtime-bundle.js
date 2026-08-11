@@ -9,7 +9,9 @@ const ENTRY_MODULES = Object.freeze({
   financialReconciliation: 'lib/finance/financial_reconciliation.js',
   kpiDictionary: 'lib/finance/kpi_dictionary.js',
   home: 'lib/home/financial_home.js',
-  googleAdapter: 'lib/adapters/google_sheets_transaction_repository.js'
+  googleAdapter: 'lib/adapters/google_sheets_transaction_repository.js',
+  revisionAwareCache: 'lib/repository/revision_aware_cache.js',
+  singleScanRefresh: 'lib/repository/single_scan_refresh.js'
 });
 
 const REQUIRE_RE = /require\(\s*['\"]([^'\"]+)['\"]\s*\)/g;
@@ -105,7 +107,7 @@ function buildRuntimeBundleSource(sourceRoot, entryModules = ENTRY_MODULES) {
     " factory(module,module.exports,function(request){var resolved=dependencyMap[request];if(!resolved)throw new Error('R2_RUNTIME_REQUIRE_UNKNOWN:'+id+':'+request);return __load(resolved);});",
     ' return module.exports;',
     '}',
-    'var runtime={schema:__schema,version:"1.0.0",generated_from_canonical_lib:true,financial_formula_copy:false};'
+    'var runtime={schema:__schema,version:"1.1.0",generated_from_canonical_lib:true,financial_formula_copy:false};'
   );
   Object.entries(entryModules).forEach(([name, id]) => {
     lines.push(`runtime[${JSON.stringify(name)}]=__load(${JSON.stringify(normalizeId(id))});`);
