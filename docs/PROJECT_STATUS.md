@@ -34,7 +34,7 @@ Post-R1 handoff начинается с `DESIGN-020`; этот historical lifecy
 
 - `UI-MIG-020` — **DONE**, Issue #172 Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-Canonical private Web App default route теперь R2 `FinancialHomeWebApp`; legacy Dashboard остаётся bounded rollback route. Private Home использует generated canonical-lib runtime, `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` только как read-only transient adapter identity (`persistent_identity_authority=false`), `financial_formula_copy=false`. Authenticated private Home smoke V3 и exact-head Trusted Runtime Health = PASS. Private Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary сохраняется; `FREE_ONLY` обязателен.
+Canonical private Web App default route = R2 `FinancialHomeWebApp`; legacy Dashboard остаётся bounded rollback route. Private Home использует generated canonical-lib runtime; `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` — только transient read-only adapter identity (`persistent_identity_authority=false`), `financial_formula_copy=false`. Authenticated private Home smoke V3 и exact-head Trusted Runtime Health = PASS. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary сохраняется; `FREE_ONLY` обязателен.
 
 ## R3 / Planning, Wealth, Decision Intelligence — завершённые элементы
 
@@ -45,9 +45,7 @@ Canonical private Web App default route теперь R2 `FinancialHomeWebApp`; l
 - `NW-030` — **DONE**, Issue #171 Main Verification PASS, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
 - `SUB-030` — **DONE**, Issue #179 Main Verification PASS, candidate `2c3a0a39aa835cec2a5fa0a93d0a275b7bf008fd`, merge `2914f150a9b038af50f7ccbfd9ed3d4f684dad47`.
 
-SUB-030 authority = `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0`. Detector анализирует только `posted expense`, использует exact normalized signature (`label + currency + account + category`), minimum 3 occurrence, versioned WEEKLY/MONTHLY cadence tolerances и integer-minor amount stability. Stable evidence создаёт только `CANDIDATE`; неоднозначность остаётся `REVIEW`. `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, candidate не является FIN-TRUTH.
-
-Сопоставление с OBL-020 разрешено только через явный `signature_hash -> plan_id` link с exact direction/currency/cadence/reference-amount checks; fuzzy plan-label matching запрещён. Public telemetry не содержит raw labels, transaction/dimension IDs или financial values. Public evidence synthetic-only; `FREE_ONLY` mandatory.
+SUB-030 authority = `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0`. Detector precision-first, только `posted expense`, exact normalized signature, minimum 3 occurrence, versioned cadence tolerances и integer-minor stability. `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, candidate не FIN-TRUTH. Fuzzy/LLM matching не authority. Public evidence synthetic-only; `FREE_ONLY` mandatory.
 
 BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero balance. NW authority remains `PRH_NET_WORTH_V1@1.0.0`; no silent FX/market valuation and `financial_truth=false` for valuation layer.
 
@@ -65,19 +63,30 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
+- `ANL-072` — **DONE**, Issue #178 Main Verification PASS, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
+- `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, candidate `4da05a25669b87cc7711bde5d8502c457af71f09`, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
-- `ANL-072` — **DONE**, Issue #178 Main Verification PASS, candidate `0cc1260edb0a264d662a813abc04c1236bb44655`, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
-- `BENCH-070` — **IN_PROGRESS**, Issue #80, branch `agent/BENCH-070-personal-comparison-engine`.
+- `ANL-073` — **IN_PROGRESS**, Issue #186, branch `agent/ANL-073-pivot-olap-engine`.
 
-BENCH-070 вводит `PRH_PERSONAL_BENCHMARK_V1@1.0.0` как pure comparison layer поверх `PRH_ANALYTICS_PERIOD_ENGINE_V1`, `PRH_ANALYTICS_CALCULATED_METRICS_V1` и `PRH_ANALYTICS_SCOPE_V1`. Allowlist comparison types: `PREVIOUS_COMPARABLE_PERIOD`, `PERSONAL_ROLLING_BASELINE`, `BUDGET`, `TARGET`, `MANUAL_INDEX`.
+ANL-073 вводит `PRH_PIVOT_OLAP_V1@1.0.0` как pure multi-dimensional transformation layer поверх полного `PRH_ANALYTICS_RESULT_V1`. Source rows/columns dimensions должны точно совпадать с Pivot axes; source `comparison.mode=NONE`, `truncated=false`, provenance = `FIN-TRUTH-v1`. Engine не читает canonical transactions и не пересчитывает KPI.
 
-Previous/comparable period не пересчитывает календарные правила: BENCH сохраняет period quality ANL-071 и использует ANL-072 `DELTA_ABS`/`DELTA_PCT`. Rolling baseline исключает текущий bucket из history и использует ANL-072 `MOVING_AVERAGE`; окно bounded 2..24, а недостаточная история различается через `REQUIRE_FULL` и `ALLOW_PARTIAL`.
+PivotSpec: rows/columns/measures, prefix subtotal flags, grand total, deterministic sort и optional bounded Top-N. Максимум три dimensions суммарно, до двух на каждой axis. `time_bucket` имеет только hierarchy `TIME` и level `YEAR|MONTH|DAY`, совпадающий с source grain. Version 1 разрешает только additive measures с aggregation `SUM`; non-additive measures fail closed.
 
-Budget/target/manual index являются declared references и не становятся FIN-TRUTH. Reference обязан иметь тот же period, currency и normalized scope. Mismatch, invalid provenance, non-additive measure, zero/invalid manual index и unknown comparison type завершаются fail-closed. Manual index использует bounded positive integer PPM; zero reference сохраняет explicit `ZERO_REFERENCE_NO_CHANGE` / `ZERO_REFERENCE_UNDEFINED`, без NaN/Infinity.
+Sparse отсутствующая комбинация dimensions даёт explicit zero только как additive orchestration, без synthetic transaction mutation. Grand total независимо суммируется из source rows и обязан exact совпасть с итоговой cell matrix. Prefix subtotals строятся только для multi-level axes и используют safe integer accumulation.
 
-BENCH-070 работает со scalar additive semantic measures до отдельного `ANL-073` Pivot/OLAP. Он не реализует OLAP скрыто и не создаёт dashboard-specific formula engine. `financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `external_market_data=false`. Required core не использует внешний market-data provider, API key или paid SKU; `FREE_ONLY` mandatory.
+Top-N не имеет собственной финансовой формулы: axis totals передаются существующему ANL-072 `TOP_N_OTHER`, после чего remainder детерминированно сворачивается в `__OTHER__`. Source/output totals обязаны reconciled; drill из `OTHER` в v1 fail closed.
 
-Public tests independently generated synthetic-only. Public telemetry содержит только schema/version/comparison/measure/scope/period/sample/quality/reason metadata и не содержит financial values/private IDs. Named gate: `Personal benchmark comparisons`; TEST-010 class = `PURE_DOMAIN_APPLICATION`.
+TIME hierarchy expand/collapse использует ANL-070 transitions и возвращает новый canonical AnalyticsQuery. YEAR total никогда не синтезируется в MONTH detail; `implicit_detail_synthesis=false`, `query_reexecution_required=true`.
+
+Cell drill требует base AnalyticsQuery с hash == source query hash. Dimension members сужают filters до exact EQ, time member — до exact half-open range; VIZ-020 `PRH_DRILL_CONTEXT_V1` используется без расширения public financial payload. Runtime PivotResult/drill могут содержать private values только внутри private app; PivotSpec/public telemetry values не содержат.
+
+Seeded randomized tests требуют identical result identity при перестановке source rows, exact total/cell reconciliation и deterministic ties. Named gate `Pivot/OLAP engine`; TEST-010 class `PURE_DOMAIN_APPLICATION`.
+
+`financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `query_execution=false`. External OLAP backend и paid provider не требуются; `FREE_ONLY` mandatory.
+
+Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
+
+После ANL-073 Main Verification dependency-ready становится `PERF-070`; `TEST-070` ждёт ANL-073 + PERF-070 и уже завершённые ANL-071/072/074/SCOPE-070/BENCH-070. `VIZ-070` остаётся отдельным renderer-registry item.
 
 ## MIG-010 historical safety boundary
 
@@ -106,11 +115,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-BENCH-070 остаётся открытым до `Personal benchmark comparisons` + existing FIN/DATA/ANL/SCOPE/SUB/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+ANL-073 остаётся открытым до `Pivot/OLAP engine` + existing BENCH/FIN/DATA/ANL/SCOPE/SUB/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. BENCH-070 — pure analytics comparison layer; он не подключает новый сервис, не меняет current R2 routing, не создаёт financial write и не требует paid provider. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. ANL-073 — pure analytics transformation; он не меняет current R2 routing, не создаёт financial write и не требует paid provider. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
