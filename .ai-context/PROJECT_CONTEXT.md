@@ -39,46 +39,27 @@ AI regression eval remains local deterministic: synthetic golden baseline, no re
 
 ## Current R2 truth
 
-DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020 and PROF-020 are DONE/Main Verification PASS.
+DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020, PROF-020 and UI-MIG-020 are DONE/Main Verification PASS.
 
 `PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`, authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
 
-`UI-MIG-020` — **current writer**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`; P1 and IN_PROGRESS до Main Verification.
+`UI-MIG-020` Issue #172 — DONE/Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-UI-MIG-020 machine authority:
+Canonical R2 machine authority:
 
 - contract: `lib/ui/canonical_r2_web_app.v1.json` (`PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`);
 - router: `CanonicalR2WebAppService.js`;
 - read-only Home bridge: `R2FinancialRuntimeService.js` (`PRH_R2_FIN_RUNTIME_BRIDGE_V1`);
-- generated exact-candidate runtime: `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`), built from canonical versioned `lib/**` by `tools/build-apps-script-runtime-bundle.js`;
-- normative doc: `docs/ui/CANONICAL_R2_WEB_APP.md`;
-- required gates: `R2 Financial runtime parity`, `Canonical R2 cutover`, `Canonical R2 navigation visual gate`.
+- generated exact-candidate runtime: `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`), built from canonical versioned `lib/**`;
+- default private route = R2 Home; legacy remains bounded rollback `?surface=legacy`;
+- private exposure = `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary unchanged;
+- bridge has no independent FIN formula authority, `generated_from_canonical_lib=true`, `financial_formula_copy=false`;
+- human-readable private dimension labels cross the canonical boundary only through deterministic `DIMENSION_HASH` identity resolution; canonical ID grammar is not weakened;
+- technical render smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`;
+- private read smoke = `PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7`;
+- `financial_write=false`, canonical mutation/storage-write authority=false; `FREE_ONLY` mandatory.
 
-UI-MIG-020 rules:
-
-- canonical default Web App route = `home` / `FinancialHomeWebApp`; legacy `DashboardWebApp` loses default authority;
-- primary navigation contains exactly Home, Transactions, Expenses, Income, Cash Flow, Budget, Obligations, Data Quality;
-- legacy remains only bounded rollback route `?surface=legacy` until post-cutover verification;
-- private exposure stays `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary remains unchanged;
-- Home bridge reads `01 Операции` only through `prhGoogleRepositoryReadOperationsTable_` and explicit `currency` from existing `09 Настройки`;
-- immutable candidate generates the Home runtime from canonical Google repository adapter + `financial_reconciliation` + KPI Dictionary + `financial_home`; `generated_from_canonical_lib=true`, `financial_formula_copy=false`;
-- Home financial projection calls canonical `financial_home.buildFinancialHome()`; visual aggregation calls canonical `financial_reconciliation.aggregateTransactions()` and parity-checks Home cards; bridge has no independent financial formula authority;
-- generated runtime file is included in exact `sourceTreeHash` and trusted reconstruction, so it cannot become an independent source of truth;
-- posted income/expense/refund/transfer/zero-adjustment semantics remain `FIN-TRUTH-v1`; integer minor units and no implicit rounding;
-- legacy total cells are not financial truth; `legacy_total_cells_used=false`;
-- browser synthetic fixtures remain valid only for public CI/Playwright; private runtime fallback to `SYN-*` is forbidden;
-- routes without proven private binding use `SAFE_UNBOUND_FAIL_CLOSED` and do not read financial rows or display synthetic values as household truth;
-- authenticated technical render smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK` and does not read financial rows;
-- authenticated private Home read smoke = `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`; it builds the real private read-only Home but returns only a constant technical scalar;
-- `financial_write=false`, `canonical_mutation=false`, storage/runtime-write/deployment authority=false; `FREE_ONLY` mandatory.
-
-### Пояснение текущего переключения
-
-Текущий переход меняет не финансовую модель, а способ, которым пользователь попадает в уже созданный интерфейс. После завершения задачи стартовой страницей становится новый семейный финансовый экран. Старый дашборд сохраняется только как ограниченный запасной путь на случай технического отката. Такой подход позволяет проверить новую навигацию и отображение на настоящем закрытом окружении, не затрагивая историю операций и не создавая дополнительных полномочий на изменение данных.
-
-Особенно важно различать готовность внешнего вида и готовность подключения реальных данных. Наличие красивого экрана ещё не доказывает, что он безопасно связан с приватным хранилищем. Поэтому неподключённые разделы не должны молча показывать тестовые суммы и операции. Пока машинная проверка не подтверждает приватное чтение, такой раздел обязан явно сообщать, что подключение ещё не доказано. Это предотвращает ситуацию, когда демонстрационные данные выглядят как настоящие семейные финансы.
-
-Главная страница подключается к существующим операциям только для чтения. Bridge не содержит второй копии финансовых формул: trusted packager собирает runtime из тех же versioned `lib/**`, которые являются canonical source в Node tests. Валюта берётся из уже существующей настройки, а `R2 Financial runtime parity` исполняет generated bundle и сравнивает результат с canonical `evaluateKpis()`. Любое расхождение должно остановить доставку до развёртывания; UI не получает права самостоятельно определять формулы доходов, расходов, возвратов, переводов или денежного потока.
+Unbound R2 destinations remain `SAFE_UNBOUND_FAIL_CLOSED`; browser synthetic fixtures cannot become household truth.
 
 ## Current R3 truth
 
@@ -88,7 +69,7 @@ UI-MIG-020 rules:
 - `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
 - `NW-030` — **DONE**, Issue #171 Main Verification PASS, candidate `a2eefe5e9cb8d896e9f607486008901b40e50594`, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`, authority `PRH_NET_WORTH_V1@1.0.0`.
 
-BAL/NW contracts do not automatically grant UI-MIG private balance/valuation binding. No silent FX or market valuation is introduced.
+BAL/NW contracts do not grant calculated metrics any financial-write or valuation authority. No silent FX or market valuation is introduced.
 
 ## Current R4 truth
 
@@ -105,16 +86,37 @@ Google remains authoritative. Blocked cloud items не создают live cloud
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS, merge `136fa66ea5752c96b789e92911d75ce37226b62f`.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
+- `ANL-072` — **current writer**, Issue #178, branch `agent/ANL-072-safe-calculated-metrics`; P2 и IN_PROGRESS до Main Verification.
 
-ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependency-ready.
+ANL-072 machine authority boundary:
+
+- contract: `lib/analytics/calculated_metrics.v1.json` (`PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0`);
+- implementation: `lib/analytics/calculated_metrics.js`;
+- normative doc: `docs/analytics/CALCULATED_METRICS.md`;
+- mandatory gate: `Calculated/window metrics`;
+- upstream inputs: typed canonical `AnalyticsResult` and `PRH_ANALYTICS_PERIOD_RESULT_V1` with FIN-TRUTH/semantic/period provenance;
+- allowlist: `SHARE`, `DELTA_ABS`, `DELTA_PCT`, `CUMULATIVE`, `MOVING_AVERAGE`, `MOVING_MEDIAN`, `TOP_N_OTHER`;
+- arbitrary JavaScript/eval/SQL/executable formulas = forbidden;
+- ratio = deterministic integer PPM, `1 000 000 = 100%`;
+- money = integer minor units with exact integer intermediate arithmetic and explicit overflow fail-closed;
+- share reconciliation = exactly `1 000 000 PPM`; zero denominator fails closed;
+- percent delta uses explicit `ZERO_REFERENCE_NO_CHANGE` / `ZERO_REFERENCE_UNDEFINED`, never NaN/Infinity;
+- moving windows are bounded and require explicit `REQUIRE_FULL` or `ALLOW_PARTIAL`;
+- missing grouped additive partition = zero for series orchestration, without creating transactions;
+- `TOP_N_OTHER` uses bounded N, canonical dimension-key tie break, stable `__OTHER__`, exact source/output reconciliation;
+- truncated AnalyticsResult and incompatible comparison bucket counts fail closed;
+- telemetry excludes financial values/private dimension IDs; public finance evidence synthetic-only;
+- `financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `executable_formula=false`; `FREE_ONLY` mandatory.
+
+ANL-072 does not mutate ANL-010/ANL-070/ANL-071 enums or KPI formulas. It unlocks BENCH-070 and ANL-073 after Main Verification.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. UI-MIG adds runtime-integration tests for generated canonical FIN runtime/canonical routing and a UI_E2E responsive navigation visual gate. Full layered inventory remains mandatory; no red gate can be bypassed.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `calculated_metrics_contract_test.js` belongs to `PURE_DOMAIN_APPLICATION`; PR Validation has a named `Calculated/window metrics` gate. Full layered inventory remains mandatory; no red gate can be bypassed.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. UI-MIG-020 requires no external model/provider, market-data API or paid service.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. ANL-072 requires no external model/provider, market-data API or paid service.
 
 ## MIG-010 historical verified boundary
 
@@ -134,7 +136,7 @@ PR Validation
 -> Main Verification
 ```
 
-UI-MIG-020 remains open until R2 Financial runtime parity + Canonical R2 cutover + Canonical R2 navigation visual gate + existing FIN/DATA/ANL/DESIGN/VIZ/HOME/TX/EXP/INC/CF/BUD/OBL/DQ/PWA/MIG/privacy/FREE_ONLY/full layered evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #172.
+ANL-072 remains open until its named calculated/window gate and all existing privacy/FIN/DATA/ANL/FREE_ONLY/full layered/UI/runtime gates are green, exact candidate passes trusted deploy/runtime health, CI-003 merges autonomously and Main Verification closes Issue #178.
 
 ## Read-only multi-AI review
 
@@ -142,8 +144,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. UI-MIG only changes routing/render orchestration and adds a read-only bridge to generated canonical-lib Home runtime; `financial_write=false`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. ANL-072 is a pure storage-neutral analytical transformation layer and does not deploy a new service or write financial data. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, R2 baseline through PROF-020, TREND-030, PROJ-030, GOAL-030, BAL-030, NW-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 remain BLOCKED without writer authority. `MASTER-G3 = complete`. `UI-MIG-020` is the single active writer.
+All R0 critical items, R1 core + AIENG-005, R2 through UI-MIG-020, TREND-030, PROJ-030, GOAL-030, BAL-030, NW-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 remain BLOCKED without writer authority. `MASTER-G3 = complete`. `ANL-072` is the single active writer.
