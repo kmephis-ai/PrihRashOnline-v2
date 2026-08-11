@@ -22,9 +22,22 @@
 
 Public tests используют только независимо сгенерированные synthetic finance fixtures. Telemetry может содержать только технические версии, operator/measure identifiers, размеры окна/Top-N, counts и bounded reason codes. Финансовые суммы, исходные названия категорий/счетов, transaction IDs и другие private dimension values в public evidence запрещены. Новый слой не имеет storage/network/deployment/write authority и не требует платного API.
 
-## Current R0/R1 truth
+## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2`, `MASTER-G3` — complete. R1 canonical platform завершена: `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`, `AIENG-005` — DONE/Main Verification PASS.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка уже канонизирована: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; далее `AIENG-004`, `AIENG-005` и `AIENG-006` также DONE/Main Verification PASS. Этот handoff сохраняется как нормативный lifecycle anchor и не заменяется текущим R7 writer.
+
+Real or real-derived household finance data stays private. Публичный repository содержит только public-safe contracts, synthetic finance fixtures и privacy-safe machine evidence; private OAuth, runtime locators, реальные строки/агрегаты и owner-private payload не публикуются.
+
+## Current R1 truth
+
+`MASTER-G3` — complete. R1 canonical platform завершена:
+
+- `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
+- `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
+- `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
+- `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
+- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private reconciliation = OWNER_VERIFIED.
+- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`, `AIENG-005` — DONE/Main Verification PASS.
 
 FIN authority остаётся `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority — `PRH_CANONICAL_TRANSACTION_V1`; repository authority — `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. `PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic synthetic regression gate и не выдаёт authority.
 
@@ -100,7 +113,6 @@ Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST
 
 ```text
 PR Validation
--> immutable exact candidate
 -> Trusted DEV Deploy
 -> Trusted Runtime Health
 -> CI-003 autonomous squash merge
