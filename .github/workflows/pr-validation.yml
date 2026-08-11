@@ -98,6 +98,12 @@ jobs:
           set -euo pipefail
           node tests/privacy_presentation_modes_contract_test.js
           node tests/privacy_presentation_runtime_contract_test.js
+      - name: Dashboard composer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/dashboard_composer_contract_test.js
+          node tests/dashboard_composer_runtime_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
       - name: R2 Financial runtime parity
@@ -231,6 +237,8 @@ jobs:
         run: node tests/analytics_studio_shell_visual_test.js
       - name: Privacy modes visual gate
         run: node tests/privacy_presentation_modes_visual_test.js
+      - name: Dashboard composer visual gate
+        run: node tests/dashboard_composer_visual_test.js
       - name: Transaction Explorer visual gate
         run: node tests/transaction_explorer_visual_test.js
       - name: Expense Analytics visual gate
