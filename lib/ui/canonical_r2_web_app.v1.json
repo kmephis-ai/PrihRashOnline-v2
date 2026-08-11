@@ -58,6 +58,16 @@
     "source": "01 Операции",
     "currency_setting": "09 Настройки:currency",
     "read_gateway": "prhGoogleRepositoryReadOperationsTable_",
+    "dimension_resolver": {
+      "schema": "PRH_RUNTIME_DIMENSION_LABEL_HASH_V1",
+      "version": "1.0.0",
+      "normalization": "TRIM_COLLAPSE_WHITESPACE_LOWERCASE",
+      "identity": "KIND_SCOPED_SHA256_OF_NORMALIZED_LABEL",
+      "private_reverse_label_projection": true,
+      "persistent_identity_authority": false,
+      "write_authority": false,
+      "collision_behavior": "FAIL_CLOSED"
+    },
     "money": "integer_minor_units",
     "financial_truth": "FIN-TRUTH-v1",
     "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
@@ -69,7 +79,9 @@
   },
   "trusted_delivery": {
     "render_smoke_token": "PRH_WEBAPP_SMOKE_V3|R2|OK",
-    "private_home_read_smoke_token": "PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7",
+    "private_home_read_smoke_token": "PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7",
+    "runtime_failure_reason_prefix": "RUNTIME_HEALTH_HOME_",
+    "runtime_failure_reason_private_payload": false,
     "render_smoke_reads_financial_rows": false,
     "exact_sha_required": true,
     "runtime_health_required": true,
@@ -84,6 +96,7 @@
   "authority": {
     "financial_truth": false,
     "canonical_transaction": false,
+    "persistent_dimension_identity": false,
     "storage": false,
     "financial_write": false,
     "runtime_write": false,
