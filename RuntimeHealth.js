@@ -46,14 +46,26 @@ function prhReleaseHealthCheck(expectedBuild) {
   // No worksheet contents are returned or logged by this function.
   sheets[0].getRange(1, 1).getValue();
 
-  // Web App entry-path proof. The smoke renders DashboardWebApp using synthetic
-  // technical data only and does not read workbook rows or expose the private URL.
+  // Web App entry-path proof. The smoke renders the canonical R2 shell + Financial Home
+  // default route using synthetic technical metadata only; it reads no workbook rows and exposes no private URL.
   if (typeof prhWebAppRenderSmokeToken !== 'function') {
     throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING');
   }
   var webAppSmoke = prhWebAppRenderSmokeToken();
-  if (webAppSmoke !== 'PRH_WEBAPP_SMOKE_V2|OK') {
+  if (webAppSmoke !== 'PRH_WEBAPP_SMOKE_V3|R2|OK') {
     throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED');
+  }
+
+  // Private binding proof. This invokes the real read-only Home projection on the
+  // deployed workbook through the generated canonical-lib runtime bundle and the
+  // deterministic read-only dimension-label projection, but receives only a constant
+  // technical scalar without financial payload or dimension labels.
+  if (typeof prhR2FinancialHomeReadSmokeToken !== 'function') {
+    throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_MISSING');
+  }
+  var homeReadSmoke = prhR2FinancialHomeReadSmokeToken();
+  if (homeReadSmoke !== 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7') {
+    throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED');
   }
 
   return {

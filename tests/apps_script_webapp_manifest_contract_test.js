@@ -9,13 +9,21 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'appsscript.json'), 
 const trusted = fs.readFileSync(path.join(root, '.github', 'workflows', 'trusted-dev-deploy.yml'), 'utf8');
 const promoter = fs.readFileSync(path.join(root, 'tools', 'apps-script-api-promote.js'), 'utf8');
 const prValidation = fs.readFileSync(path.join(root, '.github', 'workflows', 'pr-validation.yml'), 'utf8');
-const legacy = fs.readFileSync(path.join(root, '.github', 'workflows', 'chat-driven-dev-release.yml'), 'utf8');
-const webService = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
+const legacyWorkflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'chat-driven-dev-release.yml'), 'utf8');
+const legacyWebService = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
+const canonicalRouter = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 
 assert(manifest.webapp, 'appsscript.json must declare webapp configuration');
 assert.strictEqual(manifest.webapp.access, 'MYSELF', 'DEV Web App must remain private to the deploying owner');
 assert.strictEqual(manifest.webapp.executeAs, 'USER_DEPLOYING', 'DEV Web App must execute as the deploying owner');
-assert(/function\s+doGet\s*\(/.test(webService), 'DashboardWebDataService.js must expose doGet');
+
+const canonicalDoGets = canonicalRouter.match(/function\s+doGet\s*\(/g) || [];
+const legacyDoGets = legacyWebService.match(/function\s+doGet\s*\(/g) || [];
+assert.strictEqual(canonicalDoGets.length, 1, 'CanonicalR2WebAppService.js must expose the single canonical doGet');
+assert.strictEqual(legacyDoGets.length, 0, 'DashboardWebDataService.js must not retain default doGet authority after UI-MIG-020');
+assert(/DEFAULT_SURFACE:\s*'home'/.test(canonicalRouter), 'Canonical Web App default route must be R2 Financial Home');
+assert(/\?surface=legacy/.test(canonicalRouter), 'Legacy Dashboard must remain a bounded explicit rollback route');
+assert(/prhRenderWebDashboard_/.test(legacyWebService), 'Legacy renderer must remain deployable for bounded rollback');
 
 assert(trusted.includes('workflow_run:'), 'Trusted deploy must be triggered from successful PR Validation completion');
 assert(trusted.includes('workflows: [PR Validation]'), 'Trusted deploy must consume PR Validation as its source gate');
@@ -37,12 +45,15 @@ assert(!trusted.includes('open-web-app'), 'CI-001 must not treat a public URL as
 
 assert(!prValidation.includes('${{ secrets.'), 'PR Validation must not reference deployment secrets');
 assert(!/\bclasp\s+push\b/.test(prValidation), 'PR Validation must not deploy candidate code');
-assert(!legacy.includes('${{ secrets.'), 'Legacy release workflow must remain unprivileged');
-assert(!/\bclasp\s+push\b/.test(legacy), 'Legacy release workflow must not retain a deployment path');
+assert(!legacyWorkflow.includes('${{ secrets.'), 'Legacy release workflow must remain unprivileged');
+assert(!/\bclasp\s+push\b/.test(legacyWorkflow), 'Legacy release workflow must not retain a deployment path');
 
 console.log('apps_script_webapp_manifest_contract_test: OK', {
   access: manifest.webapp.access,
   executeAs: manifest.webapp.executeAs,
+  canonicalEntryPoint: 'CanonicalR2WebAppService.doGet',
+  defaultSurface: 'home',
+  legacyRollback: true,
   trustedPromotion: 'workflow_run+exact-rest-version',
   stableWebIdentity: 'description+WEB_APP',
   runtimeHealthOwner: 'CI-002'
