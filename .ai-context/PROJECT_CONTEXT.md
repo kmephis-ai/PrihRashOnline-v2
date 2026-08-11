@@ -107,7 +107,9 @@ ANL-072 не меняет enum/semantics upstream contracts и после Main V
 
 ## MIG-010 historical verified boundary
 
-Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound и non-reusable. Текущая write authority = false.
+Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это occurrence-aware identity capability, а не разрешение AI/CI выбирать семантику дубликатов.
+
+GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI также не могут переиспользовать историческое owner authorization для будущей financial mutation. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound и non-reusable. Текущая write authority = false.
 
 ## Current delivery
 
