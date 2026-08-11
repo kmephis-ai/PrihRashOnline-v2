@@ -67,25 +67,24 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, candidate `4da05a25669b87cc7711bde5d8502c457af71f09`, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
 - `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
-- `PERF-070` — **IN_PROGRESS**, Issue #188, branch `agent/PERF-070-analytics-query-planner-cache`.
+- `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
+- `TEST-070` — **IN_PROGRESS**, Issue #190, branch `agent/TEST-070-combinatorial-analytics-regression`.
 
-PERF-070 вводит `PRH_ANALYTICS_QUERY_PLANNER_CACHE_V1@1.0.0` как performance-only orchestration над canonical `AnalyticsQuery` / `AnalyticsResult`. Fingerprint включает normalized query, exact canonical revision и analytics/semantic/planner versions. Raw query или financial payload не входят в public telemetry.
+TEST-070 вводит `PRH_COMBINATORIAL_ANALYTICS_REGRESSION_V1@1.0.0` как bounded test-only evidence layer. Он не создаёт новой business/financial semantics и не меняет upstream FIN-TRUTH, AnalyticsQuery/AnalyticsResult, Period, Calculated Metrics, Scope, Benchmark, Pivot или Planner contracts.
 
-Planner имеет bounded in-memory TTL/LRU cache. Same-revision exact fingerprint даёт `CACHE_HIT`; revision change очищает cache и увеличивает generation. Cache eviction/expiration влияет только на производительность — authoritative fallback остаётся canonical `evaluateAnalytics`.
+Version 1 использует independently generated synthetic dataset из 720 canonical transactions, фиксированный seed и 48 representative cases (`max_case_count=96`). Sampling = `SEEDED_BOUNDED_ROTATION`; полный Cartesian product намеренно запрещён. Любая case failure воспроизводится через `seed + case_id`.
 
-Materialized aggregate reuse из PERF-013 разрешён только для доказуемого subset: additive measures, `comparison=NONE`, filters/sort пусты, `budget_minor=null`, exact state revision/currency; projection `CATEGORY_ID`, `ACCOUNT_ID` или month-aligned `MONTH`. Любая несовместимость детерминированно использует `CANONICAL_EVALUATOR`; heuristic aggregate reuse запрещён. Reused result остаётся обычным `PRH_ANALYTICS_RESULT_V1` с `FIN-TRUTH-v1` provenance и обязан иметь parity с canonical evaluator.
+Representative matrix покрывает scalar/category/account/member/project/category+account queries, `EXPENSE|INCOME|CASH_FLOW`, posted/type/account/category/tag filters, full-history и year windows, native `NONE|MONTH|YEAR` grains. Для каждой комбинации проверяются normalized query/hash determinism, `FIN-TRUTH-v1` provenance, integer-minor exactness, additive reconciliation и PERF-070 cold/warm canonical parity.
 
-Async registry ключуется `generation + fingerprint`. Одинаковые in-flight requests coalesce. Если generation или canonical revision меняется до completion, результат возвращается `DISCARDED_STALE`, `result=null` и не помещается в cache. Старый request generation отклоняется до computation.
+Отдельные cross-layer checks связывают `ALL_CANONICAL|DEFAULT_ANALYSIS|EMERGENCY_FUND_ONLY`, ANL-074 exploration include/exclude composition, ANL-071 period comparison, ANL-072 moving average, BENCH-070 rolling/previous references, ANL-073 Pivot+Top-N reconciliation и PERF-070 revision invalidation. Transfer-only `CASH_FLOW=0`; EUR query на RUB-only fixture не получает implicit FX conversion. Unsupported grouped `BUDGET_VARIANCE` и truncated Pivot остаются fail-closed.
 
-Synthetic contract tests покрывают fingerprint normalization, aggregate parity, cache hit/miss/revision invalidation, LRU/TTL, in-flight coalescing и generation/revision stale discard. Отдельный 20k/50k gate требует: cold supported query = `AGGREGATE_REUSE`, warm same-revision = `MEMORY_CACHE`, warm extra canonical evaluations = 0, warm extra aggregate builds = 0, financial writes = 0. 100 ms — generous CI regression ceiling, не пользовательский SLA.
+Public TEST-070 evidence содержит только schema/version/seed/case-count/query-hash-prefix-count/status/reason. Raw rows, amounts, account/category/member/project values и filters в telemetry запрещены. Runtime ceiling 20 s — только CI regression guard, не пользовательский SLA.
 
-Public telemetry = schema/version/status/reason, fingerprint/revision hash prefixes, cache/inflight counts, generation и technical hit/miss/reuse/evaluation/coalesce/discard/eviction/expiration counters. Cached AnalyticsResult и private query/filter/dimension/financial values не публикуются.
-
-`financial_truth=false`, `financial_write=false`, `migration=false`, `network=false`, `storage=false`, `ui=false`, `renderer=false`, `paid_dependency_required=false`; `FREE_ONLY` mandatory. Named gate: `Analytics query planner/cache`.
+Named gate `Combinatorial analytics regression`; TEST-010 class `PURE_DOMAIN_APPLICATION`; `financial_truth=false`, `financial_write=false`, `storage=false`, `network=false`, `deployment=false`, `ui=false`, `renderer=false`; `FREE_ONLY` mandatory.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
 
-После PERF-070 Main Verification dependency-ready становится `TEST-070`, если остальные его зависимости остаются DONE. `VIZ-070` остаётся отдельным P2 renderer-registry item и не реализуется внутри planner.
+После TEST-070 Main Verification `MASTER-G7 / Semantic analytics` становится complete, если остальные R7 items остаются DONE. Следующий готовый `VIZ-070` остаётся отдельным P2 renderer-registry item и не реализуется внутри TEST-070.
 
 ## MIG-010 historical safety boundary
 
@@ -114,11 +113,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-PERF-070 остаётся открытым до `Analytics query planner/cache` + existing PERF/ANL/BENCH/Pivot/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+TEST-070 остаётся открытым до `Combinatorial analytics regression` + existing PERF/ANL/BENCH/Pivot/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. PERF-070 — in-process analytics optimization; он не меняет current R2 routing, financial writes или external providers. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. TEST-070 — synthetic-only test/evidence layer; он не меняет current R2 routing, production financial calculations, financial writes или external providers. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
