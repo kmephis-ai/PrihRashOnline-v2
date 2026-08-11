@@ -66,32 +66,33 @@ VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; no fin
 
 - `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
 - `PRIV-080` — **DONE**, Issue #79 Main Verification PASS, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
-- `DASH-080` — **DONE**, Issue #198 Main Verification PASS, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
-- `DASH-081` — **DONE**, Issue #200 Main Verification PASS, candidate `5752b963a528ccdabf307531dff426a9cfbe59a1`, merge `da42188741dcd035684cec900728ea53d5c961a2`.
-- `DASH-082` — **DONE**, Issue #202 Main Verification PASS, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`.
-- `DASH-083` — **DONE**, Issue #204 Main Verification PASS, candidate `c2fc3810c54a88c8aeca8b89ebd86e3784dbef46`, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`.
+- `DASH-080` — **DONE**, Issue #198 Main Verification PASS, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
+- `DASH-081` — **DONE**, Issue #200 Main Verification PASS, merge `da42188741dcd035684cec900728ea53d5c961a2`.
+- `DASH-082` — **DONE**, Issue #202 Main Verification PASS, merge `ac565189bc70133f127bdea471a50d0efae94443`.
+- `DASH-083` — **DONE**, Issue #204 Main Verification PASS, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`.
 - `DASH-084` — **DONE**, Issue #206 Main Verification PASS, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
-- `DASH-085` — **IN_PROGRESS**, canonical Issue #208, branch `agent/DASH-085-wide-visual-customization`; единственный current writer.
+- `DASH-085` — **DONE**, canonical Issue #208 Main Verification PASS; product PR #211 candidate `285f191be613355fd698260419bf5ac509ac19fa`, recovery PR #212 candidate `f6a427e0bff57857dad69c745b0850346524d745`, final recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`. Duplicate Issue #209 / PR #210 closed without merge and `writer_authority=false`.
+- `DASH-086` — **IN_PROGRESS**, canonical Issue #213, branch `agent/DASH-086-safe-dashboard-import-export`; единственный current writer.
 
-DASH-080 сохраняет `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: deterministic 12-column layout, responsive derivation и placeholders `semantic_binding_status=UNBOUND`.
+DASH-080 сохраняет `PRH_DASHBOARD_COMPOSER_V1@1.0.0`; DASH-081 — `PRH_WIDGET_FACTORY_V1@1.0.0`; DASH-082 — `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`; DASH-083 — `PRH_DASHBOARD_DRILL_V1@1.0.0`; их layout/query/filter/drill authorities не передаются portable layer.
 
-DASH-081 сохраняет `PRH_WIDGET_FACTORY_V1@1.0.0`: `KPI/CARD/CHART/TABLE/PIVOT`, canonical AnalyticsQuery/binding identity, explicit `UNBOUND -> BOUND`, no financial/query-execution authority.
+DASH-084 сохраняет `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`: private per-user configuration store через Apps Script UserProperties, bounded immutable revisions/presets, no financial dataset snapshots. Persistence остаётся отдельным явным lifecycle call.
 
-DASH-082 сохраняет `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`: global FilterContext only, origin dedup/hop protection, ANL-074 RESET/BACK delegation.
+DASH-085 сохраняет `PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1@1.0.0`: presentation-only configuration, DESIGN-020 tokens, VIZ-070 retype/query-hash invariant, ANL-072 Top-N semantics, no financial/query/storage authority.
 
-DASH-083 сохраняет `PRH_DASHBOARD_DRILL_V1@1.0.0`: `YEAR -> QUARTER -> MONTH -> DAY`, ID-only category/account hierarchies, TX-020 drill-through и FIN-backed `INCOME/EXPENSE/CASH_FLOW` reconciliation. Mismatch fail closed.
+DASH-086 вводит `PRH_DASHBOARD_PORTABLE_SPEC_V1@1.0.0`. Portable payload содержит только normalized DASH-084 configuration и отдельно валидированные DASH-085 customization descriptors. `AnalyticsResult`, transaction rows/datasets, amounts/balances/KPI outputs, credentials/tokens, Apps Script/runtime/deployment locators и executable CSS/HTML/script/URL запрещены рекурсивно.
 
-DASH-084 сохраняет `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`: private per-user configuration store через Apps Script UserProperties с bounded immutable revisions/presets. Financial Sheets, AnalyticsResult, transaction rows, amounts, runtime locators и secrets не становятся dashboard config storage.
+Portable file имеет privacy class `PRIVATE_CONFIGURATION` и warning `PRIVATE_CONFIGURATION_NOT_PUBLIC_SAFE`: canonical query/filter/dimension IDs разрешены внутри private export, поэтому файл нельзя публиковать как public artifact. Public GitHub evidence synthetic-only.
 
-DASH-085 вводит `PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1@1.0.0` как presentation-only overlay для DASH-081 bindings. Разрешены `SYSTEM/LIGHT/DARK`, bounded semantic palettes, `BAR/LINE/DONUT`, axes/labels/legend/stack, presentation sort/Top-N, number format и `COMFORTABLE/COMPACT` density.
+Import использует bounded JSON parser: 64 KiB ceiling, max depth 32, max string 8192, max 48 widgets/bindings/customizations. Duplicate JSON keys и `__proto__/prototype/constructor` fail closed. Checksum проверяется над raw payload **до** semantic normalization; затем DASH-080/081/084/085 validators заново вычисляют/проверяют identities. Imported hashes не получают authority.
 
-Любой chart retype делегируется VIZ-070 и обязан сохранять exact canonical `query_hash` при `query_modified=false`. `TOP_N_OTHER` переиспользует ANL-072; DASH-085 не создаёт собственную финансовую формулу и не переписывает AnalyticsQuery. Arbitrary CSS/HTML/URL/executable presentation values и financial/result payload fail closed.
+Import result = `DRY_RUN_ONLY`, `persistence_performed=false`, `persistence_authority=false`. DASH-086 core не вызывает `PropertiesService`, financial Sheets или network; сохранение возможно только отдельным explicit DASH-084 lifecycle/storage call с generation/limit checks. Partial mutation из portable core невозможна.
 
-Palette хранит только semantic token IDs, существующие одновременно в light/dark DESIGN-020. Density не может скрыть данные как единственный responsive/a11y механизм; chart widgets сохраняют semantic-table fallback + textual summary, focus-visible и reduced-motion.
+Explicit legacy `PRH_DASHBOARD_PORTABLE_SPEC_V0@0.9.0 -> V1` migration возвращает deterministic receipt и остаётся dry-run. Unknown/future schema fail closed. Re-export успешно импортированного current V1 обязан быть canonical byte-identical.
 
-DASH-085 authority: `financial_truth=false`, `financial_write=false`, `query=false`, `query_execution=false`, `canonical_mutation=false`, `storage=false`, `network=false`, `auth=false`, `deploy=false`, `renderer=false`. Public evidence synthetic/configuration-only; telemetry содержит только theme/chart/density/hash-prefix/decision/reason.
+Все DASH-086 authority = false: financial truth/write, query execution/mutation, binding/canonical mutation, authorization, storage/persistence, network, deployment, renderer. `FREE_ONLY` обязателен.
 
-Named gate current writer: `Dashboard visual customization` (`PURE_DOMAIN_APPLICATION`). Existing DASH-084..080/PRIV/STUDIO/VIZ/DESIGN/ANL/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
+Named gate current writer: `Dashboard safe import/export` (`PURE_DOMAIN_APPLICATION`). Existing DASH-085..080/PRIV/STUDIO/VIZ/DESIGN/ANL/FIN/MIG/privacy/security/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, stale build не считается healthy, остальные failures fail-fast.
 
@@ -122,11 +123,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-DASH-085 остаётся открытым до green `Dashboard visual customization` + existing DASH-084..080/PRIV/STUDIO/VIZ/DESIGN/ANL/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-086 остаётся открытым до green `Dashboard safe import/export` + existing DASH-085..080/PRIV/STUDIO/VIZ/DESIGN/ANL/FIN/MIG/privacy/security/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary financial store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. DASH-084 хранит private dashboard configuration отдельно в UserProperties. DASH-085 добавляет только public-safe presentation configuration contract поверх canonical bound widgets и не читает/не пишет financial store. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary financial store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. DASH-084 UserProperties остаётся только private dashboard-configuration storage. DASH-086 добавляет portable private configuration envelope и dry-run import, но не новый financial/config persistence authority. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
