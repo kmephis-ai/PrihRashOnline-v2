@@ -106,6 +106,8 @@ jobs:
         run: node tests/budget_control_contract_test.js
       - name: Obligations
         run: node tests/obligations_contract_test.js
+      - name: Subscription detection
+        run: node tests/subscription_detection_contract_test.js
       - name: Data Quality
         run: node tests/data_quality_center_contract_test.js
       - name: PWA baseline

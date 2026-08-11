@@ -31,54 +31,18 @@
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private `OWNER_VERIFIED` reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
-- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`, authority `PRH_AI_EVAL_SUITE_V1@1.0.0`.
+- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
 
 `PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-AI regression eval remains local deterministic: synthetic golden baseline, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
-
 ## Current R2 truth
 
-DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020 and PROF-020 are DONE/Main Verification PASS.
+DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020, PROF-020 and UI-MIG-020 are DONE/Main Verification PASS.
 
-`PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`, authority `PRH_HOUSEHOLD_PREFERENCES_V1@1.0.0`. Profile config remains separate from financial truth; `financial_write=false`.
+- `PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
+- `UI-MIG-020` Issue #172 — DONE/Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-`UI-MIG-020` — **current writer**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`; P1 and IN_PROGRESS до Main Verification.
-
-UI-MIG-020 machine authority:
-
-- contract: `lib/ui/canonical_r2_web_app.v1.json` (`PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`);
-- router: `CanonicalR2WebAppService.js`;
-- read-only Home bridge: `R2FinancialRuntimeService.js` (`PRH_R2_FIN_RUNTIME_BRIDGE_V1`);
-- generated exact-candidate runtime: `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`), built from canonical versioned `lib/**` by `tools/build-apps-script-runtime-bundle.js`;
-- normative doc: `docs/ui/CANONICAL_R2_WEB_APP.md`;
-- required gates: `R2 Financial runtime parity`, `Canonical R2 cutover`, `Canonical R2 navigation visual gate`.
-
-UI-MIG-020 rules:
-
-- canonical default Web App route = `home` / `FinancialHomeWebApp`; legacy `DashboardWebApp` loses default authority;
-- primary navigation contains exactly Home, Transactions, Expenses, Income, Cash Flow, Budget, Obligations, Data Quality;
-- legacy remains only bounded rollback route `?surface=legacy` until post-cutover verification;
-- private exposure stays `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary remains unchanged;
-- Home bridge reads `01 Операции` only through `prhGoogleRepositoryReadOperationsTable_` and explicit `currency` from existing `09 Настройки`;
-- immutable candidate generates the Home runtime from canonical Google repository adapter + `financial_reconciliation` + KPI Dictionary + `financial_home`; `generated_from_canonical_lib=true`, `financial_formula_copy=false`;
-- Home financial projection calls canonical `financial_home.buildFinancialHome()`; visual aggregation calls canonical `financial_reconciliation.aggregateTransactions()` and parity-checks Home cards; bridge has no independent financial formula authority;
-- generated runtime file is included in exact `sourceTreeHash` and trusted reconstruction, so it cannot become an independent source of truth;
-- posted income/expense/refund/transfer/zero-adjustment semantics remain `FIN-TRUTH-v1`; integer minor units and no implicit rounding;
-- legacy total cells are not financial truth; `legacy_total_cells_used=false`;
-- browser synthetic fixtures remain valid only for public CI/Playwright; private runtime fallback to `SYN-*` is forbidden;
-- routes without proven private binding use `SAFE_UNBOUND_FAIL_CLOSED` and do not read financial rows or display synthetic values as household truth;
-- authenticated technical render smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK` and does not read financial rows;
-- authenticated private Home read smoke = `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`; it builds the real private read-only Home but returns only a constant technical scalar;
-- `financial_write=false`, `canonical_mutation=false`, storage/runtime-write/deployment authority=false; `FREE_ONLY` mandatory.
-
-### Пояснение текущего переключения
-
-Текущий переход меняет не финансовую модель, а способ, которым пользователь попадает в уже созданный интерфейс. После завершения задачи стартовой страницей становится новый семейный финансовый экран. Старый дашборд сохраняется только как ограниченный запасной путь на случай технического отката. Такой подход позволяет проверить новую навигацию и отображение на настоящем закрытом окружении, не затрагивая историю операций и не создавая дополнительных полномочий на изменение данных.
-
-Особенно важно различать готовность внешнего вида и готовность подключения реальных данных. Наличие красивого экрана ещё не доказывает, что он безопасно связан с приватным хранилищем. Поэтому неподключённые разделы не должны молча показывать тестовые суммы и операции. Пока машинная проверка не подтверждает приватное чтение, такой раздел обязан явно сообщать, что подключение ещё не доказано. Это предотвращает ситуацию, когда демонстрационные данные выглядят как настоящие семейные финансы.
-
-Главная страница подключается к существующим операциям только для чтения. Bridge не содержит второй копии финансовых формул: trusted packager собирает runtime из тех же versioned `lib/**`, которые являются canonical source в Node tests. Валюта берётся из уже существующей настройки, а `R2 Financial runtime parity` исполняет generated bundle и сравнивает результат с canonical `evaluateKpis()`. Любое расхождение должно остановить доставку до развёртывания; UI не получает права самостоятельно определять формулы доходов, расходов, возвратов, переводов или денежного потока.
+Canonical private Web App default = R2 Financial Home. Generated exact-candidate runtime is built from canonical `lib/**`; `financial_formula_copy=false`. Private transient dimension projection remains `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1`, `persistent_identity_authority=false`. Authenticated private Home smoke V3 and Trusted Runtime Health PASS. `NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
 
 ## Current R3 truth
 
@@ -86,9 +50,41 @@ UI-MIG-020 rules:
 - `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
 - `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
 - `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
-- `NW-030` — **DONE**, Issue #171 Main Verification PASS, candidate `a2eefe5e9cb8d896e9f607486008901b40e50594`, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`, authority `PRH_NET_WORTH_V1@1.0.0`.
+- `NW-030` — **DONE**, Issue #171 Main Verification PASS, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
+- `SUB-030` — **current writer**, Issue #179, branch `agent/SUB-030-subscription-detection`; IN_PROGRESS до Main Verification.
 
-BAL/NW contracts do not automatically grant UI-MIG private balance/valuation binding. No silent FX or market valuation is introduced.
+SUB-030 machine authority:
+
+- contract: `lib/subscriptions/subscription_detection.v1.json` (`PRH_SUBSCRIPTION_DETECTION_V1@1.0.0`);
+- core: `lib/subscriptions/subscription_detection.js`;
+- contract test: `tests/subscription_detection_contract_test.js`;
+- normative doc: `docs/finance/SUBSCRIPTIONS_RECURRING_SPEND.md`;
+- named gate: `Subscription detection`.
+
+SUB-030 rules:
+
+- detector consumes only canonical `posted expense`; `income`, `transfer`, `refund`, `adjustment`, `pending`, `void` never become subscription occurrence;
+- label source priority = `counterparty` then `description`; normalization only `NFKC + trim + collapse whitespace + lowercase`;
+- grouping is exact by normalized label + currency + account_id + category_id; fuzzy/LLM similarity is forbidden;
+- signature identity = SHA-256 versioned `PRH_SUBSCRIPTION_SIGNATURE_V1` payload;
+- minimum candidate evidence = 3 occurrences; bounded latest history = 24 occurrences / 730 days;
+- supported cadence = WEEKLY (7±1 days) and MONTHLY (next calendar month + clamp-to-month-end nominal day, ±3 days); every interval must match;
+- amount reference = lower median minor units; tolerance = max(100 minor, floor(5%)); every occurrence must match for CANDIDATE;
+- ambiguous cadence or amount evidence remains `REVIEW`; insufficient history = `NO_CANDIDATE` and is not surfaced as a finding;
+- OBL-020 comparison is only explicit `signature_hash -> plan_id`; exact OUTFLOW/currency/cadence/reference amount checks; fuzzy plan-label matching forbidden;
+- even `CANDIDATE` has `auto_confirmed=false`, `obligation_created=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`;
+- public telemetry contains hashes/counts/status/cadence metadata only, never raw labels, transaction/dimension IDs or financial values;
+- public evidence synthetic-only; storage/network/runtime/deployment authority=false; `FREE_ONLY` mandatory.
+
+### Как должен рассуждать AI при работе с SUB-030
+
+Основной приоритет задачи — не максимальное число найденных подписок, а минимизация ложных срабатываний. Если данных недостаточно или поведение расхода нельзя уверенно объяснить установленными правилами, результат должен оставаться на проверке человеком. Нельзя превращать похожее описание платежей в устойчивую связь только потому, что строки выглядят одинаково. Нельзя автоматически создавать обязательство, менять категорию операции или исправлять историю. Любая новая эвристика должна сначала получить отдельный версионированный контракт и синтетические негативные примеры.
+
+При ревью нужно отдельно проверять границы финансовой истины. Детектор использует суммы и даты только как признаки повторяемости, но не определяет новые финансовые показатели и не меняет значения операций. Возвраты, переводы, ожидающие и отменённые записи не должны создавать ложную регулярность. Связь с существующим планом обязательства допустима только по заранее явной технической связи и точным проверкам валюты, направления, периода и суммы. Если хотя бы одна из этих проверок не выполнена, система обязана остановиться без изменения данных.
+
+При анализе приватности запрещено переносить в публичные журналы исходные названия получателей, описания платежей, идентификаторы счетов, категорий и транзакций, а также денежные значения. В публичном машинном evidence допустимы только обезличенные хэши, количества, состояния и тип периодичности. Все тестовые финансовые записи в GitHub должны оставаться независимо сгенерированными синтетическими примерами.
+
+BAL remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero balance. NW remains `PRH_NET_WORTH_V1@1.0.0`; no silent FX/market valuation and valuation layer `financial_truth=false`.
 
 ## Current R4 truth
 
@@ -110,11 +106,11 @@ ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependenc
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. UI-MIG adds runtime-integration tests for generated canonical FIN runtime/canonical routing and a UI_E2E responsive navigation visual gate. Full layered inventory remains mandatory; no red gate can be bypassed.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `subscription_detection_contract_test.js` belongs to `PURE_DOMAIN_APPLICATION`; named `Subscription detection` runs after `Obligations`. Full layered inventory remains mandatory.
 
 ## AI model/cost routing boundary
 
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. UI-MIG-020 requires no external model/provider, market-data API or paid service.
+Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. SUB-030 requires no model/provider/paid API.
 
 ## MIG-010 historical verified boundary
 
@@ -134,7 +130,7 @@ PR Validation
 -> Main Verification
 ```
 
-UI-MIG-020 remains open until R2 Financial runtime parity + Canonical R2 cutover + Canonical R2 navigation visual gate + existing FIN/DATA/ANL/DESIGN/VIZ/HOME/TX/EXP/INC/CF/BUD/OBL/DQ/PWA/MIG/privacy/FREE_ONLY/full layered evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #172.
+SUB-030 remains open until Subscription detection + OBL/DATA/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #179.
 
 ## Read-only multi-AI review
 
@@ -142,8 +138,8 @@ Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TES
 
 ## Privacy / runtime / cost
 
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. UI-MIG only changes routing/render orchestration and adds a read-only bridge to generated canonical-lib Home runtime; `financial_write=false`. `FREE_ONLY` remains mandatory.
+Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. SUB-030 is pure domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, R2 baseline through PROF-020, TREND-030, PROJ-030, GOAL-030, BAL-030, NW-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 remain BLOCKED without writer authority. `MASTER-G3 = complete`. `UI-MIG-020` is the single active writer.
+All R0 critical items, R1 core + AIENG-005, complete R2 including UI-MIG-020, TREND-030, PROJ-030, GOAL-030, BAL-030, NW-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 remain BLOCKED without writer authority. `MASTER-G3 = complete`. `SUB-030` is the single active writer.

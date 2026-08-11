@@ -26,34 +26,26 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: open. FIN authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority: `PRH_CANONICAL_TRANSACTION_V1`. Repository authority: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-`PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic regression gate: synthetic golden tasks, no required external model/network/paid API, `eval_grants_authority=false`, `FREE_ONLY`.
-
-## R2 / Family Finance Center — текущий writer
+## R2 / Family Finance Center — canonical UI cutover завершён
 
 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020` — DONE/Main Verification PASS.
 
-- `PROF-020` — **DONE**, Issue #162 Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
-- `UI-MIG-020` — **IN_PROGRESS**, Issue #172, branch `agent/UI-MIG-020-canonical-r2-cutover`.
+- `UI-MIG-020` — **DONE**, Issue #172 Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-`UI-MIG-020` authority = `PRH_CANONICAL_R2_WEB_APP_V1@1.0.0`. Default private Web App route переключается на R2 `FinancialHomeWebApp`; primary navigation содержит Home / Transactions / Expenses / Income / Cash Flow / Budget / Obligations / Data Quality. Legacy Dashboard больше не default и остаётся только bounded rollback route `?surface=legacy` до post-cutover verification.
+Canonical private Web App default route теперь R2 `FinancialHomeWebApp`; legacy Dashboard остаётся bounded rollback route. Private Home использует generated canonical-lib runtime, `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` только как read-only transient adapter identity (`persistent_identity_authority=false`), `financial_formula_copy=false`. Authenticated private Home smoke V3 и exact-head Trusted Runtime Health = PASS. Private Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary сохраняется; `FREE_ONLY` обязателен.
 
-Financial Home private binding использует тонкий `PRH_R2_FIN_RUNTIME_BRIDGE_V1`, а не второй финансовый калькулятор. Immutable candidate детерминированно генерирует `R2CanonicalRuntimeBundle.js` (`PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`) непосредственно из canonical versioned `lib/**`: Google repository adapter, FIN reconciliation, KPI Dictionary, Financial Home и их локальных contracts/dependencies. Generated bundle входит в `sourceTreeHash`/trusted reconstruction; `generated_from_canonical_lib=true`, `financial_formula_copy=false`.
-
-Bridge читает `01 Операции` только через существующий read-only Google gateway, берёт explicit currency из `09 Настройки` и вызывает canonical `financial_home.buildFinancialHome()`. Gate `R2 Financial runtime parity` реально исполняет generated bundle в VM и сравнивает private bridge output с canonical Node `evaluateKpis()` на synthetic adversarial fixture. `legacy_total_cells_used=false`, `ui_financial_formula_authority=false`, `financial_write=false`.
-
-Остальные семь R2 destinations пока имеют `SAFE_UNBOUND_FAIL_CLOSED`: canonical navigation доступна, но private runtime не подставляет browser `SYN-*` fixture как household truth, пока binding не доказан отдельным machine gate. Это намеренная safety boundary, а не скрытая готовность.
-
-Authenticated technical smoke = `PRH_WEBAPP_SMOKE_V3|R2|OK`; он доказывает R2 shell + Home default + bounded legacy link без чтения financial rows. Отдельный authenticated private Home read smoke реально строит Home через generated canonical bundle и наружу возвращает только technical scalar `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`. Private Web App остаётся `MYSELF`. `FREE_ONLY` обязателен.
-
-PWA boundary сохраняется: current Apps Script HtmlService service-worker activation = `NOT_PROVEN_CURRENT_HOST`; private financial/authenticated responses не кэшируются.
-
-## R3 / Planning, Wealth, Decision Intelligence
+## R3 / Planning, Wealth, Decision Intelligence — текущий writer
 
 - `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
 - `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
 - `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
 - `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
-- `NW-030` — **DONE**, Issue #171 Main Verification PASS, candidate `a2eefe5e9cb8d896e9f607486008901b40e50594`, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
+- `NW-030` — **DONE**, Issue #171 Main Verification PASS, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
+- `SUB-030` — **IN_PROGRESS**, Issue #179, branch `agent/SUB-030-subscription-detection`.
+
+SUB-030 authority = `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0`. Detector анализирует только `posted expense`, использует exact normalized signature (`label + currency + account + category`), minimum 3 occurrence, versioned WEEKLY/MONTHLY cadence tolerances и integer-minor amount stability. Stable evidence создаёт только `CANDIDATE`; неоднозначность остаётся `REVIEW`. `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, candidate не является FIN-TRUTH.
+
+Сопоставление с OBL-020 разрешено только через явный `signature_hash -> plan_id` link с exact direction/currency/cadence/reference-amount checks; fuzzy plan-label matching запрещён. Public telemetry не содержит raw labels, transaction/dimension IDs или financial values. Public evidence synthetic-only; `FREE_ONLY` mandatory.
 
 BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero balance. NW authority remains `PRH_NET_WORTH_V1@1.0.0`; no silent FX/market valuation and `financial_truth=false` for valuation layer.
 
@@ -97,11 +89,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-UI-MIG-020 остаётся открытым до `R2 Financial runtime parity` + `Canonical R2 cutover` + `Canonical R2 navigation visual gate` + existing FIN/DATA/ANL/DESIGN/VIZ/HOME/TX/EXP/INC/CF/BUD/OBL/DQ/PWA/MIG/privacy/FREE_ONLY/full layered PASS, immutable candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+SUB-030 остаётся открытым до `Subscription detection` + OBL/DATA/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Current writer меняет canonical UI routing/render path и добавляет только read-only Home bridge к generated canonical-lib runtime; duplicate FIN formulas не вводятся. Реальные financial/storage данные не мигрируют и не записываются. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. SUB-030 — pure domain detector; он не подключается к private runtime, не создаёт schedule/plan и не пишет финансовые данные. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
