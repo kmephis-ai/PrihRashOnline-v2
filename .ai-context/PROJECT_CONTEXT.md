@@ -28,9 +28,11 @@ Public tests используют только независимо сгенер
 
 FIN authority остаётся `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority — `PRH_CANONICAL_TRANSACTION_V1`; repository authority — `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. `PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic synthetic regression gate и не выдаёт authority.
 
+Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor обязан оставаться в lifecycle docs даже после завершения R2.
+
 ## Current R2 truth
 
-Все R2 items через `UI-MIG-020` — DONE/Main Verification PASS. `UI-MIG-020` Issue #172 завершён, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
+`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. `UI-MIG-020` Issue #172 завершён, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
 Canonical private Web App default = R2 Financial Home. Generated exact-candidate runtime строится из canonical `lib/**`; `financial_formula_copy=false`. Private transient dimension projection использует `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` только как read-only adapter identity и не получает persistent identity authority. Authenticated private Home smoke V3 и Trusted Runtime Health PASS. Private Web App остаётся `MYSELF`, `NOT_PROVEN_CURRENT_HOST` остаётся текущей PWA service-worker boundary, `FREE_ONLY` обязателен.
 
