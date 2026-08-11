@@ -6,9 +6,10 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 ## R0 — critical path завершён
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-004`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-004`, `AIENG-005`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
 
 - `AIENG-004` — **DONE**, Issue #157 Main Verification PASS, merge `280dea294b086fae3cedf56df7899c9938b42b88`.
+- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
 - `AIENG-006` — **DONE**, Issue #146 Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`.
 
 `LANG-RU` обязателен. `PRH_AI_PLAYBOOK_CATALOG_V1@1.0.0` не создаёт authority; PR/Migration review остаются READ_ONLY.
@@ -22,7 +23,6 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
-- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
 
 `MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: open. FIN authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority: `PRH_CANONICAL_TRANSACTION_V1`. Repository authority: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
@@ -32,27 +32,21 @@ Post-R1 handoff начинается с `DESIGN-020`; historical lifecycle ancho
 
 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS.
 
+- `TX-020` — **DONE**, Issue #124 Main Verification PASS, merge `38a6d6bece459f61a2cf3d9af2cd8419274b258b`.
 - `UI-MIG-020` — **DONE**, Issue #172 Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
 Canonical private Web App default route = R2 `FinancialHomeWebApp`; legacy Dashboard остаётся bounded rollback route. Private Home использует generated canonical-lib runtime; `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` — transient read-only adapter identity (`persistent_identity_authority=false`), `financial_formula_copy=false`. Authenticated private Home smoke V3 и exact-head Trusted Runtime Health = PASS. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary сохраняется; `FREE_ONLY` обязателен.
 
-## R3 / Planning, Wealth, Decision Intelligence — завершённые элементы
+## R3 / Planning, Wealth, Decision Intelligence
 
-- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
-- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
-- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
-- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
-- `NW-030` — **DONE**, Issue #171 Main Verification PASS, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
-- `SUB-030` — **DONE**, Issue #179 Main Verification PASS, candidate `2c3a0a39aa835cec2a5fa0a93d0a275b7bf008fd`, merge `2914f150a9b038af50f7ccbfd9ed3d4f684dad47`.
-
-SUB-030 authority = `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0`. Detector precision-first, только `posted expense`, exact normalized signature, minimum 3 occurrence, versioned cadence tolerances и integer-minor stability. `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, candidate не FIN-TRUTH. Fuzzy/LLM matching не authority. Public evidence synthetic-only; `FREE_ONLY` mandatory.
+`TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE/Main Verification PASS. SUB-030 остаётся precision-first: `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не authority. Public evidence synthetic-only; `FREE_ONLY` mandatory.
 
 BAL authority remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero balance. NW authority remains `PRH_NET_WORTH_V1@1.0.0`; no silent FX/market valuation and `financial_truth=false` for valuation layer.
 
 ## R4 / Yandex Cloud shadow platform
 
-- `YC-040` — **DONE**, Issue #141 Main Verification PASS, merge `924a44f4cb01e6add6c7fd9a0b166d7a7743b96a`.
-- `AUTH-040` — **DONE**, Issue #142 Main Verification PASS, merge `455c7fdaaaee118369294d96183631d7322e5ea2`.
+- `YC-040` — **DONE**, Issue #141 Main Verification PASS.
+- `AUTH-040` — **DONE**, Issue #142 Main Verification PASS.
 - `YC-041` — **BLOCKED**, Issue #148, `OWNER_CLOUD_BOOTSTRAP_REQUIRED`; writer authority отсутствует.
 - `YC-042` — **BLOCKED**, Issue #149, `OWNER_YDB_TARGET_REQUIRED`; writer authority отсутствует.
 
@@ -60,44 +54,45 @@ Google остаётся authoritative; cloud blockers не создают billin
 
 ## R7 / Semantic Analytics — завершена
 
-- `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
-- `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
-- `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
-- `ANL-072` — **DONE**, Issue #178 Main Verification PASS, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
-- `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
-- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
-- `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
-- `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
-- `TEST-070` — **DONE**, Issue #190 Main Verification PASS, candidate `dee4b1cb87158a78014fd07c723b595c516c2114`, merge `b4391e6ce24927baf0ec18e1892d8f2244615951`.
-- `VIZ-070` — **DONE**, Issue #192 Main Verification PASS, candidate `444067f9e411f798668c4a109eb751903c9d5720`, merge `13091bb5ba731673bae5357ae7b22b64475592c3`.
-- `MASTER-G7 / Semantic analytics` — **complete**.
+`ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-074`, `ANL-073`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE/Main Verification PASS. `MASTER-G7 / Semantic analytics` — **complete**.
 
-VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`: BAR/LINE/DONUT, exact query-dimension coverage, query-hash invariant retype, ECHARTS_6 replaceable local/bundled renderer и `SEMANTIC_TABLE_V1` accessible fallback. Registry не получает query/financial/storage/network authority.
+- `ANL-074` — Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
+- `ANL-073` — Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
+- `VIZ-070` — Issue #192 Main Verification PASS, candidate `444067f9e411f798668c4a109eb751903c9d5720`, merge `13091bb5ba731673bae5357ae7b22b64475592c3`.
 
-## R8 / Analytics Studio, privacy и dashboard drill-through
+VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; no financial/query/storage/network authority.
 
-- `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
-- `PRIV-080` — **DONE**, canonical Issue #79 Main Verification PASS, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
+## R8 / Analytics Studio, privacy и dashboard platform
+
+- `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
+- `PRIV-080` — **DONE**, Issue #79 Main Verification PASS, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
 - `DASH-080` — **DONE**, Issue #198 Main Verification PASS, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
 - `DASH-081` — **DONE**, Issue #200 Main Verification PASS, candidate `5752b963a528ccdabf307531dff426a9cfbe59a1`, merge `da42188741dcd035684cec900728ea53d5c961a2`.
 - `DASH-082` — **DONE**, Issue #202 Main Verification PASS, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`.
-- `DASH-083` — **IN_PROGRESS**, canonical Issue #204, branch `agent/DASH-083-drill-through`; единственный current writer.
+- `DASH-083` — **DONE**, Issue #204 Main Verification PASS, candidate `c2fc3810c54a88c8aeca8b89ebd86e3784dbef46`, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`.
+- `DASH-084` — **IN_PROGRESS**, canonical Issue #206, branch `agent/DASH-084-saved-views-versions`; единственный current writer.
 
-DASH-080 сохраняет `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: canonical desktop 12-column grid, deterministic repair, tablet/mobile derivation, immutable layout operations и session-only state. Placeholder widgets до semantic binding имеют `semantic_binding_status=UNBOUND`.
+DASH-080 сохраняет `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: deterministic 12-column layout, responsive derivation и placeholders `semantic_binding_status=UNBOUND`.
 
-DASH-081 реализовал `PRH_WIDGET_FACTORY_V1@1.0.0`: `KPI/CARD/CHART/TABLE/PIVOT`, canonical normalized `PRH_ANALYTICS_QUERY_V1`, VIZ-070 ChartSpec validation, ANL-073 PivotSpec validation, deterministic binding identity, explicit `UNBOUND -> BOUND` без geometry/layout identity mutation. Query execution/financial/write/storage/network authority отсутствует.
+DASH-081 сохраняет `PRH_WIDGET_FACTORY_V1@1.0.0`: `KPI/CARD/CHART/TABLE/PIVOT`, canonical AnalyticsQuery/binding identity, explicit `UNBOUND -> BOUND`, no financial/query-execution authority.
 
-DASH-082 реализовал `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`: CLICK/SELECTION/BRUSH изменяют только ANL-074 `global_context.filter_context`, unrelated filters сохраняются, event origin dedup + bounded hop предотвращают cycles/replays, RESET/BACK делегируются ANL-074. Main Verification подтверждён на exact candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`.
+DASH-082 сохраняет `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`: global FilterContext only, origin dedup/hop protection, ANL-074 RESET/BACK delegation.
 
-DASH-083 вводит `PRH_DASHBOARD_DRILL_V1@1.0.0` как orchestration-only слой поверх DASH-081, ANL-074 и TX-020. Time navigation = `YEAR -> QUARTER -> MONTH -> DAY`; `QUARTER` не становится новым AnalyticsQuery grain и представляется explicit `[start,end)` window. Category/account hierarchies задаются private-runtime ID/parent/level registry без labels.
+DASH-083 сохраняет `PRH_DASHBOARD_DRILL_V1@1.0.0`: `YEAR -> QUARTER -> MONTH -> DAY`, ID-only category/account hierarchies, TX-020 drill-through и FIN-backed `INCOME/EXPENSE/CASH_FLOW` reconciliation. Mismatch fail closed.
 
-Drill source обязан быть valid DASH-081 bound widget. DOWN/THROUGH меняют только VIZ/ANL DrillContext и supplementary navigation metadata; global/widget filters и scope semantics сохраняются. Drill-through строит bounded TX-020 request для canonical transactions, а reconciliation поддержанных `INCOME/EXPENSE/CASH_FLOW` totals выполняется через существующий KPI Dictionary/FIN-TRUTH authority. Mismatch fail closed и не выдаёт rows как reconciled evidence.
+DASH-084 вводит `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`. Saved view содержит только canonical DASH-080 layout + zero-or-more separately validated DASH-081 bound descriptors. AnalyticsResult, transaction rows/datasets, calculated output values, runtime locators и secrets в saved documents запрещены.
 
-Public evidence synthetic-only. Telemetry содержит только schema/version/action/hash-prefixes/result count/decision/reason; amounts, filter values, transaction IDs и private labels запрещены. DASH-083 не получает query/financial/write/storage/network/auth/deploy/layout authority.
+Private persistence = namespaced Apps Script `PropertiesService.getUserProperties()`; financial Sheets, ScriptProperties, DocumentProperties и required browser storage не используются. `LockService.getUserLock()` + optimistic store generation защищают от stale overwrite. Runtime adapter выполняет index+view/tombstone update одним `setProperties()` batch.
 
-Named gate current writer: `Dashboard drill-through` (`PURE_DOMAIN_APPLICATION`). Existing DASH-082/DASH-081/TX-020/ANL-074/VIZ/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
+Saved lifecycle: CREATE, CREATE_FROM_PRESET, SAVE_VERSION, CLONE, RENAME, RESET, RESTORE_REVISION, DELETE, MIGRATE. Identical save = deterministic NOOP. Restore/reset добавляют новую immutable revision, а не переписывают history. Limits: 24 views, 6 revisions/view, 7 KB config, 8 KB view document, 6 KB index.
 
-Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
+Curated starter presets: `FAMILY`, `EXPENSE`, `INCOME`, `CASH_FLOW`, `BUDGET`, `NET_WORTH`, `RISK`, `SUBSCRIPTIONS`. Они editable/cloneable и не содержат financial dataset snapshots.
+
+DASH-084 имеет только `dashboard_config_storage=true`; `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `canonical_financial_mutation`, `authorization`, `network`, `deployment`, `renderer`, `layout` остаются false. Public evidence synthetic-only; telemetry = technical hashes/counts/decision/reason без names/filter values/private IDs/financial values.
+
+Named gate current writer: `Dashboard saved views` (`PURE_DOMAIN_APPLICATION`). Existing DASH-083/DASH-082/DASH-081/PRIV/STUDIO/VIZ/ANL/TX/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
+
+Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, stale build не считается healthy, остальные failures fail-fast.
 
 ## MIG-010 historical safety boundary
 
@@ -126,11 +121,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-DASH-083 остаётся открытым до green `Dashboard drill-through` + existing DASH-082/DASH-081/TX-020/ANL-074/VIZ/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-084 остаётся открытым до green `Dashboard saved views` + existing DASH-083/DASH-082/DASH-081/PRIV/STUDIO/VIZ/ANL/TX/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. PRIV-080 применяет pre-render privacy transform; DASH-080 предоставляет opt-in configuration-only composer; DASH-081 добавил semantic bound descriptors; DASH-082 добавил deterministic shared interaction state; DASH-083 добавляет drill orchestration и private-runtime reconciled transaction evidence contract. Dashboard layers не получают canonical financial write/query/storage authority и не меняют default Home route. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary financial store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. DASH-084 добавляет отдельный private per-user configuration store в Apps Script UserProperties; он не становится financial database и не меняет canonical data/write ownership. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
