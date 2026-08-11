@@ -40,7 +40,7 @@ Canonical private Web App default route = R2 Financial Home; private binding д�
 
 - `GOV-REC-001` — **DONE**, Issue #219 Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`.
 - `UI-REC-001` — **BLOCKED**, Issue #221; owner-authenticated UAT deployed candidate `ba34d244…` доказал initial Home load >60s и `PRODUCT_READY_E2E = FAIL`. Engineering correction `7a322d59…` зелёная, PR #229 остаётся draft и не имеет writer authority до performance recovery.
-- `PERF-REC-001` — **IN_PROGRESS**, Issue #222, branch `agent/PERF-REC-001-live-snapshot-baseline`; единственный current writer. Цель: live PERF-011/012 integration, revision-aware Home path и trusted cold/warm baseline без financial payload.
+- `PERF-REC-001` — **IN_PROGRESS**, Issue #222, branch `agent/PERF-REC-001-live-snapshot-baseline`; единственный current writer. Цель: live integration `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` + `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`, revision-aware Home path и trusted cold/warm baseline без financial payload.
 - `ANL-090` Issue #217 — BLOCKED `PAUSED_REBASELINE`; PR #218 draft, код сохранён без writer authority.
 - Downstream order: PERF -> UI revalidation -> DATA -> FIN/PLAN -> VIZ -> E2E -> `MASTER-GUX` -> STUDIO -> `MASTER-GSTUDIO`.
 - R9/R10 feature expansion frozen.
