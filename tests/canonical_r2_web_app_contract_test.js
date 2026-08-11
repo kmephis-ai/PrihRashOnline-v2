@@ -6,10 +6,12 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '..');
+const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const legacySource = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'FinancialHomeWebApp.html'), 'utf8');
 const cutoverContract = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'ui', 'canonical_r2_web_app.v1.json'), 'utf8'));
+new vm.Script(privacyRuntimeSource, { filename: 'PrivacyPresentationService.js' });
 new vm.Script(routerSource, { filename: 'CanonicalR2WebAppService.js' });
 
 function output(content) {
@@ -54,6 +56,7 @@ const context = vm.createContext({
   prhGetWebDashboardData() { legacyCalls += 1; return { legacy: true }; },
   prhRenderWebDashboard_(data) { return output('<html><body data-legacy="1">' + JSON.stringify(data) + '</body></html>'); }
 });
+vm.runInContext(privacyRuntimeSource, context, { filename: 'PrivacyPresentationService.js' });
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 
 assert.strictEqual(cutoverContract.schema, 'PRH_CANONICAL_R2_WEB_APP_V1');
