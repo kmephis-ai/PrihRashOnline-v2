@@ -56,7 +56,7 @@ All financial/write/query-execution/query-mutation/auth/storage/network/deploy/r
 
 ## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001..006` по своим lifecycle состояниям завершены/Main Verification PASS; исполнимая AI-инженерная цепочка и fail-closed gates остаются обязательными.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка канонизирована: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; далее `AIENG-004`, `AIENG-005` и `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff остаётся обязательным lifecycle anchor и не заменяется текущим writer.
 
 Real or real-derived household finance data stays private. Public repository содержит только public-safe contracts, synthetic finance fixtures и privacy-safe machine evidence; private OAuth, runtime locators, реальные строки/агрегаты и owner-private payload не публикуются.
 
@@ -159,7 +159,7 @@ DASH-082 остаётся открытым до green interaction bus contract +
 
 ## Read-only multi-AI review
 
-Required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers = `READ_ONLY`, `writer_authority=false`; review не может отменять красный machine gate.
+Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers = `READ_ONLY`, `writer_authority=false`; review не может отменять красный machine gate.
 
 ## Scope handoff
 
