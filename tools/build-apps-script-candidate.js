@@ -3,6 +3,10 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const {
+  GENERATED_RUNTIME_BUNDLE,
+  buildRuntimeBundleSource
+} = require('./build-apps-script-runtime-bundle');
 
 const POLICY_VERSION = 'apps-script-top-level-v2';
 const BUILD_INFO_SCHEMA_VERSION = 1;
@@ -26,8 +30,10 @@ function parseArgs(argv) {
 
 function listDeployFiles(sourceRoot) {
   const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
-  if (entries.some((entry) => entry.name === GENERATED_BUILD_INFO)) {
-    throw new Error(`${GENERATED_BUILD_INFO} is reserved for deterministic build metadata`);
+  for (const reserved of [GENERATED_BUILD_INFO, GENERATED_RUNTIME_BUNDLE]) {
+    if (entries.some((entry) => entry.name === reserved)) {
+      throw new Error(`${reserved} is reserved for deterministic build metadata/runtime`);
+    }
   }
   const files = entries
     .filter((entry) => entry.isFile() && (entry.name === 'appsscript.json' || entry.name.endsWith('.js') || entry.name.endsWith('.html')))
@@ -66,6 +72,11 @@ function sourceFileDescriptors(source, names) {
   });
 }
 
+function descriptorFromGenerated(pathName, sourceText) {
+  const bytes = Buffer.from(sourceText, 'utf8');
+  return { path: pathName, sha256: sha256(bytes), size: bytes.length, bytes };
+}
+
 function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
   if (!SHA_RE.test(String(candidateSha || ''))) throw new Error('candidate SHA must be exactly 40 lowercase hex characters');
   const source = path.resolve(sourceRoot);
@@ -76,7 +87,12 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
 
   const names = listDeployFiles(source);
   const sourceFiles = sourceFileDescriptors(source, names);
-  const sourceTreeHash = stableFileSetHash(sourceFiles);
+  const runtimeBundle = descriptorFromGenerated(
+    GENERATED_RUNTIME_BUNDLE,
+    buildRuntimeBundleSource(source)
+  );
+  const sourceIdentityFiles = [...sourceFiles, runtimeBundle].sort((a, b) => a.path.localeCompare(b.path));
+  const sourceTreeHash = stableFileSetHash(sourceIdentityFiles);
   const buildInfoBytes = Buffer.from(buildInfoSource(candidateSha, sourceTreeHash), 'utf8');
   const generatedFile = {
     path: GENERATED_BUILD_INFO,
@@ -84,7 +100,7 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
     size: buildInfoBytes.length,
     bytes: buildInfoBytes
   };
-  const allFiles = [...sourceFiles, generatedFile].sort((a, b) => a.path.localeCompare(b.path));
+  const allFiles = [...sourceFiles, runtimeBundle, generatedFile].sort((a, b) => a.path.localeCompare(b.path));
 
   allFiles.forEach((item) => fs.writeFileSync(path.join(filesRoot, item.path), item.bytes));
   const manifestFiles = allFiles.map(({ path: filePath, sha256: digest, size }) => ({ path: filePath, sha256: digest, size }));
@@ -95,6 +111,7 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
     candidateSha,
     sourceTreeHash,
     generatedBuildInfo: GENERATED_BUILD_INFO,
+    generatedRuntimeBundle: GENERATED_RUNTIME_BUNDLE,
     fileCount: manifestFiles.length,
     files: manifestFiles,
     artifactHash: stableFileSetHash(manifestFiles)
@@ -110,6 +127,9 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
   const expected = JSON.parse(fs.readFileSync(expectedManifestPath, 'utf8'));
   if (actual.candidateSha !== expectedSha || expected.candidateSha !== expectedSha) throw new Error('candidate SHA binding mismatch');
   if (!SHA_RE.test(actual.candidateSha) || !/^[0-9a-f]{64}$/.test(actual.sourceTreeHash || '')) throw new Error('candidate build identity is invalid');
+  if (actual.generatedRuntimeBundle !== GENERATED_RUNTIME_BUNDLE || expected.generatedRuntimeBundle !== GENERATED_RUNTIME_BUNDLE) {
+    throw new Error('canonical runtime bundle manifest binding missing');
+  }
   if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('candidate manifest differs from trusted reconstruction');
 
   const actualFilesRoot = path.join(candidateRoot, 'files');
@@ -130,7 +150,8 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
     candidateSha: actual.candidateSha,
     sourceTreeHash: actual.sourceTreeHash,
     artifactHash: actual.artifactHash,
-    fileCount: actual.fileCount
+    fileCount: actual.fileCount,
+    generatedRuntimeBundle: actual.generatedRuntimeBundle
   };
 }
 
@@ -145,7 +166,8 @@ if (require.main === module) {
       candidateSha: manifest.candidateSha,
       sourceTreeHash: manifest.sourceTreeHash,
       artifactHash: manifest.artifactHash,
-      fileCount: manifest.fileCount
+      fileCount: manifest.fileCount,
+      generatedRuntimeBundle: manifest.generatedRuntimeBundle
     });
   }
 }
@@ -154,11 +176,13 @@ module.exports = {
   POLICY_VERSION,
   BUILD_INFO_SCHEMA_VERSION,
   GENERATED_BUILD_INFO,
+  GENERATED_RUNTIME_BUNDLE,
   SHA_RE,
   sha256,
   listDeployFiles,
   stableFileSetHash,
   buildInfoSource,
+  descriptorFromGenerated,
   buildCandidate,
   verifyCandidate
 };
