@@ -40,6 +40,10 @@ const privatePayload = {
   currency: 'RUB',
   total_count: 2,
   configured: true,
+  filter_context: {
+    schema: 'PRH_FILTER_CONTEXT_V1',
+    filters: [{ field: 'account_id', values: ['SECRET_FILTER_VALUE'] }]
+  },
   cards: {
     income: { state: 'READY', income_minor: 918273645, currency: 'RUB', account_name: 'SECRET_ACCOUNT_ALPHA' },
     expense: { state: 'READY', expense_minor: 817263544, category_name: 'SECRET_CATEGORY_BETA' },
@@ -56,6 +60,11 @@ const privatePayload = {
       note: 'SECRET_NOTE_EPSILON'
     }
   ],
+  visual_data: {
+    cash_flow_minor: [321321321],
+    expense_mix: [['SECRET_MIX_CATEGORY', 654654654]]
+  },
+  widgets: [{ query_ref: 'SECRET_QUERY_REF', title: 'SECRET_WIDGET_LABEL' }],
   nested: {
     summary: {
       balance_minor: 99887766,
@@ -70,6 +79,7 @@ const privatePayload = {
 const privateBefore = JSON.stringify(privatePayload);
 const secretTokens = [
   '918273645', '817263544', '101010101', '123456789', '99887766', '11223344',
+  '321321321', '654654654', 'SECRET_FILTER_VALUE', 'SECRET_MIX_CATEGORY', 'SECRET_QUERY_REF', 'SECRET_WIDGET_LABEL',
   'SECRET_ACCOUNT_ALPHA', 'SECRET_CATEGORY_BETA', 'SECRET_MEMBER_GAMMA', 'SECRET_TX_001',
   'SECRET_ACCOUNT_ID', 'SECRET_CATEGORY_ID', 'SECRET_PROJECT_ID', 'SECRET_MERCHANT_DELTA',
   'SECRET_NOTE_EPSILON', 'SECRET_DESCRIPTION_ZETA', 'SECRET_TAG_A', 'SECRET_TAG_B'
@@ -87,10 +97,13 @@ assert.strictEqual(masked.financial_truth_surface, false);
 assert(masked.evidence.suppressed_count > 10);
 assert.strictEqual(masked.payload.cards.income.income_minor, null);
 assert.strictEqual(masked.payload.cards.income.account_name, null);
-assert.strictEqual(masked.payload.rows[0].transaction_id, null);
-assert.strictEqual(masked.payload.rows[0].amount_minor, null);
+assert.deepStrictEqual(masked.payload.rows, []);
+assert.deepStrictEqual(masked.payload.filter_context.filters, []);
+assert.deepStrictEqual(masked.payload.visual_data.cash_flow_minor, []);
+assert.deepStrictEqual(masked.payload.visual_data.expense_mix, []);
+assert.deepStrictEqual(masked.payload.widgets, []);
 assert.strictEqual(masked.payload.nested.summary.balance_minor, null);
-assert.strictEqual(masked.payload.nested.tags, null);
+assert.deepStrictEqual(masked.payload.nested.tags, []);
 const maskedText = JSON.stringify(masked);
 for (const token of secretTokens) assert.strictEqual(maskedText.includes(token), false, `masked leak: ${token}`);
 assert.strictEqual(JSON.stringify(privatePayload), privateBefore);
@@ -105,6 +118,9 @@ assert.strictEqual(zen.payload.total_count, 2);
 assert.strictEqual(zen.payload.configured, true);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(zen.payload, 'cards'), false);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(zen.payload, 'rows'), false);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(zen.payload, 'filter_context'), false);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(zen.payload, 'visual_data'), false);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(zen.payload, 'widgets'), false);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(zen.payload, 'nested'), false);
 const zenText = JSON.stringify(zen);
 for (const token of secretTokens) assert.strictEqual(zenText.includes(token), false, `zen leak: ${token}`);
@@ -154,6 +170,7 @@ assert.strictEqual(/amount_minor|account_id|category_name|transaction_id/.test(t
 console.log('privacy-presentation-modes: PASS', {
   modes: PRIVACY.MODES,
   maskedSuppressed: masked.evidence.suppressed_count,
+  maskedArraysDropped: true,
   zenSuppressed: zen.evidence.suppressed_count,
   demoSyntheticOnly: demo.synthetic_only,
   securityBoundary: false,
