@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { chromium } = require('playwright');
 const PRIVACY = require('../lib/privacy/privacy_presentation');
 
@@ -70,6 +71,26 @@ function renderTransformed(result) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;padding:18px;background:#f4f7fb;color:#10233f;font:14px/1.45 system-ui}.card{max-width:900px;margin:auto;background:white;border:1px solid #d7e0ea;border-radius:16px;padding:18px}.mode{display:inline-block;padding:6px 9px;border-radius:999px;background:#eef6ff;font-weight:800}table{width:100%;border-collapse:collapse;margin-top:14px;table-layout:fixed}th,td{padding:8px;border-bottom:1px solid #d7e0ea;text-align:left;overflow-wrap:anywhere}th{width:45%}@media(max-width:520px){body{padding:10px}.card{padding:12px}}</style></head><body data-privacy-mode="${escapeHtml(result.mode)}" data-security-boundary="false"><main class="card"><span class="mode">${escapeHtml(result.mode)}</span> ${synthetic}<h1>Privacy presentation evidence</h1><table><tbody>${rows}</tbody></table></main></body></html>`;
 }
 
+function studioWithPrivacySelector() {
+  const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
+  const privacyStudioSource = fs.readFileSync(path.join(root, 'PrivacyStudioControlService.js'), 'utf8');
+  const studioHtml = fs.readFileSync(path.join(root, 'AnalyticsStudioWebApp.html'), 'utf8');
+  function output(content) {
+    return {
+      setTitle() { return this; },
+      addMetaTag() { return this; },
+      getContent() { return content; }
+    };
+  }
+  const context = vm.createContext({
+    console, Object, Array, String, Number, Boolean, Math, Date, RegExp, Error, JSON, encodeURIComponent,
+    HtmlService: { createHtmlOutput(content) { return output(String(content)); } }
+  });
+  vm.runInContext(privacyRuntimeSource, context, { filename: 'PrivacyPresentationService.js' });
+  vm.runInContext(privacyStudioSource, context, { filename: 'PrivacyStudioControlService.js' });
+  return context.prhPrivacyDecorateStudioOutput_(output(studioHtml), 'MASKED').getContent();
+}
+
 (async () => {
   assert.throws(
     () => PRIVACY.transformPresentation(PRIVATE_FIXTURE, { mode: 'DEMO', source: 'PRIVATE_AUTHORIZED_PRESENTATION' }),
@@ -83,11 +104,13 @@ function renderTransformed(result) {
   const maskedHtml = renderTransformed(masked);
   const zenHtml = renderTransformed(zen);
   const demoHtml = renderTransformed(demo);
+  const studioHtml = studioWithPrivacySelector();
 
   for (const token of SECRET_TOKENS) {
     assert.strictEqual(maskedHtml.includes(token), false, `MASKED pre-DOM leak: ${token}`);
     assert.strictEqual(zenHtml.includes(token), false, `ZEN pre-DOM leak: ${token}`);
     assert.strictEqual(demoHtml.includes(token), false, `DEMO contamination: ${token}`);
+    assert.strictEqual(studioHtml.includes(token), false, `Studio selector contamination: ${token}`);
   }
   assert.strictEqual(maskedHtml.includes('filter:blur'), false);
   assert.strictEqual(maskedHtml.includes('opacity:0'), false);
@@ -129,6 +152,27 @@ function renderTransformed(result) {
           evidence.push({ viewport: viewport.name, mode, overflow: state.overflow, syntheticLabel: state.syntheticLabel, secretLeak: false });
           await page.screenshot({ path: path.join(artifactDir, `privacy-presentation-${viewport.name}-${mode.toLowerCase()}.png`), fullPage: true });
         }
+
+        await page.setContent(studioHtml, { waitUntil: 'load' });
+        const selectorState = await page.evaluate(() => ({
+          selector: Boolean(document.getElementById('prh-privacy-selector')),
+          groupRole: document.querySelector('.prh-privacy-choices')?.getAttribute('role'),
+          maskedChecked: document.querySelector('[data-privacy-choice="MASKED"]')?.getAttribute('aria-checked'),
+          securityBoundary: document.getElementById('prh-privacy-selector')?.dataset.securityBoundary,
+          overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth
+        }));
+        assert.strictEqual(selectorState.selector, true);
+        assert.strictEqual(selectorState.groupRole, 'radiogroup');
+        assert.strictEqual(selectorState.maskedChecked, 'true');
+        assert.strictEqual(selectorState.securityBoundary, 'false');
+        assert(selectorState.overflow <= 1, `${viewport.name}/selector overflow=${selectorState.overflow}`);
+        await page.locator('[data-privacy-choice="MASKED"]').focus();
+        await page.keyboard.press('ArrowRight');
+        const focusedMode = await page.evaluate(() => document.activeElement?.getAttribute('data-privacy-choice'));
+        assert.strictEqual(focusedMode, 'DEMO', `${viewport.name} selector ArrowRight`);
+        assert.strictEqual(await page.locator('[data-privacy-choice="DEMO"]').getAttribute('href'), '?surface=home&privacy=demo');
+        evidence.push({ viewport: viewport.name, mode: 'SELECTOR', overflow: selectorState.overflow, keyboardArrowRight: true, securityBoundary: false });
+        await page.screenshot({ path: path.join(artifactDir, `privacy-selector-${viewport.name}.png`), fullPage: true });
       } finally {
         await page.close().catch(() => {});
       }
@@ -139,6 +183,7 @@ function renderTransformed(result) {
       privacy_class: 'PUBLIC_CONFIGURATION_SYNTHETIC_ONLY',
       security_boundary: false,
       modes: ['MASKED', 'ZEN', 'DEMO'],
+      selector_keyboard: true,
       evidence
     }, null, 2));
     console.log('privacy-presentation-visual: PASS', {
@@ -146,6 +191,7 @@ function renderTransformed(result) {
       maskedPreDom: true,
       zenPreDom: true,
       demoSyntheticOnly: true,
+      selectorKeyboard: true,
       securityBoundary: false
     });
   } finally {
