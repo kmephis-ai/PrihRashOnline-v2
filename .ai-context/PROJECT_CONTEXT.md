@@ -16,56 +16,60 @@
 
 ## Текущая инженерная задача
 
-`DASH-086` — единственный **current writer**, canonical Issue #213, branch `agent/DASH-086-safe-dashboard-import-export`. Dependencies `DASH-084`, `DASH-085`, `SEC-002` — DONE/Main Verification PASS. Это финальный item R8 перед `MASTER-G8 / Analytics Studio` exit gate.
+`VIZ-090` — единственный **current writer**, canonical Issue #215, branch `agent/VIZ-090-advanced-visualization-pack`. Dependencies `MASTER-G8` и `VIZ-070` доказаны DONE/Main Verification PASS. Exact roadmap_id search до materialization не нашёл существующего Issue/PR/branch.
 
-`DASH-085` завершён: canonical Issue #208 **DONE/Main Verification PASS**. Product PR #211 candidate `285f191be613355fd698260419bf5ac509ac19fa`; recovery PR #212 candidate `f6a427e0bff57857dad69c745b0850346524d745`; final recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`. Duplicate Issue #209 / PR #210 закрыты без merge и имеют `writer_authority=false`.
+`MASTER-G8 / Analytics Studio` — complete: STUDIO-080, PRIV-080 и DASH-080..086 DONE/Main Verification PASS. Финальный R8 Issue #213 (`DASH-086`) candidate `e3b78983a22316ae533e94e84135fe5bc4426c58`, merge `a7a73889a4f5deff15e086b5469f00f240cab6e0`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
 
-DASH-086 вводит `PRH_DASHBOARD_PORTABLE_SPEC_V1@1.0.0` как configuration-only portability boundary поверх DASH-080/081/084/085. Portable layer не получает query/financial/storage authority.
+VIZ-090 вводит `PRH_ADVANCED_VISUALIZATION_PACK_V1@1.0.0` как pure semantic presentation layer поверх `PRH_VISUALIZATION_REGISTRY_V2@2.0.0` и `PRH_ANALYTICS_CONTRACT_V1@1.0.0`.
 
-Current core:
+Current implementation:
 
-- `lib/dashboard/dashboard_portable_spec.v1.json`;
-- `lib/dashboard/dashboard_portable_spec.js`;
-- `tests/dashboard_safe_import_export_contract_test.js`;
-- `docs/dashboard/DASHBOARD_SAFE_IMPORT_EXPORT.md`;
+- `lib/visualization/advanced_visualization_pack.v1.json`;
+- `lib/visualization/advanced_visualization_pack.js`;
+- `tests/advanced_visualization_pack_contract_test.js`;
+- `docs/visualization/ADVANCED_VISUALIZATION_PACK.md`;
 - TEST-010 classification = `PURE_DOMAIN_APPLICATION`;
-- named gate `Dashboard safe import/export`;
+- named gate `Advanced visualization pack`;
 - LANG-RU inventory/markers registered.
 
-Portable payload состоит только из canonical DASH-084 saved configuration (`DashboardSpec` + separately validated DASH-081 bound descriptors) и separately validated DASH-085 customization descriptors. Upstream derived identities не доверяются из файла: canonical validators заново нормализуют layout/bindings/customization и проверяют query/binding identity.
+VIZ-090 не меняет VIZ-070 BAR/LINE/DONUT contract. Existing LINE остаётся regression baseline; ECHARTS_6/SEMANTIC_TABLE_V1 renderer boundaries принадлежат VIZ-070.
 
-Запрещены рекурсивно: AnalyticsResult/result rows, canonical transaction rows/datasets, amount/balance/KPI/measure output values, OAuth/access/refresh/id tokens, credentials/secrets/password/API keys, Apps Script/spreadsheet/deployment IDs, runtime locators/URLs, arbitrary CSS/HTML/JavaScript/code/formatter/callback/function/URL payload.
+Advanced registry covers 18 families:
 
-Portable file имеет privacy class `PRIVATE_CONFIGURATION`, warning `PRIVATE_CONFIGURATION_NOT_PUBLIC_SAFE`. Private query/filter/dimension identifiers могут быть частью пользовательской конфигурации, поэтому export не считается public-safe. Public GitHub evidence использует только independently generated synthetic IDs/configuration.
+`AREA`, `GROUPED_BAR`, `STACKED_BAR`, `PERCENT_STACKED_BAR`, `WATERFALL`, `SANKEY`, `TREEMAP`, `SUNBURST`, `CALENDAR_HEATMAP`, `MATRIX_HEATMAP`, `PARETO`, `SCATTER`, `BUBBLE`, `HISTOGRAM`, `BOX`, `VIOLIN`, `SMALL_MULTIPLES`, `BULLET_KPI`.
 
-Current limits: portable JSON <= 64 KiB, JSON depth <= 32, string <= 8192 chars, widgets/bindings/customizations <= 48. Это bounded transport, согласованный с DASH-080 `max_widgets=48`.
+Каждый `PRH_ADVANCED_VISUALIZATION_SOURCE_V1` обязан содержать exact `query_hash`, versioned `source_contract`, explicit `shape` и bounded typed data. Planner заново нормализует переданный AnalyticsQuery, вычисляет hash и требует exact equality. `query_modified=false`; visualization не имеет права менять measure/dimension/filter/time/grain/scope/comparison.
 
-Import order обязателен:
+Machine semantic invariants:
 
-1. bounded parser;
-2. duplicate-key/prototype-pollution rejection;
-3. exact schema/shape;
-4. checksum raw payload verification;
-5. semantic validation/recomputation через DASH-080/081/084/085;
-6. canonical counts + round-trip identity verification.
+- AREA — explicit time series;
+- GROUPED/STACKED bar — explicit category/series/value; stack требует series;
+- PERCENT_STACKED_BAR — non-negative values, original values сохраняются, deterministic largest-remainder shares дают exact 10000 bps для positive-total category, zero total explicit;
+- WATERFALL — one START, contiguous DELTA steps, one END, exact `START + Σ DELTA = END`;
+- SANKEY — bounded unique non-self edges, non-negative values, deterministic nodes, `causality_claimed=false`;
+- TREEMAP/SUNBURST — one root, no orphan/disconnected/cycle, bounded depth, exact parent = direct-child sum;
+- heatmaps — `present=false,value=null` отделено от explicit zero;
+- PARETO — deterministic descending order, original total preserved, final cumulative = exact 10000 bps when total>0;
+- SCATTER/BUBBLE — finite numeric values, BUBBLE size non-negative, `correlation_claimed=false`, `causality_claimed=false`;
+- HISTOGRAM/BOX/VIOLIN — explicit bounded samples only, `source_semantics=EXPLICIT_SAMPLES`, no hidden summary substitution;
+- SMALL_MULTIPLES — bounded facets, `scale_policy=SHARED_COMPATIBLE`, no silent facet drop;
+- BULLET_KPI — actual/reference/target plus versioned reference/target provenance; visualization не invent’ит budget/target truth.
 
-Parser запрещает duplicate keys и `__proto__/prototype/constructor`, не исполняет imported code и не использует eval/Function. Unknown/future schema fail closed.
+All advanced inputs are bounded: rows 5000, series 16, nodes 500, edges 1000, hierarchy depth 12, facets 12, samples 5000. Safe-integer/finite-number guards reject overflow/NaN/Infinity/ambiguous shapes.
 
-Current V1 import возвращает `PRH_DASHBOARD_PORTABLE_IMPORT_RESULT_V1` с `decision=DRY_RUN_ONLY`, `persistence_performed=false`, `persistence_authority=false`. Persistence требует отдельного explicit DASH-084 saved-view lifecycle/storage call. Portable core не вызывает `PropertiesService`, `SpreadsheetApp`, `UrlFetchApp`, `setProperties()` или financial write API; partial mutation невозможна.
+Every family has deterministic mobile/tablet/desktop strategy. `semantic_table_required=true`, `text_summary_required=true`, `interaction_only_evidence_allowed=false`. Assistive mode activates built-in `SEMANTIC_TABLE_V1`; high-density/small viewport strategy не имеет права silently drop data.
 
-Legacy migration допускается только explicit `PRH_DASHBOARD_PORTABLE_SPEC_V0@0.9.0 -> PRH_DASHBOARD_PORTABLE_SPEC_V1@1.0.0`. Receipt = `PRH_DASHBOARD_PORTABLE_MIGRATION_V1`, deterministic source/target/migration hashes; migration остаётся dry-run.
+Primary renderer stays VIZ-070 `ECHARTS_6`: `LOCAL_OR_BUNDLED`, replaceable, no external CDN/network/storage/query/financial authority. Arbitrary ECharts options, callbacks, formatter code, HTML/CSS/URL/JavaScript are not accepted as VIZ-090 public configuration.
 
-Canonical current-V1 import/re-export обязан быть byte-identical. Object key ordering не влияет на identity. Даже если внешний источник пересчитает checksum после подмены derived `binding_hash`, upstream DASH-084/DASH-081 recomputation обязано reject’нуть несогласованную identity.
+VIZ-090 runtime normalized source may contain private values/labels and remains ephemeral/private. Telemetry allowlist contains only schema/version/chart_type/renderer/result_shape_hash_prefix/query_hash_prefix/row_count/series_count/responsive_mode/decision/reason. Public tests use independently generated synthetic data only.
 
-DASH-086 telemetry allowlist = schema/version/action/payload_hash_prefix/byte_count/widget_count/binding_count/customization_count/decision/reason. Raw widget IDs, names, query/filter values, private IDs, financial values, credentials/runtime locators запрещены.
-
-Все DASH-086 authorities = false: `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `binding_mutation`, `canonical_mutation`, `authorization`, `storage`, `persistence`, `network`, `deployment`, `renderer`. `FREE_ONLY` mandatory.
+All VIZ-090 authorities remain false: financial truth/write, query/query mutation, storage/persistence, network, authorization, deployment. `FREE_ONLY` mandatory.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
-`FINOPS-001` остаётся обязательной cost boundary для runtime и engineering: `FREE_ONLY` означает отсутствие required paid dependency и запрет автоматического включения платного API/service ради прохождения required gate. Usage counters, throttle/circuit breaker и monthly safety budget остаются machine authority; AI context не имеет права повышать лимиты или обходить circuit breaker.
+`FINOPS-001` остаётся обязательной cost boundary: `FREE_ONLY` означает отсутствие required paid dependency и запрет автоматического включения платного API/service ради прохождения required gate. Usage counters, throttle/circuit breaker и monthly safety budget остаются machine authority; AI context не имеет права повышать лимиты или обходить circuit breaker.
 
-Перед любой задачей, способной создать внешний расход, writer обязан сформировать **worst-case budget** и **owner estimate** как явный handoff владельцу до irreversible/billing-backed действия. Owner estimate не является machine authorization и не подменяет cost gate; если стоимость не доказана как допустимая в рамках текущего policy, действие fail-closed/blocked.
+Перед любой задачей, способной создать внешний расход, writer обязан сформировать **worst-case budget** и **owner estimate** как явный handoff владельцу до irreversible/billing-backed действия. Owner estimate не является machine authorization и не подменяет cost gate; unknown/unproven cost остаётся fail-closed/blocked.
 
 `AIENG-006` / `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0`: required machine gates всегда `LOCAL_DETERMINISTIC`; ChatGPT subscription surface отделена от OpenAI API billing; `OPENAI_API enabled=false` для required engineering. При exhaustion/unknown capacity используется разрешённый Sol/Terra/Luna fallback или pause/defer, но не automatic paid API fallback и не bypass красного machine gate.
 
@@ -73,7 +77,7 @@ FinOps truth, worst-case budget, owner estimate и model routing сохраня�
 
 ## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка сохраняется явно: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff является lifecycle anchor и не заменяется current writer.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка сохраняется явно: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff является lifecycle anchor.
 
 Real or real-derived household finance data stays private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence.
 
@@ -88,46 +92,44 @@ Real or real-derived household finance data stays private. Public repo соде�
 - `MIG-010` — **DONE**, Main Verification PASS, Issue #96.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE/Main Verification PASS.
-- FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`.
-- DATA authority = `PRH_CANONICAL_TRANSACTION_V1`.
-- Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`.
-- Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после завершения R2.
+FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`; repository authority = `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-## Current R2 truth
+Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после завершения R2–R8.
 
-`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. Canonical private Web App default = R2 Financial Home. Web App остаётся `MYSELF`; PWA boundary `NOT_PROVEN_CURRENT_HOST`; `FREE_ONLY` mandatory.
+## Current R2/R3/R4 truth
 
-## Current R3/R4/R7 truth
+R2 через `UI-MIG-020` — DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory.
 
-R3 completed items `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE/Main Verification PASS.
+R3 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE/Main Verification PASS.
 
-`YC-040` и `AUTH-040` — DONE/Main Verification PASS. `YC-041` = BLOCKED `OWNER_CLOUD_BOOTSTRAP_REQUIRED`; `YC-042` = BLOCKED `OWNER_YDB_TARGET_REQUIRED`; оба `writer_authority=false`, не создают billing-backed resources и не меняют canonical ownership.
+`YC-040` и `AUTH-040` — DONE/Main Verification PASS. `YC-041` BLOCKED `OWNER_CLOUD_BOOTSTRAP_REQUIRED`, `YC-042` BLOCKED `OWNER_YDB_TARGET_REQUIRED`; оба `writer_authority=false`, не создают billing-backed resources и не меняют canonical ownership.
 
-R7 `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE/Main Verification PASS; `MASTER-G7` complete. VIZ-070 remains `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`, no financial/query authority.
+## Current R7 truth
+
+`ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE/Main Verification PASS; `MASTER-G7` complete.
+
+VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; BAR/LINE/DONUT registry, ECHARTS_6 local/bundled renderer, SEMANTIC_TABLE fallback и retype query-hash invariant остаются upstream truth. VIZ-090 не изменяет эти schemas задним числом.
 
 ## Current R8 truth
 
-- `STUDIO-080` — DONE.
-- `PRIV-080` — DONE.
-- `DASH-080` — DONE.
-- `DASH-081` — DONE.
-- `DASH-082` — DONE.
-- `DASH-083` — DONE.
-- `DASH-084` — DONE, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
-- `DASH-085` — DONE/Main Verification PASS, Issue #208, recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`.
-- `DASH-086` — **current writer**, Issue #213, branch `agent/DASH-086-safe-dashboard-import-export`; IN_PROGRESS until Main Verification.
+STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082, DASH-083, DASH-084, DASH-085, DASH-086 — DONE/Main Verification PASS; `MASTER-G8 / Analytics Studio` complete.
 
-DASH-084 remains private per-user configuration persistence only. DASH-085 remains presentation-only. DASH-086 adds only portable envelope/dry-run validation and cannot silently persist imported config.
+- DASH-084 saved views remain private per-user configuration persistence only.
+- DASH-085 visual customization remains presentation-only; canonical Issue #208/recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`.
+- DASH-086 safe portable spec remains private-configuration/dry-run import only; Issue #213 candidate `e3b78983a22316ae533e94e84135fe5bc4426c58`, merge `a7a73889a4f5deff15e086b5469f00f240cab6e0`.
+
+## Current R9 truth
+
+`VIZ-090` / Issue #215 — **current writer**, branch `agent/VIZ-090-advanced-visualization-pack`, IN_PROGRESS until Main Verification. ANL-090/ANL-091/XRAY-090 не входят в current scope: они будут upstream analytics fact authorities поверх готового visualization pack.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies tracked tests fail-closed. `dashboard_safe_import_export_contract_test.js = PURE_DOMAIN_APPLICATION`; named gate `Dashboard safe import/export` is mandatory together with existing DASH-085..080/DESIGN/VIZ/ANL/PRIV/STUDIO/FIN/MIG/privacy/security/FREE_ONLY gates. Red-gate bypass prohibited.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `advanced_visualization_pack_contract_test.js = PURE_DOMAIN_APPLICATION`; named gate `Advanced visualization pack` обязателен вместе с existing VIZ-070/DASH-086..080/ANL/PRIV/STUDIO/DESIGN/FIN/MIG/privacy/FREE_ONLY gates. Red-gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
-Owner-private migration remains DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
+Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
 
 Historical execution policy = `MIG010_EXECUTION_POLICY_V1@1.0.0`, strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize execution state должен оставаться `FINALIZED_PENDING_RECONCILIATION`; это **не** verified completion. Только отдельная owner-private post-write reconciliation с `unexplainedMismatch=0` переводит lifecycle в `OWNER_VERIFIED`.
 
@@ -144,7 +146,7 @@ PR Validation
 -> Main Verification
 ```
 
-DASH-086 остаётся open до green `Dashboard safe import/export` + full existing gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+VIZ-090 остаётся open до green `Advanced visualization pack` + full existing gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -152,4 +154,4 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Scope handoff
 
-Все R0/R1/R2, completed R3, YC-040/AUTH-040, R7, STUDIO-080, PRIV-080 и DASH-080..085 — DONE. YC-041/YC-042 remain BLOCKED. `DASH-086` / Issue #213 — единственный active writer.
+Все R0/R1/R2, completed R3, YC-040/AUTH-040, R7 и R8 — DONE. YC-041/YC-042 remain BLOCKED. `VIZ-090` / Issue #215 — единственный active writer.
