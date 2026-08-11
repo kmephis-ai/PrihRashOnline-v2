@@ -1,44 +1,73 @@
 'use strict';
 
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { evaluateKpis } = require('../lib/finance/kpi_dictionary');
 const googleAdapter = require('../lib/adapters/google_sheets_transaction_repository');
+const {
+  GENERATED_RUNTIME_BUNDLE,
+  RUNTIME_SCHEMA,
+  ENTRY_MODULES,
+  buildRuntimeBundleSource
+} = require('../tools/build-apps-script-runtime-bundle');
 
 const root = path.join(__dirname, '..');
-const source = fs.readFileSync(path.join(root, 'R2FinancialRuntimeService.js'), 'utf8');
-new vm.Script(source, { filename: 'R2FinancialRuntimeService.js' });
+const bridgeSource = fs.readFileSync(path.join(root, 'R2FinancialRuntimeService.js'), 'utf8');
+new vm.Script(bridgeSource, { filename: 'R2FinancialRuntimeService.js' });
 
-const headers = ['ID', 'Дата и время', 'Тип', 'Сумма', 'Счёт', 'Счёт назначения', 'Категория', 'Статус'];
-const rows = [
-  ['SYN-PREV-001', '2026-01-15T10:00:00Z', 'доход', '50.00', 'SYN-A', '', 'SYN-INCOME', 'posted'],
-  ['SYN-INC-001', '2026-02-05T10:00:00Z', 'доход', '100.00', 'SYN-A', '', 'SYN-INCOME', 'проведено'],
-  ['SYN-EXP-001', '2026-02-06T10:00:00Z', 'расход', '30.00', 'SYN-A', '', 'SYN-FOOD', 'Перенесено'],
-  ['SYN-REF-001', '2026-02-07T10:00:00Z', 'возврат', '5.00', 'SYN-A', '', 'SYN-FOOD', 'posted'],
-  ['SYN-TRF-001', '2026-02-08T10:00:00Z', 'перевод', '20.00', 'SYN-A', 'SYN-B', 'SYN-TRANSFER', 'posted'],
-  ['SYN-PEND-001', '2026-02-09T10:00:00Z', 'доход', '999.00', 'SYN-A', '', 'SYN-INCOME', 'pending'],
-  ['SYN-ADJ-001', '2026-02-10T10:00:00Z', 'корректировка', '0.00', 'SYN-A', '', 'SYN-ADJUST', 'posted']
+const headers = googleAdapter.MAPPING.required_headers.slice();
+function record(values) {
+  const row = {};
+  headers.forEach((header) => { row[header] = ''; });
+  Object.assign(row, values);
+  return row;
+}
+
+const records = [
+  record({ ID: 'SYN-PREV-001', 'Дата и время': '2026-01-15T10:00:00Z', 'Тип': 'доход', 'Сумма': '50.00', 'Счёт': 'SYN-A', 'Категория': 'SYN-INCOME', 'Статус': 'posted', 'Источник': 'SYNTHETIC', 'Строка источника': '1' }),
+  record({ ID: 'SYN-INC-001', 'Дата и время': '2026-02-05T10:00:00Z', 'Тип': 'доход', 'Сумма': '100.00', 'Счёт': 'SYN-A', 'Категория': 'SYN-INCOME', 'Статус': 'проведено', 'Источник': 'SYNTHETIC', 'Строка источника': '2' }),
+  record({ ID: 'SYN-EXP-001', 'Дата и время': '2026-02-06T10:00:00Z', 'Тип': 'расход', 'Сумма': '30.00', 'Счёт': 'SYN-A', 'Категория': 'SYN-FOOD', 'Статус': 'Перенесено', 'Источник': 'SYNTHETIC', 'Строка источника': '3' }),
+  record({ ID: 'SYN-REF-001', 'Дата и время': '2026-02-07T10:00:00Z', 'Тип': 'возврат', 'Сумма': '5.00', 'Счёт': 'SYN-A', 'Категория': 'SYN-FOOD', 'Статус': 'posted', 'Источник': 'SYNTHETIC', 'Строка источника': '4' }),
+  record({ ID: 'SYN-TRF-001', 'Дата и время': '2026-02-08T10:00:00Z', 'Тип': 'перевод', 'Сумма': '20.00', 'Счёт': 'SYN-A', 'Счёт назначения': 'SYN-B', 'Категория': 'SYN-TRANSFER', 'Статус': 'posted', 'Источник': 'SYNTHETIC', 'Строка источника': '5' }),
+  record({ ID: 'SYN-PEND-001', 'Дата и время': '2026-02-09T10:00:00Z', 'Тип': 'доход', 'Сумма': '999.00', 'Счёт': 'SYN-A', 'Категория': 'SYN-INCOME', 'Статус': 'pending', 'Источник': 'SYNTHETIC', 'Строка источника': '6' }),
+  record({ ID: 'SYN-ADJ-001', 'Дата и время': '2026-02-10T10:00:00Z', 'Тип': 'корректировка', 'Сумма': '0.00', 'Счёт': 'SYN-A', 'Категория': 'SYN-ADJUST', 'Статус': 'posted', 'Источник': 'SYNTHETIC', 'Строка источника': '7' })
 ];
+
+function projectedSnapshot(request) {
+  const required = Array.from(request.required_headers || headers);
+  const rows = records.map((item) => required.map((header) => item[header]));
+  return {
+    schema: 'PRH_GOOGLE_OPERATIONS_TABLE_V1',
+    gateway_version: '1.1.0',
+    mapping_version: '1.0.0',
+    sheet_name: '01 Операции',
+    start_row: 2,
+    headers: required,
+    rows
+  };
+}
+
+function digestBytes(value) {
+  return Array.from(crypto.createHash('sha256').update(String(value), 'utf8').digest())
+    .map((byte) => byte > 127 ? byte - 256 : byte);
+}
 
 const context = vm.createContext({
   console,
-  Object,
-  Array,
-  String,
-  Number,
-  Math,
-  Date,
-  RegExp,
-  Error,
-  JSON,
+  Buffer,
   getSettingsMap_() { return { currency: 'RUB' }; },
-  prhGoogleRepositoryReadOperationsTable_(request) {
-    assert.deepStrictEqual(Array.from(request.required_headers), headers);
-    return { schema: 'PRH_GOOGLE_OPERATIONS_TABLE_V1', sheet_name: '01 Операции', headers, rows, start_row: 2 };
-  },
+  prhGoogleRepositoryReadOperationsTable_: projectedSnapshot,
   Utilities: {
+    DigestAlgorithm: { SHA_256: 'SHA_256' },
+    Charset: { UTF_8: 'UTF_8' },
+    computeDigest(algorithm, value, charset) {
+      assert.strictEqual(algorithm, 'SHA_256');
+      assert.strictEqual(charset, 'UTF_8');
+      return digestBytes(value);
+    },
     formatDate(date, zone, pattern) {
       assert.strictEqual(zone, 'UTC');
       assert.strictEqual(pattern, 'yyyy-MM-dd');
@@ -46,85 +75,82 @@ const context = vm.createContext({
     }
   }
 });
-vm.runInContext(source, context, { filename: 'R2FinancialRuntimeService.js' });
 
-assert.strictEqual(context.PRH_R2_FIN_RUNTIME.SCHEMA, 'PRH_R2_FIN_RUNTIME_ADAPTER_V1');
-assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FINANCIAL_TRUTH_POLICY, 'FIN-TRUTH-v1');
-assert.strictEqual(context.PRH_R2_FIN_RUNTIME.WRITE_AUTHORITY, false);
+const bundleSource = buildRuntimeBundleSource(root);
+new vm.Script(bundleSource, { filename: GENERATED_RUNTIME_BUNDLE });
+vm.runInContext(bundleSource, context, { filename: GENERATED_RUNTIME_BUNDLE });
+vm.runInContext(bridgeSource, context, { filename: 'R2FinancialRuntimeService.js' });
+
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.schema, RUNTIME_SCHEMA);
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.generated_from_canonical_lib, true);
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.financial_formula_copy, false);
+assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), ['financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary']);
+assert.strictEqual(context.PRH_R2_FIN_RUNTIME.SCHEMA, 'PRH_R2_FIN_RUNTIME_BRIDGE_V1');
+assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FINANCIAL_FORMULA_COPY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.UI_FINANCIAL_FORMULA_AUTHORITY, false);
+assert.strictEqual(context.PRH_R2_FIN_RUNTIME.WRITE_AUTHORITY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FREE_ONLY, true);
 
-// Mapping parity with the canonical Google adapter, including the MIG-010 materialized target marker.
-for (const value of ['доход', 'расход', 'перевод', 'возврат', 'корректировка', 'income', 'expense']) {
-  assert.strictEqual(context.prhR2FinType_(value), googleAdapter.normalizeType(value));
-}
-for (const value of ['', 'проведено', 'оплачено', 'Перенесено', 'posted', 'pending', 'отменено']) {
-  assert.strictEqual(context.prhR2FinStatus_(value), googleAdapter.normalizeStatus(value));
-}
-assert.strictEqual(googleAdapter.normalizeStatus('Перенесено'), 'posted');
-for (const value of ['0', '1', '10.25', '123456.78']) {
-  assert.strictEqual(context.prhR2FinMajorToMinor_(value), googleAdapter.majorToMinorExact(value));
-}
-
 const runtimeSource = context.prhR2FinReadTransactions_();
+assert.strictEqual(runtimeSource.currency, 'RUB');
+assert.strictEqual(runtimeSource.transactions.length, records.length);
 assert.strictEqual(runtimeSource.transactions.find((tx) => tx.transaction_id === 'SYN-EXP-001').status, 'posted');
 const period = context.prhR2FinLatestMonthPeriod_(runtimeSource.transactions);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(period)), {
-  kind: 'EXPLICIT_WINDOW', start: '2026-02-01', end: '2026-03-01', partial: false, day_count: 28, proration: 'NONE'
+  start: '2026-02-01', end: '2026-03-01', partial: false
 });
 
 const canonical = evaluateKpis(Array.from(runtimeSource.transactions).map((tx) => ({ ...tx })), {
   currency: 'RUB',
-  period: { start: '2026-02-01', end: '2026-03-01', partial: false }
+  period: { start: period.start, end: period.end, partial: false }
 });
-const runtime = context.prhR2FinAggregate_(runtimeSource.transactions, 'RUB', period);
-assert.strictEqual(runtime.income_minor, canonical.income_minor);
-assert.strictEqual(runtime.expense_minor, canonical.expense_minor);
-assert.strictEqual(runtime.cash_flow_minor, canonical.cash_flow_minor);
-assert.strictEqual(runtime.savings_minor, canonical.savings_minor);
-assert.strictEqual(runtime.gross_expense_minor, canonical.gross_expense_minor);
-assert.strictEqual(runtime.refund_minor, canonical.refund_minor);
-assert.strictEqual(runtime.transfer_minor, canonical.transfer_minor);
-assert.strictEqual(runtime.included_count, canonical.included_count);
-assert.strictEqual(runtime.excluded_status_count, canonical.excluded_status_count);
-assert.strictEqual(runtime.income_minor, 10000);
-assert.strictEqual(runtime.expense_minor, 2500);
-assert.strictEqual(runtime.cash_flow_minor, 7500);
-assert.strictEqual(runtime.transfer_minor, 2000);
-
-const home = context.prhR2FinBuildHomeView_(runtimeSource);
+const home = context.prhR2BuildFinancialHomeRuntime_();
 assert.strictEqual(home.schema, 'PRH_FINANCIAL_HOME_VIEW_V1');
 assert.strictEqual(home.financial_truth_policy, 'FIN-TRUTH-v1');
+assert.strictEqual(home.kpi_dictionary_version, '1.0.0');
 assert.strictEqual(home.cards.INCOME.value_minor, canonical.income_minor);
 assert.strictEqual(home.cards.EXPENSE.value_minor, canonical.expense_minor);
 assert.strictEqual(home.cards.CASH_FLOW.value_minor, canonical.cash_flow_minor);
 assert.strictEqual(home.cards.SAVINGS.value_minor, canonical.savings_minor);
 assert.strictEqual(home.cards.BUDGET.state, 'NOT_CONFIGURED');
 assert.strictEqual(home.cards.LIQUIDITY.cash_flow_proxy_used, false);
-assert.strictEqual(home.provenance.financial_values, 'FIN010_PARITY_GUARDED_RUNTIME_ADAPTER');
-assert.strictEqual(home.provenance.ui_financial_formula_used, false);
+assert.strictEqual(home.provenance.financial_values, 'FIN010_EVALUATE_KPIS_RESULT');
+assert.strictEqual(home.provenance.runtime_bridge, 'GENERATED_CANONICAL_LIB_BUNDLE');
+assert.strictEqual(home.provenance.generated_from_canonical_lib, true);
+assert.strictEqual(home.provenance.financial_formula_copy, false);
 assert.strictEqual(home.provenance.legacy_total_cells_used, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(home.visual_data.expense_mix)), [['SYN-FOOD', 2500]]);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(home.visual_data.cash_flow_minor)), [7500]);
 
-// Fail-closed adversarial boundaries.
-assert.throws(() => context.prhR2FinMajorToMinor_('1.234'), /R2_FIN_AMOUNT_PRECISION_INVALID/);
-assert.throws(() => context.prhR2FinType_('mystery'), /R2_FIN_TYPE_UNMAPPED/);
-assert.throws(() => context.prhR2FinStatus_('mystery'), /R2_FIN_STATUS_UNMAPPED/);
-const badCurrencyContext = vm.createContext({ ...context, getSettingsMap_: () => ({ currency: '' }) });
-vm.runInContext(source, badCurrencyContext, { filename: 'R2FinancialRuntimeService.js' });
+// Fail-closed adapter/config boundaries remain outside financial semantics.
+const badCurrencyContext = vm.createContext({
+  console,
+  Buffer,
+  PRH_R2_CANONICAL_RUNTIME: context.PRH_R2_CANONICAL_RUNTIME,
+  getSettingsMap_: () => ({ currency: '' }),
+  prhGoogleRepositoryReadOperationsTable_: projectedSnapshot,
+  Utilities: context.Utilities
+});
+vm.runInContext(bridgeSource, badCurrencyContext, { filename: 'R2FinancialRuntimeService.js' });
 assert.throws(() => badCurrencyContext.prhR2FinCurrency_(), /R2_RUNTIME_CURRENCY_SETTING_REQUIRED/);
 
-assert.doesNotMatch(source, /setValue\s*\(|setValues\s*\(|appendRow\s*\(|deleteRow\s*\(|insertRow/);
-assert.doesNotMatch(source, /GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED\s*=|financial_write\s*:\s*true/i);
-assert.match(source, /FIN010_PARITY_GUARDED_RUNTIME_ADAPTER/);
-assert.match(source, /prhGoogleRepositoryReadOperationsTable_/);
-assert.match(source, /getSettingsMap_/);
+assert.doesNotMatch(bridgeSource, /prhR2FinAggregate_/);
+assert.doesNotMatch(bridgeSource, /income_minor\s*\+=|gross_expense_minor\s*\+=|refund_minor\s*\+=|cash_flow_minor\s*=\s*.*income/i);
+assert.doesNotMatch(bridgeSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(|deleteRow\s*\(|insertRow/);
+assert.match(bridgeSource, /runtime\.home\.buildFinancialHome/);
+assert.match(bridgeSource, /runtime\.googleAdapter\.createGoogleSheetsTransactionRepository/);
+assert.match(bridgeSource, /runtime\.financialReconciliation\.aggregateTransactions/);
+assert.match(bundleSource, /Generated by trusted candidate packager from canonical lib sources/);
+assert.match(bundleSource, /lib\/finance\/kpi_dictionary\.js/);
+assert.match(bundleSource, /lib\/home\/financial_home\.js/);
+assert.match(bundleSource, /lib\/adapters\/google_sheets_transaction_repository\.js/);
 
 console.log('r2_financial_runtime_parity_contract_test: OK', {
   policy: 'FIN-TRUTH-v1',
   kpiDictionary: '1.0.0',
-  exactMoney: true,
-  migratedStatusParity: true,
+  generatedCanonicalBundle: true,
+  duplicateFinancialFormula: false,
+  canonicalGoogleAdapter: true,
   refundParity: true,
   transferNeutral: true,
   pendingExcluded: true,
