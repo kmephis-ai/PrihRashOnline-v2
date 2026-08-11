@@ -3,10 +3,16 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const {
+  GENERATED_RUNTIME_BUNDLE,
+  buildRuntimeBundleSource
+} = require('./build-apps-script-runtime-bundle');
 
 const POLICY_VERSION = 'apps-script-top-level-v2';
 const BUILD_INFO_SCHEMA_VERSION = 1;
 const GENERATED_BUILD_INFO = 'BuildInfo.js';
+const RUNTIME_BUNDLE_MARKER = 'r2-runtime-bundle.json';
+const RUNTIME_BUNDLE_MARKER_SCHEMA = 'PRH_R2_RUNTIME_BUNDLE_MARKER_V1';
 const SHA_RE = /^[0-9a-f]{40}$/;
 
 function sha256(buffer) {
@@ -18,7 +24,7 @@ function parseArgs(argv) {
   for (let i = 2; i < argv.length; i += 2) {
     const key = argv[i];
     const value = argv[i + 1];
-    if (!key || !key.startsWith('--') || value == null) throw new Error('usage: --source <dir> --out <dir> --sha <40-char-sha>');
+    if (!key || !key.startsWith('--') || value == null) throw new Error('usage: --source <dir> --out <dir> --sha <40-char-sha> [--repository-root <dir>]');
     result[key.slice(2)] = value;
   }
   return result;
@@ -26,8 +32,10 @@ function parseArgs(argv) {
 
 function listDeployFiles(sourceRoot) {
   const entries = fs.readdirSync(sourceRoot, { withFileTypes: true });
-  if (entries.some((entry) => entry.name === GENERATED_BUILD_INFO)) {
-    throw new Error(`${GENERATED_BUILD_INFO} is reserved for deterministic build metadata`);
+  for (const reserved of [GENERATED_BUILD_INFO, GENERATED_RUNTIME_BUNDLE]) {
+    if (entries.some((entry) => entry.name === reserved)) {
+      throw new Error(`${reserved} is reserved for deterministic build output`);
+    }
   }
   const files = entries
     .filter((entry) => entry.isFile() && (entry.name === 'appsscript.json' || entry.name.endsWith('.js') || entry.name.endsWith('.html')))
@@ -66,17 +74,45 @@ function sourceFileDescriptors(source, names) {
   });
 }
 
-function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
+function descriptorFromGenerated(pathName, sourceText) {
+  const bytes = Buffer.from(sourceText, 'utf8');
+  return { path: pathName, sha256: sha256(bytes), size: bytes.length, bytes };
+}
+
+function runtimeBundleConfig(sourceRoot) {
+  const markerPath = path.join(sourceRoot, RUNTIME_BUNDLE_MARKER);
+  if (!fs.existsSync(markerPath)) return Object.freeze({ enabled: false, marker: null });
+  const stat = fs.lstatSync(markerPath);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('runtime bundle marker must be a regular file');
+  const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  if (!marker || marker.schema !== RUNTIME_BUNDLE_MARKER_SCHEMA || marker.version !== '1.0.0' || marker.enabled !== true) {
+    throw new Error('runtime bundle marker is invalid');
+  }
+  return Object.freeze({ enabled: true, marker: Object.freeze({ schema: marker.schema, version: marker.version }) });
+}
+
+function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, candidateSha }) {
   if (!SHA_RE.test(String(candidateSha || ''))) throw new Error('candidate SHA must be exactly 40 lowercase hex characters');
   const source = path.resolve(sourceRoot);
+  const repository = path.resolve(repositoryRoot);
   const out = path.resolve(outRoot);
   const filesRoot = path.join(out, 'files');
+  if (!fs.existsSync(repository) || !fs.statSync(repository).isDirectory()) {
+    throw new Error('repository root must be an existing directory');
+  }
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(filesRoot, { recursive: true });
 
   const names = listDeployFiles(source);
   const sourceFiles = sourceFileDescriptors(source, names);
-  const sourceTreeHash = stableFileSetHash(sourceFiles);
+  const runtimeConfig = runtimeBundleConfig(source);
+  const runtimeBundle = runtimeConfig.enabled
+    ? descriptorFromGenerated(GENERATED_RUNTIME_BUNDLE, buildRuntimeBundleSource(repository))
+    : null;
+  const identityFiles = runtimeBundle
+    ? [...sourceFiles, runtimeBundle].sort((a, b) => a.path.localeCompare(b.path))
+    : sourceFiles;
+  const sourceTreeHash = stableFileSetHash(identityFiles);
   const buildInfoBytes = Buffer.from(buildInfoSource(candidateSha, sourceTreeHash), 'utf8');
   const generatedFile = {
     path: GENERATED_BUILD_INFO,
@@ -84,7 +120,8 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
     size: buildInfoBytes.length,
     bytes: buildInfoBytes
   };
-  const allFiles = [...sourceFiles, generatedFile].sort((a, b) => a.path.localeCompare(b.path));
+  const allFiles = [...sourceFiles, ...(runtimeBundle ? [runtimeBundle] : []), generatedFile]
+    .sort((a, b) => a.path.localeCompare(b.path));
 
   allFiles.forEach((item) => fs.writeFileSync(path.join(filesRoot, item.path), item.bytes));
   const manifestFiles = allFiles.map(({ path: filePath, sha256: digest, size }) => ({ path: filePath, sha256: digest, size }));
@@ -99,6 +136,10 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
     files: manifestFiles,
     artifactHash: stableFileSetHash(manifestFiles)
   };
+  if (runtimeBundle) {
+    manifest.generatedRuntimeBundle = GENERATED_RUNTIME_BUNDLE;
+    manifest.runtimeBundleMarker = runtimeConfig.marker;
+  }
   fs.writeFileSync(path.join(out, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifest;
 }
@@ -110,6 +151,9 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
   const expected = JSON.parse(fs.readFileSync(expectedManifestPath, 'utf8'));
   if (actual.candidateSha !== expectedSha || expected.candidateSha !== expectedSha) throw new Error('candidate SHA binding mismatch');
   if (!SHA_RE.test(actual.candidateSha) || !/^[0-9a-f]{64}$/.test(actual.sourceTreeHash || '')) throw new Error('candidate build identity is invalid');
+  if (actual.generatedRuntimeBundle != null && actual.generatedRuntimeBundle !== GENERATED_RUNTIME_BUNDLE) {
+    throw new Error('canonical runtime bundle manifest binding invalid');
+  }
   if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('candidate manifest differs from trusted reconstruction');
 
   const actualFilesRoot = path.join(candidateRoot, 'files');
@@ -130,7 +174,8 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
     candidateSha: actual.candidateSha,
     sourceTreeHash: actual.sourceTreeHash,
     artifactHash: actual.artifactHash,
-    fileCount: actual.fileCount
+    fileCount: actual.fileCount,
+    generatedRuntimeBundle: actual.generatedRuntimeBundle || null
   };
 }
 
@@ -140,12 +185,18 @@ if (require.main === module) {
     const result = verifyCandidate(path.resolve(args.verify), path.resolve(args.expected), args.sha);
     console.log('apps-script-candidate: VERIFIED', result);
   } else {
-    const manifest = buildCandidate({ sourceRoot: args.source, outRoot: args.out, candidateSha: args.sha });
+    const manifest = buildCandidate({
+      sourceRoot: args.source,
+      repositoryRoot: args['repository-root'] || args.source,
+      outRoot: args.out,
+      candidateSha: args.sha
+    });
     console.log('apps-script-candidate: BUILT', {
       candidateSha: manifest.candidateSha,
       sourceTreeHash: manifest.sourceTreeHash,
       artifactHash: manifest.artifactHash,
-      fileCount: manifest.fileCount
+      fileCount: manifest.fileCount,
+      generatedRuntimeBundle: manifest.generatedRuntimeBundle || null
     });
   }
 }
@@ -154,11 +205,16 @@ module.exports = {
   POLICY_VERSION,
   BUILD_INFO_SCHEMA_VERSION,
   GENERATED_BUILD_INFO,
+  GENERATED_RUNTIME_BUNDLE,
+  RUNTIME_BUNDLE_MARKER,
+  RUNTIME_BUNDLE_MARKER_SCHEMA,
   SHA_RE,
   sha256,
   listDeployFiles,
   stableFileSetHash,
   buildInfoSource,
+  descriptorFromGenerated,
+  runtimeBundleConfig,
   buildCandidate,
   verifyCandidate
 };
