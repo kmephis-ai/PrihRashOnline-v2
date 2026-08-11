@@ -16,33 +16,35 @@
 
 ## Текущая инженерная задача
 
-`DASH-082` — единственный **current writer**, canonical Issue #202, branch `agent/DASH-082-dashboard-interaction-bus`. Зависимости `DASH-081` и `ANL-074` уже DONE/Main Verification PASS.
+`DASH-083` — единственный **current writer**, canonical Issue #204, branch `agent/DASH-083-drill-through`. Зависимости `DASH-081`, `TX-020` и `ANL-074` уже DONE/Main Verification PASS; dependency-order predecessor `DASH-082` также завершён до resolver advance.
 
-`DASH-081` завершён: Issue #200 **DONE**, candidate `5752b963a528ccdabf307531dff426a9cfbe59a1`, merge `da42188741dcd035684cec900728ea53d5c961a2`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
+`DASH-082` завершён: Issue #202 **DONE**, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
 
-DASH-082 вводит `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0` как deterministic configuration-only interaction layer поверх DASH-081 bound widgets и ANL-074 Exploration State. Event types = `CLICK`, `SELECTION`, `BRUSH`, `RESET`, `BACK`.
+DASH-083 вводит `PRH_DASHBOARD_DRILL_V1@1.0.0` как orchestration-only drill-down/drill-through layer поверх DASH-081 bound widgets, ANL-074 Exploration State, VIZ DrillContext и TX-020 Transaction Explorer.
 
-Registry `PRH_DASHBOARD_INTERACTION_REGISTRY_V1` принимает только valid `PRH_DASHBOARD_BOUND_WIDGET_V1`. Source filter capability выводится из canonical AnalyticsQuery dimensions; при grain добавляется `time_bucket`. KPI/CARD не получают implicit dimension interaction. CHART требует `ChartSpec.interactions.filter=true`; BRUSH разрешён только для bound `time_bucket`.
+Time hierarchy = `YEAR -> QUARTER -> MONTH -> DAY`. `QUARTER` — navigation level, а не новый AnalyticsQuery grain: он нормализуется в explicit `[start,end)` window и downstream использует существующие query grains. Skip/reverse transition fail closed.
 
-CLICK/SELECTION/BRUSH меняют только `global_context.filter_context` через ANL-074 `SET_GLOBAL_CONTEXT`. SET заменяет same field, CLEAR удаляет same field, unrelated global filters остаются. `widget_contexts`, `drill_context`, global `scope_spec`, widget bindings, layout и AnalyticsQuery не мутируются.
+Runtime `CATEGORY`/`ACCOUNT` hierarchy registry содержит только IDs, ordered levels и `{node_id, level, parent_id}`. Labels/descriptions запрещены; leaf identity = canonical dimension ID. Parent-child continuity и bounded descendant set проверяются deterministically.
 
-Cross-widget result содержит только derived affected widget IDs: для обычного event — все registered widgets кроме source; для RESET/BACK — все. Это metadata для UI adapters, а не direct mutation authority.
+Drill source обязан быть valid `PRH_DASHBOARD_BOUND_WIDGET_V1`; requested measure должен присутствовать в bound AnalyticsQuery, а hierarchy dimension — быть bound/effective. DOWN/THROUGH обновляют только `PRH_DRILL_CONTEXT_V1` и supplementary drill navigation metadata. Global/widget filters и scope semantics после ANL transition обязаны быть byte-equivalent состоянию до transition.
 
-Event identity = `SHA256_CANONICAL_JSON_V1`. Root gesture получает canonical origin identity. Propagated callbacks сохраняют origin и ограничены `max_hop=1`. `PRH_DASHBOARD_INTERACTION_SESSION_V1` хранит bounded processed origin IDs; повторный origin возвращает `DASH082_EVENT_ORIGIN_REPLAY` без state/history mutation. RESET/BACK напрямую делегируются ANL-074, поэтому canonical history/back semantics не дублируются.
+Drill-through request объединяет bound AnalyticsQuery filters, ANL-074 effective global/widget FilterContext, DrillContext, effective ScopeSpec и explicit time window. TX-020 остаётся единственной authority для canonical transaction matching/sort/pagination: DASH-083 вызывает `TX.exploreTransactions()` page-by-page и не копирует TX query semantics.
 
-Interaction filter values считаются private-runtime configuration. Public tests используют synthetic IDs. Telemetry allowlist = schema/version/event_type/hashed source+origin/state prefixes/affected count/decision/reason; filter values/query filters/private IDs/currency/measure/financial values не публикуются.
+Reconciliation для `INCOME`, `EXPENSE`, `CASH_FLOW` использует `KPI.evaluateKpi()` на exact canonical transaction selection после SCOPE-070 + context filters + TX-020 selection. Refund/transfer/status semantics не дублируются. Mismatch = fail-closed `DASH083_TOTAL_RECONCILIATION_MISMATCH`, `rows_reconciled=false`, transaction rows не выдаются как подтверждённое evidence.
 
-Core files current writer:
+BACK/RESET делегируются ANL-074 history semantics; supplementary drill metadata восстанавливается синхронно и не заменяет exploration history. No-op transitions не создают отдельную альтернативную history authority.
 
-- `lib/dashboard/dashboard_interaction_bus.v1.json`;
-- `lib/dashboard/dashboard_interaction_bus.js`;
-- `tests/dashboard_interaction_bus_contract_test.js`;
-- `docs/dashboard/DASHBOARD_INTERACTIONS.md`;
-- TEST-010 exact classification = `PURE_DOMAIN_APPLICATION`;
-- named gate `Dashboard interaction bus`;
-- LANG-RU inventory/required markers updated.
+Core current writer:
 
-All financial/write/query-execution/query-mutation/auth/storage/network/deploy/renderer/layout authorities false; `FREE_ONLY` mandatory.
+- `lib/dashboard/dashboard_drill.v1.json`;
+- `lib/dashboard/dashboard_drill.js`;
+- `tests/dashboard_drill_through_contract_test.js`;
+- `docs/dashboard/DASHBOARD_DRILL_THROUGH.md`;
+- TEST-010 exact classification `PURE_DOMAIN_APPLICATION`;
+- named gate `Dashboard drill-through`;
+- LANG-RU inventory/markers updated.
+
+Public evidence independently generated synthetic-only. Telemetry = schema/version/action/hashed technical identities/result count/decision/reason. Amounts, currency, filter values, transaction IDs, private labels отсутствуют. Financial/write/query-execution/query-mutation/auth/storage/network/deploy/renderer/layout authorities false; `FREE_ONLY` mandatory.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -77,7 +79,7 @@ Post-R1 handoff historically начинается с `DESIGN-020`; этот anch
 
 ## Current R2 truth
 
-`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. `UI-MIG-020` Issue #172 завершён, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
+`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. `TX-020` Issue #124 завершён, merge `38a6d6bece459f61a2cf3d9af2cd8419274b258b`. `UI-MIG-020` Issue #172 завершён, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
 Canonical private Web App default = R2 Financial Home. Generated exact-candidate runtime строится из canonical `lib/**`; `financial_formula_copy=false`. `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` остаётся transient read-only adapter identity без persistent authority. Authenticated private Home smoke V3 и Trusted Runtime Health PASS. Web App остаётся `MYSELF`; PWA boundary `NOT_PROVEN_CURRENT_HOST`; `FREE_ONLY` обязателен.
 
@@ -115,7 +117,7 @@ Google remains authoritative. Blocked cloud items не дают writer authority
 - `VIZ-070` — DONE, Issue #192 Main Verification PASS.
 - `MASTER-G7 / Semantic analytics` — **complete**.
 
-ANL-074 authority = `PRH_EXPLORATION_STATE_V1@1.0.0`: deterministic state hash/history, global/widget contexts, drill, RESET/BACK. DASH-082 обязан делегировать эту state authority, а не копировать её.
+ANL-074 authority = `PRH_EXPLORATION_STATE_V1@1.0.0`: deterministic state hash/history, global/widget contexts, drill, RESET/BACK. DASH-083 обязан делегировать эту state authority, а не копировать её.
 
 VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; ECHARTS_6 replaceable/local-bundled, SEMANTIC_TABLE_V1 accessible fallback, chart retype query-hash invariant, no financial/query authority.
 
@@ -125,7 +127,8 @@ VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`
 - `PRIV-080` — DONE, Issue #79 Main Verification PASS.
 - `DASH-080` — DONE, Issue #198 Main Verification PASS, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
 - `DASH-081` — DONE, Issue #200 Main Verification PASS, merge `da42188741dcd035684cec900728ea53d5c961a2`.
-- `DASH-082` — **current writer**, Issue #202, branch `agent/DASH-082-dashboard-interaction-bus`; IN_PROGRESS до Main Verification.
+- `DASH-082` — DONE, Issue #202 Main Verification PASS, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`.
+- `DASH-083` — **current writer**, Issue #204, branch `agent/DASH-083-drill-through`; IN_PROGRESS до Main Verification.
 
 PRIV-080 machine boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`, MASKED pre-render redaction, DEMO = PUBLIC_SYNTHETIC only/private reads = 0, ZEN structural-only. Presentation mode не является authorization/security boundary.
 
@@ -133,11 +136,13 @@ DASH-080 boundary сохраняется: `PRH_DASHBOARD_COMPOSER_V1@1.0.0`, des
 
 DASH-081 boundary сохраняется: `PRH_WIDGET_FACTORY_V1@1.0.0`, explicit semantic binding только, no implicit auto-bind, no query/financial authority.
 
-DASH-082 boundary: global filter interaction only, source semantic capability validation, deterministic canonical event/session hashes, bounded origin dedup/hop, ANL-074 RESET/BACK delegation, privacy-safe telemetry, no financial payload.
+DASH-082 boundary сохраняется: `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`, global filter interaction only, source semantic capability validation, deterministic event/session hashes, bounded origin dedup/hop, ANL-074 RESET/BACK delegation, privacy-safe telemetry, no financial payload.
+
+DASH-083 boundary: hierarchy/drill orchestration only; QUARTER navigation through explicit window; category/account registry ID-only; ANL context preservation; TX-020 selection authority; FIN-backed supported-measure reconciliation; mismatch fail-closed; privacy-safe telemetry.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `dashboard_interaction_bus_contract_test.js` = `PURE_DOMAIN_APPLICATION`; named gate `Dashboard interaction bus` обязателен вместе с existing DASH-081/DASH-080/ANL-074/PRIV/STUDIO/VIZ/R2/FIN/MIG gates. Red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `dashboard_drill_through_contract_test.js` = `PURE_DOMAIN_APPLICATION`; named gate `Dashboard drill-through` обязателен вместе с existing DASH-082/DASH-081/TX-020/ANL-074/PRIV/STUDIO/VIZ/R2/FIN/MIG gates. Red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -157,7 +162,7 @@ PR Validation
 -> Main Verification
 ```
 
-DASH-082 остаётся открытым до green interaction bus contract + existing DASH-081/DASH-080/ANL-074/PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-083 остаётся открытым до green drill-through contract + existing DASH-082/DASH-081/TX-020/ANL-074/PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -165,4 +170,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080, DASH-080 и DASH-081 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-082` / Issue #202 — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080, DASH-080, DASH-081 и DASH-082 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-083` / Issue #204 — единственный active writer.
