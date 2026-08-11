@@ -114,6 +114,8 @@ jobs:
         run: node tests/dashboard_saved_views_contract_test.js
       - name: Dashboard visual customization
         run: node tests/dashboard_visual_customization_contract_test.js
+      - name: Dashboard safe import/export
+        run: node tests/dashboard_safe_import_export_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
       - name: R2 Financial runtime parity
