@@ -16,11 +16,13 @@
 
 ## Текущая инженерная задача
 
-`ANL-072` — единственный active writer. Текущая разработка не меняет финансовые строки, не переписывает пользовательский интерфейс и не вводит новый источник финансовой истины. Она добавляет безопасный чистый слой аналитических преобразований поверх уже рассчитанных `AnalyticsResult` и period/comparison results. Любой ИИ, продолжающий эту ветку, обязан сохранять upstream authority `FIN-TRUTH-v1`, KPI Dictionary, `ANL-010`, `ANL-070` и `ANL-071` и не переносить формулы доходов/расходов в новый слой.
+`BENCH-070` — единственный **current writer**, Issue #80, branch `agent/BENCH-070-personal-comparison-engine`. Он стартовал только после Main Verification PASS всех зависимостей: `ANL-071`, `ANL-072` и `SCOPE-070`.
 
-Ключевая граница — отсутствие произвольных формул. Разрешён только заранее версионированный allowlist операторов. Пользовательская строка JavaScript, `eval`, SQL expression, динамическая formula DSL или похожий executable payload должны отклоняться fail-closed. Неизвестный measure, неподходящая provenance, усечённый AnalyticsResult, недопустимое окно или structurally incompatible comparison series также не должны обрабатываться эвристически.
+Цель — единый versioned comparison layer для предыдущего сопоставимого периода, персонального rolling baseline, budget, target и manual index. Этот слой не меняет canonical transactions, `FIN-TRUTH-v1`, KPI Dictionary, period semantics или scope semantics. `PREVIOUS_COMPARABLE_PERIOD` обязан переиспользовать ANL-071 и `DELTA_ABS`/`DELTA_PCT` ANL-072; `PERSONAL_ROLLING_BASELINE` обязан переиспользовать `MOVING_AVERAGE` ANL-072. Budget/target/manual index остаются declared references с `financial_truth=false`.
 
-Public tests используют только независимо сгенерированные synthetic finance fixtures. Telemetry может содержать только технические версии, operator/measure identifiers, размеры окна/Top-N, counts и bounded reason codes. Финансовые суммы, исходные названия категорий/счетов, transaction IDs и другие private dimension values в public evidence запрещены. Новый слой не имеет storage/network/deployment/write authority и не требует платного API.
+Comparison core работает только с typed scalar additive analytic results до реализации `ANL-073`. Несовпадение period/currency/scope/provenance, неизвестный comparison type, non-additive measure, invalid rolling window или invalid manual index завершаются fail-closed. Arbitrary JavaScript/eval/SQL/executable formula surface отсутствует.
+
+Public tests используют только independently generated synthetic finance fixtures. Public telemetry содержит только технические schema/version/type/period/scope/sample/quality/reason metadata и не содержит `current_minor`, `reference_minor`, delta values, transaction IDs или private dimension IDs. External market-data providers не являются required dependency; core не использует network/API и сохраняет `FREE_ONLY`.
 
 ## Current R0 truth
 
@@ -58,7 +60,7 @@ Canonical private Web App default = R2 Financial Home. Generated exact-candidate
 - `NW-030` — DONE, Issue #171 Main Verification PASS.
 - `SUB-030` — **DONE**, Issue #179 Main Verification PASS, candidate `2c3a0a39aa835cec2a5fa0a93d0a275b7bf008fd`, merge `2914f150a9b038af50f7ccbfd9ed3d4f684dad47`.
 
-SUB-030 machine authority `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0` сохранена в новом base. Его named gate `Subscription detection`, test architecture classification, LANG-RU doc inventory и privacy boundaries нельзя удалять или перетирать при реализации ANL-072. SUB detector остаётся precision-first, `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не является authority.
+SUB-030 authority `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0` сохраняется. Named gate `Subscription detection`, TEST-010 classification, LANG-RU inventory и privacy boundaries нельзя удалять. Detector остаётся precision-first: `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не является authority.
 
 ## Current R4 truth
 
@@ -75,35 +77,32 @@ Google remains authoritative. Blocked cloud items не дают writer authority
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
-- `ANL-072` — **current writer**, Issue #178, branch `agent/ANL-072-safe-calculated-metrics-v2`; IN_PROGRESS до Main Verification.
+- `ANL-072` — **DONE**, Issue #178 Main Verification PASS, candidate `0cc1260edb0a264d662a813abc04c1236bb44655`, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
+- `BENCH-070` — **current writer**, Issue #80, branch `agent/BENCH-070-personal-comparison-engine`; IN_PROGRESS до Main Verification.
 
-ANL-072 machine boundary:
+BENCH-070 machine boundary:
 
-- contract: `lib/analytics/calculated_metrics.v1.json` — `PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0`;
-- implementation: `lib/analytics/calculated_metrics.js`;
-- test: `tests/calculated_metrics_contract_test.js`;
-- normative doc: `docs/analytics/CALCULATED_METRICS.md`;
-- named gate: `Calculated/window metrics`;
-- source: complete typed canonical `AnalyticsResult` или `PRH_ANALYTICS_PERIOD_RESULT_V1` с валидной provenance;
-- allowlist: `SHARE`, `DELTA_ABS`, `DELTA_PCT`, `CUMULATIVE`, `MOVING_AVERAGE`, `MOVING_MEDIAN`, `TOP_N_OTHER`;
-- arbitrary JavaScript/eval/SQL/executable formula surface = forbidden;
-- ratio = deterministic integer PPM, `1 000 000 = 100%`;
-- money = safe integer minor units; risk-of-overflow intermediates используют exact integer arithmetic;
-- `SHARE` = exact 1 000 000 PPM reconciliation, zero/negative denominator fail-closed;
-- `DELTA_PCT` = explicit `ZERO_REFERENCE_NO_CHANGE` / `ZERO_REFERENCE_UNDEFINED`, never NaN/Infinity;
-- pairwise delta требует одинаково структурированных primary/reference bucket series; arbitrary multi-month calendar split не сопоставляется эвристически;
-- moving window bounded 1..24 и требует explicit `REQUIRE_FULL` или `ALLOW_PARTIAL`;
-- missing additive partition внутри временного ряда = zero только для orchestration, без synthetic transaction mutation;
-- `TOP_N_OTHER` = bounded N, deterministic canonical dimension-key tie break, stable `__OTHER__`, exact source/output reconciliation;
-- truncated source, duplicate/invalid rows, unsupported measure/operator/window/reference или invalid provenance = fail-closed;
-- telemetry не содержит amount payload/private dimension values;
-- `financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `executable_formula=false`; `FREE_ONLY` mandatory.
+- contract `lib/analytics/personal_benchmark.v1.json` — `PRH_PERSONAL_BENCHMARK_V1@1.0.0`;
+- implementation `lib/analytics/personal_benchmark.js`;
+- test `tests/personal_benchmark_contract_test.js`;
+- normative doc `docs/analytics/PERSONAL_BENCHMARKS.md`;
+- named gate `Personal benchmark comparisons`;
+- allowlist: `PREVIOUS_COMPARABLE_PERIOD`, `PERSONAL_ROLLING_BASELINE`, `BUDGET`, `TARGET`, `MANUAL_INDEX`;
+- source scope = normalized `PRH_ANALYTICS_SCOPE_V1`; period source = `PRH_ANALYTICS_PERIOD_RESULT_V1`;
+- previous comparison reuses ANL-071 range/quality and ANL-072 delta operators;
+- rolling baseline excludes current bucket and reuses ANL-072 `MOVING_AVERAGE` with bounded window 2..24;
+- BUDGET/TARGET require exact period/currency/scope and provenance `DECLARED_BUDGET` / `DECLARED_TARGET`;
+- MANUAL_INDEX requires explicit bounded positive PPM and `USER_DEFINED_MANUAL_INDEX` provenance;
+- reference/result `financial_truth=false`; no implicit persistence or write authority;
+- external market provider required = false; paid provider required = false;
+- public telemetry financial payload = false;
+- `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `external_market_data=false`; `FREE_ONLY` mandatory.
 
-ANL-072 не меняет enum/semantics upstream contracts и после Main Verification разблокирует `BENCH-070` и `ANL-073`. Его первый superseded PR #181 был закрыт без merge после того, как SUB-030 автономно вошёл в `main`; current v2 branch создан от merge `2914f150...` и обязана сохранить SUB-030 machine gates.
+ANL-072 machine authority `PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0` остаётся upstream и не модифицируется BENCH-070. После Main Verification BENCH-070 будет выполненной зависимостью `TEST-070`; `ANL-073` остаётся отдельным следующим OLAP work item и не реализуется скрыто внутри benchmark layer.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует каждый tracked test fail-closed. `subscription_detection_contract_test.js` и `calculated_metrics_contract_test.js` оба принадлежат `PURE_DOMAIN_APPLICATION`. Named gates `Subscription detection` и `Calculated/window metrics` оба обязательны; red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `subscription_detection_contract_test.js`, `calculated_metrics_contract_test.js` и `personal_benchmark_contract_test.js` принадлежат `PURE_DOMAIN_APPLICATION`. Named gates `Subscription detection`, `Calculated/window metrics` и `Personal benchmark comparisons` обязательны; red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -123,7 +122,7 @@ PR Validation
 -> Main Verification
 ```
 
-ANL-072 остаётся открытым до green `Calculated/window metrics` + existing SUB/FIN/DATA/ANL/privacy/FREE_ONLY/full layered/UI/PWA gates, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+BENCH-070 остаётся открытым до green `Personal benchmark comparisons` + existing ANL/SCOPE/FIN/DATA/SUB/privacy/FREE_ONLY/full layered/UI/PWA gates, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -131,4 +130,4 @@ Required roles остаются `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_D
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 и ANL-074 — DONE. YC-041/YC-042 остаются BLOCKED. `ANL-072` — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071, ANL-072 и ANL-074 — DONE. YC-041/YC-042 остаются BLOCKED. `BENCH-070` — единственный active writer.
