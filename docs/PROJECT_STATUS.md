@@ -66,27 +66,26 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `ANL-072` — **DONE**, Issue #178 Main Verification PASS, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
 - `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, candidate `4da05a25669b87cc7711bde5d8502c457af71f09`, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
-- `ANL-073` — **IN_PROGRESS**, Issue #186, branch `agent/ANL-073-pivot-olap-engine`.
+- `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
+- `PERF-070` — **IN_PROGRESS**, Issue #188, branch `agent/PERF-070-analytics-query-planner-cache`.
 
-ANL-073 вводит `PRH_PIVOT_OLAP_V1@1.0.0` как pure multi-dimensional transformation layer поверх полного `PRH_ANALYTICS_RESULT_V1`. Source rows/columns dimensions должны точно совпадать с Pivot axes; source `comparison.mode=NONE`, `truncated=false`, provenance = `FIN-TRUTH-v1`. Engine не читает canonical transactions и не пересчитывает KPI.
+PERF-070 вводит `PRH_ANALYTICS_QUERY_PLANNER_CACHE_V1@1.0.0` как performance-only orchestration над canonical `AnalyticsQuery` / `AnalyticsResult`. Fingerprint включает normalized query, exact canonical revision и analytics/semantic/planner versions. Raw query или financial payload не входят в public telemetry.
 
-PivotSpec: rows/columns/measures, prefix subtotal flags, grand total, deterministic sort и optional bounded Top-N. Максимум три dimensions суммарно, до двух на каждой axis. `time_bucket` имеет только hierarchy `TIME` и level `YEAR|MONTH|DAY`, совпадающий с source grain. Version 1 разрешает только additive measures с aggregation `SUM`; non-additive measures fail closed.
+Planner имеет bounded in-memory TTL/LRU cache. Same-revision exact fingerprint даёт `CACHE_HIT`; revision change очищает cache и увеличивает generation. Cache eviction/expiration влияет только на производительность — authoritative fallback остаётся canonical `evaluateAnalytics`.
 
-Sparse отсутствующая комбинация dimensions даёт explicit zero только как additive orchestration, без synthetic transaction mutation. Grand total независимо суммируется из source rows и обязан exact совпасть с итоговой cell matrix. Prefix subtotals строятся только для multi-level axes и используют safe integer accumulation.
+Materialized aggregate reuse из PERF-013 разрешён только для доказуемого subset: additive measures, `comparison=NONE`, filters/sort пусты, `budget_minor=null`, exact state revision/currency; projection `CATEGORY_ID`, `ACCOUNT_ID` или month-aligned `MONTH`. Любая несовместимость детерминированно использует `CANONICAL_EVALUATOR`; heuristic aggregate reuse запрещён. Reused result остаётся обычным `PRH_ANALYTICS_RESULT_V1` с `FIN-TRUTH-v1` provenance и обязан иметь parity с canonical evaluator.
 
-Top-N не имеет собственной финансовой формулы: axis totals передаются существующему ANL-072 `TOP_N_OTHER`, после чего remainder детерминированно сворачивается в `__OTHER__`. Source/output totals обязаны reconciled; drill из `OTHER` в v1 fail closed.
+Async registry ключуется `generation + fingerprint`. Одинаковые in-flight requests coalesce. Если generation или canonical revision меняется до completion, результат возвращается `DISCARDED_STALE`, `result=null` и не помещается в cache. Старый request generation отклоняется до computation.
 
-TIME hierarchy expand/collapse использует ANL-070 transitions и возвращает новый canonical AnalyticsQuery. YEAR total никогда не синтезируется в MONTH detail; `implicit_detail_synthesis=false`, `query_reexecution_required=true`.
+Synthetic contract tests покрывают fingerprint normalization, aggregate parity, cache hit/miss/revision invalidation, LRU/TTL, in-flight coalescing и generation/revision stale discard. Отдельный 20k/50k gate требует: cold supported query = `AGGREGATE_REUSE`, warm same-revision = `MEMORY_CACHE`, warm extra canonical evaluations = 0, warm extra aggregate builds = 0, financial writes = 0. 100 ms — generous CI regression ceiling, не пользовательский SLA.
 
-Cell drill требует base AnalyticsQuery с hash == source query hash. Dimension members сужают filters до exact EQ, time member — до exact half-open range; VIZ-020 `PRH_DRILL_CONTEXT_V1` используется без расширения public financial payload. Runtime PivotResult/drill могут содержать private values только внутри private app; PivotSpec/public telemetry values не содержат.
+Public telemetry = schema/version/status/reason, fingerprint/revision hash prefixes, cache/inflight counts, generation и technical hit/miss/reuse/evaluation/coalesce/discard/eviction/expiration counters. Cached AnalyticsResult и private query/filter/dimension/financial values не публикуются.
 
-Seeded randomized tests требуют identical result identity при перестановке source rows, exact total/cell reconciliation и deterministic ties. Named gate `Pivot/OLAP engine`; TEST-010 class `PURE_DOMAIN_APPLICATION`.
-
-`financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `query_execution=false`. External OLAP backend и paid provider не требуются; `FREE_ONLY` mandatory.
+`financial_truth=false`, `financial_write=false`, `migration=false`, `network=false`, `storage=false`, `ui=false`, `renderer=false`, `paid_dependency_required=false`; `FREE_ONLY` mandatory. Named gate: `Analytics query planner/cache`.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
 
-После ANL-073 Main Verification dependency-ready становится `PERF-070`; `TEST-070` ждёт ANL-073 + PERF-070 и уже завершённые ANL-071/072/074/SCOPE-070/BENCH-070. `VIZ-070` остаётся отдельным renderer-registry item.
+После PERF-070 Main Verification dependency-ready становится `TEST-070`, если остальные его зависимости остаются DONE. `VIZ-070` остаётся отдельным P2 renderer-registry item и не реализуется внутри planner.
 
 ## MIG-010 historical safety boundary
 
@@ -115,11 +114,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-ANL-073 остаётся открытым до `Pivot/OLAP engine` + existing BENCH/FIN/DATA/ANL/SCOPE/SUB/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+PERF-070 остаётся открытым до `Analytics query planner/cache` + existing PERF/ANL/BENCH/Pivot/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. ANL-073 — pure analytics transformation; он не меняет current R2 routing, не создаёт financial write и не требует paid provider. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. PERF-070 — in-process analytics optimization; он не меняет current R2 routing, financial writes или external providers. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 

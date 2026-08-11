@@ -1,0 +1,69 @@
+{
+  "schema": "PRH_ANALYTICS_QUERY_PLANNER_CACHE_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PERF-070",
+  "fingerprint_schema": "PRH_ANALYTICS_QUERY_FINGERPRINT_V1",
+  "execution_schema": "PRH_ANALYTICS_QUERY_PLANNER_EXECUTION_V1",
+  "upstream": {
+    "analytics_contract": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "semantic_registry": "PRH_ANALYTICS_SEMANTIC_REGISTRY_V1@1.0.0",
+    "revision_cache": "PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0",
+    "single_scan_refresh": "PRH_SINGLE_SCAN_REFRESH_V1@1.0.0",
+    "incremental_aggregates": "PRH_INCREMENTAL_ANALYTICS_AGGREGATES_V1@1.0.0",
+    "pivot_olap": "PRH_PIVOT_OLAP_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "fingerprint": {
+    "components": ["NORMALIZED_ANALYTICS_QUERY", "CANONICAL_REVISION", "ANALYTICS_VERSION", "SEMANTIC_VERSION", "PLANNER_VERSION"],
+    "hash": "SHA-256",
+    "raw_query_in_telemetry": false
+  },
+  "cache": {
+    "max_entries_default": 64,
+    "max_entries_limit": 256,
+    "ttl_ms_default": 60000,
+    "ttl_ms_max": 300000,
+    "eviction": "LRU",
+    "revision_change": "INVALIDATE_ALL",
+    "schema_change": "NAMESPACE_MISS"
+  },
+  "aggregate_reuse": {
+    "projections": ["CATEGORY_ID", "ACCOUNT_ID", "MONTH"],
+    "measures": ["INCOME", "EXPENSE", "CASH_FLOW", "SAVINGS", "GROSS_EXPENSE", "REFUND", "TRANSFER"],
+    "comparison": "NONE_ONLY",
+    "filters": "EMPTY_ONLY",
+    "sort": "EMPTY_ONLY",
+    "budget_parameter": "NULL_ONLY",
+    "fallback": "CANONICAL_EVALUATE_ANALYTICS",
+    "heuristic_reuse": false
+  },
+  "async": {
+    "same_fingerprint": "COALESCE_INFLIGHT",
+    "different_revision": "NEVER_COALESCE",
+    "stale_completion": "DISCARD_STALE",
+    "generation_change": "DISCARD_STALE"
+  },
+  "budgets": {
+    "profiles": [20000, 50000],
+    "warm_extra_canonical_evaluations": 0,
+    "warm_extra_aggregate_builds": 0,
+    "financial_writes": 0,
+    "wall_clock_is_user_sla": false,
+    "warm_query_ceiling_ms": 100
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "status", "reason", "fingerprint_hash_prefix", "revision_hash_prefix",
+    "cache_entries", "inflight_entries", "generation", "cache_hits", "cache_misses", "aggregate_reuses",
+    "canonical_evaluations", "coalesced_requests", "stale_discards", "evictions", "expirations"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "migration": false,
+    "network": false,
+    "storage": false,
+    "ui": false,
+    "renderer": false,
+    "paid_dependency_required": false
+  }
+}
