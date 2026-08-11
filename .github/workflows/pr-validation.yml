@@ -106,6 +106,8 @@ jobs:
           node tests/dashboard_composer_runtime_contract_test.js
       - name: Widget factory semantic bindings
         run: node tests/widget_factory_semantic_bindings_contract_test.js
+      - name: Dashboard interaction bus
+        run: node tests/dashboard_interaction_bus_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
       - name: R2 Financial runtime parity
