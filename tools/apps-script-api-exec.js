@@ -7,6 +7,8 @@ const ALLOWED_FUNCTIONS = new Set([
   'prhRuntimeTransportPing',
   'prhReleaseHealthCheckToken'
 ]);
+const HEALTH_BUILD_RETRY_ATTEMPTS = 12;
+const HEALTH_BUILD_RETRY_DELAY_MS = 5000;
 
 function safeToken(value, maxLength = 28) {
   const token = String(value || '')
@@ -116,6 +118,62 @@ async function readJsonResponse(response) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableBuildPropagationFailure(functionName, reason) {
+  return functionName === 'prhReleaseHealthCheckToken' && reason === 'RUNTIME_HEALTH_BUILD_MISMATCH';
+}
+
+async function executeAppsScriptRun({ deploymentId, functionName, parameters, accessToken }) {
+  const runResponse = await fetch(`https://script.googleapis.com/v1/scripts/${encodeURIComponent(deploymentId)}:run`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      function: functionName,
+      parameters,
+      devMode: false
+    })
+  });
+  const runPayload = await readJsonResponse(runResponse);
+  if (!runResponse.ok) {
+    return { ok: false, reason: classifyFailure(runResponse.status, runPayload.text, runPayload.json) };
+  }
+  if (!runPayload.json || typeof runPayload.json !== 'object') {
+    return { ok: false, reason: 'AUTHENTICATED_EXECUTION_RESPONSE_INVALID' };
+  }
+  if (runPayload.json.done === false) {
+    return { ok: false, reason: 'AUTHENTICATED_EXECUTION_NOT_COMPLETED' };
+  }
+  if (runPayload.json.error) {
+    return { ok: false, reason: classifyFailure(200, JSON.stringify(runPayload.json.error), runPayload.json) };
+  }
+  if (!runPayload.json.response || !Object.prototype.hasOwnProperty.call(runPayload.json.response, 'result')) {
+    return { ok: false, reason: 'AUTHENTICATED_EXECUTION_INCOMPLETE' };
+  }
+
+  const result = runPayload.json.response.result;
+  if (typeof result !== 'string') {
+    return { ok: false, reason: 'AUTHENTICATED_EXECUTION_RESULT_INVALID' };
+  }
+  return { ok: true, result };
+}
+
+async function executeWithBuildPropagationRetry({ deploymentId, functionName, parameters, accessToken }) {
+  const attempts = functionName === 'prhReleaseHealthCheckToken' ? HEALTH_BUILD_RETRY_ATTEMPTS : 1;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const outcome = await executeAppsScriptRun({ deploymentId, functionName, parameters, accessToken });
+    if (outcome.ok) return outcome;
+    if (!isRetryableBuildPropagationFailure(functionName, outcome.reason) || attempt >= attempts) return outcome;
+    await sleep(HEALTH_BUILD_RETRY_DELAY_MS);
+  }
+  return { ok: false, reason: 'AUTHENTICATED_EXECUTION_FAILED' };
+}
+
 async function main() {
   try {
     const functionName = process.argv[2];
@@ -178,46 +236,8 @@ async function main() {
       return;
     }
 
-    const runResponse = await fetch(`https://script.googleapis.com/v1/scripts/${encodeURIComponent(deploymentId)}:run`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        function: functionName,
-        parameters,
-        devMode: false
-      })
-    });
-    const runPayload = await readJsonResponse(runResponse);
-    if (!runResponse.ok) {
-      emit({ ok: false, reason: classifyFailure(runResponse.status, runPayload.text, runPayload.json) });
-      return;
-    }
-    if (!runPayload.json || typeof runPayload.json !== 'object') {
-      emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_RESPONSE_INVALID' });
-      return;
-    }
-    if (runPayload.json.done === false) {
-      emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_NOT_COMPLETED' });
-      return;
-    }
-    if (runPayload.json.error) {
-      emit({ ok: false, reason: classifyFailure(200, JSON.stringify(runPayload.json.error), runPayload.json) });
-      return;
-    }
-    if (!runPayload.json.response || !Object.prototype.hasOwnProperty.call(runPayload.json.response, 'result')) {
-      emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_INCOMPLETE' });
-      return;
-    }
-
-    const result = runPayload.json.response.result;
-    if (typeof result !== 'string') {
-      emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_RESULT_INVALID' });
-      return;
-    }
-    emit({ ok: true, result });
+    const outcome = await executeWithBuildPropagationRetry({ deploymentId, functionName, parameters, accessToken });
+    emit(outcome);
   } catch (_) {
     emit({ ok: false, reason: 'AUTHENTICATED_EXECUTION_INTERNAL_ERROR' });
   }
@@ -227,4 +247,14 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { classifyFailure, executionErrorReason, safeToken, ALLOWED_FUNCTIONS };
+module.exports = {
+  classifyFailure,
+  executionErrorReason,
+  safeToken,
+  ALLOWED_FUNCTIONS,
+  HEALTH_BUILD_RETRY_ATTEMPTS,
+  HEALTH_BUILD_RETRY_DELAY_MS,
+  isRetryableBuildPropagationFailure,
+  executeAppsScriptRun,
+  executeWithBuildPropagationRetry
+};
