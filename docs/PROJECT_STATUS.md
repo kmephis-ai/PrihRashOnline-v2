@@ -70,7 +70,8 @@ VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; no fin
 - `DASH-081` — **DONE**, Issue #200 Main Verification PASS, candidate `5752b963a528ccdabf307531dff426a9cfbe59a1`, merge `da42188741dcd035684cec900728ea53d5c961a2`.
 - `DASH-082` — **DONE**, Issue #202 Main Verification PASS, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`.
 - `DASH-083` — **DONE**, Issue #204 Main Verification PASS, candidate `c2fc3810c54a88c8aeca8b89ebd86e3784dbef46`, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`.
-- `DASH-084` — **IN_PROGRESS**, canonical Issue #206, branch `agent/DASH-084-saved-views-versions`; единственный current writer.
+- `DASH-084` — **DONE**, Issue #206 Main Verification PASS, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
+- `DASH-085` — **IN_PROGRESS**, canonical Issue #209, branch `agent/DASH-085-visual-customization`; единственный current writer.
 
 DASH-080 сохраняет `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: deterministic 12-column layout, responsive derivation и placeholders `semantic_binding_status=UNBOUND`.
 
@@ -80,7 +81,7 @@ DASH-082 сохраняет `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0`: global Fil
 
 DASH-083 сохраняет `PRH_DASHBOARD_DRILL_V1@1.0.0`: `YEAR -> QUARTER -> MONTH -> DAY`, ID-only category/account hierarchies, TX-020 drill-through и FIN-backed `INCOME/EXPENSE/CASH_FLOW` reconciliation. Mismatch fail closed.
 
-DASH-084 вводит `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`. Saved view содержит только canonical DASH-080 layout + zero-or-more separately validated DASH-081 bound descriptors. AnalyticsResult, transaction rows/datasets, calculated output values, runtime locators и secrets в saved documents запрещены.
+DASH-084 сохраняет `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`. Saved view содержит только canonical DASH-080 layout + zero-or-more separately validated DASH-081 bound descriptors. AnalyticsResult, transaction rows/datasets, calculated output values, runtime locators и secrets в saved documents запрещены.
 
 Private persistence = namespaced Apps Script `PropertiesService.getUserProperties()`; financial Sheets, ScriptProperties, DocumentProperties и required browser storage не используются. `LockService.getUserLock()` + optimistic store generation защищают от stale overwrite. Runtime adapter выполняет index+view/tombstone update одним `setProperties()` batch.
 
@@ -88,9 +89,15 @@ Saved lifecycle: CREATE, CREATE_FROM_PRESET, SAVE_VERSION, CLONE, RENAME, RESET,
 
 Curated starter presets: `FAMILY`, `EXPENSE`, `INCOME`, `CASH_FLOW`, `BUDGET`, `NET_WORTH`, `RISK`, `SUBSCRIPTIONS`. Они editable/cloneable и не содержат financial dataset snapshots.
 
-DASH-084 имеет только `dashboard_config_storage=true`; `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `canonical_financial_mutation`, `authorization`, `network`, `deployment`, `renderer`, `layout` остаются false. Public evidence synthetic-only; telemetry = technical hashes/counts/decision/reason без names/filter values/private IDs/financial values.
+DASH-084 имеет только `dashboard_config_storage=true`; `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `canonical_financial_mutation`, `authorization`, `network`, `deployment`, `renderer`, `layout` остаются false.
 
-Named gate current writer: `Dashboard saved views` (`PURE_DOMAIN_APPLICATION`). Existing DASH-083/DASH-082/DASH-081/PRIV/STUDIO/VIZ/ANL/TX/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
+DASH-085 вводит `PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1@1.0.0` как presentation-only customization layer поверх DESIGN-020, DASH-081 и VIZ-070. Theme `SYSTEM/LIGHT/DARK`, density `COMPACT/COMFORTABLE`, palette registry, chart retype, axes/labels/legend/stack/sort/Top-N/number format являются bounded configuration; arbitrary CSS/hex/RGB/formatter/HTML/SVG запрещены.
+
+Chart retype полностью делегирован VIZ-070 и обязан сохранять исходные DASH-081 `query_hash` и `binding_hash`; `query_modified=false`, `binding_modified=false`. Top-N работает только как presentation transform над уже полученным semantic result, использует explicit `__OTHER__` и проверяет точное сохранение total. DESIGN-020 остаётся владельцем theme/focus/contrast/reduced-motion tokens.
+
+DASH-085 не имеет `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `binding_mutation`, `canonical_mutation`, `authorization`, `storage`, `network`, `deployment` или `renderer` authority. Public evidence synthetic/configuration-only; telemetry содержит только technical enums/hash prefixes/decision/reason без financial/private payload. `FREE_ONLY` обязателен.
+
+Named gate current writer: `Dashboard visual customization` (`PURE_DOMAIN_APPLICATION`). Existing DASH-084/DASH-083/DASH-082/DASH-081/PRIV/STUDIO/DESIGN/VIZ/ANL/TX/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, stale build не считается healthy, остальные failures fail-fast.
 
@@ -121,11 +128,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-DASH-084 остаётся открытым до green `Dashboard saved views` + existing DASH-083/DASH-082/DASH-081/PRIV/STUDIO/VIZ/ANL/TX/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-085 остаётся открытым до green `Dashboard visual customization` + existing DASH-084/DASH-083/DASH-082/DASH-081/PRIV/STUDIO/DESIGN/VIZ/ANL/TX/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary financial store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. DASH-084 добавляет отдельный private per-user configuration store в Apps Script UserProperties; он не становится financial database и не меняет canonical data/write ownership. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary financial store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. DASH-084 использует отдельный private per-user configuration store в Apps Script UserProperties; он не является financial database и не меняет canonical data/write ownership. DASH-085 добавляет только transient presentation configuration/plan и не добавляет storage/query execution/financial authority. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
