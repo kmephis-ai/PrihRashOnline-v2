@@ -4,6 +4,8 @@
 
 `UI-MIG-020` переключает private canonical Web App с исторического `DashboardWebApp` на R2 shell. После cutover маршрут без параметров открывает `FinancialHomeWebApp`, а не legacy income-only Dashboard.
 
+Forensic rebaseline 2026-08-11 классифицирует этот результат как `HISTORICAL_DONE / SUPERSEDED_PRODUCT_CLAIM`: Home private-bound, остальные семь Daily routes unbound. `UI-REC-001` обязан скрыть их из primary navigation до доказанного private binding; полный product gate = `MASTER-GUX`.
+
 Нормативный contract: `PRH_CANONICAL_R2_WEB_APP_V1@1.0.0` (`lib/ui/canonical_r2_web_app.v1.json`). Private Web App сохраняет exposure `MYSELF`; задача не создаёт новую storage/write authority и не меняет `FIN-TRUTH-v1`.
 
 ## Почему cutover fail-closed
@@ -27,7 +29,7 @@ Primary navigation R2:
 
 `home` является default route. Исторический Dashboard доступен только по bounded rollback route `?surface=legacy` и не имеет default authority.
 
-На этапе UI-MIG-020 private binding `home` имеет состояние `BOUND_READ_ONLY`. Остальные destinations имеют `SAFE_UNBOUND_FAIL_CLOSED`: они присутствуют в canonical navigation, но не показывают synthetic preview как реальные household data до отдельного доказательства binding.
+На этапе UI-MIG-020 private binding `home` имеет состояние `BOUND_READ_ONLY`. Остальные destinations имеют `SAFE_UNBOUND_FAIL_CLOSED`. Наличие их в historical navigation больше не считается допустимым Product UX: после UI-REC-001 primary navigation показывает только `runtime_private_data=true`, а direct URL остаётся понятным fail-closed response.
 
 ## Financial Home runtime binding
 
@@ -93,7 +95,7 @@ Authenticated technical render smoke возвращает `PRH_WEBAPP_SMOKE_V3|R
 
 Если private Home падает, smoke разрешает наружу только bounded machine reason `RUNTIME_HEALTH_HOME_<CODE>` при безопасном uppercase code. Raw error message, financial payload или dimension label не возвращаются. Это позволяет отличить invalid type/status/category/date contract от parser line number без ослабления privacy.
 
-После обычного PR Validation immutable exact candidate обязан пройти Trusted DEV Deploy и Trusted Runtime Health. Только затем `CI-003` может выполнить autonomous squash merge. Ручной merge не является штатным путём для UI-MIG-020.
+После обычного PR Validation immutable exact candidate обязан пройти Trusted DEV Deploy и Trusted Runtime Health. Для любого нового `work_class=user_facing` additionally required exact-candidate `product-ready-e2e=success`; Runtime Health не заменяет owner-authenticated browser journey. Только затем `CI-003` может выполнить autonomous squash merge.
 
 ## Rollback
 

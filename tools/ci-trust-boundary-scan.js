@@ -46,6 +46,7 @@ function scanTrustedWorkflow(text) {
   if (/node\s+candidate-source\//.test(text) || /npm\s+(?:run|exec).*candidate-source/.test(text)) findings.push('trusted-executes-candidate-code');
   if (!/head\.repo\.full_name/.test(text)) findings.push('trusted-same-repository-pr-check-missing');
   if (!/base\.ref/.test(text)) findings.push('trusted-main-base-check-missing');
+  if (!/\.draft\s*\/\/\s*false/.test(text) || !/SOURCE_PR_DRAFT/.test(text)) findings.push('trusted-draft-pr-deploy-guard-missing');
   if (!/\$\{\{\s*secrets\.APPS_SCRIPT_ID\s*\}\}/.test(text) || !/\$\{\{\s*secrets\.CLASPRC_JSON\s*\}\}/.test(text)) findings.push('trusted-deploy-secrets-missing');
   return findings;
 }
@@ -58,9 +59,16 @@ function scanRuntimeWorkflow(text) {
   if (!/permissions:[\s\S]*contents:\s*write\b/.test(text)) findings.push('runtime-merge-content-write-missing');
   if (!/pull-requests:\s*read\b/.test(text) || !/issues:\s*read\b/.test(text) || !/statuses:\s*write\b/.test(text)) findings.push('runtime-autonomy-permissions-invalid');
   if (!/steps\.probe\.outputs\.result\s*==\s*'PASS'/.test(text)) findings.push('runtime-automerge-not-health-gated');
+  if (!/notProductE2e:true/.test(text)) findings.push('runtime-product-e2e-boundary-missing');
   if (!/head\.repo\.full_name/.test(text) || !/base\.ref/.test(text) || !/head\.sha/.test(text)) findings.push('runtime-exact-source-pr-check-missing');
   if (!/Closes[[:space:]]/.test(text) && !/Closes/.test(text)) findings.push('runtime-roadmap-issue-link-missing');
   if (!/status:\[\[:space:\]\]\*IN_PROGRESS/.test(text) && !/IN_PROGRESS/.test(text)) findings.push('runtime-roadmap-issue-state-check-missing');
+  if (!/work_class/.test(text) || !/target_stage/.test(text) || !/engineering_status/.test(text) || !/product_stage/.test(text)) {
+    findings.push('runtime-roadmap-stage-check-missing');
+  }
+  if (!/product-ready-e2e/.test(text) || !/PRODUCT_READY_E2E_NOT_PROVEN/.test(text)) {
+    findings.push('runtime-product-e2e-premerge-gate-missing');
+  }
   if (!/merge_method='squash'/.test(text)) findings.push('runtime-squash-merge-missing');
   if (!/-f sha="\$\{CANDIDATE_SHA\}"/.test(text)) findings.push('runtime-merge-not-exact-head-bound');
   if (!/trusted-dev-deploy/.test(text) || !/trusted-runtime-health/.test(text)) findings.push('runtime-required-gate-recheck-missing');
@@ -99,6 +107,15 @@ function scanMainVerification(text) {
   if (!/trusted-dev-deploy/.test(text) || !/trusted-runtime-health/.test(text) || !/autonomous-merge/.test(text)) findings.push('main-verification-candidate-gates-missing');
   if (!/merge_base_commit\.sha/.test(text)) findings.push('main-verification-main-ancestry-check-missing');
   if (!/status: DONE/.test(text) || !/state:\"closed\"/.test(text) || !/state_reason:\"completed\"/.test(text)) findings.push('main-verification-issue-close-missing');
+  if (!/work_class/.test(text) || !/target_stage/.test(text) || !/engineering_status/.test(text) || !/product_stage/.test(text)) {
+    findings.push('main-verification-stage-metadata-missing');
+  }
+  if (!/product-ready-e2e/.test(text) || !/PRODUCT_READY_E2E_NOT_PROVEN/.test(text)) {
+    findings.push('main-verification-product-e2e-gate-missing');
+  }
+  if (!/engineering_status: DONE_ENGINEERING/.test(text) || !/product_stage: DONE/.test(text)) {
+    findings.push('main-verification-dual-completion-missing');
+  }
   if (hasAny(text, [/\bgit\s+push\b/, /README\.md[^\n]*(?:>|tee|sed)/, /manual[_ -]?marker/i, /release[_ -]?snapshot/i])) findings.push('main-verification-post-merge-direct-commit-or-legacy-gate');
   return findings;
 }
@@ -139,9 +156,9 @@ function main() {
     pr: 'no-secrets+all-main-targeting-branches',
     promotion: 'workflow_run/default-branch',
     candidate: 'immutable-sha+trusted-reconstruction',
-    merge: 'health-gated exact-head squash',
+    merge: 'stage-aware health/product-gated exact-head squash',
     recovery: 'main-push+automation-owned+trusted-gates+dispatch-only',
-    mainVerification: 'repository_dispatch+automatic-issue-close'
+    mainVerification: 'repository_dispatch+stage-aware-issue-close+product-ready-e2e'
   });
 }
 

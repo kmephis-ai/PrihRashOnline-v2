@@ -16,6 +16,8 @@ assert(workflow.includes('commits/${CANDIDATE_SHA}/pulls'), 'post-merge replay m
 assert(workflow.includes(".head.sha == $sha and .head.repo.full_name == $repo and .base.ref == $base"), 'fallback PR lookup must retain exact SHA, same-repository and default-branch constraints');
 assert(workflow.includes('if length == 1 then .[0].number else empty end'), 'fallback source resolution must fail closed on zero or ambiguous PR matches');
 assert(workflow.includes('Exact validated candidate does not resolve to one same-repository PR targeting the default branch.'), 'ambiguous or missing source PR must be rejected explicitly');
+assert(workflow.includes(".draft // false") && workflow.includes('SOURCE_PR_DRAFT'), 'draft PR must fail closed before DEV credentials or Apps Script mutation');
+assert(workflow.indexOf(".draft // false") < workflow.indexOf('Install trusted locked tooling'), 'draft guard must run before deploy tooling and mutation steps');
 assert(workflow.includes("auth.tokens['prihrash-ci']"), 'trusted deploy must fail closed if named OAuth profile is absent');
 
 assert(workflow.includes('tools/apps-script-api-push.js'), 'candidate content push must use the trusted direct Apps Script API tool');
@@ -46,6 +48,7 @@ assert(!workflow.includes('contents: write'), 'trusted deploy must not gain repo
 
 console.log('trusted_dev_deploy_runtime_contract_test: OK', {
   replaySafeSourcePr: true,
+  draftPrDeployBlocked: true,
   exactShaSameRepoMain: true,
   directContentPush: true,
   namedOAuth: true,

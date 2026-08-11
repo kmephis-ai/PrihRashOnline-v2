@@ -50,6 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo 'reason=SOURCE_VALIDATION_FAILED' >> "$GITHUB_OUTPUT"
           [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || {
             echo '::error::Trusted deploy workflow must execute from the repository default branch.'
             exit 1
@@ -75,6 +76,11 @@ jobs:
           }
 
           PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.draft // false' <<<"${PR_JSON}")" == 'true' ]]; then
+            echo 'reason=SOURCE_PR_DRAFT' >> "$GITHUB_OUTPUT"
+            echo '::error::Draft PR cannot receive DEV deployment credentials or mutate the Apps Script DEV deployment.'
+            exit 1
+          fi
           [[ "$(jq -r '.head.sha' <<<"${PR_JSON}")" == "${CANDIDATE_SHA}" ]] || {
             echo '::error::PR head no longer matches the immutable validated candidate.'
             exit 1
@@ -88,6 +94,7 @@ jobs:
             exit 1
           }
           echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
 
       - name: Install trusted locked tooling
         id: tooling
@@ -216,6 +223,7 @@ jobs:
           TRUSTED_CHECKOUT: ${{ steps.trusted_checkout.outcome }}
           NODE_SETUP: ${{ steps.node_setup.outcome }}
           SOURCE_VALIDATION: ${{ steps.source.outcome }}
+          SOURCE_VALIDATION_REASON: ${{ steps.source.outputs.reason }}
           TOOLING_INSTALL: ${{ steps.tooling.outcome }}
           ARTIFACT_DOWNLOAD: ${{ steps.artifact_download.outcome }}
           CANDIDATE_CHECKOUT: ${{ steps.candidate_checkout.outcome }}
@@ -235,7 +243,9 @@ jobs:
           DESCRIPTION='CI-002 TRUSTED_DEPLOY_FAILED'
           if [[ "${TRUSTED_CHECKOUT}" == 'failure' ]]; then REASON='TRUSTED_CHECKOUT_FAILED';
           elif [[ "${NODE_SETUP}" == 'failure' ]]; then REASON='NODE_SETUP_FAILED';
-          elif [[ "${SOURCE_VALIDATION}" == 'failure' ]]; then REASON='SOURCE_VALIDATION_FAILED';
+          elif [[ "${SOURCE_VALIDATION}" == 'failure' ]]; then
+            REASON="${SOURCE_VALIDATION_REASON:-SOURCE_VALIDATION_FAILED}"
+            [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='SOURCE_VALIDATION_FAILED'
           elif [[ "${TOOLING_INSTALL}" == 'failure' ]]; then REASON='TOOLING_INSTALL_FAILED';
           elif [[ "${ARTIFACT_DOWNLOAD}" == 'failure' ]]; then REASON='ARTIFACT_DOWNLOAD_FAILED';
           elif [[ "${CANDIDATE_CHECKOUT}" == 'failure' ]]; then REASON='CANDIDATE_CHECKOUT_FAILED';

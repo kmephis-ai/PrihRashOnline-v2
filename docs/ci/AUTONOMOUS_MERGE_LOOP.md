@@ -10,7 +10,9 @@ A PR is autonomous-merge eligible only when all of the following are true:
 
 - the PR originates from this repository and targets `main`;
 - the PR is open, non-draft, and its current head equals the validated candidate SHA;
+- a draft PR is rejected before Trusted DEV credentials, content push or version promotion even when secret-free PR Validation is green;
 - its body contains exactly one standalone `Closes #<issue>` line;
+- linked Issue содержит согласованные `work_class`, `target_stage`, `engineering_status` и `product_stage`; для `user_facing` exact-candidate `product-ready-e2e=success` уже существует до merge;
 - that Issue is open, contains a machine task packet with `roadmap_id`, and has exactly one `status: IN_PROGRESS` line;
 - latest `trusted-dev-deploy` and `trusted-runtime-health` statuses on the exact candidate are `success`.
 
@@ -39,7 +41,7 @@ After a successful squash merge, the trusted runtime workflow emits a technical 
 - source candidate statuses `trusted-dev-deploy`, `trusted-runtime-health`, and `autonomous-merge` are green;
 - the PR still links exactly one qualifying in-progress Roadmap Issue.
 
-Only after those checks pass does Main Verification replace `status: IN_PROGRESS` with `status: DONE`, append technical merge evidence, and close the Issue as completed.
+Only after those checks pass does Main Verification replace `status: IN_PROGRESS` with `status: DONE` and persist `engineering_status: DONE_ENGINEERING`. For `work_class=user_facing` the pre-merge exact-candidate `product-ready-e2e=success` is checked again and `product_stage: PRODUCT_READY` changes to `DONE`; synthetic/runtime-health-only evidence cannot merge or close the Issue.
 
 ## Deliberately removed gates
 

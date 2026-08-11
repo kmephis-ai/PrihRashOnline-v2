@@ -1,12 +1,14 @@
 # PrihRashOnline-v2 — AI entry points
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
-docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.3**; dependencies берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; R1/Master-G3 + DESIGN-020 complete, VIZ-020 current writer.
-docs/PROJECT_STATUS.md — human-readable current R1/R2 state; GitHub Issue lifecycle и machine evidence имеют приоритет.
-.ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V1` task packet.
+docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.4 / PRODUCT-RECOVERY-FIRST**; dependencies и product stages берутся отсюда, live lifecycle — из GitHub Issues.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; GOV-REC-001 current writer, ANL-090 paused.
+docs/PROJECT_STATUS.md — human-readable engineering/product status; GitHub Issue lifecycle и machine evidence имеют приоритет.
+.ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V2` dual-stage task packet.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/one-writer lifecycle protocol.
 tools/roadmap-task-protocol.js — executable Roadmap resolver.
+docs/audits/PRODUCT_RUNTIME_FORENSIC_AUDIT_2026-08-11.md — public-safe evidence и Recovery rebaseline.
+docs/adr/ADR-GOV-REC-001-PRODUCT-READINESS.md — решение о двухосевом DoD, MASTER-GUX и freeze R9/R10.
 .ai-context/MULTI_AI_REVIEW_CONTEXT.md — public-safe read-only reviewer context.
 .ai-context/multi-ai-review-packet.schema.json — exact-candidate review packet.
 .ai-context/multi-ai-review-report.schema.json — bounded reviewer report.

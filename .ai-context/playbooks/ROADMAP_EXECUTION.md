@@ -10,7 +10,7 @@
 
 ## Входы
 
-Нужны `docs/ROADMAP.md`, live GitHub Issues, public-safe `.ai-context/PROJECT_CONTEXT.md` и текущий запрос продолжения. Resolver authority — `PRH_ROADMAP_TASK_V1`; при расхождении human summary с machine evidence побеждают Issue/tests/workflows.
+Нужны `docs/ROADMAP.md`, live GitHub Issues, public-safe `.ai-context/PROJECT_CONTEXT.md` и текущий запрос продолжения. Resolver authority — `PRH_ROADMAP_TASK_V2`; при расхождении human summary с machine evidence побеждают Issue/tests/workflows.
 
 ## Порядок
 

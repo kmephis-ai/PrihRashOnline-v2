@@ -21,6 +21,10 @@ assert(/-f sha="\$\{CANDIDATE_SHA\}"/.test(runtime), 'merge API must atomically 
 assert(/head\.repo\.full_name/.test(runtime) && /base\.ref/.test(runtime) && /head\.sha/.test(runtime), 'same-repo/main/exact-head checks are required');
 assert(/trusted-dev-deploy/.test(runtime) && /trusted-runtime-health/.test(runtime), 'merge must re-check trusted candidate statuses');
 assert(/Closes/.test(runtime) && /roadmap_id/.test(runtime) && /IN_PROGRESS/.test(runtime), 'only linked in-progress Roadmap Issues are autonomous-merge eligible');
+assert(/work_class/.test(runtime) && /target_stage/.test(runtime) && /engineering_status/.test(runtime) && /product_stage/.test(runtime),
+  'autonomous merge must validate dual engineering/product stage metadata');
+assert(/product-ready-e2e/.test(runtime) && /PRODUCT_READY_E2E_NOT_PROVEN/.test(runtime),
+  'user-facing Product E2E must be green before autonomous merge');
 
 // CI-003 post-merge recovery is deliberately not a second merge/Issue-close authority.
 assert(/name:\s*CI-003 Post-Merge Recovery/.test(recovery));
@@ -41,6 +45,12 @@ assert(/merged_by\.login/.test(main) && /github-actions\[bot\]/.test(main), 'mai
 assert(/merge_base_commit\.sha/.test(main), 'main verification must prove merge SHA remains on main');
 assert(/trusted-dev-deploy/.test(main) && /trusted-runtime-health/.test(main) && /autonomous-merge/.test(main), 'main verification must prove source candidate gates');
 assert(/status: DONE/.test(main) && /state:\"closed\"/.test(main) && /state_reason:\"completed\"/.test(main), 'main verification must transition and close the Roadmap Issue');
+assert(/work_class/.test(main) && /target_stage/.test(main) && /engineering_status/.test(main) && /product_stage/.test(main),
+  'main verification must validate dual engineering/product stage metadata');
+assert(/product-ready-e2e/.test(main) && /PRODUCT_READY_E2E_NOT_PROVEN/.test(main),
+  'user-facing completion must require exact-candidate Product E2E');
+assert(/engineering_status: DONE_ENGINEERING/.test(main) && /product_stage: DONE/.test(main),
+  'main verification must persist stage-aware completion');
 assert(!/\$\{\{\s*secrets\./.test(main), 'main verification must not require secrets');
 assert(!/^```/m.test(main), 'workflow source must not contain unindented markdown/heredoc lines that invalidate YAML');
 assert(!/<<EOF/.test(main), 'Main Verification evidence append must avoid fragile unindented heredocs');
@@ -68,5 +78,8 @@ console.log('autonomous_merge_contract_test: OK', {
   snapshotGate: false,
   postMergeDirectCommit: false,
   mainVerificationYamlGuard: true,
-  automaticIssueClose: true
+  automaticIssueClose: true,
+  stageAwareCompletion: true,
+  productReadyE2ERequired: true,
+  productReadyE2EPreMerge: true
 });

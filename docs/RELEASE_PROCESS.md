@@ -12,7 +12,8 @@
 2. Перед реализацией dependency-check должен быть green, Issue переводится в `status: IN_PROGRESS`.
 3. Writer работает в короткоживущей ветке `agent/<ID>-<slug>`.
 4. PR должен идти в `main`, быть same-repository, non-draft и содержать ровно одну строку `Closes #<Issue>` для canonical autonomous-close path.
-5. После успешного Main Verification Issue автоматически меняется `IN_PROGRESS -> DONE` и закрывается.
+   Draft PR может пройти secret-free PR Validation, но fail-closed отклоняется Trusted DEV Deploy до получения DEV credentials, content push или version promotion.
+5. После успешного stage-aware Main Verification engineering Issue получает `DONE_ENGINEERING`, а user-facing Issue — `DONE` только при `product-ready-e2e=success`.
 
 Штатная модель **не использует** release snapshot branches, ограничения по числу commits или историю ветки как quality signal.
 
@@ -60,6 +61,10 @@ Candidate scripts не используются как secret-bearing deploy too
 
 Workflow: **`Trusted Runtime Health`** запускается после успешного trusted deploy.
 
+Этот gate доказывает exact-build engineering health через trusted authenticated boundary и публикует `not_product_e2e=true` как смысловой contract. Он не проходит browser navigation/filter/drill/UAT и не является Product Ready evidence.
+
+Для `work_class=user_facing` отдельный exact-candidate status **`product-ready-e2e`** обязан быть `success` до autonomous merge и повторно проверяется Main Verification. Его artifact sanitized и не содержит Web App locator, private values/labels/IDs или authenticated payload.
+
 Runtime health:
 
 - использует owner-only authenticated Apps Script Execution API;
@@ -93,7 +98,7 @@ Anonymous `curl`/login-page smoke не является доказательст
 - `trusted-dev-deploy`, `trusted-runtime-health` и `autonomous-merge` для exact candidate = success;
 - linked Roadmap Issue всё ещё open и `IN_PROGRESS`.
 
-Только после этого workflow меняет Issue body `status: DONE`, добавляет technical main-verification evidence и закрывает Issue.
+Только после этого workflow меняет Issue body `status: DONE`, `engineering_status: DONE_ENGINEERING`; для user-facing также `product_stage: PRODUCT_READY -> DONE`. Без stage metadata или Product E2E user-facing close fail-closed.
 
 ## Что больше не является release gate
 

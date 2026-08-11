@@ -8,7 +8,7 @@
 
 Дать primary Roadmap writer независимую проверку exact candidate по четырём областям риска, не создавая дополнительных writers и не превращая мнение модели в release authority.
 
-Канонический порядок/dependencies задаёт repository `docs/ROADMAP.md` (`Executable GitHub Roadmap v2.3`), а live lifecycle конкретного item — GitHub Issue.
+Канонический порядок/dependencies задаёт repository `docs/ROADMAP.md` (`Executable GitHub Roadmap v2.4`), а live lifecycle конкретного item — GitHub Issue.
 
 ## Immutable review packet
 

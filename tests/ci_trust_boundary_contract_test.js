@@ -39,6 +39,7 @@ jobs:
         run: |
           echo head.repo.full_name
           echo base.ref
+          echo '.draft // false' SOURCE_PR_DRAFT
       - name: Verify candidate artifact against trusted reconstruction
         run: node trusted/tools/build-apps-script-candidate.js --verify promoted --expected expected --sha "$CANDIDATE_SHA"
       - name: Configure trusted deploy
@@ -49,6 +50,7 @@ jobs:
 `;
 assert.deepStrictEqual(scanTrustedWorkflow(trustedSafe), []);
 assert(scanTrustedWorkflow(trustedSafe.replace("github.event.workflow_run.conclusion == 'success'", 'true')).includes('trusted-does-not-require-success'));
+assert(scanTrustedWorkflow(trustedSafe.replace("echo '.draft // false' SOURCE_PR_DRAFT", 'echo draft guard omitted')).includes('trusted-draft-pr-deploy-guard-missing'));
 assert(scanTrustedWorkflow(`${trustedSafe}\n- run: node candidate-source/evil.js\n`).includes('trusted-executes-candidate-code'));
 
 const runtimeSafe = `
@@ -68,7 +70,7 @@ jobs:
     environment: DEV
     steps:
       - id: probe
-        run: echo health
+        run: echo health notProductE2e:true
       - name: Resolve autonomous roadmap merge eligibility
         if: steps.probe.outputs.result == 'PASS'
         run: |
@@ -77,6 +79,8 @@ jobs:
           echo head.sha
           echo 'Closes #123'
           echo 'status: IN_PROGRESS'
+          echo work_class target_stage engineering_status product_stage
+          echo product-ready-e2e PRODUCT_READY_E2E_NOT_PROVEN
       - name: Autonomous exact-head squash merge
         run: |
           echo trusted-dev-deploy trusted-runtime-health
@@ -86,6 +90,7 @@ jobs:
 `;
 assert.deepStrictEqual(scanRuntimeWorkflow(runtimeSafe), []);
 assert(scanRuntimeWorkflow(runtimeSafe.replace("steps.probe.outputs.result == 'PASS'", 'true')).includes('runtime-automerge-not-health-gated'));
+assert(scanRuntimeWorkflow(runtimeSafe.replace('product-ready-e2e PRODUCT_READY_E2E_NOT_PROVEN', 'product gate omitted')).includes('runtime-product-e2e-premerge-gate-missing'));
 assert(scanRuntimeWorkflow(`${runtimeSafe}\n# git push origin main\n`).includes('runtime-legacy-or-bypass-gate-present'));
 
 const mainVerifySafe = `
@@ -105,7 +110,11 @@ jobs:
           echo merged_by.login github-actions[bot]
           echo trusted-dev-deploy trusted-runtime-health autonomous-merge
           echo merge_base_commit.sha
+          echo work_class target_stage engineering_status product_stage
+          echo product-ready-e2e PRODUCT_READY_E2E_NOT_PROVEN
           echo 'status: DONE'
+          echo 'engineering_status: DONE_ENGINEERING'
+          echo 'product_stage: DONE'
           echo '{state:"closed",state_reason:"completed"}'
 `;
 assert.deepStrictEqual(scanMainVerification(mainVerifySafe), []);

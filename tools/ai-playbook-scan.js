@@ -77,7 +77,7 @@ function validateCatalog(catalog) {
       !catalog.canonical_authorities.includes('docs/ROADMAP.md') ||
       !catalog.canonical_authorities.includes('live GitHub Issues') ||
       !catalog.canonical_authorities.includes('exact-SHA code/tests/workflows/machine evidence') ||
-      !catalog.canonical_authorities.includes('PRH_ROADMAP_TASK_V1') ||
+      !catalog.canonical_authorities.includes('PRH_ROADMAP_TASK_V2') ||
       !catalog.canonical_authorities.includes('PRH_MULTI_AI_REVIEW_V1') ||
       !catalog.canonical_authorities.includes('FIN-TRUTH-v1') ||
       !catalog.canonical_authorities.includes('CI-003')) {

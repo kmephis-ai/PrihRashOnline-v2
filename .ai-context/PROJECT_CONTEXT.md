@@ -9,61 +9,34 @@
 ## Канонические источники
 
 1. `/AGENTS.md` — AI operating contract.
-2. `/docs/ROADMAP.md` — Executable GitHub Roadmap v2.3.
+2. `/docs/ROADMAP.md` — Executable GitHub Roadmap v2.4 / Product Recovery rebaseline.
 3. GitHub Issues — live lifecycle/status.
 4. Exact-SHA code/tests/workflows и machine evidence.
 5. Versioned contracts + architecture/ADR/operations docs.
 
 ## Текущая инженерная задача
 
-`VIZ-090` — единственный **current writer**, canonical Issue #215, branch `agent/VIZ-090-advanced-visualization-pack`. Dependencies `MASTER-G8` и `VIZ-070` доказаны DONE/Main Verification PASS. Exact roadmap_id search до materialization не нашёл существующего Issue/PR/branch.
+`GOV-REC-001` — единственный **current writer**, canonical Issue #219, branch `agent/GOV-REC-001-product-readiness-governance`.
 
-`MASTER-G8 / Analytics Studio` — complete: STUDIO-080, PRIV-080 и DASH-080..086 DONE/Main Verification PASS. Финальный R8 Issue #213 (`DASH-086`) candidate `e3b78983a22316ae533e94e84135fe5bc4426c58`, merge `a7a73889a4f5deff15e086b5469f00f240cab6e0`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
+Owner-approved forensic rebaseline 2026-08-11 установил:
 
-VIZ-090 вводит `PRH_ADVANCED_VISUALIZATION_PACK_V1@1.0.0` как pure semantic presentation layer поверх `PRH_VISUALIZATION_REGISTRY_V2@2.0.0` и `PRH_ANALYTICS_CONTRACT_V1@1.0.0`.
+- audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%;
+- Home — единственная из восьми Daily surfaces с private financial binding;
+- семь routes fail-closed `RUNTIME_BINDING_NOT_PROVEN`;
+- R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не deployed private Studio;
+- canonical Home делает full-history `readAll()` и не использует PERF-011..013/PERF-070;
+- current charts — hand-written CSS presentation, а не реально подключённый ECharts runtime;
+- Main Verification/exact-SHA health/synthetic Playwright доказывали engineering/delivery correctness, но не Product Ready.
 
-Current implementation:
+`ANL-090` Issue #217 переведён в `BLOCKED / PAUSED_REBASELINE`; PR #218 draft. Его код не удалён и не получает writer authority до отдельного post-`MASTER-GSTUDIO` decision.
 
-- `lib/visualization/advanced_visualization_pack.v1.json`;
-- `lib/visualization/advanced_visualization_pack.js`;
-- `tests/advanced_visualization_pack_contract_test.js`;
-- `docs/visualization/ADVANCED_VISUALIZATION_PACK.md`;
-- TEST-010 classification = `PURE_DOMAIN_APPLICATION`;
-- named gate `Advanced visualization pack`;
-- LANG-RU inventory/markers registered.
+Новый product lifecycle:
 
-VIZ-090 не меняет VIZ-070 BAR/LINE/DONUT contract. Existing LINE остаётся regression baseline; ECHARTS_6/SEMANTIC_TABLE_V1 renderer boundaries принадлежат VIZ-070.
+`CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
 
-Advanced registry covers 18 families:
+Wave R2R: `GOV-REC-001 -> UI/PERF -> DATA -> FIN/PLAN -> VIZ -> E2E -> MASTER-GUX -> STUDIO -> MASTER-GSTUDIO`.
 
-`AREA`, `GROUPED_BAR`, `STACKED_BAR`, `PERCENT_STACKED_BAR`, `WATERFALL`, `SANKEY`, `TREEMAP`, `SUNBURST`, `CALENDAR_HEATMAP`, `MATRIX_HEATMAP`, `PARETO`, `SCATTER`, `BUBBLE`, `HISTOGRAM`, `BOX`, `VIOLIN`, `SMALL_MULTIPLES`, `BULLET_KPI`.
-
-Каждый `PRH_ADVANCED_VISUALIZATION_SOURCE_V1` обязан содержать exact `query_hash`, versioned `source_contract`, explicit `shape` и bounded typed data. Planner заново нормализует переданный AnalyticsQuery, вычисляет hash и требует exact equality. `query_modified=false`; visualization не имеет права менять measure/dimension/filter/time/grain/scope/comparison.
-
-Machine semantic invariants:
-
-- AREA — explicit time series;
-- GROUPED/STACKED bar — explicit category/series/value; stack требует series;
-- PERCENT_STACKED_BAR — non-negative values, original values сохраняются, deterministic largest-remainder shares дают exact 10000 bps для positive-total category, zero total explicit;
-- WATERFALL — one START, contiguous DELTA steps, one END, exact `START + Σ DELTA = END`;
-- SANKEY — bounded unique non-self edges, non-negative values, deterministic nodes, `causality_claimed=false`;
-- TREEMAP/SUNBURST — one root, no orphan/disconnected/cycle, bounded depth, exact parent = direct-child sum;
-- heatmaps — `present=false,value=null` отделено от explicit zero;
-- PARETO — deterministic descending order, original total preserved, final cumulative = exact 10000 bps when total>0;
-- SCATTER/BUBBLE — finite numeric values, BUBBLE size non-negative, `correlation_claimed=false`, `causality_claimed=false`;
-- HISTOGRAM/BOX/VIOLIN — explicit bounded samples only, `source_semantics=EXPLICIT_SAMPLES`, no hidden summary substitution;
-- SMALL_MULTIPLES — bounded facets, `scale_policy=SHARED_COMPATIBLE`, no silent facet drop;
-- BULLET_KPI — actual/reference/target plus versioned reference/target provenance; visualization не invent’ит budget/target truth.
-
-All advanced inputs are bounded: rows 5000, series 16, nodes 500, edges 1000, hierarchy depth 12, facets 12, samples 5000. Safe-integer/finite-number guards reject overflow/NaN/Infinity/ambiguous shapes.
-
-Every family has deterministic mobile/tablet/desktop strategy. `semantic_table_required=true`, `text_summary_required=true`, `interaction_only_evidence_allowed=false`. Assistive mode activates built-in `SEMANTIC_TABLE_V1`; high-density/small viewport strategy не имеет права silently drop data.
-
-Primary renderer stays VIZ-070 `ECHARTS_6`: `LOCAL_OR_BUNDLED`, replaceable, no external CDN/network/storage/query/financial authority. Arbitrary ECharts options, callbacks, formatter code, HTML/CSS/URL/JavaScript are not accepted as VIZ-090 public configuration.
-
-VIZ-090 runtime normalized source may contain private values/labels and remains ephemeral/private. Telemetry allowlist contains only schema/version/chart_type/renderer/result_shape_hash_prefix/query_hash_prefix/row_count/series_count/responsive_mode/decision/reason. Public tests use independently generated synthetic data only.
-
-All VIZ-090 authorities remain false: financial truth/write, query/query mutation, storage/persistence, network, authorization, deployment. `FREE_ONLY` mandatory.
+R2 canonical decision: Home остаётся default, UI-REC-001 скрывает unbound primary routes; Legacy сохраняется emergency rollback. R9/R10 feature expansion frozen.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -97,23 +70,25 @@ FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority =
 
 Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после завершения R2–R8.
 
-## Current R2/R3/R4 truth
+## Current R2/R2R/R3/R4 truth
 
-R2 через `UI-MIG-020` — DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory.
+R2 через `UI-MIG-020` — historical engineering DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory. Product claim superseded: Home private-bound, остальные семь Daily routes unbound/fail-closed; R2 Product Ready только после `MASTER-GUX`.
 
-R3 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE/Main Verification PASS.
+R2R Product Recovery — current critical path. `GOV-REC-001` IN_PROGRESS; UI/PERF/DATA/FIN/PLAN/VIZ/E2E/STUDIO recovery items materialize as BACKLOG and obey gates `MASTER-GREC-0..6`, `MASTER-GUX`, `MASTER-GSTUDIO`.
+
+R3 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS; canonical product integration не доказана и не получает product credit до отдельного post-GUX scope.
 
 `YC-040` и `AUTH-040` — DONE/Main Verification PASS. `YC-041` BLOCKED `OWNER_CLOUD_BOOTSTRAP_REQUIRED`, `YC-042` BLOCKED `OWNER_YDB_TARGET_REQUIRED`; оба `writer_authority=false`, не создают billing-backed resources и не меняют canonical ownership.
 
 ## Current R7 truth
 
-`ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE/Main Verification PASS; `MASTER-G7` complete.
+`ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS; `MASTER-G7-ENGINEERING` complete. Private runtime/UI integration не доказана.
 
 VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; BAR/LINE/DONUT registry, ECHARTS_6 local/bundled renderer, SEMANTIC_TABLE fallback и retype query-hash invariant остаются upstream truth. VIZ-090 не изменяет эти schemas задним числом.
 
 ## Current R8 truth
 
-STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082, DASH-083, DASH-084, DASH-085, DASH-086 — DONE/Main Verification PASS; `MASTER-G8 / Analytics Studio` complete.
+STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082, DASH-083, DASH-084, DASH-085, DASH-086 — DONE_ENGINEERING/Main Verification PASS; `MASTER-G8-ENGINEERING` complete. Studio shell/configuration contracts не равны working product; production gate = `MASTER-GSTUDIO`.
 
 - DASH-084 saved views remain private per-user configuration persistence only.
 - DASH-085 visual customization remains presentation-only; canonical Issue #208/recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`.
@@ -121,7 +96,7 @@ STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082, DASH-083, DASH-084, DASH-085
 
 ## Current R9 truth
 
-`VIZ-090` / Issue #215 — **current writer**, branch `agent/VIZ-090-advanced-visualization-pack`, IN_PROGRESS until Main Verification. ANL-090/ANL-091/XRAY-090 не входят в current scope: они будут upstream analytics fact authorities поверх готового visualization pack.
+`VIZ-090` / Issue #215 — DONE_ENGINEERING/Main Verification PASS; 18-family semantic planner не подключён к browser renderer/private query runtime. `ANL-090` / Issue #217 — BLOCKED `PAUSED_REBASELINE`, PR #218 draft. R9/R10 frozen до `MASTER-GSTUDIO`.
 
 ## TEST-010 boundary
 
@@ -142,11 +117,12 @@ PR Validation
 -> immutable exact candidate
 -> Trusted DEV Deploy
 -> Trusted Runtime Health
+-> Product Ready E2E (только work_class=user_facing)
 -> CI-003 autonomous squash merge
 -> Main Verification
 ```
 
-VIZ-090 остаётся open до green `Advanced visualization pack` + full existing gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+Trusted Runtime Health остаётся engineering proof и не заменяет `product-ready-e2e`. User-facing Issue закрывается только при `product_stage=PRODUCT_READY` и exact-candidate Product E2E PASS.
 
 ## Read-only multi-AI review
 
@@ -154,4 +130,4 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Scope handoff
 
-Все R0/R1/R2, completed R3, YC-040/AUTH-040, R7 и R8 — DONE. YC-041/YC-042 remain BLOCKED. `VIZ-090` / Issue #215 — единственный active writer.
+R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, но product status reclassified в Roadmap v2.4. YC-041/YC-042 remain BLOCKED. `GOV-REC-001` / Issue #219 — единственный active writer; ANL-090/PR #218 paused.

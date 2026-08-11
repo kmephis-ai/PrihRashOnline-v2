@@ -192,7 +192,7 @@ jobs:
             --arg status "${STATUS}" \
             --arg reasonCode "${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}" \
             --argjson latencyMs "${LATENCY_MS:-0}" \
-            '{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash,artifactHash:$artifactHash,sourceRunId:$sourceRunId,deployRunId:$deployRunId,status:$status,reasonCode:$reasonCode,latencyMs:$latencyMs}' \
+            '{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash,artifactHash:$artifactHash,sourceRunId:$sourceRunId,deployRunId:$deployRunId,status:$status,reasonCode:$reasonCode,latencyMs:$latencyMs,notProductE2e:true}' \
             > trusted-runtime-health-evidence/evidence.json
 
       - name: Upload trusted runtime health evidence
@@ -297,10 +297,35 @@ jobs:
             exit 0
           fi
 
+          WORK_CLASS="$(sed -nE 's/^work_class:[[:space:]]*(engineering|user_facing)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          TARGET_STAGE="$(sed -nE 's/^target_stage:[[:space:]]*(DONE_ENGINEERING|DONE)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          ENGINEERING_STATUS="$(sed -nE 's/^engineering_status:[[:space:]]*(BACKLOG|IN_PROGRESS|CODE_COMPLETE|DONE_ENGINEERING)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          PRODUCT_STAGE="$(sed -nE 's/^product_stage:[[:space:]]*(NOT_APPLICABLE|NOT_STARTED|CODE_COMPLETE|RUNTIME_INTEGRATED|REAL_E2E_VERIFIED|PRODUCT_READY|DONE)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          if [[ -z "${WORK_CLASS}" || -z "${TARGET_STAGE}" || -z "${ENGINEERING_STATUS}" || -z "${PRODUCT_STAGE}" ]]; then
+            echo 'reason=ROADMAP_STAGE_METADATA_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${WORK_CLASS}" == 'engineering' ]]; then
+            if [[ "${TARGET_STAGE}" != 'DONE_ENGINEERING' || "${ENGINEERING_STATUS}" != 'CODE_COMPLETE' || \
+                  "${PRODUCT_STAGE}" != 'CODE_COMPLETE' ]]; then
+              echo 'reason=ENGINEERING_STAGE_NOT_COMPLETE' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+            PRODUCT_E2E_STATE="$(jq -r '[.statuses[] | select(.context == "product-ready-e2e")][0].state // empty' <<<"${STATUS_JSON}")"
+            if [[ "${TARGET_STAGE}" != 'DONE' || "${ENGINEERING_STATUS}" != 'CODE_COMPLETE' || \
+                  "${PRODUCT_STAGE}" != 'PRODUCT_READY' || "${PRODUCT_E2E_STATE}" != 'success' ]]; then
+              echo 'reason=PRODUCT_READY_E2E_NOT_PROVEN' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
           echo 'ready=true' >> "$GITHUB_OUTPUT"
           echo 'reason=READY' >> "$GITHUB_OUTPUT"
           echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "work_class=${WORK_CLASS}" >> "$GITHUB_OUTPUT"
 
       - name: Autonomous exact-head squash merge
         id: merge
@@ -309,6 +334,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
           PR_NUMBER: ${{ steps.autonomy.outputs.pr_number }}
+          WORK_CLASS: ${{ steps.autonomy.outputs.work_class }}
         shell: bash
         run: |
           set -euo pipefail
@@ -321,6 +347,13 @@ jobs:
           if [[ "${DEPLOY_STATE}" != 'success' || "${HEALTH_STATE}" != 'success' ]]; then
             echo 'reason=REQUIRED_GATES_NOT_GREEN' >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          if [[ "${WORK_CLASS}" == 'user_facing' ]]; then
+            PRODUCT_E2E_STATE="$(jq -r '[.statuses[] | select(.context == "product-ready-e2e")][0].state // empty' <<<"${STATUS_JSON}")"
+            if [[ "${PRODUCT_E2E_STATE}" != 'success' ]]; then
+              echo 'reason=PRODUCT_READY_E2E_NOT_PROVEN' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
           PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"

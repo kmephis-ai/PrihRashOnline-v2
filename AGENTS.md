@@ -13,7 +13,7 @@ PrihRashOnline-v2 — maintainable household-finance system. Текущий runt
 При конфликте источников используйте порядок ниже и **fail closed** вместо усреднения противоречий:
 
 1. security/privacy/cost/irreversible-action policy boundaries;
-2. repository `docs/ROADMAP.md` — каноническая `Executable GitHub Roadmap v2.3` для порядка работ и dependencies;
+2. repository `docs/ROADMAP.md` — каноническая `Executable GitHub Roadmap v2.4` для порядка работ и dependencies;
 3. внешние `Master Audit v2.1` и `AI Development Playbook v1.0`, когда они явно предоставлены в task context;
 4. единственный active GitHub Roadmap Issue (`roadmap_id`, live status, dependencies, acceptance, rollback, privacy/cost class);
 5. executable code/tests/workflows на exact candidate SHA;
@@ -28,7 +28,7 @@ Stale lower-priority source никогда не разрешает обходи�
 Команда уровня `делай далее` исполняется через AIENG-002:
 
 - `tools/roadmap-task-protocol.js`;
-- `.ai-context/roadmap-task-packet.schema.json` (`PRH_ROADMAP_TASK_V1`);
+- `.ai-context/roadmap-task-packet.schema.json` (`PRH_ROADMAP_TASK_V2`);
 - `docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md`.
 
 Правила:
@@ -43,8 +43,10 @@ Stale lower-priority source никогда не разрешает обходи�
 8. не поглощайте соседний Roadmap item в текущий scope;
 9. PR в `main` содержит ровно одну canonical строку `Closes #<Issue>`;
 10. red CI исправляется на **same active Roadmap branch/PR**, создавая новый exact candidate;
-11. claim `DONE` only after Main Verification изменил Issue на `status: DONE` и закрыл его;
+11. claim `DONE_ENGINEERING` или user-facing `DONE` only after stage-aware Main Verification изменил Issue и закрыл его;
 12. только после этого resolver выбирает следующий task.
+
+Каждый новый Issue объявляет `work_class`, `engineering_status`, `product_stage` и `target_stage`. `depends_on_product_ready` нельзя удовлетворить закрытым engineering-only Issue.
 
 Нельзя заменять canonical chain manual merge, manual marker, release-snapshot branch, commit-count gate или anonymous runtime smoke.
 
@@ -115,6 +117,8 @@ Trusted DEV Deploy
   -> trusted default-branch policy verifies exact candidate
 Trusted Runtime Health
   -> authenticated exact build/source-tree proof
+Product Ready E2E (только work_class=user_facing)
+  -> owner-authenticated deployed browser journey + sanitized evidence
 CI-003 autonomous squash merge
   -> current eligible exact candidate
 Main Verification
@@ -123,7 +127,7 @@ Main Verification
 
 Applicable PR Validation включает Node 24 locked install, supply-chain, trust-boundary, secret/privacy, `FREE_ONLY`, Documentation truth, AI contract, Roadmap task protocol, Multi-AI review protocol, financial/migration reconciliation, full contracts, responsive synthetic Playwright и immutable candidate build.
 
-Green PR tests без trusted exact-SHA runtime evidence не означают `DONE` для ordinary Roadmap delivery.
+Green PR tests без trusted exact-SHA runtime evidence не означают completion. Для `work_class=user_facing` даже Trusted Runtime Health недостаточен без exact-candidate `product-ready-e2e=success`.
 
 ## 9. Financial-write policy
 
@@ -181,6 +185,14 @@ UI не владеет financial semantics. Google/Yandex details остаютс
 
 ## 15. Definition of Done
 
+Engineering lifecycle:
+
+`CODE_COMPLETE -> DONE_ENGINEERING`.
+
+Product lifecycle для `work_class=user_facing`:
+
+`CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
+
 **Definition of Done** требует:
 
 - acceptance + tests;
@@ -192,6 +204,19 @@ UI не владеет financial semantics. Google/Yandex details остаютс
 - CI-003 autonomous merge PASS;
 - **Main Verification** PASS;
 - linked Issue имеет `status: DONE` и closed.
+
+Для engineering item `target_stage=DONE_ENGINEERING`; Main Verification сохраняет `engineering_status: DONE_ENGINEERING`, а product claim отсутствует.
+
+Для user-facing item дополнительно обязательны:
+
+- real private runtime binding на advertised canonical route;
+- owner-authenticated deployed browser journey на exact candidate;
+- correctness/parity, loading/empty/error, navigation/filter/drill и agreed SLO evidence;
+- `product_stage: PRODUCT_READY` до close;
+- exact-candidate status `product-ready-e2e=success`;
+- sanitized public artifact без Web App locator, private values/labels/IDs или authenticated payload.
+
+Synthetic Playwright, file-local render, contracts, route/HTML marker и exact-SHA health остаются полезными gates, но по отдельности не являются Product Ready evidence.
 
 Merge сам по себе не полный DoD.
 
@@ -220,10 +245,10 @@ Multi-AI PASS — только supplementary evidence. Он никогда не 
 Start with:
 
 - `AGENTS.md`;
-- `docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.3; live lifecycle берётся из GitHub Issues;
+- `docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.4; live lifecycle берётся из GitHub Issues;
 - `.ai-context/PROJECT_CONTEXT.md`;
 - `llms.txt`;
 - active Roadmap Issue/task packet;
 - relevant architecture/data/operations contracts.
 
-AIENG-001, AIENG-002 и AIENG-003 — DONE. Current writer определяется live Issue/Roadmap protocol; на текущем MIG-010 этапе private evidence уже `OWNER_VERIFIED`, но `DONE` допускается только после Main Verification.
+AIENG-001, AIENG-002 и AIENG-003 — historical DONE. Product Recovery rebaseline 2026-08-11 supersedes прежние product claims: `GOV-REC-001` / Issue #219 — единственный active writer; ANL-090 / Issue #217 `BLOCKED / PAUSED_REBASELINE`, PR #218 draft. FIN-TRUTH, private migration `OWNER_VERIFIED`, privacy, `FREE_ONLY` и write boundaries сохраняются.

@@ -86,6 +86,7 @@ assert(!/--admin\b/.test(workflow), 'autonomous merge must not bypass branch pol
 const forbiddenEvidence = ['amount','income','expense','balance','description','category','merchant','counterparty','payload','transaction','clientid','email','user'];
 const evidenceObjectMatch = workflow.match(/'\{candidateSha:[^']+\}'/);
 assert(evidenceObjectMatch, 'privacy-safe evidence JSON contract missing');
+assert(evidenceObjectMatch[0].includes('notProductE2e:true'), 'runtime health evidence must explicitly deny Product E2E meaning');
 forbiddenEvidence.forEach((field) => assert(!evidenceObjectMatch[0].toLowerCase().includes(field), `runtime evidence includes forbidden field class: ${field}`));
 
 const statusBlock = workflow.slice(workflow.indexOf('- name: Publish machine-visible runtime status'), workflow.indexOf('- name: Resolve autonomous roadmap merge eligibility'));
