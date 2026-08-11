@@ -22,7 +22,7 @@ function parseArgs(argv) {
   for (let i = 2; i < argv.length; i += 2) {
     const key = argv[i];
     const value = argv[i + 1];
-    if (!key || !key.startsWith('--') || value == null) throw new Error('usage: --source <dir> --out <dir> --sha <40-char-sha>');
+    if (!key || !key.startsWith('--') || value == null) throw new Error('usage: --source <dir> --out <dir> --sha <40-char-sha> [--repository-root <dir>]');
     result[key.slice(2)] = value;
   }
   return result;
@@ -77,11 +77,15 @@ function descriptorFromGenerated(pathName, sourceText) {
   return { path: pathName, sha256: sha256(bytes), size: bytes.length, bytes };
 }
 
-function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
+function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, candidateSha }) {
   if (!SHA_RE.test(String(candidateSha || ''))) throw new Error('candidate SHA must be exactly 40 lowercase hex characters');
   const source = path.resolve(sourceRoot);
+  const repository = path.resolve(repositoryRoot);
   const out = path.resolve(outRoot);
   const filesRoot = path.join(out, 'files');
+  if (!fs.existsSync(repository) || !fs.statSync(repository).isDirectory()) {
+    throw new Error('repository root must be an existing directory');
+  }
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(filesRoot, { recursive: true });
 
@@ -89,7 +93,7 @@ function buildCandidate({ sourceRoot, outRoot, candidateSha }) {
   const sourceFiles = sourceFileDescriptors(source, names);
   const runtimeBundle = descriptorFromGenerated(
     GENERATED_RUNTIME_BUNDLE,
-    buildRuntimeBundleSource(source)
+    buildRuntimeBundleSource(repository)
   );
   const sourceIdentityFiles = [...sourceFiles, runtimeBundle].sort((a, b) => a.path.localeCompare(b.path));
   const sourceTreeHash = stableFileSetHash(sourceIdentityFiles);
@@ -161,7 +165,12 @@ if (require.main === module) {
     const result = verifyCandidate(path.resolve(args.verify), path.resolve(args.expected), args.sha);
     console.log('apps-script-candidate: VERIFIED', result);
   } else {
-    const manifest = buildCandidate({ sourceRoot: args.source, outRoot: args.out, candidateSha: args.sha });
+    const manifest = buildCandidate({
+      sourceRoot: args.source,
+      repositoryRoot: args['repository-root'] || args.source,
+      outRoot: args.out,
+      candidateSha: args.sha
+    });
     console.log('apps-script-candidate: BUILT', {
       candidateSha: manifest.candidateSha,
       sourceTreeHash: manifest.sourceTreeHash,
