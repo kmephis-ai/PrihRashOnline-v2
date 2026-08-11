@@ -46,6 +46,7 @@ function scanTrustedWorkflow(text) {
   if (/node\s+candidate-source\//.test(text) || /npm\s+(?:run|exec).*candidate-source/.test(text)) findings.push('trusted-executes-candidate-code');
   if (!/head\.repo\.full_name/.test(text)) findings.push('trusted-same-repository-pr-check-missing');
   if (!/base\.ref/.test(text)) findings.push('trusted-main-base-check-missing');
+  if (!/\.draft\s*\/\/\s*false/.test(text) || !/SOURCE_PR_DRAFT/.test(text)) findings.push('trusted-draft-pr-deploy-guard-missing');
   if (!/\$\{\{\s*secrets\.APPS_SCRIPT_ID\s*\}\}/.test(text) || !/\$\{\{\s*secrets\.CLASPRC_JSON\s*\}\}/.test(text)) findings.push('trusted-deploy-secrets-missing');
   return findings;
 }

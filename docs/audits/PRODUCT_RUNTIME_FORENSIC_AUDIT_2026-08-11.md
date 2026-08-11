@@ -312,7 +312,7 @@ Owner-approved implementation contract:
 6. Rename R7/R8 exits to `MASTER-G7-ENGINEERING`/`MASTER-G8-ENGINEERING`; classify VIZ-090 as `DONE_ENGINEERING / NOT_RENDERED_NOT_BOUND`.
 7. Freeze R9/R10; set ANL-090 to `BLOCKED / PAUSED_REBASELINE`, keep its implementation PR draft.
 8. Update task packet/resolver/schema/tests and Issue Form for stage-aware lifecycle; dependencies requiring product readiness only accept a user-facing dependency with `product_stage=DONE`.
-9. Make autonomous merge and Main Verification fail closed for user-facing work unless exact-candidate `product-ready-e2e=success`; Trusted Runtime Health explicitly emits `notProductE2e=true`.
+9. Block draft PR before DEV credentials/content push/version promotion; make autonomous merge and Main Verification fail closed for user-facing work unless exact-candidate `product-ready-e2e=success`; Trusted Runtime Health explicitly emits `notProductE2e=true`.
 10. Synchronize `AGENTS.md`, `README.md`, PROJECT_STATUS, AI context, release/merge documentation, language-policy inventory, ADR and audit.
 11. Materialize eight downstream Recovery Issues as `BACKLOG`; only GOV-REC-001 is active writer. Do not merge/deploy this governance patch without normal repository gates.
 12. After governance PR is green, owner decides readiness/merge; subsequent execution starts with UI-REC-001 and PERF-REC-001 in one-writer order, then follows dependency gates.

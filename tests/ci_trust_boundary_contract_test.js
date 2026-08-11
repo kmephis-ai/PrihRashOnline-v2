@@ -39,6 +39,7 @@ jobs:
         run: |
           echo head.repo.full_name
           echo base.ref
+          echo '.draft // false' SOURCE_PR_DRAFT
       - name: Verify candidate artifact against trusted reconstruction
         run: node trusted/tools/build-apps-script-candidate.js --verify promoted --expected expected --sha "$CANDIDATE_SHA"
       - name: Configure trusted deploy
@@ -49,6 +50,7 @@ jobs:
 `;
 assert.deepStrictEqual(scanTrustedWorkflow(trustedSafe), []);
 assert(scanTrustedWorkflow(trustedSafe.replace("github.event.workflow_run.conclusion == 'success'", 'true')).includes('trusted-does-not-require-success'));
+assert(scanTrustedWorkflow(trustedSafe.replace("echo '.draft // false' SOURCE_PR_DRAFT", 'echo draft guard omitted')).includes('trusted-draft-pr-deploy-guard-missing'));
 assert(scanTrustedWorkflow(`${trustedSafe}\n- run: node candidate-source/evil.js\n`).includes('trusted-executes-candidate-code'));
 
 const runtimeSafe = `

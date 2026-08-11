@@ -20,6 +20,8 @@ assert(workflow.includes("DESCRIPTION='CI-002 TRUSTED_DEPLOYED'"), 'successful d
 assert(workflow.includes("DESCRIPTION='CI-002 TRUSTED_DEPLOY_FAILED'"), 'failed deploy status must be static technical metadata');
 assert(workflow.includes("description='CI-002 deploy technical reason'"), 'reason status description must be static');
 assert(workflow.includes('JOB_STATUS: ${{ job.status }}'), 'status must reflect fail-closed job outcome');
+assert(workflow.includes('SOURCE_VALIDATION_REASON: ${{ steps.source.outputs.reason }}'), 'source validation must expose only a bounded reason');
+assert(workflow.includes('SOURCE_PR_DRAFT'), 'draft rejection must be machine-visible without deployment');
 
 assert(workflow.includes('CONTENT_PUSH_REASON: ${{ steps.content_push.outputs.reason }}'), 'direct content push must provide only a bounded reason to status publishing');
 assert(workflow.includes("REASON=\"${CONTENT_PUSH_REASON:-APPS_SCRIPT_CONTENT_PUSH_FAILED}\""), 'content push failure must use bounded executor reason or static fallback');
@@ -36,6 +38,7 @@ const workflowReasonCodes = [
   'TRUSTED_CHECKOUT_FAILED',
   'NODE_SETUP_FAILED',
   'SOURCE_VALIDATION_FAILED',
+  'SOURCE_PR_DRAFT',
   'TOOLING_INSTALL_FAILED',
   'ARTIFACT_DOWNLOAD_FAILED',
   'CANDIDATE_CHECKOUT_FAILED',

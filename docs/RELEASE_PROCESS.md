@@ -12,6 +12,7 @@
 2. Перед реализацией dependency-check должен быть green, Issue переводится в `status: IN_PROGRESS`.
 3. Writer работает в короткоживущей ветке `agent/<ID>-<slug>`.
 4. PR должен идти в `main`, быть same-repository, non-draft и содержать ровно одну строку `Closes #<Issue>` для canonical autonomous-close path.
+   Draft PR может пройти secret-free PR Validation, но fail-closed отклоняется Trusted DEV Deploy до получения DEV credentials, content push или version promotion.
 5. После успешного stage-aware Main Verification engineering Issue получает `DONE_ENGINEERING`, а user-facing Issue — `DONE` только при `product-ready-e2e=success`.
 
 Штатная модель **не использует** release snapshot branches, ограничения по числу commits или историю ветки как quality signal.

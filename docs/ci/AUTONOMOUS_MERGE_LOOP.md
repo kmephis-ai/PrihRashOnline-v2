@@ -10,6 +10,7 @@ A PR is autonomous-merge eligible only when all of the following are true:
 
 - the PR originates from this repository and targets `main`;
 - the PR is open, non-draft, and its current head equals the validated candidate SHA;
+- a draft PR is rejected before Trusted DEV credentials, content push or version promotion even when secret-free PR Validation is green;
 - its body contains exactly one standalone `Closes #<issue>` line;
 - linked Issue содержит согласованные `work_class`, `target_stage`, `engineering_status` и `product_stage`; для `user_facing` exact-candidate `product-ready-e2e=success` уже существует до merge;
 - that Issue is open, contains a machine task packet with `roadmap_id`, and has exactly one `status: IN_PROGRESS` line;

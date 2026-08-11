@@ -21,11 +21,13 @@ Decision owner: владелец PrihRashOnline-v2
 6. `depends_on_product_ready` не удовлетворяется engineering-only completion.
 7. `MASTER-G7-ENGINEERING` и `MASTER-G8-ENGINEERING` сохраняют completed contracts; working product gates — `MASTER-GUX` и `MASTER-GSTUDIO`.
 8. R9/R10 frozen до Recovery gates; ANL-090 code сохраняется draft.
-9. Private Web App URL, authenticated payload и real-derived financial evidence не публикуются. Product artifact содержит exact SHA, sanitized route/status/timing/parity PASS/FAIL.
+9. Draft PR не получает DEV deployment authority: Trusted DEV Deploy отклоняет его до credentials, content push и version promotion.
+10. Private Web App URL, authenticated payload и real-derived financial evidence не публикуются. Product artifact содержит exact SHA, sanitized route/status/timing/parity PASS/FAIL.
 
 ## Последствия
 
 - Main Verification становится stage-aware.
+- Secret-free PR Validation разрешён draft PR, но DEV mutation fail-closed до ready state.
 - Existing historical Issues не переоткрываются массово; Roadmap Product status matrix фиксирует фактическую зрелость и recovery link.
 - Новые user-facing items могут оставаться open после code completion, пока runtime/E2E/UAT evidence не готово.
 - Delivery может занимать дольше, но слово `DONE` снова означает работающий пользовательский outcome.
