@@ -45,7 +45,9 @@ const records = [
   record({ ID: 'SYN-ADJ-001', 'Дата и время': '2026-02-10T10:00:00Z', 'Тип': 'корректировка', 'Сумма': '0.00', 'Счёт': ACCOUNT_A, 'Категория': CAT_ADJUST, 'Член семьи': MEMBER, 'Проект': PROJECT, 'Статус': 'posted', 'Источник': 'SYNTHETIC', 'Строка источника': '7' })
 ];
 
+let gatewayCalls = 0;
 function projectedSnapshot(request) {
+  gatewayCalls += 1;
   const required = Array.from(request.required_headers || headers);
   const rows = records.map((item) => required.map((header) => item[header]));
   return {
@@ -55,7 +57,16 @@ function projectedSnapshot(request) {
     sheet_name: '01 Операции',
     start_row: 2,
     headers: required,
-    rows
+    rows,
+    read_plan: {
+      schema: 'PRH_GOOGLE_PROJECTED_READ_V1',
+      requested_header_count: required.length,
+      projected_column_count: required.length,
+      column_span_count: 1,
+      row_count: rows.length,
+      range_read_count: rows.length ? 1 : 0,
+      cell_read_count: required.length * rows.length
+    }
   };
 }
 
@@ -81,11 +92,14 @@ function utilitiesWithDigest(digestFn = digestBytes) {
   };
 }
 
+const perfRecords = { source: null, phases: {} };
 const context = vm.createContext({
   console,
   Buffer,
   getSettingsMap_() { return { currency: 'RUB' }; },
   prhGoogleRepositoryReadOperationsTable_: projectedSnapshot,
+  prhPerfRecRecordPhase_(name, value) { perfRecords.phases[name] = (perfRecords.phases[name] || 0) + Number(value || 0); },
+  prhPerfRecRecordSource_(value) { perfRecords.source = JSON.parse(JSON.stringify(value)); },
   Utilities: utilitiesWithDigest()
 });
 
@@ -97,7 +111,11 @@ vm.runInContext(bridgeSource, context, { filename: 'R2FinancialRuntimeService.js
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.schema, RUNTIME_SCHEMA);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.generated_from_canonical_lib, true);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.financial_formula_copy, false);
-assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), ['financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary']);
+assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), [
+  'financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary', 'revisionAwareCache', 'singleScanRefresh'
+].sort());
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.revisionAwareCache.CONTRACT.roadmap_id, 'PERF-011');
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.singleScanRefresh.CONTRACT.roadmap_id, 'PERF-012');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.SCHEMA, 'PRH_R2_FIN_RUNTIME_BRIDGE_V1');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA, 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.PERSISTENT_IDENTITY_AUTHORITY, false);
@@ -106,9 +124,16 @@ assert.strictEqual(context.PRH_R2_FIN_RUNTIME.UI_FINANCIAL_FORMULA_AUTHORITY, fa
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.WRITE_AUTHORITY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FREE_ONLY, true);
 
+const callsBeforeSource = gatewayCalls;
 const runtimeSource = context.prhR2FinReadTransactions_();
+assert.strictEqual(gatewayCalls - callsBeforeSource, 1, 'PERF-012 live source must perform one underlying canonical read');
 assert.strictEqual(runtimeSource.currency, 'RUB');
 assert.strictEqual(runtimeSource.transactions.length, records.length);
+assert(/^[0-9a-f]{64}$/.test(runtimeSource.canonical_revision));
+assert.strictEqual(perfRecords.source.canonical_snapshot_read_count, 1);
+assert.strictEqual(perfRecords.source.gateway_call_count, 1);
+assert(perfRecords.source.unique_dimension_hash_count < records.length * 4, 'repeated dimension labels must be memoized');
+assert(perfRecords.source.dimension_hash_memo_hit_count > 0, 'memoized dimension resolution must record hits');
 const expenseTx = runtimeSource.transactions.find((tx) => tx.transaction_id === 'SYN-EXP-001');
 const incomeTx = runtimeSource.transactions.find((tx) => tx.transaction_id === 'SYN-INC-001');
 assert.strictEqual(expenseTx.status, 'posted');
@@ -135,7 +160,9 @@ const canonical = evaluateKpis(Array.from(runtimeSource.transactions).map((tx) =
   currency: 'RUB',
   period: { start: period.start, end: period.end, partial: false }
 });
+const callsBeforeHome = gatewayCalls;
 const home = context.prhR2BuildFinancialHomeRuntime_();
+assert.strictEqual(gatewayCalls - callsBeforeHome, 1, 'uncached Home build must materialize one canonical snapshot');
 assert.strictEqual(home.schema, 'PRH_FINANCIAL_HOME_VIEW_V1');
 assert.strictEqual(home.financial_truth_policy, 'FIN-TRUTH-v1');
 assert.strictEqual(home.kpi_dictionary_version, '1.0.0');
@@ -152,10 +179,10 @@ assert.strictEqual(home.provenance.financial_formula_copy, false);
 assert.strictEqual(home.provenance.dimension_resolver, 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1');
 assert.strictEqual(home.provenance.persistent_identity_authority, false);
 assert.strictEqual(home.provenance.legacy_total_cells_used, false);
+assert.strictEqual(home.provenance.perf_single_scan_contract, 'PRH_SINGLE_SCAN_REFRESH_V1@1.0.0');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(home.visual_data.expense_mix)), [[CAT_FOOD, 2500]]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(home.visual_data.cash_flow_minor)), [7500]);
 
-// Fail-closed adapter/config boundaries remain outside financial semantics.
 const badCurrencyContext = vm.createContext({
   console,
   Buffer,
@@ -183,20 +210,21 @@ assert.throws(() => collisionState.resolvers.account('СИН Два'), /R2_RUNTI
 assert.doesNotMatch(bridgeSource, /prhR2FinAggregate_/);
 assert.doesNotMatch(bridgeSource, /income_minor\s*\+=|gross_expense_minor\s*\+=|refund_minor\s*\+=|cash_flow_minor\s*=\s*.*income/i);
 assert.doesNotMatch(bridgeSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(|deleteRow\s*\(|insertRow/);
-assert.match(bridgeSource, /PRH_RUNTIME_DIMENSION_LABEL_HASH_V1/);
-assert.match(bridgeSource, /persistent_identity_authority:\s*false/);
+assert.match(bridgeSource, /runtime\.singleScanRefresh\.createSingleScanRefresh/);
+assert.match(bridgeSource, /id_by_normalized/);
 assert.match(bridgeSource, /runtime\.home\.buildFinancialHome/);
 assert.match(bridgeSource, /runtime\.googleAdapter\.createGoogleSheetsTransactionRepository/);
 assert.match(bridgeSource, /runtime\.financialReconciliation\.aggregateTransactions/);
-assert.match(bundleSource, /Generated by trusted candidate packager from canonical lib sources/);
-assert.match(bundleSource, /lib\/finance\/kpi_dictionary\.js/);
-assert.match(bundleSource, /lib\/home\/financial_home\.js/);
-assert.match(bundleSource, /lib\/adapters\/google_sheets_transaction_repository\.js/);
+assert.match(bundleSource, /lib\/repository\/revision_aware_cache\.js/);
+assert.match(bundleSource, /lib\/repository\/single_scan_refresh\.js/);
 
 console.log('r2_financial_runtime_parity_contract_test: OK', {
   policy: 'FIN-TRUTH-v1',
   kpiDictionary: '1.0.0',
   generatedCanonicalBundle: true,
+  perf011Bundled: true,
+  perf012LiveSingleScan: true,
+  uniqueDimensionHashMemoization: true,
   duplicateFinancialFormula: false,
   canonicalGoogleAdapter: true,
   dimensionResolver: 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1',
