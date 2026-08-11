@@ -2,7 +2,7 @@
 
 Домашняя финансовая система на Google Sheets + Apps Script с приватным семейным Web Dashboard и GitHub как инженерным control plane.
 
-> **Текущий статус:** R0/R1 canonical/security/delivery foundation доказан. Forensic baseline на 107 items: 75/107 = 70,1%; после добавления Recovery Wave текущая формальная доля = 75/116 = 64,7%. Ни один из этих issue-count показателей не равен overall Product Readiness ≈25%: private runtime binding есть у Home, остальные семь Daily routes не интегрированы. Текущий единственный writer — **GOV-REC-001**, Issue #219; R9/R10 frozen, ANL-090/PR #218 paused.
+> **Текущий статус:** `R0 platform baseline` и R1 canonical/security/delivery foundation доказаны. Forensic baseline на 107 items: 75/107 = 70,1%; после добавления Recovery Wave текущая формальная доля = 75/116 = 64,7%. Ни один из этих issue-count показателей не равен overall Product Readiness ≈25%: private runtime binding есть у Home, остальные семь Daily routes не интегрированы. Текущий единственный writer — **GOV-REC-001**, Issue #219; R9/R10 frozen, ANL-090/PR #218 paused.
 
 ## Принципы
 
