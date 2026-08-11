@@ -44,6 +44,16 @@ Core files current writer:
 
 All financial/write/query-execution/query-mutation/auth/storage/network/deploy/renderer/layout authorities false; `FREE_ONLY` mandatory.
 
+## FinOps / worst-case budget / owner estimate / model routing handoff
+
+`FINOPS-001` остаётся обязательной cost boundary для runtime и engineering: `FREE_ONLY` означает отсутствие required paid dependency и запрет автоматического включения платного API/service ради прохождения required gate. Usage counters, throttle/circuit breaker и monthly safety budget остаются machine authority; AI context не имеет права повышать лимиты или обходить circuit breaker.
+
+Перед любой задачей, способной создать внешний расход, writer обязан сформировать **worst-case budget** и **owner estimate** как явный handoff владельцу до irreversible/billing-backed действия. Owner estimate не является machine authorization и не подменяет cost gate; если стоимость не доказана как допустимая в рамках текущего policy, действие fail-closed/blocked.
+
+`AIENG-006` / `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` определяет model routing handoff: required machine gates всегда `LOCAL_DETERMINISTIC`; интерактивная ChatGPT subscription surface отделена от OpenAI API billing; `OPENAI_API enabled=false` для required engineering. При exhaustion/unknown capacity используется разрешённый Sol/Terra/Luna fallback или pause/defer, но **не** автоматический paid API fallback и не bypass красного machine gate.
+
+Таким образом, FinOps truth, worst-case budget, owner estimate и model routing должны сохраняться при каждом writer handoff независимо от текущего Roadmap ID.
+
 ## Current R0 truth
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001..006` по своим lifecycle состояниям завершены/Main Verification PASS; исполнимая AI-инженерная цепочка и fail-closed gates остаются обязательными.
