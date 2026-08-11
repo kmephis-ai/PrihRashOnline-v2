@@ -31,18 +31,28 @@ Primary navigation R2:
 
 ## Financial Home runtime binding
 
-`R2FinancialRuntimeService.js` — read-only runtime adapter `PRH_R2_FIN_RUNTIME_ADAPTER_V1`. Он не является новым источником финансовой истины.
+`R2FinancialRuntimeService.js` — только Apps Script bridge `PRH_R2_FIN_RUNTIME_BRIDGE_V1`; financial formulas и canonical Google mapping в нём не копируются.
 
-Adapter:
+Immutable candidate packager детерминированно генерирует `R2CanonicalRuntimeBundle.js` непосредственно из versioned source-of-truth модулей:
+
+- `lib/adapters/google_sheets_transaction_repository.js`;
+- `lib/finance/financial_reconciliation.js`;
+- `lib/finance/kpi_dictionary.js`;
+- `lib/home/financial_home.js`;
+- и их локальных versioned dependencies/contracts.
+
+Generated bundle имеет schema `PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1`. Он входит в exact candidate manifest и `sourceTreeHash`, поэтому trusted reconstruction обязан получить байт-в-байт тот же runtime из того же commit SHA. Generated файл не коммитится и не может стать вторым source of truth.
+
+Bridge:
 
 1. читает существующую `01 Операции` только через `prhGoogleRepositoryReadOperationsTable_`;
 2. получает explicit currency из существующего `09 Настройки:currency`;
-3. преобразует major units в integer minor units без implicit rounding;
-4. применяет действующие `FIN-TRUTH-v1` semantics: posted income, expense, refund, transfer-neutral cash flow и zero-only adjustment;
-5. строит R2 Financial Home view без использования legacy total cells;
-6. не выполняет `setValue`, `setValues`, `appendRow` и другие financial writes.
+3. передаёт snapshot в canonical `google_sheets_transaction_repository`;
+4. строит Home через canonical `financial_home.buildFinancialHome()`, который вызывает `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`;
+5. для Home chart projection использует canonical `financial_reconciliation.aggregateTransactions()` и проверяет parity с Home cards;
+6. не использует legacy total cells и не выполняет `setValue`, `setValues`, `appendRow` или другие financial writes.
 
-Required gate `R2 Financial runtime parity` сравнивает runtime adapter с canonical `evaluateKpis()` из `PRH_KPI_DICTIONARY_V1@1.0.0` на synthetic adversarial fixture. Расхождение блокирует PR до deploy. Поэтому runtime adapter — parity-guarded projection, а не независимая financial formula authority.
+Required gate `R2 Financial runtime parity` исполняет именно generated bundle в VM с Apps Script `Utilities`/gateway shims и сравнивает private-bridge output с canonical Node `evaluateKpis()` на synthetic adversarial fixture. Тест дополнительно запрещает наличие собственного `prhR2FinAggregate_` или копий income/expense/refund/cash-flow формул в bridge.
 
 Budget card остаётся `NOT_CONFIGURED`, пока explicit budget runtime binding не доказан. Liquidity не подменяется cash-flow proxy. BAL-030 как domain contract завершён, но его private runtime observation binding не предполагается автоматически.
 
@@ -61,6 +71,8 @@ Authenticated technical render smoke возвращает `PRH_WEBAPP_SMOKE_V3|R
 - проверяет bounded legacy rollback link;
 - не читает financial rows;
 - не публикует private Web App URL.
+
+Отдельный authenticated private read smoke возвращает только `PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7`. Перед выдачей scalar он реально строит private Home через generated canonical bundle и проверяет provenance `generated_from_canonical_lib=true`, `financial_formula_copy=false`; сами суммы, категории, account IDs и runtime locator наружу не возвращаются.
 
 После обычного PR Validation immutable exact candidate обязан пройти Trusted DEV Deploy и Trusted Runtime Health. Только затем `CI-003` может выполнить autonomous squash merge. Ручной merge не является штатным путём.
 
