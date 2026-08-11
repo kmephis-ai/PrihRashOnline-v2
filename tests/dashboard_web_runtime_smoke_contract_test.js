@@ -53,7 +53,7 @@ const context = vm.createContext({
   prhR2BuildFinancialHomeRuntime_() { throw new Error('technical render smoke must not read private financial runtime'); },
   prhR2FinancialHomeReadSmokeToken() {
     homeReadSmokeCalls += 1;
-    return 'PRH_R2_HOME_READ_V1|OK|7';
+    return 'PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7';
   },
   PR_BUILD_INFO: {
     schemaVersion: 1,
@@ -100,7 +100,7 @@ const healthToken = vm.runInContext(
   context
 );
 assert.match(healthToken, /^PRH_HEALTH_V1\|OK\|a{40}\|b{64}\|1\|V8\|3\|1\|[0-9]+$/);
-assert.strictEqual(homeReadSmokeCalls, 1, 'trusted health must prove the private Home read path exactly once');
+assert.strictEqual(homeReadSmokeCalls, 1, 'trusted health must prove the private Home canonical-lib read path exactly once');
 
 assert.match(dashboardSource, /function prhRenderWebDashboard_\(data\)/);
 assert.doesNotMatch(dashboardSource, /function\s+doGet\s*\(/);
@@ -110,7 +110,7 @@ assert.match(routerSource, /\?surface=legacy/);
 assert.match(smokeSource, /prhCanonicalR2WebAppSmokeToken\(\)/);
 assert.doesNotMatch(smokeSource, /SpreadsheetApp|prhGetWebDashboardData/);
 assert.match(runtimeSource, /PRH_WEBAPP_SMOKE_V3\|R2\|OK/);
-assert.match(runtimeSource, /PRH_R2_HOME_READ_V1\|OK\|7/);
+assert.match(runtimeSource, /PRH_R2_HOME_READ_V2\|CANONICAL_LIB\|OK\|7/);
 assert.match(runtimeSource, /prhR2FinancialHomeReadSmokeToken\(\)/);
 assert.match(runtimeSource, /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
 
@@ -119,6 +119,8 @@ console.log('dashboard-web-runtime-smoke: PASS', {
   canonicalDefault: 'R2_HOME',
   legacyRollback: true,
   smokeVersion: 3,
+  privateHomeReadSmokeVersion: 2,
+  privateHomeReadSource: 'CANONICAL_LIB',
   technicalRenderReadsFinancialRows: false,
   trustedPrivateHomeReadProof: true,
   healthTokenShapePreserved: true
