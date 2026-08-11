@@ -66,7 +66,7 @@ const transactions = [
   tx(6, { occurred_at: '2026-02-15T12:00:00Z', amount_minor: 4000, category_id: 'SYN-CAT-HOME' })
 ];
 
-const hierarchyRegistry = DRILL.normalizeHierarchyRegistry({
+const hierarchyInput = {
   schema: DRILL.HIERARCHY_SCHEMA,
   contract_version: DRILL.VERSION,
   hierarchies: [
@@ -93,7 +93,9 @@ const hierarchyRegistry = DRILL.normalizeHierarchyRegistry({
       ]
     }
   ]
-});
+};
+
+const hierarchyRegistry = DRILL.normalizeHierarchyRegistry(hierarchyInput);
 const hierarchyReordered = DRILL.normalizeHierarchyRegistry({
   schema: DRILL.HIERARCHY_SCHEMA,
   contract_version: DRILL.VERSION,
@@ -191,29 +193,29 @@ function systemAction(actionId) {
   return action(actionId, null, null, null, null, null, null);
 }
 
-// Time hierarchy adds QUARTER as navigation window without inventing a new AnalyticsQuery grain.
+// Time hierarchy: QUARTER is navigation metadata, not a new AnalyticsQuery grain.
 const timeBound = chartBinding('w-0101', query(), 'time_bucket');
 let timeSession = DRILL.createSession();
-timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyRegistry, action('DOWN', 'w-0101', 'TIME', 'YEAR', 'QUARTER', '2026', 'EXPENSE'));
+timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyInput, action('DOWN', 'w-0101', 'TIME', 'YEAR', 'QUARTER', '2026', 'EXPENSE'));
 assert.strictEqual(timeSession.present.level, 'QUARTER');
 assert.deepStrictEqual(timeSession.present.time_window, { start: '2026-01-01', end: '2027-01-01' });
-timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyRegistry, action('DOWN', 'w-0101', 'TIME', 'QUARTER', 'MONTH', '2026-Q1', 'EXPENSE'));
+timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyInput, action('DOWN', 'w-0101', 'TIME', 'QUARTER', 'MONTH', '2026-Q1', 'EXPENSE'));
 assert.strictEqual(timeSession.present.level, 'MONTH');
 assert.deepStrictEqual(timeSession.present.time_window, { start: '2026-01-01', end: '2026-04-01' });
-timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyRegistry, action('DOWN', 'w-0101', 'TIME', 'MONTH', 'DAY', '2026-01', 'EXPENSE'));
+timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyInput, action('DOWN', 'w-0101', 'TIME', 'MONTH', 'DAY', '2026-01', 'EXPENSE'));
 assert.strictEqual(timeSession.present.level, 'DAY');
 assert.deepStrictEqual(timeSession.present.time_window, { start: '2026-01-01', end: '2026-02-01' });
-timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyRegistry, action('THROUGH', 'w-0101', 'TIME', 'DAY', null, '2026-01-11', 'EXPENSE'));
+timeSession = DRILL.dispatch(timeSession, timeBound, hierarchyInput, action('THROUGH', 'w-0101', 'TIME', 'DAY', null, '2026-01-11', 'EXPENSE'));
 assert.deepStrictEqual(timeSession.present.time_window, { start: '2026-01-11', end: '2026-01-12' });
 const timeRequest = DRILL.buildDrillThroughRequest(timeSession, timeBound);
 assert.strictEqual(timeRequest.tx_query.date_from, '2026-01-11');
 assert.strictEqual(timeRequest.tx_query.date_to, '2026-01-12');
 assert.strictEqual(timeRequest.measure_id, 'EXPENSE');
 assert(!JSON.stringify(timeRequest.tx_query).includes('amount_minor'));
-assert.throws(() => DRILL.dispatch(DRILL.createSession(), timeBound, hierarchyRegistry,
+assert.throws(() => DRILL.dispatch(DRILL.createSession(), timeBound, hierarchyInput,
   action('DOWN', 'w-0101', 'TIME', 'YEAR', 'MONTH', '2026', 'EXPENSE')), /DASH083_HIERARCHY_TRANSITION_INVALID/);
 
-// Category hierarchy is runtime ID-only; selected group narrows descendants, leaf reaches TX-020.
+// Category hierarchy: preserve ANL context, narrow to canonical leaf and reconcile via FIN authority.
 const categoryBound = chartBinding('w-0102', query({
   dimensions: ['category_id'], grain: 'NONE', measures: ['EXPENSE'],
   filters: [{ field: 'member_id', operator: 'IN', values: ['SYN-MEMBER-A'] }]
@@ -229,11 +231,11 @@ categoryExploration = EXPLORATION.dispatch(categoryExploration, {
 let categorySession = DRILL.createSession(categoryExploration);
 const beforeGlobal = JSON.stringify(categorySession.exploration_session.present.global_context);
 const beforeWidgets = JSON.stringify(categorySession.exploration_session.present.widget_contexts);
-categorySession = DRILL.dispatch(categorySession, categoryBound, hierarchyRegistry,
+categorySession = DRILL.dispatch(categorySession, categoryBound, hierarchyInput,
   action('DOWN', 'w-0102', 'CATEGORY', 'GROUP', 'CATEGORY', 'SYN-CAT-GROUP-EXPENSE', 'EXPENSE'));
 assert.strictEqual(JSON.stringify(categorySession.exploration_session.present.global_context), beforeGlobal);
 assert.strictEqual(JSON.stringify(categorySession.exploration_session.present.widget_contexts), beforeWidgets);
-categorySession = DRILL.dispatch(categorySession, categoryBound, hierarchyRegistry,
+categorySession = DRILL.dispatch(categorySession, categoryBound, hierarchyInput,
   action('THROUGH', 'w-0102', 'CATEGORY', 'CATEGORY', null, 'SYN-CAT-FOOD', 'EXPENSE'));
 const categoryRequest = DRILL.buildDrillThroughRequest(categorySession, categoryBound);
 assert.deepStrictEqual(categoryRequest.tx_query.category_ids, ['SYN-CAT-FOOD']);
@@ -254,14 +256,14 @@ assert.strictEqual(mismatch.rows_reconciled, false);
 assert.strictEqual(mismatch.explorer_result, null);
 assert.strictEqual(mismatch.reason, 'DASH083_TOTAL_RECONCILIATION_MISMATCH');
 
-// Account hierarchy reconciliation delegates INCOME/EXPENSE/CASH_FLOW to KPI authority.
+// Account hierarchy: FIN reconciliation delegates supported measures to KPI Dictionary.
 function accountRequestFor(measureId) {
   const q = query({ dimensions: ['account_id'], grain: 'NONE', measures: [measureId], filters: [] });
   const bound = chartBinding(`w-${measureId === 'INCOME' ? '0201' : measureId === 'EXPENSE' ? '0202' : '0203'}`, q, 'account_id', measureId);
   let session = DRILL.createSession();
-  session = DRILL.dispatch(session, bound, hierarchyRegistry,
+  session = DRILL.dispatch(session, bound, hierarchyInput,
     action('DOWN', bound.widget_id, 'ACCOUNT', 'GROUP', 'ACCOUNT', 'SYN-ACC-GROUP-MAIN', measureId));
-  session = DRILL.dispatch(session, bound, hierarchyRegistry,
+  session = DRILL.dispatch(session, bound, hierarchyInput,
     action('THROUGH', bound.widget_id, 'ACCOUNT', 'ACCOUNT', null, 'SYN-ACC-A', measureId));
   return { bound, session, request: DRILL.buildDrillThroughRequest(session, bound) };
 }
@@ -275,7 +277,7 @@ for (const measureId of ['INCOME', 'EXPENSE', 'CASH_FLOW']) {
   assert.strictEqual(receipt.measure_id, measureId);
 }
 
-// BACK/RESET mirror ANL-074 history and restore drill metadata deterministically.
+// BACK/RESET must mirror ANL-074 history and restore drill metadata.
 const savedHash = categorySession.present.drill_hash;
 const reset = DRILL.dispatch(categorySession, null, null, systemAction('RESET'));
 assert.strictEqual(reset.present, null);
@@ -283,10 +285,10 @@ const restored = DRILL.dispatch(reset, null, null, systemAction('BACK'));
 assert.strictEqual(restored.present.drill_hash, savedHash);
 assert.strictEqual(restored.exploration_session.present.state_hash, categorySession.exploration_session.present.state_hash);
 
-// Fail-closed validation and privacy-safe telemetry.
-assert.throws(() => DRILL.dispatch(DRILL.createSession(), categoryBound, hierarchyRegistry,
+// Fail closed for incompatible source/hierarchy/measure.
+assert.throws(() => DRILL.dispatch(DRILL.createSession(), categoryBound, hierarchyInput,
   action('DOWN', 'w-0102', 'ACCOUNT', 'GROUP', 'ACCOUNT', 'SYN-ACC-GROUP-MAIN', 'EXPENSE')), /DASH083_SOURCE_DIMENSION_NOT_BOUND/);
-assert.throws(() => DRILL.dispatch(DRILL.createSession(), categoryBound, hierarchyRegistry,
+assert.throws(() => DRILL.dispatch(DRILL.createSession(), categoryBound, hierarchyInput,
   action('DOWN', 'w-0102', 'CATEGORY', 'GROUP', 'CATEGORY', 'SYN-CAT-FOOD', 'EXPENSE')), /DASH083_INITIAL_HIERARCHY_SELECTION_INVALID/);
 assert.throws(() => DRILL.normalizeAction(action('DOWN', 'w-0102', 'CATEGORY', 'GROUP', 'CATEGORY', 'SYN-CAT-GROUP-EXPENSE', 'BUDGET_VARIANCE')), /DASH083_MEASURE_UNSUPPORTED/);
 
