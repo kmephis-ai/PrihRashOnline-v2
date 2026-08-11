@@ -16,19 +16,21 @@
 
 ## Текущая инженерная задача
 
-`STUDIO-080` — единственный **current writer**, Issue #194, branch `agent/STUDIO-080-progressive-analytics-studio-shell`. `MASTER-G7 / Semantic analytics` и DESIGN-020 уже complete/DONE; VIZ-070 также DONE/Main Verification PASS и доступен как upstream presentation registry.
+`PRIV-080` — единственный **current writer**, canonical Issue #79, branch `agent/PRIV-080-privacy-presentation-modes-v2`. Duplicate Issue #196 закрыт и не имеет writer authority. Зависимости `MASTER-G7`, DESIGN-020, SEC-002 и PROF-020 уже DONE/Main Verification PASS.
 
-STUDIO-080 вводит `PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0` как progressive presentation shell `DAILY -> EXPLORE -> STUDIO`. Daily остаётся default и maps to canonical Financial Home. Explore/Studio — explicit opt-in уровни; invalid explicit mode всегда fail-safe в DAILY.
+`STUDIO-080` завершён: Issue #194 **DONE**, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS. Regression `dashboard_studio_htmlservice_normalization_test.js` сохраняет trusted Apps Script smoke устойчивым к HtmlService entity normalization без ослабления canonical route checks.
 
-Shell не вычисляет KPI, не читает transactions, не исполняет AnalyticsQuery и не меняет FIN-TRUTH. Explore только объявляет готовые R7 capabilities. Studio дополнительно показывает future affordances DASH-080/DASH-081/DASH-084 со status `UPCOMING`; composer/widget/layout/saved views не реализуются внутри STUDIO-080.
+PRIV-080 вводит `PRH_PRIVACY_PRESENTATION_V1@1.0.0` как pre-render presentation policy. Режимы: `NORMAL`, `MASKED`, `DEMO`, `ZEN`; invalid explicit mode fail-safe = `MASKED`. `security_boundary=false`, `authorization_boundary=false`: privacy mode не выдаёт права доступа и не заменяет AUTH-040/PROF-020/MYSELF.
 
-Canonical router сохраняет default `surface=home`, legacy rollback и private exposure `MYSELF`. Новый `surface=studio` live/static/configuration-only: `financial_runtime=false`, payload placeholder отсутствует, `prhR2BuildFinancialHomeRuntime_()` не вызывается. Основной массив R2 navigation не меняется; отдельный launcher `Explore / Studio` является opt-in.
+MASKED редактирует уже авторизованный private presentation view **до** JSON/DOM serialization: monetary/value/private dimension fields становятся `null`, presentation arrays fail-closed становятся `[]`. CSS blur/opacity не является доказательством privacy. Source object immutable.
 
-Browser preference `prh.analyticsStudio.mode.v1` содержит только schema/version/mode; URL `mode` имеет приоритет. Financial/query/filter/private identifier payload запрещён. Mode transition reversible и всегда `query_execution=false`, `financial_write=false`.
+DEMO не вызывает `prhR2BuildFinancialHomeRuntime_()`: допускается только independently generated `PUBLIC_SYNTHETIC` fixture с `private_runtime_read=false` и `DEMO_SYNTHETIC_NOT_FIN_TRUTH`. Private-source DEMO завершается `PRIV080_DEMO_PRIVATE_SOURCE_FORBIDDEN`.
 
-Keyboard/a11y: tablist/tab/tabpanel, aria-selected, focus-visible, ArrowLeft/ArrowRight/Home/End, reduced-motion. Responsive smoke: 390x844 / 768x1024 / 1440x900, без horizontal body overflow. Studio visual test рендерит canonical router с financial runtime stub, который падает при любом вызове, тем самым доказывая отсутствие private financial fetch.
+ZEN может прочитать canonical private view только server-side после существующей authorization boundary, затем передаёт отдельному HTML только allowlisted structural/status metadata. Amounts, transaction rows и private dimensions в ZEN DOM отсутствуют. Canonical R2 navigation сохраняется.
 
-Public telemetry содержит только schema/version/mode/previous_mode/source/viewport_class/decision/reason. `financial_truth=false`, `financial_write=false`, `query_execution=false`, `query_mutation=false`, `canonical_mutation=false`, `storage=false`, `network=false`, `deployment=false`; `FREE_ONLY` обязателен.
+Studio получает configuration-only privacy selector. Browser preference `prh.privacyPresentation.mode.v1` содержит строго schema/version/mode; финансовые значения, AnalyticsQuery, filters, private IDs, credentials и runtime locators запрещены. URL `privacy` передаёт выбранный mode server-side для pre-render обработки.
+
+Required gates: `Privacy presentation modes` и `Privacy modes visual gate`. Node reference contract, Apps Script runtime parity, DEMO zero-private-read, nested/array secret injection, DOM serialization, responsive Playwright evidence и существующие FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates должны оставаться green.
 
 ## Current R0 truth
 
@@ -95,33 +97,30 @@ VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`
 
 ## Current R8 truth
 
-- `STUDIO-080` — **current writer**, Issue #194, branch `agent/STUDIO-080-progressive-analytics-studio-shell`; IN_PROGRESS до Main Verification.
-- `PRIV-080` — dependency-ready separate P2 item; не реализуется внутри STUDIO-080.
+- `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
+- `PRIV-080` — **current writer**, canonical Issue #79, branch `agent/PRIV-080-privacy-presentation-modes-v2`; IN_PROGRESS до Main Verification.
+- `DASH-080` dependency-ready после STUDIO-080, но не может стать writer, пока PRIV-080 открыт.
 
-STUDIO-080 machine boundary:
+PRIV-080 machine boundary:
 
-- contract `lib/studio/analytics_studio_shell.v1.json` — `PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0`;
-- implementation `lib/studio/analytics_studio_shell.js`;
-- live shell `AnalyticsStudioWebApp.html`;
-- canonical router registration `surface=studio`, no financial runtime payload;
-- tests `tests/analytics_studio_shell_contract_test.js` + `tests/analytics_studio_shell_visual_test.js`;
-- normative doc `docs/studio/ANALYTICS_STUDIO_SHELL.md`;
-- named gates `Analytics Studio shell` and `Analytics Studio visual gate`;
-- default mode DAILY / invalid explicit mode DAILY_FAIL_SAFE;
-- URL mode override > mode-only browser preference > DAILY default;
-- capability monotonicity Daily -> Explore -> Studio;
-- future dashboard/widget/layout/saved-view affordances remain UPCOMING;
-- default Financial Home route + legacy rollback + private MYSELF unchanged;
-- no google.script.run/private finance fetch on Studio shell;
-- responsive + keyboard/a11y contract;
-- public telemetry technical-only, no financial/query/private payload;
-- all financial/query/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
-
-После STUDIO-080 Main Verification `DASH-080` становится dependency-ready при сохранении DONE VIZ-070/ANL-074. `PRIV-080` остаётся отдельной privacy-mode веткой Roadmap.
+- reference contract `lib/privacy/privacy_presentation.v1.json` + `lib/privacy/privacy_presentation.js`;
+- Apps Script pre-render adapter `PrivacyPresentationService.js`;
+- Studio configuration selector `PrivacyStudioControlService.js`;
+- canonical Home integration в `CanonicalR2WebAppService.js`;
+- contract/adversarial gate `tests/privacy_presentation_modes_contract_test.js`;
+- Apps Script parity/router gate `tests/privacy_presentation_runtime_contract_test.js`;
+- Playwright DOM gate `tests/privacy_presentation_modes_visual_test.js`;
+- normative doc `docs/privacy/PRIVACY_PRESENTATION_MODES.md`;
+- named gates `Privacy presentation modes` + `Privacy modes visual gate`;
+- MASKED pre-render redaction, including arrays;
+- DEMO = PUBLIC_SYNTHETIC only, private runtime reads = 0;
+- ZEN structural-only safe page;
+- privacy selector preference schema/version/mode only;
+- all financial/write/query/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `analytics_studio_shell_contract_test.js` принадлежит `RUNTIME_INTEGRATION`, `analytics_studio_shell_visual_test.js` — `UI_E2E`. Named gates `Analytics Studio shell` и `Analytics Studio visual gate` обязательны; red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Privacy contract = `POLICY_GOVERNANCE`, runtime parity = `RUNTIME_INTEGRATION`, visual = `UI_E2E`. Named gates `Privacy presentation modes` и `Privacy modes visual gate` обязательны вместе с existing Studio/R2/FIN/MIG gates; red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -141,7 +140,7 @@ PR Validation
 -> Main Verification
 ```
 
-STUDIO-080 остаётся открытым до green `Analytics Studio shell` + `Analytics Studio visual gate` + existing R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+PRIV-080 остаётся открытым до green privacy contract/runtime/visual gates + existing R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -149,4 +148,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040 и R7 через VIZ-070 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `STUDIO-080` — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, R7 через VIZ-070 и STUDIO-080 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `PRIV-080` / Issue #79 — единственный active writer.

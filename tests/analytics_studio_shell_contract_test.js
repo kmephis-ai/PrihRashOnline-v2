@@ -7,6 +7,8 @@ const vm = require('vm');
 const STUDIO = require('../lib/studio/analytics_studio_shell');
 
 const root = path.join(__dirname, '..');
+const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
+const privacyStudioSource = fs.readFileSync(path.join(root, 'PrivacyStudioControlService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const studioHtml = fs.readFileSync(path.join(root, 'AnalyticsStudioWebApp.html'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'FinancialHomeWebApp.html'), 'utf8');
@@ -123,7 +125,7 @@ function output(content) {
 let homeRuntimeCalls = 0;
 let legacyCalls = 0;
 const context = vm.createContext({
-  console, Object, Array, String, Number, Math, Date, RegExp, Error, JSON, encodeURIComponent,
+  console, Object, Array, String, Number, Boolean, Math, Date, RegExp, Error, JSON, encodeURIComponent,
   HtmlService: {
     createHtmlOutputFromFile(name) {
       if (name === 'FinancialHomeWebApp') return output(homeHtml);
@@ -145,6 +147,8 @@ const context = vm.createContext({
   prhGetWebDashboardData() { legacyCalls += 1; return { legacy: true }; },
   prhRenderWebDashboard_(data) { return output(`<html><body>${JSON.stringify(data)}</body></html>`); }
 });
+vm.runInContext(privacyRuntimeSource, context, { filename: 'PrivacyPresentationService.js' });
+vm.runInContext(privacyStudioSource, context, { filename: 'PrivacyStudioControlService.js' });
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE, 'home');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.PRIVATE_EXPOSURE, 'MYSELF');

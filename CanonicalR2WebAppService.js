@@ -4,10 +4,11 @@
  * Default route is R2 Financial Home. Home receives private read-only data from
  * the parity-guarded FIN runtime adapter. STUDIO-080 adds an explicit opt-in,
  * configuration-only Analytics Studio shell that never reads financial runtime
- * data. Other R2 routes are visible in primary navigation but fail closed until
- * their private runtime binding is separately proven. Synthetic preview values
- * are never substituted for private runtime truth. Legacy Dashboard remains an
- * explicit bounded rollback route.
+ * data. PRIV-080 applies presentation redaction before Home HTML serialization;
+ * it does not grant authorization or financial authority. Other R2 routes are
+ * visible in primary navigation but fail closed until their private runtime
+ * binding is separately proven. Legacy Dashboard remains an explicit bounded
+ * rollback route and is not a privacy-mode authority surface.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
@@ -142,15 +143,41 @@ function prhR2RenderLegacy_(params) {
   return prhRenderWebDashboard_(data);
 }
 
+function prhR2RenderHomeWithPrivacy_(params) {
+  var mode = prhPrivacyResolveMode_(params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]);
+  if (mode === 'DEMO') {
+    var demo = prhPrivacyTransform_(prhPrivacyDemoFinancialHome_(), 'DEMO', PRH_PRIVACY_PRESENTATION_RUNTIME.SYNTHETIC_SOURCE);
+    return prhPrivacyDecorateOutput_(
+      prhR2RenderFile_('home', demo.payload),
+      demo.mode,
+      demo.source,
+      'PrihRashOnline — Демо'
+    );
+  }
+
+  var privateView = prhR2BuildFinancialHomeRuntime_();
+  var transformed = prhPrivacyTransform_(privateView, mode, PRH_PRIVACY_PRESENTATION_RUNTIME.PRIVATE_SOURCE);
+  if (mode === 'ZEN') return prhPrivacyRenderZenCanonical_(transformed);
+  return prhPrivacyDecorateOutput_(
+    prhR2RenderFile_('home', transformed.payload),
+    transformed.mode,
+    transformed.source,
+    'PrihRashOnline — Financial Home'
+  );
+}
+
 function doGet(e) {
   var params = (e && e.parameter) || {};
   var surface = prhR2ResolveSurface_(params[PRH_CANONICAL_R2_WEB.ROUTE_PARAMETER]);
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
   if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) {
-    return prhR2RenderFile_('home', prhR2BuildFinancialHomeRuntime_());
+    return prhR2RenderHomeWithPrivacy_(params);
   }
   if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
-    return prhR2RenderFile_('studio', null);
+    return prhPrivacyDecorateStudioOutput_(
+      prhR2RenderFile_('studio', null),
+      params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]
+    );
   }
   return prhR2RenderUnavailable_(surface, 'RUNTIME_BINDING_NOT_PROVEN');
 }
