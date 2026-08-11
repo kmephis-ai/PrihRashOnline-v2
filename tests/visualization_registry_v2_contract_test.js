@@ -197,7 +197,7 @@ assert.throws(() => REGISTRY.planVisualization(baseWidget, baseQuery, { renderer
 const semanticallyEquivalent = equivalentQuery({
   ...baseQuery,
   filters: [
-    { field: 'status', operator: 'IN', values: ['posted', 'draft'] },
+    { field: 'status', operator: 'IN', values: ['posted', 'pending'] },
     { field: 'type', operator: 'IN', values: ['expense', 'refund'] }
   ]
 });
@@ -205,7 +205,7 @@ const canonicalEquivalent = {
   ...baseQuery,
   filters: [
     { field: 'type', operator: 'IN', values: ['refund', 'expense'] },
-    { field: 'status', operator: 'IN', values: ['draft', 'posted'] }
+    { field: 'status', operator: 'IN', values: ['pending', 'posted'] }
   ]
 };
 assert.strictEqual(ANALYTICS.analyticsQueryHash(semanticallyEquivalent), ANALYTICS.analyticsQueryHash(canonicalEquivalent));
