@@ -14,111 +14,104 @@
 4. Exact-SHA code/tests/workflows и machine evidence.
 5. Versioned contracts + architecture/ADR/operations docs.
 
+## Текущая инженерная задача
+
+`ANL-072` — единственный active writer. Текущая разработка не меняет финансовые строки, не переписывает пользовательский интерфейс и не вводит новый источник финансовой истины. Она добавляет безопасный чистый слой аналитических преобразований поверх уже рассчитанных `AnalyticsResult` и period/comparison results. Любой ИИ, продолжающий эту ветку, обязан сохранять upstream authority `FIN-TRUTH-v1`, KPI Dictionary, `ANL-010`, `ANL-070` и `ANL-071` и не переносить формулы доходов/расходов в новый слой.
+
+Ключевая граница — отсутствие произвольных формул. Разрешён только заранее версионированный allowlist операторов. Пользовательская строка JavaScript, `eval`, SQL expression, динамическая formula DSL или похожий executable payload должны отклоняться fail-closed. Неизвестный measure, неподходящая provenance, усечённый AnalyticsResult, недопустимое окно или structurally incompatible comparison series также не должны обрабатываться эвристически.
+
+Public tests используют только независимо сгенерированные synthetic finance fixtures. Telemetry может содержать только технические версии, operator/measure identifiers, размеры окна/Top-N, counts и bounded reason codes. Финансовые суммы, исходные названия категорий/счетов, transaction IDs и другие private dimension values в public evidence запрещены. Новый слой не имеет storage/network/deployment/write authority и не требует платного API.
+
 ## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE`, `AIENG-002 = DONE`, `AIENG-003 = DONE`, `AIENG-004 = DONE`, `AIENG-006 = DONE`, `DOC-001 = DONE`, `DOC-002 = DONE`, `FINOPS-001 = DONE`.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка уже канонизирована: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; далее `AIENG-004`, `AIENG-005` и `AIENG-006` также DONE/Main Verification PASS. Этот handoff сохраняется как нормативный lifecycle anchor и не заменяется текущим R7 writer.
 
-`AIENG-004` Issue #157 — DONE/Main Verification PASS, merge `280dea294b086fae3cedf56df7899c9938b42b88`, authority `PRH_AI_PLAYBOOK_CATALOG_V1@1.0.0`. AI playbooks не создают authority; PR/Migration review остаются `READ_ONLY`, `writer_authority=false`.
+Real or real-derived household finance data stays private. Публичный repository содержит только public-safe contracts, synthetic finance fixtures и privacy-safe machine evidence; private OAuth, runtime locators, реальные строки/агрегаты и owner-private payload не публикуются.
 
 ## Current R1 truth
 
-`MASTER-G3 / Canonical platform` — complete. Independently generated synthetic 20k/50k performance = PASS.
+`MASTER-G3` — complete. R1 canonical platform завершена:
 
 - `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
-- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private `OWNER_VERIFIED` reconciliation PASS.
-- `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
-- `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
-- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
+- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private reconciliation = OWNER_VERIFIED.
+- `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`, `AIENG-005` — DONE/Main Verification PASS.
 
-`PRH_TRANSACTION_REPOSITORY_V1` remains storage-neutral repository authority. Generic Google canonical write remains fail-closed with `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+FIN authority остаётся `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority — `PRH_CANONICAL_TRANSACTION_V1`; repository authority — `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. `PRH_AI_EVAL_SUITE_V1@1.0.0` остаётся local deterministic synthetic regression gate и не выдаёт authority.
+
+Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor обязан оставаться в lifecycle docs даже после завершения R2.
 
 ## Current R2 truth
 
-DESIGN-020, VIZ-020, HOME-020, TX-020, EXP-020, INC-020, CF-020, BUD-020, OBL-020, DQ-020, PWA-020, PROF-020 and UI-MIG-020 are DONE/Main Verification PASS.
+`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — DONE/Main Verification PASS. `UI-MIG-020` Issue #172 завершён, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-- `PROF-020` Issue #162 — DONE/Main Verification PASS, merge `c925deb4298c1046ec7ab06def3f559623d6b29f`.
-- `UI-MIG-020` Issue #172 — DONE/Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
-
-Canonical private Web App default = R2 Financial Home. Generated exact-candidate runtime is built from canonical `lib/**`; `financial_formula_copy=false`. Private transient dimension projection remains `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1`, `persistent_identity_authority=false`. Authenticated private Home smoke V3 and Trusted Runtime Health PASS. `NOT_PROVEN_CURRENT_HOST` remains current PWA service-worker activation state; private Web App remains `MYSELF`.
+Canonical private Web App default = R2 Financial Home. Generated exact-candidate runtime строится из canonical `lib/**`; `financial_formula_copy=false`. Private transient dimension projection использует `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` только как read-only adapter identity и не получает persistent identity authority. Authenticated private Home smoke V3 и Trusted Runtime Health PASS. Private Web App остаётся `MYSELF`, `NOT_PROVEN_CURRENT_HOST` остаётся текущей PWA service-worker boundary, `FREE_ONLY` обязателен.
 
 ## Current R3 truth
 
-- `TREND-030` — **DONE**, Issue #164 Main Verification PASS, merge `fe1660fa063fbc5e3344c9e570188fed9262b2ce`.
-- `PROJ-030` — **DONE**, Issue #166 Main Verification PASS, merge `cb3bbc4d50c35e690fda76eda54b19d1b97fc0a9`.
-- `GOAL-030` — **DONE**, Issue #168 Main Verification PASS, merge `fd7289d10d34df79b35c49c6749f36c6916d3bdc`.
-- `BAL-030` — **DONE**, Issue #76 Main Verification PASS, merge `3caab7017de035d14c36d07f3712f7c019828e2f`.
-- `NW-030` — **DONE**, Issue #171 Main Verification PASS, merge `3e56dce6bea4d874930c27e579a7ee082a2abc5c`.
-- `SUB-030` — **current writer**, Issue #179, branch `agent/SUB-030-subscription-detection`; IN_PROGRESS до Main Verification.
+- `TREND-030` — DONE, Issue #164 Main Verification PASS.
+- `PROJ-030` — DONE, Issue #166 Main Verification PASS.
+- `GOAL-030` — DONE, Issue #168 Main Verification PASS.
+- `BAL-030` — DONE, Issue #76 Main Verification PASS.
+- `NW-030` — DONE, Issue #171 Main Verification PASS.
+- `SUB-030` — **DONE**, Issue #179 Main Verification PASS, candidate `2c3a0a39aa835cec2a5fa0a93d0a275b7bf008fd`, merge `2914f150a9b038af50f7ccbfd9ed3d4f684dad47`.
 
-SUB-030 machine authority:
-
-- contract: `lib/subscriptions/subscription_detection.v1.json` (`PRH_SUBSCRIPTION_DETECTION_V1@1.0.0`);
-- core: `lib/subscriptions/subscription_detection.js`;
-- contract test: `tests/subscription_detection_contract_test.js`;
-- normative doc: `docs/finance/SUBSCRIPTIONS_RECURRING_SPEND.md`;
-- named gate: `Subscription detection`.
-
-SUB-030 rules:
-
-- detector consumes only canonical `posted expense`; `income`, `transfer`, `refund`, `adjustment`, `pending`, `void` never become subscription occurrence;
-- label source priority = `counterparty` then `description`; normalization only `NFKC + trim + collapse whitespace + lowercase`;
-- grouping is exact by normalized label + currency + account_id + category_id; fuzzy/LLM similarity is forbidden;
-- signature identity = SHA-256 versioned `PRH_SUBSCRIPTION_SIGNATURE_V1` payload;
-- minimum candidate evidence = 3 occurrences; bounded latest history = 24 occurrences / 730 days;
-- supported cadence = WEEKLY (7±1 days) and MONTHLY (next calendar month + clamp-to-month-end nominal day, ±3 days); every interval must match;
-- amount reference = lower median minor units; tolerance = max(100 minor, floor(5%)); every occurrence must match for CANDIDATE;
-- ambiguous cadence or amount evidence remains `REVIEW`; insufficient history = `NO_CANDIDATE` and is not surfaced as a finding;
-- OBL-020 comparison is only explicit `signature_hash -> plan_id`; exact OUTFLOW/currency/cadence/reference amount checks; fuzzy plan-label matching forbidden;
-- even `CANDIDATE` has `auto_confirmed=false`, `obligation_created=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`;
-- public telemetry contains hashes/counts/status/cadence metadata only, never raw labels, transaction/dimension IDs or financial values;
-- public evidence synthetic-only; storage/network/runtime/deployment authority=false; `FREE_ONLY` mandatory.
-
-### Как должен рассуждать AI при работе с SUB-030
-
-Основной приоритет задачи — не максимальное число найденных подписок, а минимизация ложных срабатываний. Если данных недостаточно или поведение расхода нельзя уверенно объяснить установленными правилами, результат должен оставаться на проверке человеком. Нельзя превращать похожее описание платежей в устойчивую связь только потому, что строки выглядят одинаково. Нельзя автоматически создавать обязательство, менять категорию операции или исправлять историю. Любая новая эвристика должна сначала получить отдельный версионированный контракт и синтетические негативные примеры.
-
-При ревью нужно отдельно проверять границы финансовой истины. Детектор использует суммы и даты только как признаки повторяемости, но не определяет новые финансовые показатели и не меняет значения операций. Возвраты, переводы, ожидающие и отменённые записи не должны создавать ложную регулярность. Связь с существующим планом обязательства допустима только по заранее явной технической связи и точным проверкам валюты, направления, периода и суммы. Если хотя бы одна из этих проверок не выполнена, система обязана остановиться без изменения данных.
-
-При анализе приватности запрещено переносить в публичные журналы исходные названия получателей, описания платежей, идентификаторы счетов, категорий и транзакций, а также денежные значения. В публичном машинном evidence допустимы только обезличенные хэши, количества, состояния и тип периодичности. Все тестовые финансовые записи в GitHub должны оставаться независимо сгенерированными синтетическими примерами.
-
-BAL remains `PRH_BALANCE_RECONCILIATION_V1@1.0.0`; no implicit zero balance. NW remains `PRH_NET_WORTH_V1@1.0.0`; no silent FX/market valuation and valuation layer `financial_truth=false`.
+SUB-030 machine authority `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0` сохранена в новом base. Его named gate `Subscription detection`, test architecture classification, LANG-RU doc inventory и privacy boundaries нельзя удалять или перетирать при реализации ANL-072. SUB detector остаётся precision-first, `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не является authority.
 
 ## Current R4 truth
 
-- `YC-040` — **DONE**, Issue #141 Main Verification PASS, merge `924a44f4cb01e6add6c7fd9a0b166d7a7743b96a`.
-- `AUTH-040` — **DONE**, Issue #142 Main Verification PASS, merge `455c7fdaaaee118369294d96183631d7322e5ea2`.
+- `YC-040` — DONE/Main Verification PASS.
+- `AUTH-040` — DONE/Main Verification PASS.
 - `YC-041` — **BLOCKED**, Issue #148, `OWNER_CLOUD_BOOTSTRAP_REQUIRED`, `writer_authority=false`.
 - `YC-042` — **BLOCKED**, Issue #149, `OWNER_YDB_TARGET_REQUIRED`, `writer_authority=false`.
 
-Google remains authoritative. Blocked cloud items не создают live cloud resources/billing-backed infrastructure и не меняют write ownership.
+Google remains authoritative. Blocked cloud items не дают writer authority, не создают billing-backed resources и не меняют canonical write ownership.
 
 ## Current R7 truth
 
-- `ANL-070` — **DONE**, Issue #150 Main Verification PASS, merge `d8b429221aa02416c4103bf58c2f3439f79ad0a9`.
-- `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS, merge `5eee6095562172ff0c887585aeaa85af4c12dff1`.
-- `ANL-071` — **DONE**, Issue #153 Main Verification PASS, merge `136fa66ea5752c96b789e92911d75ce37226b62f`.
-- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
+- `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
+- `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
+- `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
+- `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
+- `ANL-072` — **current writer**, Issue #178, branch `agent/ANL-072-safe-calculated-metrics-v2`; IN_PROGRESS до Main Verification.
 
-ANL-072/BENCH-070/ANL-073 remain P2 backlog; PERF-070/TEST-070 are not dependency-ready.
+ANL-072 machine boundary:
+
+- contract: `lib/analytics/calculated_metrics.v1.json` — `PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0`;
+- implementation: `lib/analytics/calculated_metrics.js`;
+- test: `tests/calculated_metrics_contract_test.js`;
+- normative doc: `docs/analytics/CALCULATED_METRICS.md`;
+- named gate: `Calculated/window metrics`;
+- source: complete typed canonical `AnalyticsResult` или `PRH_ANALYTICS_PERIOD_RESULT_V1` с валидной provenance;
+- allowlist: `SHARE`, `DELTA_ABS`, `DELTA_PCT`, `CUMULATIVE`, `MOVING_AVERAGE`, `MOVING_MEDIAN`, `TOP_N_OTHER`;
+- arbitrary JavaScript/eval/SQL/executable formula surface = forbidden;
+- ratio = deterministic integer PPM, `1 000 000 = 100%`;
+- money = safe integer minor units; risk-of-overflow intermediates используют exact integer arithmetic;
+- `SHARE` = exact 1 000 000 PPM reconciliation, zero/negative denominator fail-closed;
+- `DELTA_PCT` = explicit `ZERO_REFERENCE_NO_CHANGE` / `ZERO_REFERENCE_UNDEFINED`, never NaN/Infinity;
+- pairwise delta требует одинаково структурированных primary/reference bucket series; arbitrary multi-month calendar split не сопоставляется эвристически;
+- moving window bounded 1..24 и требует explicit `REQUIRE_FULL` или `ALLOW_PARTIAL`;
+- missing additive partition внутри временного ряда = zero только для orchestration, без synthetic transaction mutation;
+- `TOP_N_OTHER` = bounded N, deterministic canonical dimension-key tie break, stable `__OTHER__`, exact source/output reconciliation;
+- truncated source, duplicate/invalid rows, unsupported measure/operator/window/reference или invalid provenance = fail-closed;
+- telemetry не содержит amount payload/private dimension values;
+- `financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `executable_formula=false`; `FREE_ONLY` mandatory.
+
+ANL-072 не меняет enum/semantics upstream contracts и после Main Verification разблокирует `BENCH-070` и `ANL-073`. Его первый superseded PR #181 был закрыт без merge после того, как SUB-030 автономно вошёл в `main`; current v2 branch создан от merge `2914f150...` и обязана сохранить SUB-030 machine gates.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` classifies every tracked test fail-closed. `subscription_detection_contract_test.js` belongs to `PURE_DOMAIN_APPLICATION`; named `Subscription detection` runs after `Obligations`. Full layered inventory remains mandatory.
-
-## AI model/cost routing boundary
-
-Required machine gates remain local deterministic. `OPENAI_API` is separately billed, default disabled and never an automatic fallback. SUB-030 requires no model/provider/paid API.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует каждый tracked test fail-closed. `subscription_detection_contract_test.js` и `calculated_metrics_contract_test.js` оба принадлежат `PURE_DOMAIN_APPLICATION`. Named gates `Subscription detection` и `Calculated/window metrics` оба обязательны; red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
-Owner-private migration remains DONE/OWNER_VERIFIED with `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
+Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это occurrence-aware identity capability, а не разрешение AI/CI выбирать семантику дубликатов.
 
-Owner-confirmed occurrence identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Authorized execution was governed by `MIG010_EXECUTION_POLICY_V1@1.0.0`; `FINALIZED_PENDING_RECONCILIATION` was not completion until post-write reconciliation PASS.
+Historical authorized execution policy остаётся `MIG010_EXECUTION_POLICY_V1@1.0.0` со strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize выполнение останавливается в `FINALIZED_PENDING_RECONCILIATION` до отдельной post-write reconciliation; только owner-private reconciliation с `unexplainedMismatch=0` завершает verified lifecycle.
 
-Historical `IRREVERSIBLE_ACTION_AUTHORIZED` is exact-bound and non-reusable. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; GitHub Actions and AI cannot reuse it for later mutations. Generic Google financial write remains blocked by `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. Current write authority = false. The owner-verified MIG-010 private full-history reconciliation remains complete.
+GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI также не могут переиспользовать историческое owner authorization для будущей financial mutation. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound и non-reusable. Текущая write authority = false.
 
 ## Current delivery
 
@@ -130,16 +123,12 @@ PR Validation
 -> Main Verification
 ```
 
-SUB-030 remains open until Subscription detection + OBL/DATA/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA evidence are green, exact candidate passes trusted deploy/runtime health and Main Verification closes Issue #179.
+ANL-072 остаётся открытым до green `Calculated/window metrics` + existing SUB/FIN/DATA/ANL/privacy/FREE_ONLY/full layered/UI/PWA gates, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
-Required roles remain `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers are `READ_ONLY`, `writer_authority=false`; review never overrides red machine gates or Main Verification.
-
-## Privacy / runtime / cost
-
-Real or real-derived household finance data stays private. Family Web App remains private `MYSELF`. SUB-030 is pure domain logic with `financial_write=false`, runtime/network/storage/deployment authority=false. `FREE_ONLY` remains mandatory.
+Required roles остаются `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Reviewers = `READ_ONLY`, `writer_authority=false`; review не может отменять красный machine gate.
 
 ## Scope handoff
 
-All R0 critical items, R1 core + AIENG-005, complete R2 including UI-MIG-020, TREND-030, PROJ-030, GOAL-030, BAL-030, NW-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 and ANL-074 are DONE. YC-041/YC-042 remain BLOCKED without writer authority. `MASTER-G3 = complete`. `SUB-030` is the single active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, ANL-070, SCOPE-070, ANL-071 и ANL-074 — DONE. YC-041/YC-042 остаются BLOCKED. `ANL-072` — единственный active writer.
