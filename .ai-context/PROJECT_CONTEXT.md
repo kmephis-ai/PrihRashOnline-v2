@@ -16,34 +16,33 @@
 
 ## Текущая инженерная задача
 
-`DASH-084` — единственный **current writer**, canonical Issue #206, branch `agent/DASH-084-saved-views-versions`. Объявленная зависимость `DASH-081` и dependency-order predecessors `DASH-082`/`DASH-083` уже DONE/Main Verification PASS.
+`DASH-085` — единственный **current writer**, canonical Issue #208, branch `agent/DASH-085-wide-visual-customization`. Объявленные зависимости `DASH-081` и `DESIGN-020` DONE/Main Verification PASS; dependency-order predecessor `DASH-084` также DONE/Main Verification PASS.
 
-`DASH-083` завершён: Issue #204 **DONE**, candidate `c2fc3810c54a88c8aeca8b89ebd86e3784dbef46`, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
+`DASH-084` завершён: Issue #206 **DONE**, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
 
-DASH-084 вводит `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0` как private configuration persistence layer поверх DASH-080 layout + DASH-081 semantic bindings. Saved configuration = canonical `PRH_DASHBOARD_SPEC_V1` + zero-or-more separately validated `PRH_DASHBOARD_BOUND_WIDGET_V1`; semantic bindings не внедряются внутрь layout spec.
+DASH-085 вводит `PRH_DASHBOARD_VISUAL_CUSTOMIZATION_V1@1.0.0` как configuration-only presentation overlay поверх canonical DASH-081 binding. Он не изменяет canonical `AnalyticsQuery`, `query_hash`, FIN-TRUTH, KPI Dictionary, canonical transactions или financial values.
 
-Saved documents не являются data cache: запрещены AnalyticsResult/result rows, canonical transaction rows/datasets, financial output values, balances/amounts, runtime/deployment locators, OAuth/access/refresh tokens, credentials/secrets. Canonical AnalyticsQuery configuration и private filter/dimension IDs разрешены только внутри private per-user store и не допускаются в telemetry/public evidence.
+Theme = `SYSTEM / LIGHT / DARK`. Palette хранит только bounded semantic token IDs DESIGN-020; arbitrary CSS/HTML/URL, executable browser strings и external asset references запрещены fail-closed. Semantic palette token обязан существовать одновременно в light и dark DESIGN-020 theme registry.
 
-Pure lifecycle contract поддерживает `CREATE`, `CREATE_FROM_PRESET`, `SAVE_VERSION`, `CLONE`, `RENAME`, `RESET`, `RESTORE_REVISION`, `DELETE`, `MIGRATE`. Revision history immutable; identical save = deterministic `NOOP`; restore/reset добавляют новую revision вместо rewrite history. Canonical identity = `SHA256_CANONICAL_JSON_V1`, timestamps не входят в identity.
+Chart types в scope = `BAR / LINE / DONUT`. Любой retype делегируется `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; `query_hash` до/после обязан совпадать и `query_modified=false`. Ambiguous `BAR/LINE` с series -> `DONUT` остаётся fail-closed по VIZ-070, а advanced chart families остаются VIZ-090.
 
-Curated starter presets = `FAMILY`, `EXPENSE`, `INCOME`, `CASH_FLOW`, `BUDGET`, `NET_WORTH`, `RISK`, `SUBSCRIPTIONS`. Они editable/cloneable, содержат только safe starter layouts с UNBOUND placeholders и не содержат financial dataset snapshots.
+Axes/labels/legend/stack являются presentation-only. DONUT axes всегда hidden; legend не включается для non-chart widgets; stack ON допустим только для BAR/LINE с уже существующим canonical series binding.
 
-Private runtime adapter `DashboardSavedViewsStorageService.js` использует только namespaced `PropertiesService.getUserProperties()` + `LockService.getUserLock()`. `ScriptProperties`, `DocumentProperties`, financial Sheets, required browser local/session storage и external SaaS не используются. Index + view/tombstone записываются одним `setProperties()` batch после optimistic `expected_generation` check; stale writer fail closed.
+Sort/Top-N не переписывают `AnalyticsQuery.sort`. Sort разрешён только для CHART/TABLE с effective dimension. Top-N использует существующий `ANL-072 / TOP_N_OTHER`, N bounded `1..20`, remainder `OTHER`; DASH-085 не владеет альтернативной формулой.
 
-Bounded persistence limits: 24 views, 6 revisions/view, 7 KB configuration, 8 KB serialized view document, 6 KB index. Limits проверяются до mutation; overflow fail closed, а не через platform quota error.
+Number format = `AUTO/GROUPED/COMPACT`, fraction digits `0..2`, sign `AUTO/ALWAYS`; это display metadata, не mutation integer-minor values. Density = `COMFORTABLE/COMPACT`; density не может скрыть данные как единственный responsive/a11y механизм. Для CHART mandatory semantic-table fallback + textual summary; DESIGN-020 focus-visible/reduced-motion сохраняются.
 
 Core current writer:
 
-- `lib/dashboard/dashboard_saved_views.v1.json`;
-- `lib/dashboard/dashboard_saved_views.js`;
-- `DashboardSavedViewsStorageService.js`;
-- `tests/dashboard_saved_views_contract_test.js`;
-- `docs/dashboard/DASHBOARD_SAVED_VIEWS.md`;
+- `lib/dashboard/dashboard_visual_customization.v1.json`;
+- `lib/dashboard/dashboard_visual_customization.js`;
+- `tests/dashboard_visual_customization_contract_test.js`;
+- `docs/dashboard/DASHBOARD_VISUAL_CUSTOMIZATION.md`;
 - TEST-010 exact classification `PURE_DOMAIN_APPLICATION`;
-- named gate `Dashboard saved views`;
+- named gate `Dashboard visual customization`;
 - LANG-RU inventory/markers updated.
 
-DASH-084 имеет только `dashboard_config_storage=true`. `financial_truth`, `financial_write`, `query_execution`, `query_mutation`, `canonical_financial_mutation`, `authorization`, `network`, `deployment`, `renderer`, `layout` остаются false. Public evidence = independently generated synthetic/configuration-only. Telemetry = schema/version/action/view+revision hash prefixes/counts/decision/reason без names/filter values/private IDs/financial values/runtime locators. `FREE_ONLY` mandatory.
+DASH-085 authorities all false: `financial_truth`, `financial_write`, `query`, `query_execution`, `canonical_mutation`, `storage`, `network`, `auth`, `deploy`, `renderer`. Public evidence = independently generated synthetic/configuration-only. Telemetry = schema/version/theme/chart type/density/customization hash prefix/decision/reason. `FREE_ONLY` mandatory.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -128,7 +127,8 @@ VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`
 - `DASH-081` — DONE, Issue #200 Main Verification PASS, merge `da42188741dcd035684cec900728ea53d5c961a2`.
 - `DASH-082` — DONE, Issue #202 Main Verification PASS, candidate `c740a2c8aaf6e8d3da2c48bc2148bffd325a44aa`, merge `ac565189bc70133f127bdea471a50d0efae94443`.
 - `DASH-083` — DONE, Issue #204 Main Verification PASS, candidate `c2fc3810c54a88c8aeca8b89ebd86e3784dbef46`, merge `98b0e54413bfc6e9742d78fa2befd507341f5141`.
-- `DASH-084` — **current writer**, Issue #206, branch `agent/DASH-084-saved-views-versions`; IN_PROGRESS до Main Verification.
+- `DASH-084` — DONE, Issue #206 Main Verification PASS, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
+- `DASH-085` — **current writer**, Issue #208, branch `agent/DASH-085-wide-visual-customization`; IN_PROGRESS до Main Verification.
 
 PRIV-080 boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`; presentation mode не является authorization/security boundary.
 
@@ -140,11 +140,13 @@ DASH-082 boundary сохраняется: `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.
 
 DASH-083 boundary сохраняется: `PRH_DASHBOARD_DRILL_V1@1.0.0`, hierarchy/drill orchestration, TX-020 selection authority, FIN-backed reconciliation, mismatch fail-closed.
 
-DASH-084 boundary: private dashboard configuration storage only; immutable bounded revisions; UserProperties per-user adapter; no financial snapshots, no financial Sheets, no global shared properties, no data-write/query execution authority.
+DASH-084 boundary сохраняется: `PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0`, private dashboard configuration storage only; immutable bounded revisions; UserProperties per-user adapter; no financial snapshots, no financial Sheets, no global shared properties, no data-write/query execution authority.
+
+DASH-085 boundary: presentation config only; DESIGN-020 semantic palettes/themes; VIZ-070 retype; ANL-072 `TOP_N_OTHER`; query hash invariant; no arbitrary CSS/HTML/URL, financial payload or authority expansion.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `dashboard_saved_views_contract_test.js` = `PURE_DOMAIN_APPLICATION`; named gate `Dashboard saved views` обязателен вместе с existing DASH-083/DASH-082/DASH-081/TX/ANL/PRIV/STUDIO/VIZ/R2/FIN/MIG gates. Red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `dashboard_visual_customization_contract_test.js` = `PURE_DOMAIN_APPLICATION`; named gate `Dashboard visual customization` обязателен вместе с existing DASH-084..080/ANL/PRIV/STUDIO/VIZ/DESIGN/R2/FIN/MIG gates. Red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -164,7 +166,7 @@ PR Validation
 -> Main Verification
 ```
 
-DASH-084 остаётся открытым до green saved-view lifecycle/UserProperties contract + existing DASH-083/DASH-082/DASH-081/TX/ANL/PRIV/STUDIO/VIZ/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-085 остаётся открытым до green `Dashboard visual customization` + existing DASH-084..080/ANL/PRIV/STUDIO/VIZ/DESIGN/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -172,4 +174,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080, DASH-080, DASH-081, DASH-082 и DASH-083 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-084` / Issue #206 — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080 и DASH-080..084 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-085` / Issue #208 — единственный active writer.
