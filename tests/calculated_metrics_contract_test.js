@@ -82,7 +82,7 @@ function analyticsQuery(overrides = {}) {
   };
 }
 
-function periodQuery(start, end, grain = 'MONTH', comparisonMode = 'NONE', overrides = {}) {
+function periodSpecQuery(selector, grain = 'MONTH', comparisonMode = 'NONE', overrides = {}) {
   return {
     schema: period.QUERY_SCHEMA,
     contract_version: period.VERSION,
@@ -94,12 +94,16 @@ function periodQuery(start, end, grain = 'MONTH', comparisonMode = 'NONE', overr
     parameters: {},
     limit: 500,
     period: {
-      selector: { kind: 'EXPLICIT_RANGE', start, end },
+      selector,
       grain,
       comparison_mode: comparisonMode
     },
     ...overrides
   };
+}
+
+function periodQuery(start, end, grain = 'MONTH', comparisonMode = 'NONE', overrides = {}) {
+  return periodSpecQuery({ kind: 'EXPLICIT_RANGE', start, end }, grain, comparisonMode, overrides);
 }
 
 function metricSpec(operator, options, measure = 'EXPENSE') {
@@ -209,16 +213,33 @@ const utilitiesSeries = groupedCumulative.rows.filter((row) => row.dimensions.ca
 assert.deepStrictEqual(utilitiesSeries.map((row) => row.source_value_minor), [500, 500, 0, 1000]);
 assert.deepStrictEqual(utilitiesSeries.map((row) => row.value_minor), [500, 1000, 1000, 2000]);
 
-const compared = period.evaluatePeriodSeries(fixture, periodQuery(
-  '2026-03-01', '2026-05-01', 'MONTH', 'PREVIOUS_COMPARABLE_PERIOD'
+// Pairwise deltas require structurally comparable period series. Full calendar
+// months keep one primary and one comparison bucket even when ANL-071 marks a
+// shorter preceding month as clipped; arbitrary multi-month calendar splitting
+// is intentionally not guessed by the calculated-metrics layer.
+const marchCompared = period.evaluatePeriodSeries(fixture, periodSpecQuery(
+  { kind: 'MTD', as_of: '2026-03-31' }, 'MONTH', 'PREVIOUS_COMPARABLE_PERIOD'
 ));
-const deltaAbs = calc.evaluateCalculatedMetric(compared, metricSpec('DELTA_ABS', { reference: 'PERIOD_COMPARISON' }));
-assert.deepStrictEqual(deltaAbs.rows.map((row) => row.reference_value_minor), [4000, 4000]);
-assert.deepStrictEqual(deltaAbs.rows.map((row) => row.source_value_minor), [4000, 5000]);
-assert.deepStrictEqual(deltaAbs.rows.map((row) => row.value_minor), [0, 1000]);
-const deltaPct = calc.evaluateCalculatedMetric(compared, metricSpec('DELTA_PCT', { reference: 'PERIOD_COMPARISON' }));
-assert.deepStrictEqual(deltaPct.rows.map((row) => row.value_ppm), [0, 250000]);
-assert.deepStrictEqual(deltaPct.rows.map((row) => row.status), ['OK', 'OK']);
+assert.strictEqual(marchCompared.primary_buckets.length, 1);
+assert.strictEqual(marchCompared.comparison_buckets.length, 1);
+assert.strictEqual(marchCompared.comparison.quality, 'CLIPPED_SHORTER_CALENDAR_PERIOD');
+const marchDeltaAbs = calc.evaluateCalculatedMetric(marchCompared, metricSpec('DELTA_ABS', { reference: 'PERIOD_COMPARISON' }));
+assert.deepStrictEqual(marchDeltaAbs.rows.map((row) => row.reference_value_minor), [4000]);
+assert.deepStrictEqual(marchDeltaAbs.rows.map((row) => row.source_value_minor), [4000]);
+assert.deepStrictEqual(marchDeltaAbs.rows.map((row) => row.value_minor), [0]);
+
+const aprilCompared = period.evaluatePeriodSeries(fixture, periodSpecQuery(
+  { kind: 'MTD', as_of: '2026-04-30' }, 'MONTH', 'PREVIOUS_COMPARABLE_PERIOD'
+));
+assert.strictEqual(aprilCompared.primary_buckets.length, 1);
+assert.strictEqual(aprilCompared.comparison_buckets.length, 1);
+const aprilDeltaAbs = calc.evaluateCalculatedMetric(aprilCompared, metricSpec('DELTA_ABS', { reference: 'PERIOD_COMPARISON' }));
+assert.deepStrictEqual(aprilDeltaAbs.rows.map((row) => row.reference_value_minor), [4000]);
+assert.deepStrictEqual(aprilDeltaAbs.rows.map((row) => row.source_value_minor), [5000]);
+assert.deepStrictEqual(aprilDeltaAbs.rows.map((row) => row.value_minor), [1000]);
+const aprilDeltaPct = calc.evaluateCalculatedMetric(aprilCompared, metricSpec('DELTA_PCT', { reference: 'PERIOD_COMPARISON' }));
+assert.deepStrictEqual(aprilDeltaPct.rows.map((row) => row.value_ppm), [250000]);
+assert.deepStrictEqual(aprilDeltaPct.rows.map((row) => row.status), ['OK']);
 
 const zeroReference = period.evaluatePeriodSeries(fixture, periodQuery(
   '2026-01-01', '2026-02-01', 'MONTH', 'PREVIOUS_COMPARABLE_PERIOD'
@@ -283,6 +304,7 @@ console.log('calculated_metrics_contract_test: OK', {
   deterministicTieBreak: true,
   zeroReferenceExplicit: true,
   groupedMissingAsZero: true,
+  pairwiseComparisonRequiresComparableBuckets: true,
   arbitraryFormulaSurface: false,
   financialTruthAuthority: false
 });
