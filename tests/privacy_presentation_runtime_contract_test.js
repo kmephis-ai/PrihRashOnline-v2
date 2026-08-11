@@ -8,6 +8,7 @@ const PRIVACY = require('../lib/privacy/privacy_presentation');
 
 const root = path.join(__dirname, '..');
 const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
+const privacyStudioSource = fs.readFileSync(path.join(root, 'PrivacyStudioControlService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'FinancialHomeWebApp.html'), 'utf8');
 const studioHtml = fs.readFileSync(path.join(root, 'AnalyticsStudioWebApp.html'), 'utf8');
@@ -69,6 +70,7 @@ const context = vm.createContext({
   prhRenderWebDashboard_(data) { return output(`<html><body>${JSON.stringify(data)}</body></html>`); }
 });
 vm.runInContext(privacyRuntimeSource, context, { filename: 'PrivacyPresentationService.js' });
+vm.runInContext(privacyStudioSource, context, { filename: 'PrivacyStudioControlService.js' });
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 
 assert.strictEqual(context.PRH_PRIVACY_PRESENTATION_RUNTIME.SECURITY_BOUNDARY, false);
@@ -107,6 +109,8 @@ const zenHtml = context.doGet({ parameter: { surface: 'home', privacy: 'zen' } }
 assert.strictEqual(privateReads, 1, 'ZEN may inspect canonical private view server-side once');
 assert(zenHtml.includes('data-prh-privacy-mode="ZEN"'));
 assert(zenHtml.includes('data-prh-zen-safe="1"'));
+assert(zenHtml.includes('data-prh-canonical-r2-shell="1"'));
+assert(zenHtml.includes('data-active-surface="home"'));
 assert(zenHtml.includes('Финансовые суммы, транзакции и частные измерения не переданы'));
 for (const token of SECRET_TOKENS) assert.strictEqual(zenHtml.includes(token), false, `ZEN DOM payload leak: ${token}`);
 
@@ -125,13 +129,28 @@ assert.strictEqual(privateReads, 1);
 assert(normalHtml.includes('data-prh-privacy-mode="NORMAL"'));
 assert(normalHtml.includes('918273645'), 'NORMAL preserves already-authorized presentation values');
 
+privateReads = 0;
+const studioOutput = context.doGet({ parameter: { surface: 'studio', mode: 'studio', privacy: 'masked' } }).getContent();
+assert.strictEqual(privateReads, 0, 'Studio privacy selector must not read private financial runtime');
+assert(studioOutput.includes('id="prh-privacy-selector"'));
+assert(studioOutput.includes('role="radiogroup"'));
+assert(studioOutput.includes('data-privacy-choice="NORMAL"'));
+assert(studioOutput.includes('data-privacy-choice="MASKED"'));
+assert(studioOutput.includes('data-privacy-choice="DEMO"'));
+assert(studioOutput.includes('data-privacy-choice="ZEN"'));
+assert(studioOutput.includes('prh.privacyPresentation.mode.v1'));
+assert(studioOutput.includes('JSON.stringify({schema:S,version:V,mode:a.dataset.privacyChoice})'));
+assert(!/amount_minor|account_id|category_id|member_id|project_id/.test(studioOutput));
+
 assert.strictEqual(legacyReads, 0);
 
 console.log('privacy-presentation-runtime: PASS', {
   nodeRuntimeParity: ['MASKED', 'ZEN'],
   invalidFailSafe: 'MASKED',
   demoPrivateReads: 0,
+  studioPrivateReads: 0,
   maskedPreRender: true,
   zenStructuralOnly: true,
+  canonicalZenNavigation: true,
   securityBoundary: false
 });
