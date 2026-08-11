@@ -157,6 +157,8 @@ jobs:
         run: node tests/analytics_scope_contract_test.js
       - name: Period/comparison engine
         run: node tests/period_comparison_engine_contract_test.js
+      - name: Calculated/window metrics
+        run: node tests/calculated_metrics_contract_test.js
       - name: Long-term trends
         run: node tests/long_term_trends_contract_test.js
       - name: Cash-flow projection
