@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { classifyFailure, executionErrorReason } = require('./apps-script-api-exec');
 
 const FUNCTION_NAME = 'prhPerfRecBaselineProbeJson';
 const MODES = new Set(['COLD', 'WARM']);
@@ -27,10 +28,10 @@ function fail(reason) {
   process.exitCode = 1;
 }
 
-async function readJson(response) {
+async function readResponse(response) {
   const text = await response.text();
-  if (!text) return null;
-  try { return JSON.parse(text); } catch (_) { return null; }
+  if (!text) return { json: null, text: '' };
+  try { return { json: JSON.parse(text), text }; } catch (_) { return { json: null, text }; }
 }
 
 function nonNegativeInteger(value) {
@@ -121,8 +122,8 @@ async function main() {
         grant_type: 'refresh_token'
       })
     });
-    const tokenPayload = await readJson(tokenResponse);
-    const accessToken = tokenPayload && tokenPayload.access_token;
+    const tokenPayload = await readResponse(tokenResponse);
+    const accessToken = tokenPayload.json && tokenPayload.json.access_token;
     if (!tokenResponse.ok || typeof accessToken !== 'string' || !accessToken) {
       return fail('OAUTH_TOKEN_REFRESH_FAILED');
     }
@@ -137,19 +138,26 @@ async function main() {
       body: JSON.stringify({ function: FUNCTION_NAME, parameters: [mode], devMode: false })
     });
     const wallMs = Date.now() - started;
-    const runPayload = await readJson(runResponse);
-    if (!runResponse.ok) return fail('AUTHENTICATED_EXECUTION_FAILED');
-    if (!runPayload || runPayload.done === false || runPayload.error || !runPayload.response ||
-        typeof runPayload.response.result !== 'string') {
+    const runPayload = await readResponse(runResponse);
+    if (!runResponse.ok) {
+      return fail(classifyFailure(runResponse.status, runPayload.text, runPayload.json));
+    }
+    if (!runPayload.json || runPayload.json.done === false) {
+      return fail('AUTHENTICATED_EXECUTION_RESULT_INVALID');
+    }
+    if (runPayload.json.error) {
+      return fail(executionErrorReason(runPayload.json) || 'AUTHENTICATED_EXECUTION_RESULT_INVALID');
+    }
+    if (!runPayload.json.response || typeof runPayload.json.response.result !== 'string') {
       return fail('AUTHENTICATED_EXECUTION_RESULT_INVALID');
     }
 
     let raw;
-    try { raw = JSON.parse(runPayload.response.result); } catch (_) { return fail('PERF_BASELINE_JSON_INVALID'); }
+    try { raw = JSON.parse(runPayload.json.response.result); } catch (_) { return fail('PERF_BASELINE_JSON_INVALID'); }
     emit(sanitizeTelemetry(raw, mode, wallMs));
   } catch (error) {
-    const reason = error && /^[A-Z0-9_]+$/.test(String(error.message || ''))
-      ? String(error.message)
+    const reason = error && /^[A-Z0-9_:.-]+$/.test(String(error.message || ''))
+      ? String(error.message).slice(0, 120)
       : 'PERF_BASELINE_EXECUTOR_FAILED';
     fail(reason);
   }
