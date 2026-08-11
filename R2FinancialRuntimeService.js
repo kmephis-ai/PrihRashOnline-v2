@@ -1,24 +1,13 @@
 /**
- * UI-MIG-020 read-only runtime bridge for the canonical Financial Home.
+ * UI-MIG-020 / PERF-REC-001 read-only runtime bridge for Financial Home.
  *
- * Financial semantics are NOT reimplemented here. The immutable candidate
- * contains generated `R2CanonicalRuntimeBundle.js`, assembled by the trusted
- * packager directly from the canonical versioned `lib/**` sources. This bridge
- * only connects Apps Script services/config to those canonical modules.
- *
- * Runtime authority:
- * - read existing `01 Операции` through GoogleTransactionRepositoryGateway;
- * - normalize through canonical `google_sheets_transaction_repository`;
- * - evaluate FIN/KPI/Home through canonical `financial_reconciliation`,
- *   `kpi_dictionary` and `financial_home` modules;
- * - project current human-facing dimension labels to deterministic, machine-safe
- *   read-only IDs without creating persistent identity authority;
- * - read explicit currency from existing `09 Настройки`;
- * - never write financial data and never use legacy total cells as truth.
+ * Financial semantics are owned by generated canonical lib modules. The bridge
+ * connects Apps Script services to those modules and adds runtime-only
+ * performance orchestration without creating financial/write authority.
  */
 var PRH_R2_FIN_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_R2_FIN_RUNTIME_BRIDGE_V1',
-  VERSION: '1.2.0',
+  VERSION: '1.3.0',
   CANONICAL_RUNTIME_SCHEMA: 'PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1',
   FINANCIAL_TRUTH_POLICY: 'FIN-TRUTH-v1',
   KPI_DICTIONARY_VERSION: '1.0.0',
@@ -48,16 +37,22 @@ function prhR2CanonicalRuntime_() {
   }
   if (!PRH_R2_CANONICAL_RUNTIME.home ||
       !PRH_R2_CANONICAL_RUNTIME.financialReconciliation ||
-      !PRH_R2_CANONICAL_RUNTIME.googleAdapter) {
+      !PRH_R2_CANONICAL_RUNTIME.googleAdapter ||
+      !PRH_R2_CANONICAL_RUNTIME.revisionAwareCache ||
+      !PRH_R2_CANONICAL_RUNTIME.singleScanRefresh) {
     prhR2FinFail_('R2_CANONICAL_RUNTIME_MODULE_MISSING');
   }
   return PRH_R2_CANONICAL_RUNTIME;
 }
 
 function prhR2FinCurrency_() {
+  var started = Date.now();
   var settings = getSettingsMap_();
   var currency = String(settings.currency || '').trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency)) prhR2FinFail_('R2_RUNTIME_CURRENCY_SETTING_REQUIRED');
+  if (typeof prhPerfRecRecordPhase_ === 'function') {
+    prhPerfRecRecordPhase_('settings_read_ms', Date.now() - started);
+  }
   return currency;
 }
 
@@ -82,8 +77,10 @@ function prhR2FinSha256Hex_(value) {
 
 function prhR2FinCreateDimensionResolverState_() {
   var byKind = {};
+  var hashCount = 0;
+  var memoHitCount = 0;
   ['account', 'category', 'member', 'project'].forEach(function(kind) {
-    byKind[kind] = { normalized_by_id: {}, display_by_id: {} };
+    byKind[kind] = { normalized_by_id: {}, display_by_id: {}, id_by_normalized: {} };
   });
 
   function resolver(kind) {
@@ -92,16 +89,22 @@ function prhR2FinCreateDimensionResolverState_() {
     }
     return function(value) {
       var label = prhR2FinNormalizeDimensionLabel_(value);
+      var registry = byKind[kind];
+      if (Object.prototype.hasOwnProperty.call(registry.id_by_normalized, label.normalized)) {
+        memoHitCount += 1;
+        return registry.id_by_normalized[label.normalized];
+      }
       var digest = prhR2FinSha256Hex_(
         PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA + '|' + kind + '|' + label.normalized
       );
+      hashCount += 1;
       var id = kind + ':' + digest;
-      var registry = byKind[kind];
       if (Object.prototype.hasOwnProperty.call(registry.normalized_by_id, id) &&
           registry.normalized_by_id[id] !== label.normalized) {
         prhR2FinFail_('R2_RUNTIME_DIMENSION_HASH_COLLISION');
       }
       registry.normalized_by_id[id] = label.normalized;
+      registry.id_by_normalized[label.normalized] = id;
       if (!Object.prototype.hasOwnProperty.call(registry.display_by_id, id)) {
         registry.display_by_id[id] = label.display;
       }
@@ -111,7 +114,7 @@ function prhR2FinCreateDimensionResolverState_() {
 
   return Object.freeze({
     schema: PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA,
-    version: '1.0.0',
+    version: '1.1.0',
     persistent_identity_authority: false,
     resolvers: Object.freeze({
       account: resolver('account'),
@@ -126,17 +129,37 @@ function prhR2FinCreateDimensionResolverState_() {
       var label = byKind[kind].display_by_id[String(id || '')];
       if (!label) prhR2FinFail_('R2_RUNTIME_DIMENSION_DISPLAY_LABEL_MISSING');
       return label;
+    },
+    telemetry: function() {
+      return Object.freeze({
+        unique_dimension_hash_count: hashCount,
+        dimension_hash_memo_hit_count: memoHitCount
+      });
     }
   });
 }
 
 function prhR2FinReadTransactions_() {
+  var started = Date.now();
   var runtime = prhR2CanonicalRuntime_();
   var currency = prhR2FinCurrency_();
   var dimensions = prhR2FinCreateDimensionResolverState_();
+  var gatewayCallCount = 0;
+  var gatewayRangeReadCount = 0;
+  var gatewayCellReadCount = 0;
   var gateway = Object.freeze({
     readOperationsTable: function(request) {
-      return prhGoogleRepositoryReadOperationsTable_(request);
+      var readStarted = Date.now();
+      var snapshot = prhGoogleRepositoryReadOperationsTable_(request);
+      gatewayCallCount += 1;
+      if (snapshot && snapshot.read_plan) {
+        gatewayRangeReadCount += Number(snapshot.read_plan.range_read_count || 0);
+        gatewayCellReadCount += Number(snapshot.read_plan.cell_read_count || 0);
+      }
+      if (typeof prhPerfRecRecordPhase_ === 'function') {
+        prhPerfRecRecordPhase_('sheet_read_ms', Date.now() - readStarted);
+      }
+      return snapshot;
     }
   });
   var repository = runtime.googleAdapter.createGoogleSheetsTransactionRepository(gateway, {
@@ -146,12 +169,38 @@ function prhR2FinReadTransactions_() {
   if (!repository || repository.capabilities.read !== true || repository.capabilities.write !== false) {
     prhR2FinFail_('R2_RUNTIME_REPOSITORY_CAPABILITY_INVALID');
   }
-  var transactions = repository.readAll();
+
+  // PERF-012 is the live cold-read authority: one underlying readAll materializes
+  // the canonical point-in-time snapshot. All consumers below reuse that cycle.
+  var cycle = runtime.singleScanRefresh.createSingleScanRefresh(repository, {
+    max_age_ms: 120000,
+    max_operations: 16
+  });
+  var transactions = cycle.readAll();
   if (!Array.isArray(transactions) || !transactions.length) prhR2FinFail_('R2_RUNTIME_NO_TRANSACTIONS');
+  var scanTelemetry = cycle.getTelemetry();
+  var dimensionTelemetry = dimensions.telemetry();
+  if (scanTelemetry.canonical_snapshot_read_count !== 1 || gatewayCallCount !== 1) {
+    prhR2FinFail_('R2_RUNTIME_SINGLE_SCAN_INVARIANT_FAILED');
+  }
+  if (typeof prhPerfRecRecordSource_ === 'function') {
+    prhPerfRecRecordSource_({
+      gateway_call_count: gatewayCallCount,
+      range_read_count: gatewayRangeReadCount,
+      cell_read_count: gatewayCellReadCount,
+      canonical_snapshot_read_count: scanTelemetry.canonical_snapshot_read_count,
+      snapshot_reuse_count: scanTelemetry.snapshot_reuse_count,
+      unique_dimension_hash_count: dimensionTelemetry.unique_dimension_hash_count,
+      dimension_hash_memo_hit_count: dimensionTelemetry.dimension_hash_memo_hit_count,
+      canonical_revision_hash_prefix: String(scanTelemetry.revision_token_hash_prefix || '')
+    });
+    prhPerfRecRecordPhase_('canonical_snapshot_ms', Date.now() - started);
+  }
   return Object.freeze({
     currency: currency,
     transactions: Object.freeze(transactions.slice()),
-    dimensions: dimensions
+    dimensions: dimensions,
+    canonical_revision: cycle.getRevision()
   });
 }
 
@@ -206,7 +255,8 @@ function prhR2FinVisualData_(runtime, source, homeView) {
   });
 }
 
-function prhR2BuildFinancialHomeRuntime_() {
+function prhR2BuildFinancialHomeRuntimeUncached_() {
+  var started = Date.now();
   var runtime = prhR2CanonicalRuntime_();
   var source = prhR2FinReadTransactions_();
   var period = prhR2FinLatestMonthPeriod_(source.transactions);
@@ -231,8 +281,9 @@ function prhR2BuildFinancialHomeRuntime_() {
   provenance.dimension_resolver = PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA;
   provenance.persistent_identity_authority = false;
   provenance.legacy_total_cells_used = false;
+  provenance.perf_single_scan_contract = 'PRH_SINGLE_SCAN_REFRESH_V1@1.0.0';
 
-  return Object.freeze({
+  var result = Object.freeze({
     schema: canonicalHome.schema,
     contract_version: canonicalHome.contract_version,
     currency: canonicalHome.currency,
@@ -246,4 +297,15 @@ function prhR2BuildFinancialHomeRuntime_() {
     visual_data: visualData,
     provenance: Object.freeze(provenance)
   });
+  if (typeof prhPerfRecRecordPhase_ === 'function') {
+    prhPerfRecRecordPhase_('home_build_ms', Date.now() - started);
+  }
+  return result;
+}
+
+function prhR2BuildFinancialHomeRuntime_() {
+  if (typeof prhPerfRecGetOrBuildHome_ === 'function') {
+    return prhPerfRecGetOrBuildHome_(prhR2BuildFinancialHomeRuntimeUncached_);
+  }
+  return prhR2BuildFinancialHomeRuntimeUncached_();
 }
