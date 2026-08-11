@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
+// Privacy boundary: emit only bounded reason codes; never emit OAuth or Drive response payloads.
 function emit(value) {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
