@@ -171,6 +171,8 @@ jobs:
           set -euo pipefail
           node tests/analytics_query_planner_cache_contract_test.js
           node tests/analytics_query_planner_performance_contract_test.js
+      - name: Combinatorial analytics regression
+        run: node tests/combinatorial_analytics_regression_contract_test.js
       - name: Long-term trends
         run: node tests/long_term_trends_contract_test.js
       - name: Cash-flow projection
