@@ -26,7 +26,7 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 `MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: open. FIN authority: `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority: `PRH_CANONICAL_TRANSACTION_V1`. Repository authority: `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-Post-R1 handoff начинается с `DESIGN-020`; этот historical lifecycle anchor сохраняется даже после полного завершения R2.
+Post-R1 handoff начинается с `DESIGN-020`; historical lifecycle anchor сохраняется после завершения R2.
 
 ## R2 / Family Finance Center — canonical UI cutover завершён
 
@@ -34,7 +34,7 @@ Post-R1 handoff начинается с `DESIGN-020`; этот historical lifecy
 
 - `UI-MIG-020` — **DONE**, Issue #172 Main Verification PASS, candidate `867fda74824f91bf3931aa3e6ea39d1c7d4dfc1e`, merge `0a87bab34f29897fa781a030797a9a040fb200a3`.
 
-Canonical private Web App default route = R2 `FinancialHomeWebApp`; legacy Dashboard остаётся bounded rollback route. Private Home использует generated canonical-lib runtime; `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` — только transient read-only adapter identity (`persistent_identity_authority=false`), `financial_formula_copy=false`. Authenticated private Home smoke V3 и exact-head Trusted Runtime Health = PASS. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary сохраняется; `FREE_ONLY` обязателен.
+Canonical private Web App default route = R2 `FinancialHomeWebApp`; legacy Dashboard остаётся bounded rollback route. Private Home использует generated canonical-lib runtime; `PRH_RUNTIME_DIMENSION_LABEL_HASH_V1` — transient read-only adapter identity (`persistent_identity_authority=false`), `financial_formula_copy=false`. Authenticated private Home smoke V3 и exact-head Trusted Runtime Health = PASS. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary сохраняется; `FREE_ONLY` обязателен.
 
 ## R3 / Planning, Wealth, Decision Intelligence — завершённые элементы
 
@@ -65,7 +65,7 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
 - `ANL-072` — **DONE**, Issue #178 Main Verification PASS, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
 - `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
-- `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
+- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
 - `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
 - `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
 - `TEST-070` — **DONE**, Issue #190 Main Verification PASS, candidate `dee4b1cb87158a78014fd07c723b595c516c2114`, merge `b4391e6ce24927baf0ec18e1892d8f2244615951`.
@@ -74,24 +74,27 @@ Google остаётся authoritative; cloud blockers не создают billin
 
 VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`: BAR/LINE/DONUT, exact query-dimension coverage, query-hash invariant retype, ECHARTS_6 replaceable local/bundled renderer и `SEMANTIC_TABLE_V1` accessible fallback. Registry не получает query/financial/storage/network authority.
 
-## R8 / Analytics Studio, privacy и dashboard widgets
+## R8 / Analytics Studio, privacy и dashboard interactions
 
 - `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
 - `PRIV-080` — **DONE**, canonical Issue #79 Main Verification PASS, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
 - `DASH-080` — **DONE**, Issue #198 Main Verification PASS, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
-- `DASH-081` — **IN_PROGRESS**, canonical Issue #200, branch `agent/DASH-081-widget-factory-semantic-bindings`; единственный current writer.
+- `DASH-081` — **DONE**, Issue #200 Main Verification PASS, candidate `5752b963a528ccdabf307531dff426a9cfbe59a1`, merge `da42188741dcd035684cec900728ea53d5c961a2`.
+- `DASH-082` — **IN_PROGRESS**, canonical Issue #202, branch `agent/DASH-082-dashboard-interaction-bus`; единственный current writer.
 
-STUDIO-080 сохранил `DAILY -> EXPLORE -> STUDIO`, default Financial Home и opt-in `surface=studio`. PRIV-080 сохраняет pre-render privacy modes `NORMAL/MASKED/DEMO/ZEN` без выдачи authorization authority.
+DASH-080 сохраняет `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: canonical desktop 12-column grid, deterministic repair, tablet/mobile derivation, immutable layout operations и session-only state. Placeholder widgets до semantic binding имеют `semantic_binding_status=UNBOUND`.
 
-DASH-080 реализовал `PRH_DASHBOARD_COMPOSER_V1@1.0.0`: canonical desktop 12-column grid, deterministic repair, tablet/mobile derivation, immutable ADD/MOVE/RESIZE/DUPLICATE/REMOVE/RESET и session-only layout. Placeholder widgets остаются `semantic_binding_status=UNBOUND`; layout contract запрещает AnalyticsQuery/ChartSpec/financial payload и не получает semantic authority.
+DASH-081 реализовал `PRH_WIDGET_FACTORY_V1@1.0.0`: `KPI/CARD/CHART/TABLE/PIVOT`, canonical normalized `PRH_ANALYTICS_QUERY_V1`, VIZ-070 ChartSpec validation, ANL-073 PivotSpec validation, deterministic binding identity, explicit `UNBOUND -> BOUND` без geometry/layout identity mutation. Query execution/financial/write/storage/network authority отсутствует.
 
-DASH-081 вводит `PRH_WIDGET_FACTORY_V1@1.0.0` как отдельный configuration-only semantic binding layer для `KPI`, `CARD`, `CHART`, `TABLE`, `PIVOT`. Каждый binding использует canonical normalized `PRH_ANALYTICS_QUERY_V1`; query identity вычисляется upstream Analytics engine, а dashboard layer фиксирует `query_modified=false` и не исполняет query.
+DASH-082 вводит `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0` поверх DASH-081 + ANL-074. Registry принимает только valid bound descriptors; source capabilities выводятся из canonical query dimensions. KPI/CARD не получают implicit cross-filter capability; CHART требует `interactions.filter=true`; BRUSH разрешён только по bound `time_bucket`.
 
-`CHART` валидируется через `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; `PIVOT` — через `PRH_PIVOT_SPEC_V1`/ANL-073. KPI/CARD требуют single-measure ungrouped query, TABLE требует exact selected-field coverage. Broken bindings fail closed со stable reason codes и без silent downgrade.
+CLICK/SELECTION/BRUSH изменяют только ANL-074 `global_context.filter_context`: SET заменяет только same field, CLEAR удаляет только same field, unrelated global filters сохраняются. `widget_contexts`, `drill_context`, global `scope_spec`, bindings, layout и query не мутируются. Cross-widget effect targets = registered widgets кроме source; effects не дают mutation authority target widgets.
 
-DASH-080 placeholder не мутируется при binding: `PRH_DASHBOARD_BOUND_WIDGET_V1` хранит semantic descriptor отдельно, `geometry_mutation=false`, `layout_identity_authority=false`. Implicit auto-bind запрещён. Binding может содержать private-runtime query configuration, поэтому public tests synthetic-only, а telemetry ограничена schema/version/kind/hash-prefix/decision/reason без filter values/private IDs/financial values.
+Event identity = `SHA256_CANONICAL_JSON_V1`. Root gesture получает canonical origin identity; propagated callbacks сохраняют origin и ограничены `max_hop=1`. Interaction session хранит bounded processed origin IDs; replay возвращает `DASH082_EVENT_ORIGIN_REPLAY` без state/history mutation. RESET/BACK делегируются ANL-074 и сохраняют canonical history semantics.
 
-Named gate current writer: `Widget factory semantic bindings` (`PURE_DOMAIN_APPLICATION`). Existing Dashboard composer/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
+Event/filter values считаются private-runtime configuration. Public tests synthetic-only. Telemetry содержит только schema/version/event type/hashed source+origin/state prefixes/affected count/decision/reason; filter values/query filters/private IDs/financial values отсутствуют.
+
+Named gate current writer: `Dashboard interaction bus` (`PURE_DOMAIN_APPLICATION`). Existing DASH-081/DASH-080/ANL-074/PRIV/STUDIO/VIZ/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates обязаны оставаться green.
 
 Trusted runtime reliability bootstrap #185 merged in `7794f1d73631cc50ac1d603758ddec85acdec6b5`: retry возможен только для exact `RUNTIME_HEALTH_BUILD_MISMATCH`, максимум 12 attempts / 55 s sleep; stale build не считается healthy, остальные failures fail-fast.
 
@@ -122,11 +125,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-DASH-081 остаётся открытым до green `Widget factory semantic bindings` + existing DASH-080/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-082 остаётся открытым до green `Dashboard interaction bus` + existing DASH-081/DASH-080/ANL-074/PRIV/STUDIO/VIZ/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. PRIV-080 применяет pre-render presentation transform; DASH-080 предоставляет opt-in configuration-only composer. DASH-081 добавляет semantic binding contracts, но не получает private financial runtime read/query execution authority и не меняет default Home route. Financial calculations, canonical data, write ownership и authentication не переходят в dashboard layers. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. Canonical default Web App route остаётся R2 Financial Home. PRIV-080 применяет pre-render privacy transform; DASH-080 предоставляет opt-in configuration-only composer; DASH-081 добавил semantic bound descriptors; DASH-082 добавляет deterministic shared interaction state contract. Эти dashboard layers не получают private financial read/query execution/write authority и не меняют default Home route. Financial calculations, canonical data, write ownership и authentication остаются в существующих authority layers. Public GitHub evidence synthetic/configuration-only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 

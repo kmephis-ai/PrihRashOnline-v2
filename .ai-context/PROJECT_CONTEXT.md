@@ -16,25 +16,47 @@
 
 ## Текущая инженерная задача
 
-`DASH-081` — единственный **current writer**, canonical Issue #200, branch `agent/DASH-081-widget-factory-semantic-bindings`. Зависимости `DASH-080` и `ANL-073` уже DONE/Main Verification PASS.
+`DASH-082` — единственный **current writer**, canonical Issue #202, branch `agent/DASH-082-dashboard-interaction-bus`. Зависимости `DASH-081` и `ANL-074` уже DONE/Main Verification PASS.
 
-`DASH-080` завершён: Issue #198 **DONE**, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
+`DASH-081` завершён: Issue #200 **DONE**, candidate `5752b963a528ccdabf307531dff426a9cfbe59a1`, merge `da42188741dcd035684cec900728ea53d5c961a2`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
 
-DASH-081 вводит `PRH_WIDGET_FACTORY_V1@1.0.0` как configuration-only semantic binding layer поверх DASH-080. Registry = `KPI`, `CARD`, `CHART`, `TABLE`, `PIVOT`. Каждый binding использует canonical normalized `PRH_ANALYTICS_QUERY_V1`; query hash вычисляет Analytics engine, dashboard layer фиксирует `query_modified=false` и не получает query execution authority.
+DASH-082 вводит `PRH_DASHBOARD_INTERACTION_BUS_V1@1.0.0` как deterministic configuration-only interaction layer поверх DASH-081 bound widgets и ANL-074 Exploration State. Event types = `CLICK`, `SELECTION`, `BRUSH`, `RESET`, `BACK`.
 
-`CHART` presentation = canonical `PRH_CHART_SPEC_V1` и валидируется через `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`. `PIVOT` presentation = `PRH_PIVOT_SPEC_V1` из ANL-073; factory проверяет exact measures/dimensions/grain parity, но не вызывает `evaluatePivot()` и не принимает AnalyticsResult.
+Registry `PRH_DASHBOARD_INTERACTION_REGISTRY_V1` принимает только valid `PRH_DASHBOARD_BOUND_WIDGET_V1`. Source filter capability выводится из canonical AnalyticsQuery dimensions; при grain добавляется `time_bucket`. KPI/CARD не получают implicit dimension interaction. CHART требует `ChartSpec.interactions.filter=true`; BRUSH разрешён только для bound `time_bucket`.
 
-`KPI/CARD` разрешены только для exactly one selected measure, без grouped dimensions/grain. `TABLE` использует `PRH_TABLE_PRESENTATION_V1` и обязан exact-cover selected query fields. Broken bindings fail closed со stable reason codes; silent fallback/downgrade запрещён.
+CLICK/SELECTION/BRUSH меняют только `global_context.filter_context` через ANL-074 `SET_GLOBAL_CONTEXT`. SET заменяет same field, CLEAR удаляет same field, unrelated global filters остаются. `widget_contexts`, `drill_context`, global `scope_spec`, widget bindings, layout и AnalyticsQuery не мутируются.
 
-DASH-080 layout contract не изменяется: placeholder остаётся `PRH_DASHBOARD_PLACEHOLDER_WIDGET_V1` / `semantic_binding_status=UNBOUND`. Явный `bindPlaceholder()` создаёт отдельный `PRH_DASHBOARD_BOUND_WIDGET_V1` с `geometry_mutation=false`, `layout_identity_authority=false`; AnalyticsQuery/ChartSpec по-прежнему не внедряются внутрь DASH-080 layout spec.
+Cross-widget result содержит только derived affected widget IDs: для обычного event — все registered widgets кроме source; для RESET/BACK — все. Это metadata для UI adapters, а не direct mutation authority.
 
-Binding configuration может содержать private-runtime filters/identifiers, но public evidence только synthetic. Telemetry allowlist = schema/version/widget_kind/query_hash_prefix/binding_hash_prefix/decision/reason; filter values/private IDs/currency/financial values не публикуются. Financial/write/query/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
+Event identity = `SHA256_CANONICAL_JSON_V1`. Root gesture получает canonical origin identity. Propagated callbacks сохраняют origin и ограничены `max_hop=1`. `PRH_DASHBOARD_INTERACTION_SESSION_V1` хранит bounded processed origin IDs; повторный origin возвращает `DASH082_EVENT_ORIGIN_REPLAY` без state/history mutation. RESET/BACK напрямую делегируются ANL-074, поэтому canonical history/back semantics не дублируются.
 
-Required gate: `Widget factory semantic bindings` (`PURE_DOMAIN_APPLICATION`). Existing DASH-080/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates должны оставаться green.
+Interaction filter values считаются private-runtime configuration. Public tests используют synthetic IDs. Telemetry allowlist = schema/version/event_type/hashed source+origin/state prefixes/affected count/decision/reason; filter values/query filters/private IDs/currency/measure/financial values не публикуются.
+
+Core files current writer:
+
+- `lib/dashboard/dashboard_interaction_bus.v1.json`;
+- `lib/dashboard/dashboard_interaction_bus.js`;
+- `tests/dashboard_interaction_bus_contract_test.js`;
+- `docs/dashboard/DASHBOARD_INTERACTIONS.md`;
+- TEST-010 exact classification = `PURE_DOMAIN_APPLICATION`;
+- named gate `Dashboard interaction bus`;
+- LANG-RU inventory/required markers updated.
+
+All financial/write/query-execution/query-mutation/auth/storage/network/deploy/renderer/layout authorities false; `FREE_ONLY` mandatory.
+
+## FinOps / worst-case budget / owner estimate / model routing handoff
+
+`FINOPS-001` остаётся обязательной cost boundary для runtime и engineering: `FREE_ONLY` означает отсутствие required paid dependency и запрет автоматического включения платного API/service ради прохождения required gate. Usage counters, throttle/circuit breaker и monthly safety budget остаются machine authority; AI context не имеет права повышать лимиты или обходить circuit breaker.
+
+Перед любой задачей, способной создать внешний расход, writer обязан сформировать **worst-case budget** и **owner estimate** как явный handoff владельцу до irreversible/billing-backed действия. Owner estimate не является machine authorization и не подменяет cost gate; если стоимость не доказана как допустимая в рамках текущего policy, действие fail-closed/blocked.
+
+`AIENG-006` / `PRH_AI_MODEL_COST_ROUTING_V1@1.0.0` определяет model routing handoff: required machine gates всегда `LOCAL_DETERMINISTIC`; интерактивная ChatGPT subscription surface отделена от OpenAI API billing; `OPENAI_API enabled=false` для required engineering. При exhaustion/unknown capacity используется разрешённый Sol/Terra/Luna fallback или pause/defer, но **не** автоматический paid API fallback и не bypass красного machine gate.
+
+Таким образом, FinOps truth, worst-case budget, owner estimate и model routing должны сохраняться при каждом writer handoff независимо от текущего Roadmap ID.
 
 ## Current R0 truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка канонизирована: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; далее `AIENG-004`, `AIENG-005` и `AIENG-006` также DONE/Main Verification PASS. Этот handoff остаётся lifecycle anchor и не заменяется текущим writer.
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка канонизирована: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; далее `AIENG-004`, `AIENG-005` и `AIENG-006` также DONE/Main Verification PASS. Этот ordered handoff остаётся обязательным lifecycle anchor и не заменяется текущим writer.
 
 Real or real-derived household finance data stays private. Public repository содержит только public-safe contracts, synthetic finance fixtures и privacy-safe machine evidence; private OAuth, runtime locators, реальные строки/агрегаты и owner-private payload не публикуются.
 
@@ -49,7 +71,7 @@ Real or real-derived household finance data stays private. Public repository с�
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private stage `OWNER_VERIFIED`.
 - `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010`, `AIENG-005` — DONE/Main Verification PASS.
 
-FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`; repository authority = `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`. `PRH_AI_EVAL_SUITE_V1@1.0.0` — local deterministic synthetic regression gate и не выдаёт authority.
+FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`; repository authority = `PRH_TRANSACTION_REPOSITORY_V1`. Generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 Post-R1 handoff historically начинается с `DESIGN-020`; этот anchor обязан оставаться в lifecycle docs даже после завершения R2.
 
@@ -66,9 +88,9 @@ Canonical private Web App default = R2 Financial Home. Generated exact-candidate
 - `GOAL-030` — DONE, Issue #168 Main Verification PASS.
 - `BAL-030` — DONE, Issue #76 Main Verification PASS.
 - `NW-030` — DONE, Issue #171 Main Verification PASS.
-- `SUB-030` — **DONE**, Issue #179 Main Verification PASS, candidate `2c3a0a39aa835cec2a5fa0a93d0a275b7bf008fd`, merge `2914f150a9b038af50f7ccbfd9ed3d4f684dad47`.
+- `SUB-030` — DONE, Issue #179 Main Verification PASS.
 
-SUB-030 authority `PRH_SUBSCRIPTION_DETECTION_V1@1.0.0` сохраняется. Named gate `Subscription detection`, TEST-010 classification, LANG-RU inventory и privacy boundaries нельзя удалять. Detector precision-first: `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не authority.
+SUB-030 detector remains precision-first: `auto_confirm=false`, `auto_create_obligation=false`, `canonical_mutation=false`, `financial_write=false`, `financial_truth=false`; fuzzy/LLM matching не authority.
 
 ## Current R4 truth
 
@@ -81,61 +103,49 @@ Google remains authoritative. Blocked cloud items не дают writer authority
 
 ## Current R7 truth
 
-- `ANL-070` — **DONE**, Issue #150 Main Verification PASS.
-- `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
-- `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
-- `ANL-072` — **DONE**, Issue #178 Main Verification PASS, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
-- `BENCH-070` — **DONE**, Issue #80 Main Verification PASS, merge `e49d07fa79bd1f0c825b4b1c807ddd8bb49d6a8f`.
-- `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
-- `ANL-073` — **DONE**, Issue #186 Main Verification PASS, merge `116b950cf4ae66b813dff3cf7c8803afeb6baea6`.
-- `PERF-070` — **DONE**, Issue #188 Main Verification PASS, candidate `7742f56746dcbc5b782e0320acb82478a5f13775`, merge `0c3b09e5221b55854fb3c007e66c815ebdedc584`.
-- `TEST-070` — **DONE**, Issue #190 Main Verification PASS, candidate `dee4b1cb87158a78014fd07c723b595c516c2114`, merge `b4391e6ce24927baf0ec18e1892d8f2244615951`.
-- `VIZ-070` — **DONE**, Issue #192 Main Verification PASS, candidate `444067f9e411f798668c4a109eb751903c9d5720`, merge `13091bb5ba731673bae5357ae7b22b64475592c3`.
+- `ANL-070` — DONE.
+- `SCOPE-070` — DONE.
+- `ANL-071` — DONE.
+- `ANL-072` — DONE.
+- `BENCH-070` — DONE.
+- `ANL-074` — **DONE**, Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
+- `ANL-073` — DONE, Issue #186 Main Verification PASS.
+- `PERF-070` — DONE.
+- `TEST-070` — DONE.
+- `VIZ-070` — DONE, Issue #192 Main Verification PASS.
 - `MASTER-G7 / Semantic analytics` — **complete**.
+
+ANL-074 authority = `PRH_EXPLORATION_STATE_V1@1.0.0`: deterministic state hash/history, global/widget contexts, drill, RESET/BACK. DASH-082 обязан делегировать эту state authority, а не копировать её.
 
 VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; ECHARTS_6 replaceable/local-bundled, SEMANTIC_TABLE_V1 accessible fallback, chart retype query-hash invariant, no financial/query authority.
 
 ## Current R8 truth
 
-- `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
-- `PRIV-080` — **DONE**, canonical Issue #79 Main Verification PASS, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
-- `DASH-080` — **DONE**, Issue #198 Main Verification PASS, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
-- `DASH-081` — **current writer**, canonical Issue #200, branch `agent/DASH-081-widget-factory-semantic-bindings`; IN_PROGRESS до Main Verification.
+- `STUDIO-080` — DONE, Issue #194 Main Verification PASS.
+- `PRIV-080` — DONE, Issue #79 Main Verification PASS.
+- `DASH-080` — DONE, Issue #198 Main Verification PASS, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
+- `DASH-081` — DONE, Issue #200 Main Verification PASS, merge `da42188741dcd035684cec900728ea53d5c961a2`.
+- `DASH-082` — **current writer**, Issue #202, branch `agent/DASH-082-dashboard-interaction-bus`; IN_PROGRESS до Main Verification.
 
-PRIV-080 machine boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`, MASKED pre-render redaction, DEMO = PUBLIC_SYNTHETIC only/private reads = 0, ZEN structural-only, selector preference schema/version/mode only. Presentation mode не является authorization/security boundary.
+PRIV-080 machine boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`, MASKED pre-render redaction, DEMO = PUBLIC_SYNTHETIC only/private reads = 0, ZEN structural-only. Presentation mode не является authorization/security boundary.
 
-DASH-080 machine boundary сохраняется: `PRH_DASHBOARD_COMPOSER_V1@1.0.0`, desktop 12-column deterministic grid, tablet/mobile derivation, session-only state, placeholder `semantic_binding_status=UNBOUND`, no financial/query authority.
+DASH-080 boundary сохраняется: `PRH_DASHBOARD_COMPOSER_V1@1.0.0`, desktop 12-column deterministic grid, tablet/mobile derivation, session-only state, no financial/query authority.
 
-DASH-081 machine boundary:
+DASH-081 boundary сохраняется: `PRH_WIDGET_FACTORY_V1@1.0.0`, explicit semantic binding только, no implicit auto-bind, no query/financial authority.
 
-- contract `lib/dashboard/widget_factory.v1.json`;
-- core `lib/dashboard/widget_factory.js`;
-- binding schema `PRH_WIDGET_BINDING_V1`;
-- validation schema `PRH_WIDGET_BINDING_VALIDATION_V1`;
-- bound descriptor `PRH_DASHBOARD_BOUND_WIDGET_V1`;
-- registry `KPI/CARD/CHART/TABLE/PIVOT`;
-- AnalyticsQuery normalization/hash delegated to ANL-010;
-- CHART compatibility delegated to VIZ-070;
-- PIVOT spec normalization delegated to ANL-073;
-- no financial result/transaction payload in binding;
-- explicit bind only; no implicit auto-bind;
-- telemetry hashes/reason only;
-- contract/property gate `tests/widget_factory_semantic_bindings_contract_test.js`;
-- normative doc `docs/dashboard/WIDGET_FACTORY_SEMANTIC_BINDINGS.md`;
-- named gate `Widget factory semantic bindings`;
-- all financial/write/query-execution/query-mutation/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
+DASH-082 boundary: global filter interaction only, source semantic capability validation, deterministic canonical event/session hashes, bounded origin dedup/hop, ANL-074 RESET/BACK delegation, privacy-safe telemetry, no financial payload.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. DASH-081 contract test = `PURE_DOMAIN_APPLICATION`; named gate `Widget factory semantic bindings` обязателен вместе с existing DASH-080/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG gates. Red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. `dashboard_interaction_bus_contract_test.js` = `PURE_DOMAIN_APPLICATION`; named gate `Dashboard interaction bus` обязателен вместе с existing DASH-081/DASH-080/ANL-074/PRIV/STUDIO/VIZ/R2/FIN/MIG gates. Red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
-Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это occurrence-aware capability, а не право AI/CI выбирать семантику дубликатов.
+Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`.
 
-Historical authorized execution policy = `MIG010_EXECUTION_POLICY_V1@1.0.0`, strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize execution останавливается в `FINALIZED_PENDING_RECONCILIATION`; только отдельная owner-private reconciliation с `unexplainedMismatch=0` завершает verified lifecycle.
+Historical authorized execution policy = `MIG010_EXECUTION_POLICY_V1@1.0.0`, strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize execution состояние обязано оставаться `FINALIZED_PENDING_RECONCILIATION`; это **не** verified completion. Только отдельная owner-private post-write reconciliation с `unexplainedMismatch=0` переводит historical migration lifecycle в подтверждённое завершение/`OWNER_VERIFIED`.
 
-GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не могут переиспользовать historical authorization для будущей financial mutation. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound и non-reusable. **Current write authority = false**.
+GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не могут переиспользовать historical authorization для будущей financial mutation. **Current write authority = false**.
 
 ## Current delivery
 
@@ -147,7 +157,7 @@ PR Validation
 -> Main Verification
 ```
 
-DASH-081 остаётся открытым до green widget factory contract + existing DASH-080/PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-082 остаётся открытым до green interaction bus contract + existing DASH-081/DASH-080/ANL-074/PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -155,4 +165,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080 и DASH-080 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-081` / Issue #200 — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080, DASH-080 и DASH-081 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-082` / Issue #202 — единственный active writer.
