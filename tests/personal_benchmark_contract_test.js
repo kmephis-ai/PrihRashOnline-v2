@@ -231,8 +231,16 @@ wrongProvenance.provenance = 'MARKET_DATA';
 assert.throws(() => BENCH.evaluatePersonalBenchmark(source(budgetSource), spec('BUDGET'), wrongProvenance), /BENCH_REFERENCE_PROVENANCE_INVALID/);
 assert.throws(() => BENCH.evaluatePersonalBenchmark(source(previousSource), spec('PREVIOUS_COMPARABLE_PERIOD'), moneyReference('BUDGET', previousSource, 1)), /BENCH_REFERENCE_NOT_ALLOWED/);
 
-const nonScalar = periodResult([100]);
-nonScalar.primary_buckets[0].analytics_result.rows[0].dimensions.category_id = 'synthetic-category';
+const nonScalarBase = periodResult([100]);
+const nonScalarAnalytics = Object.freeze({
+  ...nonScalarBase.primary_buckets[0].analytics_result,
+  rows: Object.freeze([Object.freeze({
+    dimensions: Object.freeze({ category_id: 'synthetic-category' }),
+    measures: Object.freeze({ EXPENSE: 100 })
+  })])
+});
+const nonScalarBucket = Object.freeze({ ...nonScalarBase.primary_buckets[0], analytics_result: nonScalarAnalytics });
+const nonScalar = Object.freeze({ ...nonScalarBase, primary_buckets: Object.freeze([nonScalarBucket]) });
 assert.throws(() => BENCH.evaluatePersonalBenchmark(source(nonScalar), spec('BUDGET'), moneyReference('BUDGET', nonScalar, 100)), /BENCH_ANALYTICS_RESULT_NOT_SCALAR/);
 
 const telemetry = BENCH.benchmarkTelemetry(previous);
