@@ -58,10 +58,10 @@ const fixture = [
   tx(12, '2026-03-10', 'expense', 2000, 'rent'),
   tx(13, '2026-03-15', 'expense', 1000, 'fun'),
   tx(14, '2026-04-02', 'income', 5500, 'salary'),
-  tx(15, '2026-04-05', 'expense', 2000, 'food'),
+  tx(15, '2026-04-05', 'expense', 1500, 'food'),
   tx(16, '2026-04-10', 'expense', 2000, 'rent'),
   tx(17, '2026-04-15', 'expense', 500, 'fun'),
-  tx(18, '2026-04-20', 'expense', 500, 'utilities')
+  tx(18, '2026-04-20', 'expense', 1000, 'utilities')
 ];
 
 function analyticsQuery(overrides = {}) {
@@ -123,7 +123,6 @@ assert.deepStrictEqual(calc.OPERATORS.slice().sort(), [
   'CUMULATIVE', 'DELTA_ABS', 'DELTA_PCT', 'MOVING_AVERAGE', 'MOVING_MEDIAN', 'SHARE', 'TOP_N_OTHER'
 ]);
 
-// Spec is strict, deterministic and cannot become an executable formula surface.
 const movingA = metricSpec('MOVING_AVERAGE', { window: 3, partial_window: 'REQUIRE_FULL' });
 const movingB = {
   options: { partial_window: 'REQUIRE_FULL', window: 3 },
@@ -150,7 +149,6 @@ for (const forbidden of ['amount_minor', 'transaction_id', 'account_id', 'catego
   assert.strictEqual(safeSerialized.includes(forbidden), false, forbidden);
 }
 
-// SHARE: exact 1,000,000 ppm reconciliation over a canonical grouped AnalyticsResult.
 const grouped = evaluateAnalytics(fixture, analyticsQuery({ dimensions: ['category_id'] }));
 assert.strictEqual(grouped.truncated, false);
 const share = calc.evaluateCalculatedMetric(grouped, metricSpec('SHARE', { denominator_scope: 'RESULT_TOTAL' }));
@@ -162,25 +160,25 @@ assert.strictEqual(share.provenance.financial_truth_policy, 'FIN-TRUTH-v1');
 assert.strictEqual(share.provenance.kpi_formula_redefined, false);
 assert.strictEqual(share.provenance.arbitrary_formula_executed, false);
 
-// Empty/zero share denominator is explicit fail-closed, never NaN/Infinity.
 const zeroExpense = evaluateAnalytics(
   [tx(40, '2025-12-01', 'income', 1000, 'salary')],
   analyticsQuery({ dimensions: [], time_range: { start: '2025-12-01', end: '2026-01-01' } })
 );
 assert.throws(() => calc.evaluateCalculatedMetric(zeroExpense, metricSpec('SHARE', { denominator_scope: 'RESULT_TOTAL' })), /CALC_SHARE_DENOMINATOR_ZERO/);
 
-// Top-N is deterministic, tie-broken by canonical dimension key and reconciles Other.
 const top = calc.evaluateCalculatedMetric(grouped, metricSpec('TOP_N_OTHER', { n: 3 }));
 assert.strictEqual(top.rows.length, 4);
+assert.strictEqual(top.rows[0].dimensions.category_id, 'rent');
+assert.strictEqual(top.rows[1].dimensions.category_id, 'food');
+assert.strictEqual(top.rows[2].dimensions.category_id, 'fun');
+assert.strictEqual(top.rows[2].value_minor, 2000);
 assert.strictEqual(top.rows[3].bucket_kind, 'OTHER');
 assert.strictEqual(top.rows[3].bucket_key, '__OTHER__');
+assert.strictEqual(top.rows[3].value_minor, 2000);
 assert.strictEqual(top.source_total_minor, 17000);
 assert.strictEqual(top.output_total_minor, 17000);
 assert.strictEqual(top.other_included, true);
-const tieRows = top.rows.filter((row) => row.bucket_kind === 'TOP' && row.value_minor === 2000);
-assert.deepStrictEqual(tieRows.map((row) => row.dimensions.category_id), ['fun', 'utilities']);
 
-// Primary period values: Jan..Apr expenses = 4000, 4000, 4000, 5000.
 const scalarPeriod = period.evaluatePeriodSeries(fixture, periodQuery('2026-01-01', '2026-05-01'));
 const cumulative = calc.evaluateCalculatedMetric(scalarPeriod, metricSpec('CUMULATIVE', {}));
 assert.deepStrictEqual(cumulative.rows.map((row) => row.value_minor), [4000, 8000, 12000, 17000]);
@@ -200,7 +198,6 @@ const movingMedianPartial = calc.evaluateCalculatedMetric(scalarPeriod, metricSp
 assert.deepStrictEqual(movingMedianPartial.rows.map((row) => row.value_minor), [4000, 4000, 4000, 4000]);
 assert.deepStrictEqual(movingMedianPartial.rows.map((row) => row.status), ['OK_PARTIAL_WINDOW', 'OK_PARTIAL_WINDOW', 'OK', 'OK']);
 
-// Grouped temporal series treat an absent additive partition as zero and preserve each dimension independently.
 const groupedPeriod = period.evaluatePeriodSeries(fixture, periodQuery('2026-01-01', '2026-05-01', 'MONTH', 'NONE', {
   dimensions: ['category_id']
 }));
@@ -209,10 +206,9 @@ const funSeries = groupedCumulative.rows.filter((row) => row.dimensions.category
 assert.deepStrictEqual(funSeries.map((row) => row.source_value_minor), [500, 0, 1000, 500]);
 assert.deepStrictEqual(funSeries.map((row) => row.value_minor), [500, 500, 1500, 2000]);
 const utilitiesSeries = groupedCumulative.rows.filter((row) => row.dimensions.category_id === 'utilities');
-assert.deepStrictEqual(utilitiesSeries.map((row) => row.source_value_minor), [500, 500, 0, 500]);
-assert.deepStrictEqual(utilitiesSeries.map((row) => row.value_minor), [500, 1000, 1000, 1500]);
+assert.deepStrictEqual(utilitiesSeries.map((row) => row.source_value_minor), [500, 500, 0, 1000]);
+assert.deepStrictEqual(utilitiesSeries.map((row) => row.value_minor), [500, 1000, 1000, 2000]);
 
-// Comparison period: Mar-Apr vs immediately preceding Jan-Feb.
 const compared = period.evaluatePeriodSeries(fixture, periodQuery(
   '2026-03-01', '2026-05-01', 'MONTH', 'PREVIOUS_COMPARABLE_PERIOD'
 ));
@@ -224,7 +220,6 @@ const deltaPct = calc.evaluateCalculatedMetric(compared, metricSpec('DELTA_PCT',
 assert.deepStrictEqual(deltaPct.rows.map((row) => row.value_ppm), [0, 250000]);
 assert.deepStrictEqual(deltaPct.rows.map((row) => row.status), ['OK', 'OK']);
 
-// Zero reference is explicit: 0->nonzero is undefined, 0->0 is a defined no-change state.
 const zeroReference = period.evaluatePeriodSeries(fixture, periodQuery(
   '2026-01-01', '2026-02-01', 'MONTH', 'PREVIOUS_COMPARABLE_PERIOD'
 ));
@@ -241,7 +236,6 @@ assert.strictEqual(bothZeroPct.rows[0].reference_value_minor, 0);
 assert.strictEqual(bothZeroPct.rows[0].value_ppm, 0);
 assert.strictEqual(bothZeroPct.rows[0].status, 'ZERO_REFERENCE_NO_CHANGE');
 
-// A clipped comparison that changes bucket count must fail closed rather than pair unlike series.
 const leap = period.evaluatePeriodSeries(fixture, periodQuery(
   '2024-02-01', '2024-03-01', 'DAY', 'YEAR_OVER_YEAR'
 ));
@@ -249,15 +243,15 @@ assert.strictEqual(leap.primary_buckets.length, 29);
 assert.strictEqual(leap.comparison_buckets.length, 28);
 assert.throws(() => calc.evaluateCalculatedMetric(leap, metricSpec('DELTA_ABS', { reference: 'PERIOD_COMPARISON' })), /CALC_REFERENCE_BUCKET_COUNT_MISMATCH/);
 
-// Source completeness is mandatory for share/Top-N transformations.
 const truncated = { ...grouped, truncated: true, total_rows: grouped.rows.length + 1 };
 assert.throws(() => calc.evaluateCalculatedMetric(truncated, metricSpec('TOP_N_OTHER', { n: 2 })), /CALC_ANALYTICS_RESULT_INCOMPLETE/);
 
-// Deterministic rounding: halves move away from zero; telemetry contains no financial payload/private dimensions.
 assert.strictEqual(calc.roundRatioHalfAway(3, 2), 2);
 assert.strictEqual(calc.roundRatioHalfAway(-3, 2), -2);
 assert.strictEqual(calc.roundRatioHalfAway(1, 2), 1);
 assert.strictEqual(calc.roundRatioHalfAway(-1, 2), -1);
+assert.strictEqual(calc.roundRatioHalfAway(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), 1);
+
 const telemetry = calc.calculatedTelemetry(movingAvgFull);
 assert.deepStrictEqual(telemetry, {
   schema: 'PRH_ANALYTICS_CALCULATED_METRICS_V1',
@@ -286,6 +280,7 @@ console.log('calculated_metrics_contract_test: OK', {
   ratioScale: calc.RATIO_SCALE,
   shareReconciles: true,
   topNOtherReconciles: true,
+  deterministicTieBreak: true,
   zeroReferenceExplicit: true,
   groupedMissingAsZero: true,
   arbitraryFormulaSurface: false,
