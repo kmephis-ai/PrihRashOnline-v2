@@ -57,12 +57,13 @@ function prhReleaseHealthCheck(expectedBuild) {
   }
 
   // Private binding proof. This invokes the real read-only Home projection on the
-  // deployed workbook, but receives only a constant technical scalar without financial payload.
+  // deployed workbook through the generated canonical-lib runtime bundle, but receives
+  // only a constant technical scalar without financial payload.
   if (typeof prhR2FinancialHomeReadSmokeToken !== 'function') {
     throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_MISSING');
   }
   var homeReadSmoke = prhR2FinancialHomeReadSmokeToken();
-  if (homeReadSmoke !== 'PRH_R2_HOME_READ_V1|OK|7') {
+  if (homeReadSmoke !== 'PRH_R2_HOME_READ_V2|CANONICAL_LIB|OK|7') {
     throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED');
   }
 
