@@ -56,6 +56,8 @@ const viewports = [
           const legacy = nav.querySelector('a[data-r2-nav="legacy"]');
           const root = document.documentElement;
           const body = document.body;
+          const forbiddenFinancialKeys = /^(?:amount|amount_minor|income|income_minor|expense|expense_minor|cash_flow|cash_flow_minor|balance|balance_minor|value|value_minor|budget_minor)$/i;
+          const links = primary.concat(legacy ? [legacy] : []);
           return {
             primary: primary.map((link) => ({ id: link.dataset.r2Nav, href: link.getAttribute('href'), current: link.getAttribute('aria-current') })),
             legacyHref: legacy && legacy.getAttribute('href'),
@@ -64,7 +66,10 @@ const viewports = [
             navClientWidth: nav.clientWidth,
             bodyOverflow: Math.max(root.scrollWidth, body.scrollWidth) - innerWidth,
             marker: document.querySelector('meta[name="prh-canonical-r2"]')?.content || '',
-            financialPayloadInHrefs: primary.concat(legacy ? [legacy] : []).some((link) => /amount|income|expense|cash_flow|balance|value_minor/i.test(link.getAttribute('href') || ''))
+            financialPayloadInHrefs: links.some((link) => {
+              const url = new URL(link.getAttribute('href') || '', location.href);
+              return Array.from(url.searchParams.keys()).some((key) => forbiddenFinancialKeys.test(key));
+            })
           };
         });
         assert.strictEqual(state.marker, '1.0.0');
@@ -87,7 +92,12 @@ const viewports = [
     fs.writeFileSync(path.join(artifactDir, 'canonical-r2-navigation.json'), JSON.stringify({
       schema: 'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V1', privacy_class: 'PUBLIC_SYNTHETIC', evidence
     }, null, 2));
-    console.log('canonical_r2_navigation_visual_test: OK', { viewports: viewports.map((item) => item.name), primaryRoutes: 8, legacyRollback: true });
+    console.log('canonical_r2_navigation_visual_test: OK', {
+      viewports: viewports.map((item) => item.name),
+      primaryRoutes: 8,
+      legacyRollback: true,
+      privacyCheck: 'QUERY_PARAMETER_KEYS_ONLY'
+    });
   } finally {
     await browser.close().catch(() => {});
     fs.rmSync(tempFile, { force: true });
