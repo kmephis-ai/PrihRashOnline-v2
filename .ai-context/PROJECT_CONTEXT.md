@@ -16,21 +16,21 @@
 
 ## Текущая инженерная задача
 
-`DASH-080` — единственный **current writer**, canonical Issue #198, branch `agent/DASH-080-responsive-grid-composer`. Зависимости `STUDIO-080` и `VIZ-070` уже DONE/Main Verification PASS; `PRIV-080` также завершён до переключения resolver на composer.
+`DASH-081` — единственный **current writer**, canonical Issue #200, branch `agent/DASH-081-widget-factory-semantic-bindings`. Зависимости `DASH-080` и `ANL-073` уже DONE/Main Verification PASS.
 
-`PRIV-080` завершён: canonical Issue #79 **DONE**, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS. Duplicate Issue #196 закрыт и не имеет writer authority.
+`DASH-080` завершён: Issue #198 **DONE**, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS.
 
-DASH-080 вводит `PRH_DASHBOARD_COMPOSER_V1@1.0.0` как configuration-only слой Analytics Studio. Canonical desktop layout использует bounded 12-column grid; invalid/out-of-bounds/overlap geometry repair выполняется deterministic row-major policy или fail-closed при исчерпании capacity. Stable layout identity = `FNV1A32_CANONICAL_JSON_V1` по canonical representation.
+DASH-081 вводит `PRH_WIDGET_FACTORY_V1@1.0.0` как configuration-only semantic binding layer поверх DASH-080. Registry = `KPI`, `CARD`, `CHART`, `TABLE`, `PIVOT`. Каждый binding использует canonical normalized `PRH_ANALYTICS_QUERY_V1`; query hash вычисляет Analytics engine, dashboard layer фиксирует `query_modified=false` и не получает query execution authority.
 
-Composer операции ADD/MOVE/RESIZE/DUPLICATE/REMOVE/RESET immutable и deterministic. Placeholder widgets содержат только configuration metadata и обязаны иметь `semantic_binding_status=UNBOUND`; AnalyticsQuery, ChartSpec, KPI/FIN-TRUTH, transaction rows, financial values, private dimension labels и filter/query payload не принадлежат DASH-080.
+`CHART` presentation = canonical `PRH_CHART_SPEC_V1` и валидируется через `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`. `PIVOT` presentation = `PRH_PIVOT_SPEC_V1` из ANL-073; factory проверяет exact measures/dimensions/grain parity, но не вызывает `evaluatePivot()` и не принимает AnalyticsResult.
 
-Tablet layout выводится deterministic repack в 6 columns; mobile = one-column canonical stack. Ни один widget не может silently drop. Canonical DOM order следует row-major order; browser evidence покрывает 390x844, 768x1024 и 1440x900 без horizontal overflow.
+`KPI/CARD` разрешены только для exactly one selected measure, без grouped dimensions/grain. `TABLE` использует `PRH_TABLE_PRESENTATION_V1` и обязан exact-cover selected query fields. Broken bindings fail closed со stable reason codes; silent fallback/downgrade запрещён.
 
-Live `surface=composer` — opt-in configuration-only runtime без private financial runtime fetch и без `google.script.run`. Persistence = `SESSION_ONLY`; local/session storage для saved dashboards не вводится. Persisted saved dashboards остаются DASH-084.
+DASH-080 layout contract не изменяется: placeholder остаётся `PRH_DASHBOARD_PLACEHOLDER_WIDGET_V1` / `semantic_binding_status=UNBOUND`. Явный `bindPlaceholder()` создаёт отдельный `PRH_DASHBOARD_BOUND_WIDGET_V1` с `geometry_mutation=false`, `layout_identity_authority=false`; AnalyticsQuery/ChartSpec по-прежнему не внедряются внутрь DASH-080 layout spec.
 
-Studio получает READY launcher на composer только после STUDIO/PRIV pre-render decoration. Composer controls keyboard-accessible, имеют accessible names/focus-visible; widget regions labelled. Financial/write/query/auth/storage/network/deploy authorities остаются false; `FREE_ONLY` mandatory.
+Binding configuration может содержать private-runtime filters/identifiers, но public evidence только synthetic. Telemetry allowlist = schema/version/widget_kind/query_hash_prefix/binding_hash_prefix/decision/reason; filter values/private IDs/currency/financial values не публикуются. Financial/write/query/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
 
-Required gates: `Dashboard composer` и `Dashboard composer visual gate`. Contract/property tests, router `privateReads=0`, Node/browser canonical identity parity, responsive visual evidence и существующие PRIV/STUDIO/VIZ/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates должны оставаться green.
+Required gate: `Widget factory semantic bindings` (`PURE_DOMAIN_APPLICATION`). Existing DASH-080/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates должны оставаться green.
 
 ## Current R0 truth
 
@@ -99,31 +99,35 @@ VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`
 
 - `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
 - `PRIV-080` — **DONE**, canonical Issue #79 Main Verification PASS, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
-- `DASH-080` — **current writer**, canonical Issue #198, branch `agent/DASH-080-responsive-grid-composer`; IN_PROGRESS до Main Verification.
+- `DASH-080` — **DONE**, Issue #198 Main Verification PASS, candidate `0ce4b43546df67ac6c8c8a0b19629680d7dad405`, merge `70b84350e36e125cea7bdbc396ec967a398fdf1f`.
+- `DASH-081` — **current writer**, canonical Issue #200, branch `agent/DASH-081-widget-factory-semantic-bindings`; IN_PROGRESS до Main Verification.
 
 PRIV-080 machine boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`, MASKED pre-render redaction, DEMO = PUBLIC_SYNTHETIC only/private reads = 0, ZEN structural-only, selector preference schema/version/mode only. Presentation mode не является authorization/security boundary.
 
-DASH-080 machine boundary:
+DASH-080 machine boundary сохраняется: `PRH_DASHBOARD_COMPOSER_V1@1.0.0`, desktop 12-column deterministic grid, tablet/mobile derivation, session-only state, placeholder `semantic_binding_status=UNBOUND`, no financial/query authority.
 
-- contract `lib/dashboard/dashboard_composer.v1.json`;
-- core `lib/dashboard/dashboard_composer.js`;
-- Apps Script Studio integration `DashboardComposerStudioControlService.js`;
-- live configuration-only UI `DashboardComposerWebApp.html`;
-- canonical router integration в `CanonicalR2WebAppService.js`;
-- core/property gate `tests/dashboard_composer_contract_test.js`;
-- runtime/router gate `tests/dashboard_composer_runtime_contract_test.js`;
-- Playwright responsive/a11y gate `tests/dashboard_composer_visual_test.js`;
-- normative doc `docs/dashboard/DASHBOARD_COMPOSER.md`;
-- named gates `Dashboard composer` + `Dashboard composer visual gate`;
-- desktop canonical 12-column layout + deterministic overlap/out-of-bounds repair;
-- tablet 6-column repack + mobile one-column stack without silent drop;
-- placeholder `semantic_binding_status=UNBOUND`;
-- session-only state; saved dashboards remain DASH-084;
-- all financial/write/query/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
+DASH-081 machine boundary:
+
+- contract `lib/dashboard/widget_factory.v1.json`;
+- core `lib/dashboard/widget_factory.js`;
+- binding schema `PRH_WIDGET_BINDING_V1`;
+- validation schema `PRH_WIDGET_BINDING_VALIDATION_V1`;
+- bound descriptor `PRH_DASHBOARD_BOUND_WIDGET_V1`;
+- registry `KPI/CARD/CHART/TABLE/PIVOT`;
+- AnalyticsQuery normalization/hash delegated to ANL-010;
+- CHART compatibility delegated to VIZ-070;
+- PIVOT spec normalization delegated to ANL-073;
+- no financial result/transaction payload in binding;
+- explicit bind only; no implicit auto-bind;
+- telemetry hashes/reason only;
+- contract/property gate `tests/widget_factory_semantic_bindings_contract_test.js`;
+- normative doc `docs/dashboard/WIDGET_FACTORY_SEMANTIC_BINDINGS.md`;
+- named gate `Widget factory semantic bindings`;
+- all financial/write/query-execution/query-mutation/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. DASH-080 contract = `POLICY_GOVERNANCE`/core contract coverage, runtime parity = `RUNTIME_INTEGRATION`, visual = `UI_E2E`. Named gates `Dashboard composer` и `Dashboard composer visual gate` обязательны вместе с existing PRIV/STUDIO/R2/FIN/MIG gates; red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. DASH-081 contract test = `PURE_DOMAIN_APPLICATION`; named gate `Widget factory semantic bindings` обязателен вместе с existing DASH-080/PRIV/STUDIO/VIZ/ANL-073/R2/FIN/MIG gates. Red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -143,7 +147,7 @@ PR Validation
 -> Main Verification
 ```
 
-DASH-080 остаётся открытым до green composer contract/runtime/visual gates + existing PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-081 остаётся открытым до green widget factory contract + existing DASH-080/PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -151,4 +155,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080 и PRIV-080 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-080` / Issue #198 — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080, PRIV-080 и DASH-080 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-081` / Issue #200 — единственный active writer.

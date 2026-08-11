@@ -104,6 +104,8 @@ jobs:
           set -euo pipefail
           node tests/dashboard_composer_contract_test.js
           node tests/dashboard_composer_runtime_contract_test.js
+      - name: Widget factory semantic bindings
+        run: node tests/widget_factory_semantic_bindings_contract_test.js
       - name: Financial Home
         run: node tests/financial_home_contract_test.js
       - name: R2 Financial runtime parity

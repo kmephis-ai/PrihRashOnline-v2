@@ -1,0 +1,83 @@
+{
+  "schema": "PRH_WIDGET_FACTORY_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-081",
+  "binding_schema": "PRH_WIDGET_BINDING_V1",
+  "validation_schema": "PRH_WIDGET_BINDING_VALIDATION_V1",
+  "bound_descriptor_schema": "PRH_DASHBOARD_BOUND_WIDGET_V1",
+  "value_presentation_schema": "PRH_VALUE_WIDGET_PRESENTATION_V1",
+  "table_presentation_schema": "PRH_TABLE_PRESENTATION_V1",
+  "identity_algorithm": "SHA256_CANONICAL_JSON_V1",
+  "upstream": {
+    "dashboard_composer": "PRH_DASHBOARD_COMPOSER_V1@1.0.0",
+    "analytics_contract": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "visualization_registry": "PRH_VISUALIZATION_REGISTRY_V2@2.0.0",
+    "pivot_olap": "PRH_PIVOT_OLAP_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "widget_registry": {
+    "KPI": {
+      "presentation_schema": "PRH_VALUE_WIDGET_PRESENTATION_V1",
+      "query_rule": "SINGLE_MEASURE_UNGROUPED",
+      "renderer_family": "VALUE_CARD"
+    },
+    "CARD": {
+      "presentation_schema": "PRH_VALUE_WIDGET_PRESENTATION_V1",
+      "query_rule": "SINGLE_MEASURE_UNGROUPED",
+      "renderer_family": "VALUE_CARD"
+    },
+    "CHART": {
+      "presentation_schema": "PRH_CHART_SPEC_V1",
+      "query_rule": "VIZ070_COMPATIBLE",
+      "renderer_family": "VIZ_REGISTRY"
+    },
+    "TABLE": {
+      "presentation_schema": "PRH_TABLE_PRESENTATION_V1",
+      "query_rule": "EXACT_SELECTED_FIELDS",
+      "renderer_family": "SEMANTIC_TABLE_V1"
+    },
+    "PIVOT": {
+      "presentation_schema": "PRH_PIVOT_SPEC_V1",
+      "query_rule": "EXACT_PIVOT_SELECTION",
+      "renderer_family": "PIVOT_OLAP"
+    }
+  },
+  "principles": {
+    "configuration_only": true,
+    "explicit_bind_only": true,
+    "implicit_auto_bind": false,
+    "query_mutation_allowed": false,
+    "query_execution_authority": false,
+    "financial_formula_allowed": false,
+    "financial_result_in_binding_allowed": false,
+    "transaction_payload_allowed": false,
+    "broken_binding_fallback_allowed": false,
+    "public_financial_evidence": "SYNTHETIC_ONLY",
+    "free_only": true
+  },
+  "limits": {
+    "max_title_length": 120,
+    "max_table_columns": 12
+  },
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "widget_kind",
+    "query_hash_prefix",
+    "binding_hash_prefix",
+    "decision",
+    "reason"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "canonical_mutation": false,
+    "authorization": false,
+    "storage": false,
+    "network": false,
+    "deployment": false,
+    "renderer": false
+  }
+}
