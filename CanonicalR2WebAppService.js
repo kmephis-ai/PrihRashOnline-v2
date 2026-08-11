@@ -50,7 +50,7 @@ function prhR2EscapeHtml_(value) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
 
@@ -188,7 +188,8 @@ function prhCanonicalR2WebAppSmokeToken() {
   if (!html || html.indexOf('data-prh-canonical-r2-shell="1"') < 0 ||
       html.indexOf('data-active-surface="home"') < 0 || html.indexOf('Financial Home') < 0 ||
       html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0 ||
-      html.indexOf('?surface=studio&mode=explore') < 0 ||
+      html.indexOf('data-r2-studio-launcher="1"') < 0 ||
+      html.indexOf('surface=studio') < 0 || html.indexOf('mode=explore') < 0 ||
       html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0) {
     throw new Error('R2_CANONICAL_RENDER_SMOKE_FAILED');
   }
