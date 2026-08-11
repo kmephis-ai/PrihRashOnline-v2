@@ -7,6 +7,7 @@ const ROOT = path.join(__dirname, '..');
 const PR_WORKFLOW = '.github/workflows/pr-validation.yml';
 const TRUSTED_WORKFLOW = '.github/workflows/trusted-dev-deploy.yml';
 const RUNTIME_WORKFLOW = '.github/workflows/trusted-runtime-health.yml';
+const RECOVERY_WORKFLOW = '.github/workflows/ci003-postmerge-recovery.yml';
 const MAIN_VERIFY_WORKFLOW = '.github/workflows/main-verification.yml';
 const LEGACY_WORKFLOW = '.github/workflows/chat-driven-dev-release.yml';
 
@@ -68,6 +69,27 @@ function scanRuntimeWorkflow(text) {
   return findings;
 }
 
+function scanRecoveryWorkflow(text) {
+  const findings = [];
+  if (!/on:\s*\n\s*push:\s*\n\s*branches:\s*\[main\]/.test(text)) findings.push('recovery-trigger-not-main-push-only');
+  if (!/contents:\s*write\b/.test(text) || !/pull-requests:\s*read\b/.test(text) || !/issues:\s*read\b/.test(text) || !/statuses:\s*write\b/.test(text)) {
+    findings.push('recovery-permissions-invalid');
+  }
+  if (/\$\{\{\s*secrets\./.test(text) || /\benvironment:\s*DEV\b/.test(text)) findings.push('recovery-must-be-secret-free');
+  if (!/merged_by\.login/.test(text) || !/github-actions\[bot\]/.test(text) || !/merge_commit_sha/.test(text) || !/head\.sha/.test(text) || !/base\.ref/.test(text)) {
+    findings.push('recovery-automation-merge-identity-check-missing');
+  }
+  if (!/trusted-dev-deploy/.test(text) || !/trusted-runtime-health/.test(text)) findings.push('recovery-trusted-candidate-gates-missing');
+  if (!/seq 1 12/.test(text) || !/sleep 5/.test(text)) findings.push('recovery-grace-period-missing');
+  if (!/autonomous-merge-reason:POSTMERGE_RECOVERED/.test(text)) findings.push('recovery-autonomous-evidence-missing');
+  if (!/ci003-main-verification/.test(text) || !/repos\/\$\{GITHUB_REPOSITORY\}\/dispatches/.test(text)) findings.push('recovery-main-verification-dispatch-missing');
+  if (!/main-verification-dispatch-reason:POSTMERGE_RECOVERED/.test(text)) findings.push('recovery-dispatch-evidence-missing');
+  if (/merge_method/.test(text) || /pulls\/[^\n]*\/merge/.test(text)) findings.push('recovery-must-not-own-merge');
+  if (/state:\s*["']?closed/i.test(text) || /state_reason:\s*["']?completed/i.test(text)) findings.push('recovery-must-not-close-issue');
+  if (hasAny(text, [/\bgit\s+push\b/, /--admin\b/, /manual[_ -]?marker/i, /release[_ -]?snapshot/i, /rev-list[^\n]*--count/])) findings.push('recovery-legacy-or-bypass-gate-present');
+  return findings;
+}
+
 function scanMainVerification(text) {
   const findings = [];
   if (!/repository_dispatch:\s*\n\s*types:\s*\[ci003-main-verification\]/.test(text)) findings.push('main-verification-trigger-invalid');
@@ -90,12 +112,13 @@ function scanLegacyWorkflow(text) {
 }
 
 function scan(root = ROOT) {
-  const required = [PR_WORKFLOW, TRUSTED_WORKFLOW, RUNTIME_WORKFLOW, MAIN_VERIFY_WORKFLOW, LEGACY_WORKFLOW];
+  const required = [PR_WORKFLOW, TRUSTED_WORKFLOW, RUNTIME_WORKFLOW, RECOVERY_WORKFLOW, MAIN_VERIFY_WORKFLOW, LEGACY_WORKFLOW];
   const missing = required.filter((file) => !fs.existsSync(path.join(root, file)));
   const findings = missing.map((file) => ({ file, rule: 'required-workflow-missing' }));
   if (!missing.includes(PR_WORKFLOW)) scanPrWorkflow(read(root, PR_WORKFLOW)).forEach((rule) => findings.push({ file: PR_WORKFLOW, rule }));
   if (!missing.includes(TRUSTED_WORKFLOW)) scanTrustedWorkflow(read(root, TRUSTED_WORKFLOW)).forEach((rule) => findings.push({ file: TRUSTED_WORKFLOW, rule }));
   if (!missing.includes(RUNTIME_WORKFLOW)) scanRuntimeWorkflow(read(root, RUNTIME_WORKFLOW)).forEach((rule) => findings.push({ file: RUNTIME_WORKFLOW, rule }));
+  if (!missing.includes(RECOVERY_WORKFLOW)) scanRecoveryWorkflow(read(root, RECOVERY_WORKFLOW)).forEach((rule) => findings.push({ file: RECOVERY_WORKFLOW, rule }));
   if (!missing.includes(MAIN_VERIFY_WORKFLOW)) scanMainVerification(read(root, MAIN_VERIFY_WORKFLOW)).forEach((rule) => findings.push({ file: MAIN_VERIFY_WORKFLOW, rule }));
   if (!missing.includes(LEGACY_WORKFLOW)) scanLegacyWorkflow(read(root, LEGACY_WORKFLOW)).forEach((rule) => findings.push({ file: LEGACY_WORKFLOW, rule }));
   return findings;
@@ -117,6 +140,7 @@ function main() {
     promotion: 'workflow_run/default-branch',
     candidate: 'immutable-sha+trusted-reconstruction',
     merge: 'health-gated exact-head squash',
+    recovery: 'main-push+automation-owned+trusted-gates+dispatch-only',
     mainVerification: 'repository_dispatch+automatic-issue-close'
   });
 }
@@ -126,6 +150,7 @@ module.exports = {
   scanPrWorkflow,
   scanTrustedWorkflow,
   scanRuntimeWorkflow,
+  scanRecoveryWorkflow,
   scanMainVerification,
   scanLegacyWorkflow,
   scan
