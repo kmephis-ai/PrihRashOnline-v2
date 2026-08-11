@@ -4,7 +4,7 @@ function prhPrivacyStudioSelectorHtml_(requestedMode) {
   var items = [
     ['NORMAL', 'Обычный', 'Полный авторизованный private view'],
     ['MASKED', 'Скрытый', 'Суммы и частные измерения удаляются до DOM'],
-    ['DEMO', 'Демо', 'Только PUBLIC_SYNTHETIC, без private runtime read'],
+    ['DEMO', 'Демо', 'Только независимые демо-данные, без private runtime read'],
     ['ZEN', 'Дзен', 'Только безопасное структурное состояние']
   ];
   var links = items.map(function(item) {
