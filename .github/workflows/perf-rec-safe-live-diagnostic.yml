@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/perf-rec-safe-live-diagnostic.yml'
       - 'tools/perf-rec-baseline-exec.js'
+      - 'tools/oauth-drive-scope-probe.js'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +39,19 @@ jobs:
           [[ "${APPS_SCRIPT_API_DEPLOYMENT_ID}" =~ ^AKfy[A-Za-z0-9_-]+$ ]] || { echo '::error::Invalid APPS_SCRIPT_API_DEPLOYMENT_ID'; exit 1; }
           printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
           chmod 600 "${HOME}/.clasprc.json"
+
+      - name: Check effective OAuth Drive API access
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          RAW="$(node tools/oauth-drive-scope-probe.js)"
+          STATUS=$?
+          set -e
+          SAFE="$(jq -r '.reason // "OAUTH_DRIVE_API_CHECK_FAILED"' <<<"${RAW}" 2>/dev/null || printf 'OAUTH_DRIVE_API_CHECK_FAILED')"
+          [[ "${SAFE}" =~ ^[A-Z0-9_]{1,80}$ ]] || SAFE='OAUTH_DRIVE_API_CHECK_FAILED'
+          echo "PERF-REC OAuth diagnostic: ${SAFE}"
+          [[ "${STATUS}" -eq 0 && "${SAFE}" == 'OAUTH_DRIVE_API_ACCESS_OK' ]]
 
       - name: Run one privacy-safe cold diagnostic
         env:
