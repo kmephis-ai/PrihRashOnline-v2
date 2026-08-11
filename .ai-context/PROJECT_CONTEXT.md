@@ -109,6 +109,8 @@ ANL-072 не меняет enum/semantics upstream contracts и после Main V
 
 Owner-private migration остаётся DONE/OWNER_VERIFIED: `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`. Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`; это occurrence-aware identity capability, а не разрешение AI/CI выбирать семантику дубликатов.
 
+Historical authorized execution policy остаётся `MIG010_EXECUTION_POLICY_V1@1.0.0` со strategy `STAGE_VERIFY_REPLACE_WITH_ROLLBACK_V1`. После finalize выполнение останавливается в `FINALIZED_PENDING_RECONCILIATION` до отдельной post-write reconciliation; только owner-private reconciliation с `unexplainedMismatch=0` завершает verified lifecycle.
+
 GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI также не могут переиспользовать историческое owner authorization для будущей financial mutation. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound и non-reusable. Текущая write authority = false.
 
 ## Current delivery
