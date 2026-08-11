@@ -66,15 +66,18 @@ Google остаётся authoritative; cloud blockers не создают billin
 - `SCOPE-070` — **DONE**, Issue #77 Main Verification PASS.
 - `ANL-071` — **DONE**, Issue #153 Main Verification PASS.
 - `ANL-074` — **DONE**, Issue #155 Main Verification PASS.
-- `ANL-072` — **IN_PROGRESS**, Issue #178, branch `agent/ANL-072-safe-calculated-metrics-v2`.
+- `ANL-072` — **DONE**, Issue #178 Main Verification PASS, candidate `0cc1260edb0a264d662a813abc04c1236bb44655`, merge `19866dfe6856d42dca89e8469c3520e7c2f3c437`.
+- `BENCH-070` — **IN_PROGRESS**, Issue #80, branch `agent/BENCH-070-personal-comparison-engine`.
 
-ANL-072 вводит `PRH_ANALYTICS_CALCULATED_METRICS_V1@1.0.0` как storage-neutral pure transformation layer поверх canonical `AnalyticsResult` и `PRH_ANALYTICS_PERIOD_RESULT_V1`. Разрешены только `SHARE`, `DELTA_ABS`, `DELTA_PCT`, `CUMULATIVE`, `MOVING_AVERAGE`, `MOVING_MEDIAN`, `TOP_N_OTHER`. Произвольные JavaScript/eval/SQL/executable formulas запрещены и не могут становиться скрытым вторым финансовым движком.
+BENCH-070 вводит `PRH_PERSONAL_BENCHMARK_V1@1.0.0` как pure comparison layer поверх `PRH_ANALYTICS_PERIOD_ENGINE_V1`, `PRH_ANALYTICS_CALCULATED_METRICS_V1` и `PRH_ANALYTICS_SCOPE_V1`. Allowlist comparison types: `PREVIOUS_COMPARABLE_PERIOD`, `PERSONAL_ROLLING_BASELINE`, `BUDGET`, `TARGET`, `MANUAL_INDEX`.
 
-Доли и проценты представлены deterministic integer PPM (`1 000 000 = 100%`), денежные значения остаются integer minor units, а потенциально переполняющиеся промежуточные операции используют exact integer arithmetic. `SHARE` обязан reconcile ровно к 1 000 000 PPM; `TOP_N_OTHER` обязан reconcile к исходному canonical total. Percent delta имеет явные `ZERO_REFERENCE_NO_CHANGE` / `ZERO_REFERENCE_UNDEFINED`, а не NaN/Infinity. Pairwise delta допускается только для structurally comparable primary/reference series; calendar-split несовместимость не угадывается автоматически.
+Previous/comparable period не пересчитывает календарные правила: BENCH сохраняет period quality ANL-071 и использует ANL-072 `DELTA_ABS`/`DELTA_PCT`. Rolling baseline исключает текущий bucket из history и использует ANL-072 `MOVING_AVERAGE`; окно bounded 2..24, а недостаточная история различается через `REQUIRE_FULL` и `ALLOW_PARTIAL`.
 
-Moving average/median используют bounded positive window и explicit `REQUIRE_FULL`/`ALLOW_PARTIAL`. Missing additive partition внутри period series интерпретируется как ноль только для оркестрации ряда и не создаёт новую транзакцию. Truncated AnalyticsResult, неподходящая provenance, неизвестная операция/measure/window/reference и несовместимое число comparison buckets завершаются fail-closed.
+Budget/target/manual index являются declared references и не становятся FIN-TRUTH. Reference обязан иметь тот же period, currency и normalized scope. Mismatch, invalid provenance, non-additive measure, zero/invalid manual index и unknown comparison type завершаются fail-closed. Manual index использует bounded positive integer PPM; zero reference сохраняет explicit `ZERO_REFERENCE_NO_CHANGE` / `ZERO_REFERENCE_UNDEFINED`, без NaN/Infinity.
 
-ANL-072 не переопределяет FIN-TRUTH/KPI Dictionary и имеет `financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `executable_formula=false`. Public tests synthetic-only; telemetry исключает financial payload и private dimension values. После Main Verification ANL-072 разблокирует `BENCH-070` и `ANL-073`.
+BENCH-070 работает со scalar additive semantic measures до отдельного `ANL-073` Pivot/OLAP. Он не реализует OLAP скрыто и не создаёт dashboard-specific formula engine. `financial_truth=false`, `financial_write=false`, `io=false`, `network=false`, `storage=false`, `renderer=false`, `ui=false`, `external_market_data=false`. Required core не использует внешний market-data provider, API key или paid SKU; `FREE_ONLY` mandatory.
+
+Public tests independently generated synthetic-only. Public telemetry содержит только schema/version/comparison/measure/scope/period/sample/quality/reason metadata и не содержит financial values/private IDs. Named gate: `Personal benchmark comparisons`; TEST-010 class = `PURE_DOMAIN_APPLICATION`.
 
 ## MIG-010 historical safety boundary
 
@@ -88,7 +91,7 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
+Root `AGENTS.md` is the public-safe repository AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V1` enforce one-writer continuation. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
 
 ## Current delivery chain
 
@@ -103,11 +106,11 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-ANL-072 остаётся открытым до `Calculated/window metrics` + existing FIN/DATA/ANL/SUB/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+BENCH-070 остаётся открытым до `Personal benchmark comparisons` + existing FIN/DATA/ANL/SCOPE/SUB/privacy/FREE_ONLY/full layered/UI/PWA PASS, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Current runtime truth
 
-Private primary store/runtime: Google Sheets + Apps Script. ANL-072 — pure analytics transformation layer; он не подключает новый сервис, не меняет current R2 routing, не создаёт financial write и не требует paid provider. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary store/runtime: Google Sheets + Apps Script. BENCH-070 — pure analytics comparison layer; он не подключает новый сервис, не меняет current R2 routing, не создаёт financial write и не требует paid provider. Public GitHub evidence independently generated synthetic only. Private UI remains `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
