@@ -9,6 +9,7 @@ const PRIVACY = require('../lib/privacy/privacy_presentation');
 const root = path.join(__dirname, '..');
 const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
 const privacyStudioSource = fs.readFileSync(path.join(root, 'PrivacyStudioControlService.js'), 'utf8');
+const composerStudioSource = fs.readFileSync(path.join(root, 'DashboardComposerStudioControlService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'FinancialHomeWebApp.html'), 'utf8');
 const studioHtml = fs.readFileSync(path.join(root, 'AnalyticsStudioWebApp.html'), 'utf8');
@@ -71,6 +72,7 @@ const context = vm.createContext({
 });
 vm.runInContext(privacyRuntimeSource, context, { filename: 'PrivacyPresentationService.js' });
 vm.runInContext(privacyStudioSource, context, { filename: 'PrivacyStudioControlService.js' });
+vm.runInContext(composerStudioSource, context, { filename: 'DashboardComposerStudioControlService.js' });
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 
 assert.strictEqual(context.PRH_PRIVACY_PRESENTATION_RUNTIME.SECURITY_BOUNDARY, false);
@@ -140,6 +142,7 @@ assert(studioOutput.includes('data-privacy-choice="DEMO"'));
 assert(studioOutput.includes('data-privacy-choice="ZEN"'));
 assert(studioOutput.includes('prh.privacyPresentation.mode.v1'));
 assert(studioOutput.includes('JSON.stringify({schema:S,version:V,mode:a.dataset.privacyChoice})'));
+assert(studioOutput.includes('data-dash080-composer-launcher="1"'));
 assert(!/amount_minor|account_id|category_id|member_id|project_id/.test(studioOutput));
 
 assert.strictEqual(legacyReads, 0);
@@ -149,6 +152,7 @@ console.log('privacy-presentation-runtime: PASS', {
   invalidFailSafe: 'MASKED',
   demoPrivateReads: 0,
   studioPrivateReads: 0,
+  dashboardComposerAffordance: true,
   maskedPreRender: true,
   zenStructuralOnly: true,
   canonicalZenNavigation: true,

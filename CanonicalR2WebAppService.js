@@ -5,10 +5,11 @@
  * the parity-guarded FIN runtime adapter. STUDIO-080 adds an explicit opt-in,
  * configuration-only Analytics Studio shell that never reads financial runtime
  * data. PRIV-080 applies presentation redaction before Home HTML serialization;
- * it does not grant authorization or financial authority. Other R2 routes are
- * visible in primary navigation but fail closed until their private runtime
- * binding is separately proven. Legacy Dashboard remains an explicit bounded
- * rollback route and is not a privacy-mode authority surface.
+ * it does not grant authorization or financial authority. DASH-080 adds an
+ * opt-in configuration-only composer surface with no financial runtime read.
+ * Other R2 routes are visible in primary navigation but fail closed until their
+ * private runtime binding is separately proven. Legacy Dashboard remains an
+ * explicit bounded rollback route and is not a privacy/composer authority.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
@@ -17,7 +18,8 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   ROUTE_PARAMETER: 'surface',
   LIVE_SURFACES: Object.freeze({
     home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Financial Home', financial_runtime: true }),
-    studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Analytics Studio', financial_runtime: false })
+    studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Analytics Studio', financial_runtime: false }),
+    composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Dashboard Composer', financial_runtime: false })
   }),
   SAFE_UNBOUND_SURFACES: Object.freeze({
     transactions: 'Транзакции',
@@ -39,6 +41,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
     Object.freeze(['data-quality', 'Качество данных'])
   ]),
   STUDIO_SURFACE: 'studio',
+  COMPOSER_SURFACE: 'composer',
   LEGACY_SURFACE: 'legacy',
   FINANCIAL_WRITE: false,
   CANONICAL_MUTATION: false,
@@ -174,10 +177,15 @@ function doGet(e) {
     return prhR2RenderHomeWithPrivacy_(params);
   }
   if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
-    return prhPrivacyDecorateStudioOutput_(
-      prhR2RenderFile_('studio', null),
-      params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]
+    return prhDashboardComposerDecorateStudioOutput_(
+      prhPrivacyDecorateStudioOutput_(
+        prhR2RenderFile_('studio', null),
+        params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]
+      )
     );
+  }
+  if (surface === PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE) {
+    return prhR2RenderFile_('composer', null);
   }
   return prhR2RenderUnavailable_(surface, 'RUNTIME_BINDING_NOT_PROVEN');
 }

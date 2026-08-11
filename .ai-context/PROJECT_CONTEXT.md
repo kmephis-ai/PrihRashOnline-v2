@@ -16,21 +16,21 @@
 
 ## Текущая инженерная задача
 
-`PRIV-080` — единственный **current writer**, canonical Issue #79, branch `agent/PRIV-080-privacy-presentation-modes-v2`. Duplicate Issue #196 закрыт и не имеет writer authority. Зависимости `MASTER-G7`, DESIGN-020, SEC-002 и PROF-020 уже DONE/Main Verification PASS.
+`DASH-080` — единственный **current writer**, canonical Issue #198, branch `agent/DASH-080-responsive-grid-composer`. Зависимости `STUDIO-080` и `VIZ-070` уже DONE/Main Verification PASS; `PRIV-080` также завершён до переключения resolver на composer.
 
-`STUDIO-080` завершён: Issue #194 **DONE**, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS. Regression `dashboard_studio_htmlservice_normalization_test.js` сохраняет trusted Apps Script smoke устойчивым к HtmlService entity normalization без ослабления canonical route checks.
+`PRIV-080` завершён: canonical Issue #79 **DONE**, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`, Trusted DEV Deploy PASS, Trusted Runtime Health PASS, autonomous merge PASS, Main Verification PASS. Duplicate Issue #196 закрыт и не имеет writer authority.
 
-PRIV-080 вводит `PRH_PRIVACY_PRESENTATION_V1@1.0.0` как pre-render presentation policy. Режимы: `NORMAL`, `MASKED`, `DEMO`, `ZEN`; invalid explicit mode fail-safe = `MASKED`. `security_boundary=false`, `authorization_boundary=false`: privacy mode не выдаёт права доступа и не заменяет AUTH-040/PROF-020/MYSELF.
+DASH-080 вводит `PRH_DASHBOARD_COMPOSER_V1@1.0.0` как configuration-only слой Analytics Studio. Canonical desktop layout использует bounded 12-column grid; invalid/out-of-bounds/overlap geometry repair выполняется deterministic row-major policy или fail-closed при исчерпании capacity. Stable layout identity = `FNV1A32_CANONICAL_JSON_V1` по canonical representation.
 
-MASKED редактирует уже авторизованный private presentation view **до** JSON/DOM serialization: monetary/value/private dimension fields становятся `null`, presentation arrays fail-closed становятся `[]`. CSS blur/opacity не является доказательством privacy. Source object immutable.
+Composer операции ADD/MOVE/RESIZE/DUPLICATE/REMOVE/RESET immutable и deterministic. Placeholder widgets содержат только configuration metadata и обязаны иметь `semantic_binding_status=UNBOUND`; AnalyticsQuery, ChartSpec, KPI/FIN-TRUTH, transaction rows, financial values, private dimension labels и filter/query payload не принадлежат DASH-080.
 
-DEMO не вызывает `prhR2BuildFinancialHomeRuntime_()`: допускается только independently generated `PUBLIC_SYNTHETIC` fixture с `private_runtime_read=false` и `DEMO_SYNTHETIC_NOT_FIN_TRUTH`. Private-source DEMO завершается `PRIV080_DEMO_PRIVATE_SOURCE_FORBIDDEN`.
+Tablet layout выводится deterministic repack в 6 columns; mobile = one-column canonical stack. Ни один widget не может silently drop. Canonical DOM order следует row-major order; browser evidence покрывает 390x844, 768x1024 и 1440x900 без horizontal overflow.
 
-ZEN может прочитать canonical private view только server-side после существующей authorization boundary, затем передаёт отдельному HTML только allowlisted structural/status metadata. Amounts, transaction rows и private dimensions в ZEN DOM отсутствуют. Canonical R2 navigation сохраняется.
+Live `surface=composer` — opt-in configuration-only runtime без private financial runtime fetch и без `google.script.run`. Persistence = `SESSION_ONLY`; local/session storage для saved dashboards не вводится. Persisted saved dashboards остаются DASH-084.
 
-Studio получает configuration-only privacy selector. Browser preference `prh.privacyPresentation.mode.v1` содержит строго schema/version/mode; финансовые значения, AnalyticsQuery, filters, private IDs, credentials и runtime locators запрещены. URL `privacy` передаёт выбранный mode server-side для pre-render обработки.
+Studio получает READY launcher на composer только после STUDIO/PRIV pre-render decoration. Composer controls keyboard-accessible, имеют accessible names/focus-visible; widget regions labelled. Financial/write/query/auth/storage/network/deploy authorities остаются false; `FREE_ONLY` mandatory.
 
-Required gates: `Privacy presentation modes` и `Privacy modes visual gate`. Node reference contract, Apps Script runtime parity, DEMO zero-private-read, nested/array secret injection, DOM serialization, responsive Playwright evidence и существующие FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates должны оставаться green.
+Required gates: `Dashboard composer` и `Dashboard composer visual gate`. Contract/property tests, router `privateReads=0`, Node/browser canonical identity parity, responsive visual evidence и существующие PRIV/STUDIO/VIZ/R2/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates должны оставаться green.
 
 ## Current R0 truth
 
@@ -98,29 +98,32 @@ VIZ-070 machine authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`
 ## Current R8 truth
 
 - `STUDIO-080` — **DONE**, Issue #194 Main Verification PASS, candidate `ce6ebb99b053adf0a8fd320d0ed579675c3286b6`, merge `432c2bc663e2fc5106bdc96031130673b7b76dce`.
-- `PRIV-080` — **current writer**, canonical Issue #79, branch `agent/PRIV-080-privacy-presentation-modes-v2`; IN_PROGRESS до Main Verification.
-- `DASH-080` dependency-ready после STUDIO-080, но не может стать writer, пока PRIV-080 открыт.
+- `PRIV-080` — **DONE**, canonical Issue #79 Main Verification PASS, candidate `37a668e38432b6d64646dc4369f90afb2537071a`, merge `0cf3ebfeaad4b78060d7cad6addb441230321877`.
+- `DASH-080` — **current writer**, canonical Issue #198, branch `agent/DASH-080-responsive-grid-composer`; IN_PROGRESS до Main Verification.
 
-PRIV-080 machine boundary:
+PRIV-080 machine boundary сохраняется: `PRH_PRIVACY_PRESENTATION_V1@1.0.0`, MASKED pre-render redaction, DEMO = PUBLIC_SYNTHETIC only/private reads = 0, ZEN structural-only, selector preference schema/version/mode only. Presentation mode не является authorization/security boundary.
 
-- reference contract `lib/privacy/privacy_presentation.v1.json` + `lib/privacy/privacy_presentation.js`;
-- Apps Script pre-render adapter `PrivacyPresentationService.js`;
-- Studio configuration selector `PrivacyStudioControlService.js`;
-- canonical Home integration в `CanonicalR2WebAppService.js`;
-- contract/adversarial gate `tests/privacy_presentation_modes_contract_test.js`;
-- Apps Script parity/router gate `tests/privacy_presentation_runtime_contract_test.js`;
-- Playwright DOM gate `tests/privacy_presentation_modes_visual_test.js`;
-- normative doc `docs/privacy/PRIVACY_PRESENTATION_MODES.md`;
-- named gates `Privacy presentation modes` + `Privacy modes visual gate`;
-- MASKED pre-render redaction, including arrays;
-- DEMO = PUBLIC_SYNTHETIC only, private runtime reads = 0;
-- ZEN structural-only safe page;
-- privacy selector preference schema/version/mode only;
+DASH-080 machine boundary:
+
+- contract `lib/dashboard/dashboard_composer.v1.json`;
+- core `lib/dashboard/dashboard_composer.js`;
+- Apps Script Studio integration `DashboardComposerStudioControlService.js`;
+- live configuration-only UI `DashboardComposerWebApp.html`;
+- canonical router integration в `CanonicalR2WebAppService.js`;
+- core/property gate `tests/dashboard_composer_contract_test.js`;
+- runtime/router gate `tests/dashboard_composer_runtime_contract_test.js`;
+- Playwright responsive/a11y gate `tests/dashboard_composer_visual_test.js`;
+- normative doc `docs/dashboard/DASHBOARD_COMPOSER.md`;
+- named gates `Dashboard composer` + `Dashboard composer visual gate`;
+- desktop canonical 12-column layout + deterministic overlap/out-of-bounds repair;
+- tablet 6-column repack + mobile one-column stack without silent drop;
+- placeholder `semantic_binding_status=UNBOUND`;
+- session-only state; saved dashboards remain DASH-084;
 - all financial/write/query/auth/storage/network/deploy authorities false; `FREE_ONLY` mandatory.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Privacy contract = `POLICY_GOVERNANCE`, runtime parity = `RUNTIME_INTEGRATION`, visual = `UI_E2E`. Named gates `Privacy presentation modes` и `Privacy modes visual gate` обязательны вместе с existing Studio/R2/FIN/MIG gates; red gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. DASH-080 contract = `POLICY_GOVERNANCE`/core contract coverage, runtime parity = `RUNTIME_INTEGRATION`, visual = `UI_E2E`. Named gates `Dashboard composer` и `Dashboard composer visual gate` обязательны вместе с existing PRIV/STUDIO/R2/FIN/MIG gates; red gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -140,7 +143,7 @@ PR Validation
 -> Main Verification
 ```
 
-PRIV-080 остаётся открытым до green privacy contract/runtime/visual gates + existing R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
+DASH-080 остаётся открытым до green composer contract/runtime/visual gates + existing PRIV/STUDIO/R2/VIZ/ANL/TEST/FIN/MIG/privacy/FREE_ONLY/full layered/UI/PWA gates, immutable exact candidate, trusted exact-head deploy/runtime health, autonomous merge и Main Verification.
 
 ## Read-only multi-AI review
 
@@ -148,4 +151,4 @@ Read-only multi-AI review: required roles `ARCHITECTURE`, `SECURITY_PRIVACY`, `F
 
 ## Scope handoff
 
-Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, R7 через VIZ-070 и STUDIO-080 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `PRIV-080` / Issue #79 — единственный active writer.
+Все R0, R1, R2 через UI-MIG-020, завершённые R3 включая SUB-030, YC-040, AUTH-040, R7 через VIZ-070, STUDIO-080 и PRIV-080 — DONE. `MASTER-G7` complete. YC-041/YC-042 BLOCKED. `DASH-080` / Issue #198 — единственный active writer.

@@ -1,0 +1,59 @@
+{
+  "schema": "PRH_DASHBOARD_COMPOSER_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-080",
+  "spec_schema": "PRH_DASHBOARD_SPEC_V1",
+  "widget_schema": "PRH_DASHBOARD_PLACEHOLDER_WIDGET_V1",
+  "identity_algorithm": "FNV1A32_CANONICAL_JSON_V1",
+  "persistence": "SESSION_ONLY",
+  "widget_semantic_binding_status": "UNBOUND",
+  "grid": {
+    "desktop": {"columns": 12, "max_rows": 48},
+    "tablet": {"columns": 6, "max_rows": 72},
+    "mobile": {"columns": 1, "max_rows": 192},
+    "min_width": 1,
+    "max_width": 12,
+    "min_height": 1,
+    "max_height": 6,
+    "default_width": 4,
+    "default_height": 2,
+    "max_widgets": 48
+  },
+  "responsive": {
+    "mobile_max_px": 760,
+    "tablet_max_px": 1250,
+    "desktop_strategy": "CANONICAL_REPAIRED_GRID",
+    "tablet_strategy": "ROW_MAJOR_REPACK_HALF_WIDTH_CEIL",
+    "mobile_strategy": "ONE_COLUMN_CANONICAL_STACK",
+    "silent_drop_allowed": false
+  },
+  "repair": {
+    "ordering": ["requested_y", "requested_x", "widget_id"],
+    "placement": "PREFERRED_IF_VALID_ELSE_ROW_MAJOR_FIRST_FIT",
+    "out_of_bounds_geometry": "CLAMP_SIZE_THEN_REPAIR_POSITION",
+    "overlap": "ROW_MAJOR_FIRST_FIT",
+    "capacity_exhaustion": "FAIL_CLOSED"
+  },
+  "operations": ["ADD", "MOVE", "RESIZE", "DUPLICATE", "REMOVE", "RESET"],
+  "allowed_widget_fields": ["schema", "id", "title", "semantic_binding_status", "geometry"],
+  "allowed_geometry_fields": ["x", "y", "w", "h"],
+  "forbidden_payload_key_patterns": [
+    "amount", "value_minor", "balance", "income_minor", "expense_minor", "cash_flow_minor",
+    "transaction", "dataset", "rows", "analytics_query", "query", "filters", "filter_context",
+    "chart_spec", "account_id", "category_id", "member_id", "project_id", "private"
+  ],
+  "telemetry_allowlist": ["schema", "version", "action", "widget_count", "layout_hash_prefix", "viewport_class", "decision", "reason"],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "semantic_binding": false,
+    "canonical_mutation": false,
+    "authorization": false,
+    "storage": false,
+    "network": false,
+    "deployment": false
+  },
+  "free_only": true
+}

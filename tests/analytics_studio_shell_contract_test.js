@@ -9,6 +9,7 @@ const STUDIO = require('../lib/studio/analytics_studio_shell');
 const root = path.join(__dirname, '..');
 const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
 const privacyStudioSource = fs.readFileSync(path.join(root, 'PrivacyStudioControlService.js'), 'utf8');
+const composerStudioSource = fs.readFileSync(path.join(root, 'DashboardComposerStudioControlService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const studioHtml = fs.readFileSync(path.join(root, 'AnalyticsStudioWebApp.html'), 'utf8');
 const homeHtml = fs.readFileSync(path.join(root, 'FinancialHomeWebApp.html'), 'utf8');
@@ -149,6 +150,7 @@ const context = vm.createContext({
 });
 vm.runInContext(privacyRuntimeSource, context, { filename: 'PrivacyPresentationService.js' });
 vm.runInContext(privacyStudioSource, context, { filename: 'PrivacyStudioControlService.js' });
+vm.runInContext(composerStudioSource, context, { filename: 'DashboardComposerStudioControlService.js' });
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE, 'home');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.PRIVATE_EXPOSURE, 'MYSELF');
@@ -163,6 +165,8 @@ assert(studioOutput.includes('data-prh-studio-shell="1"'));
 assert(studioOutput.includes('data-active-surface="studio"'));
 assert(studioOutput.includes('data-r2-studio-launcher="1" aria-current="page"'));
 assert(studioOutput.includes('?surface=home&mode=daily'));
+assert(studioOutput.includes('data-dash080-composer-launcher="1"'));
+assert(studioOutput.includes('href="?surface=composer"'));
 assert(!studioOutput.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
 assert(!/SYN-ACCOUNT|SYN-TX-|PUBLIC_SYNTHETIC/.test(studioOutput));
 
@@ -174,6 +178,7 @@ console.log('analytics-studio-shell-contract: PASS', {
   defaultMode: 'DAILY',
   modes: STUDIO.MODES,
   studioFinancialRuntimeFetch: false,
+  dashboardComposerReady: true,
   privateExposure: 'MYSELF',
   freeOnly: true
 });
