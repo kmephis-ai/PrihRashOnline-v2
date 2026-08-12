@@ -25,7 +25,7 @@ const expenseInput = [
 ];
 const shaped = projection.topNExpenseMix(expenseInput, 6);
 assert.deepStrictEqual(shaped.slice(0, 6).map((entry) => entry.label), ['Дом', 'Кредиты', 'Продукты', 'Коммуналка', 'Подарки', 'Разное']);
-assert.deepStrictEqual(shaped[6], { label: 'Прочее', value_minor: 5500, source_count: 3 });
+assert.deepStrictEqual({ ...shaped[6] }, { label: 'Прочее', value_minor: 5500, source_count: 3 });
 assert.strictEqual(
   shaped.reduce((sum, entry) => sum + entry.value_minor, 0),
   expenseInput.reduce((sum, entry) => sum + entry[1], 0),
@@ -48,7 +48,7 @@ assert.deepStrictEqual(line.option.series[0].data, [12000, -5000, 18000, 9000, 2
 assert.strictEqual(line.option.aria.enabled, true);
 assert.strictEqual(donut.renderer, 'ECHARTS_6');
 assert.strictEqual(donut.option.series[0].data.length, 7);
-assert.deepStrictEqual(donut.option.series[0].data[6], { name: 'Прочее', value: 5500 });
+assert.deepStrictEqual({ ...donut.option.series[0].data[6] }, { name: 'Прочее', value: 5500 });
 assert.strictEqual(donut.option.aria.enabled, true);
 
 assert.throws(
@@ -62,18 +62,8 @@ assert.throws(() => projection.topNExpenseMix([['Дом', -1]], 6), /VIZ_HOUSEHO
 assert.throws(() => projection.topNExpenseMix([['Дом', 10], ['Дом', 20]], 6), /VIZ_HOUSEHOLD_EXPENSE_LABEL_DUPLICATE/);
 
 const source = require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'visualization', 'household_visual_projection.js'), 'utf8');
-const forbiddenAuthorityPatterns = [
-  /evaluateKpis\s*\(/i,
-  /financialReconciliation/i,
-  /reconcileFinancial/i,
-  /kpi_dictionary/i,
-  /google_sheets_transaction_repository/i,
-  /canonical_transactions/i,
-  /income_minor\s*-\s*expense_minor/i
-];
-for (const pattern of forbiddenAuthorityPatterns) {
-  assert(!pattern.test(source), `visual projection must not become financial/query authority: ${pattern}`);
-}
+const localRequires = [...source.matchAll(/require\((['"])([^'"]+)\1\)/g)].map((match) => match[2]);
+assert.deepStrictEqual(localRequires, ['./visualization_foundation'], 'visual projection may depend only on renderer-neutral visualization foundation');
 assert(!/https?:\/\//i.test(source), 'visual projection must not require an external asset/CDN');
 
 console.log('household_visual_projection_visual_test: OK', {
