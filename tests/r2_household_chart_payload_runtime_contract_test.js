@@ -103,18 +103,29 @@ assert.doesNotMatch(visualBridgeSource, /income_minor\s*[-+*/]=|expense_minor\s*
   'visual runtime must not implement financial formulas');
 assert.doesNotMatch(visualBridgeSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(|deleteRow\s*\(|insertRow/,
   'visual runtime must remain read-only');
+assert.doesNotMatch(visualBridgeSource, /series\s*:|xAxis\s*:|yAxis\s*:|radius\s*:/,
+  'visual runtime must not construct ECharts options itself');
 assert.match(visualBridgeSource, /runtime\.kpiDictionary\.evaluateKpis/,
   'each period must use canonical FIN-010 evaluation');
 assert.match(visualBridgeSource, /runtime\.recentMonthsProjection\.readRecentCalendarMonths/);
+assert.match(visualBridgeSource, /runtime\.home\.compileHouseholdCashFlowChart/,
+  'cash-flow option must compile through canonical Home ChartSpec');
+assert.match(visualBridgeSource, /runtime\.home\.compileHouseholdExpenseMixChart/,
+  'expense option must compile through canonical Home ChartSpec');
 
 const readyHarness = createContext(syntheticRecords());
 const ready = readyHarness.context.prhR2BuildFinancialHomeVisualRuntime_();
 assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.SCHEMA, 'PRH_R2_HOUSEHOLD_VISUAL_RUNTIME_V1');
-assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.VERSION, '1.0.0');
+assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.VERSION, '1.1.0');
 assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.PERIOD_COUNT, 6);
+assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.RENDERER, 'ECHARTS_6');
 assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.WRITE_AUTHORITY, false);
 assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.FINANCIAL_FORMULA_COPY, false);
+assert.strictEqual(readyHarness.context.PRH_R2_VISUAL_RUNTIME.UI_CHART_OPTION_AUTHORITY, false);
+assert.strictEqual(typeof readyHarness.context.PRH_R2_CANONICAL_RUNTIME.home.compileHouseholdCashFlowChart, 'function');
+assert.strictEqual(typeof readyHarness.context.PRH_R2_CANONICAL_RUNTIME.home.compileHouseholdExpenseMixChart, 'function');
 assert.strictEqual(ready.schema, 'PRH_R2_HOUSEHOLD_VISUAL_PAYLOAD_V1');
+assert.strictEqual(ready.contract_version, '1.1.0');
 assert.strictEqual(ready.status, 'READY');
 assert.strictEqual(ready.requested_period_count, 6);
 assert.strictEqual(ready.available_period_count, 6);
@@ -134,6 +145,23 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(ready.latest_period)), {
   day_count: 31,
   proration: 'NONE'
 });
+assert.strictEqual(ready.charts.cash_flow.renderer, 'ECHARTS_6');
+assert.strictEqual(ready.charts.cash_flow.option.aria.enabled, true);
+assert.strictEqual(ready.charts.cash_flow.option.title.text, 'Денежный поток');
+assert.strictEqual(ready.charts.cash_flow.option.series[0].type, 'line');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(ready.charts.cash_flow.option.xAxis.data)), [
+  '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'
+]);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(ready.charts.cash_flow.option.series[0].data)), [
+  110000, -12000, 120000, -14000, 130000, -16000
+]);
+assert.strictEqual(ready.charts.expense_mix.renderer, 'ECHARTS_6');
+assert.strictEqual(ready.charts.expense_mix.option.aria.enabled, true);
+assert.strictEqual(ready.charts.expense_mix.option.title.text, 'Структура расходов');
+assert.strictEqual(ready.charts.expense_mix.option.series[0].type, 'pie');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(ready.charts.expense_mix.option.series[0].data)), [
+  { name: 'СИН Питание', value: 16000 }
+]);
 assert.strictEqual(readyHarness.gatewayCalls(), 2,
   'async visual payload must use one timeline scan plus one bounded canonical read');
 assert.strictEqual(ready.provenance.gateway_call_count, 2);
@@ -141,6 +169,10 @@ assert.strictEqual(ready.provenance.full_history_canonical_scan_used, false);
 assert.strictEqual(ready.provenance.repeated_repository_query_used, false);
 assert.strictEqual(ready.provenance.synthetic_zero_fill_used, false);
 assert.strictEqual(ready.provenance.financial_authority, 'FIN010_EVALUATE_KPIS');
+assert.strictEqual(ready.provenance.chart_spec_authority, 'CANONICAL_HOME_WIDGET_SPECS');
+assert.strictEqual(ready.provenance.chart_compiler, 'HOUSEHOLD_VISUAL_PROJECTION_TO_ECHARTS_6');
+assert.strictEqual(ready.provenance.renderer, 'ECHARTS_6');
+assert.strictEqual(ready.provenance.ui_chart_option_authority, false);
 assert.strictEqual(ready.provenance.write_authority, false);
 assert(readyHarness.gatewayCells() < headers.length * syntheticRecords().length + headers.length * 6,
   'bounded projection must read fewer cells than a full canonical history plus six-period read');
@@ -154,6 +186,10 @@ assert.strictEqual(sparse.cash_flow_periods.length, 3);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(sparse.cash_flow_periods.map((entry) => entry.cash_flow_minor))), [
   100000, -10000, 110000
 ]);
+assert.strictEqual(sparse.charts.cash_flow, null,
+  'insufficient history must not masquerade as a six-period chart');
+assert.strictEqual(sparse.charts.expense_mix, null,
+  'empty latest-period expense mix must not render a decorative donut');
 assert.strictEqual(sparse.provenance.synthetic_zero_fill_used, false);
 assert.strictEqual(sparseHarness.gatewayCalls(), 2);
 
@@ -161,6 +197,9 @@ console.log('r2_household_chart_payload_runtime_contract_test: OK', {
   asyncFromPrimaryHome: true,
   fin010PerPeriod: true,
   readyPeriods: ready.available_period_count,
+  renderer: ready.charts.cash_flow.renderer,
+  serverCompiledOptions: true,
+  uiChartOptionAuthority: false,
   insufficientDataExplicit: sparse.status,
   boundedGatewayCalls: readyHarness.gatewayCalls(),
   repeatedRepositoryQuery: false,

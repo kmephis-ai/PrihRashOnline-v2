@@ -1,14 +1,16 @@
 var PRH_R2_VISUAL_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_R2_HOUSEHOLD_VISUAL_RUNTIME_V1',
-  VERSION: '1.0.0',
+  VERSION: '1.1.0',
   PAYLOAD_SCHEMA: 'PRH_R2_HOUSEHOLD_VISUAL_PAYLOAD_V1',
   FINANCIAL_TRUTH_POLICY: 'FIN-TRUTH-v1',
   PERIOD_COUNT: 6,
+  RENDERER: 'ECHARTS_6',
   READY: 'READY',
   INSUFFICIENT_DATA: 'INSUFFICIENT_DATA',
   WRITE_AUTHORITY: false,
   FINANCIAL_FORMULA_COPY: false,
   UI_FINANCIAL_FORMULA_AUTHORITY: false,
+  UI_CHART_OPTION_AUTHORITY: false,
   FREE_ONLY: true
 });
 
@@ -24,6 +26,8 @@ function prhR2VisualAssertRuntime_(runtime) {
       runtime.recentMonthsProjection.DEFAULT_PERIOD_COUNT !== PRH_R2_VISUAL_RUNTIME.PERIOD_COUNT ||
       !runtime.kpiDictionary || typeof runtime.kpiDictionary.evaluateKpis !== 'function' ||
       !runtime.home || typeof runtime.home.buildFinancialHome !== 'function' ||
+      typeof runtime.home.compileHouseholdCashFlowChart !== 'function' ||
+      typeof runtime.home.compileHouseholdExpenseMixChart !== 'function' ||
       !runtime.financialReconciliation || typeof runtime.financialReconciliation.aggregateTransactions !== 'function') {
     prhR2VisualFail_('R2_VISUAL_RUNTIME_CANONICAL_MODULES_REQUIRED');
   }
@@ -81,6 +85,36 @@ function prhR2VisualLatestExpenseMix_(runtime, latestEntry, dimensions, currency
   });
 }
 
+function prhR2VisualAssertCompiledChart_(chart, expectedSeriesType) {
+  if (!chart || chart.renderer !== PRH_R2_VISUAL_RUNTIME.RENDERER || !chart.option ||
+      !chart.option.aria || chart.option.aria.enabled !== true || !Array.isArray(chart.option.series) ||
+      chart.option.series.length !== 1 || chart.option.series[0].type !== expectedSeriesType) {
+    prhR2VisualFail_('R2_VISUAL_RUNTIME_COMPILED_CHART_INVALID');
+  }
+  return chart;
+}
+
+function prhR2VisualCompileCharts_(runtime, status, periodResults, expenseMix) {
+  var cashFlow = null;
+  if (status === PRH_R2_VISUAL_RUNTIME.READY) {
+    cashFlow = prhR2VisualAssertCompiledChart_(
+      runtime.home.compileHouseholdCashFlowChart(periodResults),
+      'line'
+    );
+  }
+  var expense = null;
+  if (Array.isArray(expenseMix) && expenseMix.length) {
+    expense = prhR2VisualAssertCompiledChart_(
+      runtime.home.compileHouseholdExpenseMixChart(expenseMix),
+      'pie'
+    );
+  }
+  return Object.freeze({
+    cash_flow: cashFlow,
+    expense_mix: expense
+  });
+}
+
 function prhR2BuildFinancialHomeVisualRuntime_() {
   var started = Date.now();
   var runtime = prhR2CanonicalRuntime_();
@@ -119,6 +153,8 @@ function prhR2BuildFinancialHomeVisualRuntime_() {
     prhR2VisualFail_('R2_VISUAL_RUNTIME_READY_PERIOD_COUNT_INVALID');
   }
 
+  var expenseMix = latestDetails ? latestDetails.expense_mix : Object.freeze([]);
+  var charts = prhR2VisualCompileCharts_(runtime, status, periodResults, expenseMix);
   var result = Object.freeze({
     schema: PRH_R2_VISUAL_RUNTIME.PAYLOAD_SCHEMA,
     contract_version: PRH_R2_VISUAL_RUNTIME.VERSION,
@@ -128,19 +164,24 @@ function prhR2BuildFinancialHomeVisualRuntime_() {
     available_period_count: recent.available_period_count,
     observed_period_count: recent.observed_period_count,
     cash_flow_periods: Object.freeze(periodResults),
-    expense_mix: latestDetails ? latestDetails.expense_mix : Object.freeze([]),
+    expense_mix: expenseMix,
+    charts: charts,
     latest_period: latestDetails ? latestDetails.home_view.period : null,
     provenance: Object.freeze({
       financial_truth_policy: PRH_R2_VISUAL_RUNTIME.FINANCIAL_TRUTH_POLICY,
       financial_authority: 'FIN010_EVALUATE_KPIS',
       period_source: 'PRH_GOOGLE_RECENT_MONTHS_SNAPSHOT_V1',
       latest_expense_source: 'CANONICAL_HOME_VISUAL_DATA',
+      chart_spec_authority: 'CANONICAL_HOME_WIDGET_SPECS',
+      chart_compiler: 'HOUSEHOLD_VISUAL_PROJECTION_TO_ECHARTS_6',
+      renderer: PRH_R2_VISUAL_RUNTIME.RENDERER,
       gateway_call_count: gateway.calls(),
       full_history_canonical_scan_used: false,
       repeated_repository_query_used: false,
       synthetic_zero_fill_used: false,
       financial_formula_copy: false,
       ui_financial_formula_authority: false,
+      ui_chart_option_authority: false,
       write_authority: false,
       free_only: true,
       build_ms: Date.now() - started
