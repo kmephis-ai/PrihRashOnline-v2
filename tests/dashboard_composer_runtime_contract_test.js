@@ -95,14 +95,19 @@ assert(!composer.includes('<?!='));
 assert(!/amount_minor|income_minor|expense_minor|cash_flow_minor|balance_minor|AnalyticsQuery|ChartSpec/.test(composer));
 
 const defaultHome = context.doGet({ parameter: {} }).getContent();
-assert.strictEqual(privateReads, 1, 'Default route remains Financial Home');
+assert.strictEqual(privateReads, 0, 'Default Home HTML must render before private financial read');
 assert(defaultHome.includes('data-active-surface="home"'));
+assert(defaultHome.includes('PRH_R2_HOME_ASYNC_BOOTSTRAP_V1'));
 assert.strictEqual(legacyReads, 0);
+context.prhR2FetchFinancialHomePayload('NORMAL');
+assert.strictEqual(privateReads, 1, 'Async Home payload must perform exactly one runtime build in this fixture');
 
 console.log('dashboard-composer-runtime: PASS', {
   surface: 'composer',
   composerPrivateReads: 0,
   studioPrivateReads: 0,
+  initialHomePrivateReads: 0,
+  asyncHomePrivateReads: 1,
   primaryNavigationTruthful: true,
   semanticBinding: 'UNBOUND',
   persistence: 'SESSION_ONLY'
