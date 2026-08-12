@@ -2,15 +2,17 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const vm = require('vm');
 const { pathToFileURL } = require('url');
 const { chromium } = require('playwright');
 
 const EXPECTED_ECHARTS_VERSION = '6.1.0';
 const EXPECTED_RENDERER = 'ECHARTS_6';
 const VIEWPORTS = [
-  { name: 'desktop', width: 1440, height: 1000, maxPageHeight: 2100 },
-  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5200 }
+  { name: 'desktop', width: 1440, height: 1000, maxPageHeight: 2200 },
+  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5400 }
 ];
 const FORBIDDEN_VISIBLE = [
   'ECharts', 'ECHARTS', 'ChartSpec', 'renderer', 'options', 'FIN-TRUTH', 'FIN-010', 'VIZ-', 'BAL-030',
@@ -44,6 +46,28 @@ function manifestFile(manifest, filePath) {
   return Array.isArray(manifest.files) ? manifest.files.find((item) => item.path === filePath) : null;
 }
 
+function verifyManifestFile(manifest, candidateRoot, filePath) {
+  const diskPath = path.join(candidateRoot, 'files', filePath);
+  expect(fs.existsSync(diskPath), `candidate ${filePath} missing`);
+  const bytes = fs.readFileSync(diskPath);
+  const descriptor = manifestFile(manifest, filePath);
+  expect(descriptor && descriptor.sha256 === sha256(bytes) && descriptor.size === bytes.length,
+    `candidate ${filePath} does not match manifest hash/size`);
+  return { diskPath, bytes, text: bytes.toString('utf8') };
+}
+
+function canonicalShellHtml(routerSource, homeHtml) {
+  const context = vm.createContext({
+    console, Object, Array, String, Number, Math, Date, RegExp, Error, JSON, encodeURIComponent,
+    __candidateHomeHtml: homeHtml
+  });
+  vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
+  const rendered = vm.runInContext("prhR2InjectShell_(__candidateHomeHtml,'home')", context);
+  expect(typeof rendered === 'string' && rendered.includes('data-prh-canonical-r2-shell="1"'),
+    'exact-SHA canonical router did not inject R2 shell into Home');
+  return rendered;
+}
+
 async function inspectRenderedHome(page) {
   return page.evaluate(() => {
     function first(value) {
@@ -63,6 +87,8 @@ async function inspectRenderedHome(page) {
       const instance = host && window.echarts && window.echarts.getInstanceByDom(host);
       const option = instance && instance.getOption();
       const series = option && option.series || [];
+      const legend = first(option && option.legend);
+      const title = first(option && option.title);
       return {
         exists: Boolean(host),
         instance: Boolean(instance),
@@ -74,22 +100,29 @@ async function inspectRenderedHome(page) {
         ariaLive: host && host.getAttribute('aria-live') || '',
         ariaLabel: host && host.getAttribute('aria-label') || '',
         title: optionTitle(option),
+        titleShown: title ? title.show !== false : true,
         ariaDescription: ariaDescription(option),
         seriesType: series[0] && series[0].type || '',
         seriesCount: series.length,
         dataCount: series[0] && Array.isArray(series[0].data) ? series[0].data.length : 0,
         dataNames: series[0] && Array.isArray(series[0].data)
           ? series[0].data.map((item) => item && typeof item === 'object' ? String(item.name || '') : '')
-          : []
+          : [],
+        legendBottom: legend && legend.bottom,
+        legendTextColor: legend && legend.textStyle && legend.textStyle.color || ''
       };
     }
     const root = document.documentElement;
     const body = document.body;
     const visualRoot = document.querySelector('.visuals');
+    const shell = document.getElementById('prh-r2-shell');
+    const primary = document.getElementById('prh-r2-canonical-nav');
+    const secondary = document.getElementById('prh-r2-secondary-nav');
     return {
       rendererVersion: window.echarts && window.echarts.version || '',
       dataReady: root.getAttribute('data-home-data-ready') || '',
       visualReady: root.getAttribute('data-home-visual-ready') || '',
+      fetchStrategy: root.getAttribute('data-home-fetch-strategy') || '',
       overflow: Math.max(root.scrollWidth, body.scrollWidth) - innerWidth,
       pageHeight: Math.max(root.scrollHeight, body.scrollHeight),
       visibleText: body.innerText.replace(/\s+/g, ' ').trim(),
@@ -98,6 +131,22 @@ async function inspectRenderedHome(page) {
       chartExplicitTabStops: visualRoot ? visualRoot.querySelectorAll('[tabindex]:not([tabindex="-1"])').length : -1,
       semanticFallbacks: visualRoot ? visualRoot.querySelectorAll('.semantic-fallback').length : -1,
       errorFallbacks: visualRoot ? visualRoot.querySelectorAll('.visual-empty,.visual-mask').length : -1,
+      shell: shell ? {
+        activeSurface: shell.dataset.activeSurface || '',
+        navigationPolicy: shell.dataset.navigationPolicy || '',
+        primary: primary ? Array.from(primary.querySelectorAll('a')).map((link) => ({
+          id: link.dataset.r2Nav || '',
+          label: link.textContent.trim(),
+          href: link.getAttribute('href') || '',
+          current: link.getAttribute('aria-current') || ''
+        })) : [],
+        secondary: secondary ? Array.from(secondary.querySelectorAll('a')).map((link) => ({
+          id: link.dataset.r2Nav || '',
+          label: link.textContent.trim(),
+          href: link.getAttribute('href') || '',
+          current: link.getAttribute('aria-current') || ''
+        })) : []
+      } : null,
       cash: chartInfo('cashflow-chart'),
       expense: chartInfo('expense-mix')
     };
@@ -111,18 +160,14 @@ async function inspectRenderedHome(page) {
   expect(/^[0-9a-f]{40}$/.test(expectedSha), 'expected SHA must be 40 lowercase hex characters');
 
   const manifestPath = path.join(candidateRoot, 'manifest.json');
-  const htmlPath = path.join(candidateRoot, 'files', 'FinancialHomeWebApp.html');
   expect(fs.existsSync(manifestPath), 'candidate manifest missing');
-  expect(fs.existsSync(htmlPath), 'candidate FinancialHomeWebApp.html missing');
-
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const htmlBytes = fs.readFileSync(htmlPath);
-  const html = htmlBytes.toString('utf8');
-  const htmlDescriptor = manifestFile(manifest, 'FinancialHomeWebApp.html');
   expect(manifest.schemaVersion === 2, 'candidate manifest schema invalid');
   expect(manifest.candidateSha === expectedSha, 'candidate manifest is not bound to exact PR SHA');
-  expect(htmlDescriptor && htmlDescriptor.sha256 === sha256(htmlBytes) && htmlDescriptor.size === htmlBytes.length,
-    'candidate Home HTML does not match manifest hash/size');
+
+  const home = verifyManifestFile(manifest, candidateRoot, 'FinancialHomeWebApp.html');
+  const router = verifyManifestFile(manifest, candidateRoot, 'CanonicalR2WebAppService.js');
+  const html = home.text;
   expect(manifest.echartsVendor && manifest.echartsVendor.packageVersion === EXPECTED_ECHARTS_VERSION,
     'candidate ECharts package version invalid');
   expect(manifest.echartsVendor.delivery === 'LOCAL_ONLY' && manifest.echartsVendor.runtimeNetworkRequired === false &&
@@ -134,6 +179,12 @@ async function inspectRenderedHome(page) {
   expect(!/https?:\/\/(?:cdn\.|unpkg\.|jsdelivr\.)/i.test(html), 'candidate Home contains external CDN reference');
   expect(html.includes('synthetic:true') && html.includes('synthetic_compiled_fixture:true'),
     'candidate screenshot fixture must remain explicitly synthetic');
+  expect(router.text.includes("Object.freeze(['home', 'Главная'])") && router.text.includes("Object.freeze(['studio', 'Студия аналитики'])"),
+    'candidate canonical router does not contain required household primary tabs');
+
+  const routedHtml = canonicalShellHtml(router.text, html);
+  const routedHtmlPath = path.join(os.tmpdir(), `prh-financial-home-candidate-shell-${process.pid}.html`);
+  fs.writeFileSync(routedHtmlPath, routedHtml, 'utf8');
 
   const artifactDir = path.resolve('artifacts');
   fs.mkdirSync(artifactDir, { recursive: true });
@@ -149,7 +200,7 @@ async function inspectRenderedHome(page) {
         if (/^https?:/i.test(request.url())) externalRequests.push({ viewport: viewport.name, url: request.url() });
       });
 
-      await page.goto(pathToFileURL(htmlPath).href, { waitUntil: 'load' });
+      await page.goto(pathToFileURL(routedHtmlPath).href, { waitUntil: 'load' });
       await page.waitForFunction(() => document.documentElement.getAttribute('data-home-visual-ready') === '1', null, { timeout: 15000 });
       await page.waitForTimeout(700);
       const result = await inspectRenderedHome(page);
@@ -169,6 +220,17 @@ async function inspectRenderedHome(page) {
       expect(result.semanticFallbacks === 0 && result.errorFallbacks === 0,
         `[${viewport.name}] working renderer must not fall back to placeholder/text state`);
 
+      expect(result.shell && result.shell.activeSurface === 'home', `[${viewport.name}] canonical Home shell missing`);
+      expect(result.shell.navigationPolicy === 'PROVEN_DESTINATIONS_ONLY', `[${viewport.name}] canonical navigation policy missing`);
+      expect(JSON.stringify(result.shell.primary.map((item) => item.label)) === JSON.stringify(['Главная', 'Студия аналитики']),
+        `[${viewport.name}] primary household tabs missing or reordered`);
+      expect(result.shell.primary[0].id === 'home' && result.shell.primary[0].current === 'page' && result.shell.primary[0].href === '?surface=home',
+        `[${viewport.name}] Home tab is not the active canonical destination`);
+      expect(result.shell.primary[1].id === 'studio' && result.shell.primary[1].href === '?surface=studio&mode=explore',
+        `[${viewport.name}] Analytics Studio tab is not routed truthfully`);
+      expect(JSON.stringify(result.shell.secondary.map((item) => item.label)) === JSON.stringify(['Старый интерфейс']),
+        `[${viewport.name}] legacy emergency route must remain secondary`);
+
       expect(result.cash.instance && result.cash.canvasCount >= 1 && result.cash.width > 200 && result.cash.height >= 190,
         `[${viewport.name}] cash-flow canvas was not rendered with useful dimensions`);
       expect(result.expense.instance && result.expense.canvasCount >= 1 && result.expense.width > 200 && result.expense.height >= 190,
@@ -179,6 +241,8 @@ async function inspectRenderedHome(page) {
         `[${viewport.name}] expense composition must be a bounded pie series`);
       expect(result.cash.title === 'Денежный поток' && result.expense.title === 'Структура расходов',
         `[${viewport.name}] Russian chart titles missing`);
+      expect(result.cash.titleShown === false && result.expense.titleShown === false,
+        `[${viewport.name}] duplicate internal ECharts titles must be visually suppressed`);
       expect(result.cash.ariaLive === 'polite' && result.expense.ariaLive === 'polite',
         `[${viewport.name}] chart live regions missing`);
       expect(result.cash.ariaDescription === 'Денежный поток' && result.expense.ariaDescription === 'Структура расходов',
@@ -187,6 +251,10 @@ async function inspectRenderedHome(page) {
         `[${viewport.name}] ECharts did not materialize Russian ARIA labels on rendered chart hosts`);
       expect(JSON.stringify(result.expense.dataNames) === JSON.stringify(['Дом', 'Продукты', 'Прочее']),
         `[${viewport.name}] synthetic candidate category labels must remain Russian and household-readable`);
+      expect(result.expense.legendTextColor, `[${viewport.name}] expense legend lacks theme-aware text color`);
+      if (viewport.name === 'mobile') {
+        expect(String(result.expense.legendBottom) === '0', '[mobile] expense legend must be anchored below donut');
+      }
 
       for (const term of FORBIDDEN_VISIBLE) {
         expect(!result.visibleText.includes(term), `[${viewport.name}] developer-facing term is visible: ${term}`);
@@ -201,13 +269,14 @@ async function inspectRenderedHome(page) {
     }
   } finally {
     await browser.close();
+    fs.rmSync(routedHtmlPath, { force: true });
   }
 
   expect(externalRequests.length === 0,
     `candidate renderer attempted runtime network access: ${externalRequests.map((item) => item.url).join(', ')}`);
 
   const evidence = {
-    schema: 'PRH_FINANCIAL_HOME_CANDIDATE_VISUAL_EVIDENCE_V1',
+    schema: 'PRH_FINANCIAL_HOME_CANDIDATE_VISUAL_EVIDENCE_V2',
     privacy_class: 'PUBLIC_SYNTHETIC',
     candidate_sha: expectedSha,
     source_tree_hash: manifest.sourceTreeHash,
@@ -218,6 +287,8 @@ async function inspectRenderedHome(page) {
     runtime_network_required: false,
     external_requests: externalRequests,
     exact_sha_canvas_rendered: true,
+    exact_sha_canonical_shell_rendered: true,
+    primary_navigation: ['Главная', 'Студия аналитики'],
     semantic_fallback_covered_by_source_gate: true,
     russian_household_strings: true,
     accessibility_aria: true,
@@ -234,6 +305,8 @@ async function inspectRenderedHome(page) {
     renderer: `${EXPECTED_RENDERER}@${EXPECTED_ECHARTS_VERSION}`,
     delivery: 'LOCAL_ONLY',
     exactShaCanvasRendered: true,
+    exactShaCanonicalShellRendered: true,
+    primaryNavigation: ['Главная', 'Студия аналитики'],
     desktopMobile: true,
     russianHouseholdStrings: true,
     accessibilityAria: true,
