@@ -46,16 +46,23 @@ const records = [
 ];
 
 let gatewayCalls = 0;
+let gatewayCells = 0;
 function projectedSnapshot(request) {
   gatewayCalls += 1;
   const required = Array.from(request.required_headers || headers);
-  const rows = records.map((item) => required.map((header) => item[header]));
+  const startRow = request.start_row == null ? 2 : Number(request.start_row);
+  const startIndex = startRow - 2;
+  const available = Math.max(0, records.length - startIndex);
+  const rowCount = request.row_count == null ? available : Math.min(available, Number(request.row_count));
+  const selectedRecords = records.slice(startIndex, startIndex + rowCount);
+  const rows = selectedRecords.map((item) => required.map((header) => item[header]));
+  gatewayCells += required.length * rows.length;
   return {
     schema: 'PRH_GOOGLE_OPERATIONS_TABLE_V1',
     gateway_version: '1.1.0',
     mapping_version: '1.0.0',
     sheet_name: '01 Операции',
-    start_row: 2,
+    start_row: startRow,
     headers: required,
     rows,
     read_plan: {
@@ -117,6 +124,8 @@ assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), [
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.revisionAwareCache.CONTRACT.roadmap_id, 'PERF-011');
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.singleScanRefresh.CONTRACT.roadmap_id, 'PERF-012');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.SCHEMA, 'PRH_R2_FIN_RUNTIME_BRIDGE_V1');
+assert.strictEqual(context.PRH_R2_FIN_RUNTIME.VERSION, '1.4.0');
+assert.strictEqual(context.PRH_R2_FIN_RUNTIME.HOME_PROJECTION_SCHEMA, googleAdapter.LATEST_MONTH_SCHEMA);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA, 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.PERSISTENT_IDENTITY_AUTHORITY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FINANCIAL_FORMULA_COPY, false);
@@ -125,14 +134,22 @@ assert.strictEqual(context.PRH_R2_FIN_RUNTIME.WRITE_AUTHORITY, false);
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.FREE_ONLY, true);
 
 const callsBeforeSource = gatewayCalls;
+const cellsBeforeSource = gatewayCells;
 const runtimeSource = context.prhR2FinReadTransactions_();
-assert.strictEqual(gatewayCalls - callsBeforeSource, 1, 'PERF-012 live source must perform one underlying canonical read');
+assert.strictEqual(gatewayCalls - callsBeforeSource, 2, 'latest-month source must use timeline projection plus one contiguous canonical month read');
 assert.strictEqual(runtimeSource.currency, 'RUB');
-assert.strictEqual(runtimeSource.transactions.length, records.length);
+assert.strictEqual(runtimeSource.transactions.length, 6);
+assert(!runtimeSource.transactions.some((tx) => tx.transaction_id === 'SYN-PREV-001'));
+assert.deepStrictEqual(JSON.parse(JSON.stringify(runtimeSource.period)), {
+  start: '2026-02-01', end: '2026-03-01', partial: false
+});
 assert(/^[0-9a-f]{64}$/.test(runtimeSource.canonical_revision));
 assert.strictEqual(perfRecords.source.canonical_snapshot_read_count, 1);
-assert.strictEqual(perfRecords.source.gateway_call_count, 1);
-assert(perfRecords.source.unique_dimension_hash_count < records.length * 4, 'repeated dimension labels must be memoized');
+assert.strictEqual(perfRecords.source.gateway_call_count, 2);
+assert.strictEqual(perfRecords.source.cell_read_count, 2 * records.length + headers.length * 6);
+assert.strictEqual(gatewayCells - cellsBeforeSource, 2 * records.length + headers.length * 6);
+assert(perfRecords.source.cell_read_count < headers.length * records.length + headers.length * 6, 'projection must reduce full-history canonical cell reads');
+assert(perfRecords.source.unique_dimension_hash_count < runtimeSource.transactions.length * 4, 'repeated dimension labels must be memoized');
 assert(perfRecords.source.dimension_hash_memo_hit_count > 0, 'memoized dimension resolution must record hits');
 const expenseTx = runtimeSource.transactions.find((tx) => tx.transaction_id === 'SYN-EXP-001');
 const incomeTx = runtimeSource.transactions.find((tx) => tx.transaction_id === 'SYN-INC-001');
@@ -151,18 +168,16 @@ assert.notStrictEqual(expenseTx.account_id.replace(/^account:/, ''), expenseTx.c
 assert.strictEqual(runtimeSource.dimensions.displayLabel('category', expenseTx.category_id), CAT_FOOD);
 assert.strictEqual(runtimeSource.dimensions.persistent_identity_authority, false);
 
-const period = context.prhR2FinLatestMonthPeriod_(runtimeSource.transactions);
-assert.deepStrictEqual(JSON.parse(JSON.stringify(period)), {
-  start: '2026-02-01', end: '2026-03-01', partial: false
-});
+const recomputedPeriod = context.prhR2FinLatestMonthPeriod_(runtimeSource.transactions);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(recomputedPeriod)), JSON.parse(JSON.stringify(runtimeSource.period)));
 
 const canonical = evaluateKpis(Array.from(runtimeSource.transactions).map((tx) => ({ ...tx })), {
   currency: 'RUB',
-  period: { start: period.start, end: period.end, partial: false }
+  period: { start: runtimeSource.period.start, end: runtimeSource.period.end, partial: false }
 });
 const callsBeforeHome = gatewayCalls;
 const home = context.prhR2BuildFinancialHomeRuntime_();
-assert.strictEqual(gatewayCalls - callsBeforeHome, 1, 'uncached Home build must materialize one canonical snapshot');
+assert.strictEqual(gatewayCalls - callsBeforeHome, 2, 'uncached Home build must use projected latest-month source');
 assert.strictEqual(home.schema, 'PRH_FINANCIAL_HOME_VIEW_V1');
 assert.strictEqual(home.financial_truth_policy, 'FIN-TRUTH-v1');
 assert.strictEqual(home.kpi_dictionary_version, '1.0.0');
@@ -179,7 +194,8 @@ assert.strictEqual(home.provenance.financial_formula_copy, false);
 assert.strictEqual(home.provenance.dimension_resolver, 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1');
 assert.strictEqual(home.provenance.persistent_identity_authority, false);
 assert.strictEqual(home.provenance.legacy_total_cells_used, false);
-assert.strictEqual(home.provenance.perf_single_scan_contract, 'PRH_SINGLE_SCAN_REFRESH_V1@1.0.0');
+assert.strictEqual(home.provenance.perf_projection_contract, 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0');
+assert.strictEqual(home.provenance.perf_full_history_canonical_scan_used, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(home.visual_data.expense_mix)), [[CAT_FOOD, 2500]]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(home.visual_data.cash_flow_minor)), [7500]);
 
@@ -210,20 +226,25 @@ assert.throws(() => collisionState.resolvers.account('СИН Два'), /R2_RUNTI
 assert.doesNotMatch(bridgeSource, /prhR2FinAggregate_/);
 assert.doesNotMatch(bridgeSource, /income_minor\s*\+=|gross_expense_minor\s*\+=|refund_minor\s*\+=|cash_flow_minor\s*=\s*.*income/i);
 assert.doesNotMatch(bridgeSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(|deleteRow\s*\(|insertRow/);
-assert.match(bridgeSource, /runtime\.singleScanRefresh\.createSingleScanRefresh/);
+assert.doesNotMatch(bridgeSource, /runtime\.singleScanRefresh\.createSingleScanRefresh/);
+assert.match(bridgeSource, /readLatestCalendarMonth/);
 assert.match(bridgeSource, /id_by_normalized/);
 assert.match(bridgeSource, /runtime\.home\.buildFinancialHome/);
 assert.match(bridgeSource, /runtime\.googleAdapter\.createGoogleSheetsTransactionRepository/);
 assert.match(bridgeSource, /runtime\.financialReconciliation\.aggregateTransactions/);
 assert.match(bundleSource, /lib\/repository\/revision_aware_cache\.js/);
 assert.match(bundleSource, /lib\/repository\/single_scan_refresh\.js/);
+assert.match(bundleSource, /lib\/crypto\/sha256\.js/);
 
 console.log('r2_financial_runtime_parity_contract_test: OK', {
   policy: 'FIN-TRUTH-v1',
   kpiDictionary: '1.0.0',
   generatedCanonicalBundle: true,
   perf011Bundled: true,
-  perf012LiveSingleScan: true,
+  perf012BundledNotLiveHomeAuthority: true,
+  perfLatestMonthProjection: true,
+  fullHistoryCanonicalHomeScan: false,
+  pureJsRowSha256: true,
   uniqueDimensionHashMemoization: true,
   duplicateFinancialFormula: false,
   canonicalGoogleAdapter: true,
