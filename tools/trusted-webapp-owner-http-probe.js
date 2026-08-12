@@ -65,6 +65,17 @@ function isLoginRedirect(raw) {
   }
 }
 
+function classifyUnexpectedHtml(html) {
+  const text = String(html || '');
+  const login = /accounts\.google\.com|ServiceLogin|identifierId|gaia_loginform|signin\/v2|Sign in(?:\s+to)?\s+Google|Войдите в аккаунт Google|Войти в аккаунт Google/i.test(text);
+  if (login) return 'BROWSER_SESSION_REQUIRED';
+  const permission = /Authorization required|access denied|permission denied|You need (?:access|permission)|Request access|Требуется авторизация|Нет доступа|Запросить доступ/i.test(text);
+  if (permission) return 'WEBAPP_PERMISSION_INTERSTITIAL';
+  const googleInterstitial = /google(?:usercontent)?\.com|Google Accounts|Google Drive|Google Apps Script/i.test(text);
+  if (googleInterstitial) return 'GOOGLE_WEBAPP_INTERSTITIAL';
+  return 'OWNER_HTTP_NON_APP_HTML_200';
+}
+
 async function ownerAccessToken(profileName) {
   const authPath = process.env.CLASPRC_PATH || path.join(process.env.HOME || '', '.clasprc.json');
   const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
@@ -133,11 +144,12 @@ async function probeOwnerHttp(url, accessToken, fetchImpl = fetch) {
       const html = await response.text();
       const canonicalShell = html.includes('data-prh-canonical-r2-shell="1"');
       const russianHomeSource = html.includes('Финансовый дом');
+      const reason = canonicalShell && russianHomeSource
+        ? 'OWNER_HTTP_AUTHENTICATED_200'
+        : classifyUnexpectedHtml(html);
       return {
         ok: canonicalShell && russianHomeSource,
-        reason: canonicalShell && russianHomeSource
-          ? 'OWNER_HTTP_AUTHENTICATED_200'
-          : 'OWNER_HTTP_UNEXPECTED_HTML',
+        reason,
         http_status: 200,
         latency_ms: Math.max(0, Date.now() - startedAt),
         canonical_shell: canonicalShell,
@@ -176,7 +188,6 @@ async function probeOwnerHttp(url, accessToken, fetchImpl = fetch) {
       };
     }
     current = new URL(location);
-    // Never forward the OAuth bearer token away from script.google.com.
     authorization = current.hostname === ALLOWED_INITIAL_HOST ? authorization : '';
   }
 
@@ -219,5 +230,6 @@ module.exports = {
   validateWebUrl,
   isAllowedContentRedirect,
   isLoginRedirect,
+  classifyUnexpectedHtml,
   probeOwnerHttp
 };
