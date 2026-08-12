@@ -7,12 +7,14 @@
  */
 var PRH_R2_FIN_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_R2_FIN_RUNTIME_BRIDGE_V1',
-  VERSION: '1.3.0',
+  VERSION: '1.4.0',
   CANONICAL_RUNTIME_SCHEMA: 'PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1',
   FINANCIAL_TRUTH_POLICY: 'FIN-TRUTH-v1',
   KPI_DICTIONARY_VERSION: '1.0.0',
   HOME_VIEW_SCHEMA: 'PRH_FINANCIAL_HOME_VIEW_V1',
   DIMENSION_RESOLVER_SCHEMA: 'PRH_RUNTIME_DIMENSION_LABEL_HASH_V1',
+  HOME_PROJECTION_SCHEMA: 'PRH_GOOGLE_LATEST_MONTH_SNAPSHOT_V1',
+  HOME_PROJECTION_CONTRACT: 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0',
   WRITE_AUTHORITY: false,
   PERSISTENT_IDENTITY_AUTHORITY: false,
   UI_FINANCIAL_FORMULA_AUTHORITY: false,
@@ -166,33 +168,51 @@ function prhR2FinReadTransactions_() {
     default_currency: currency,
     resolvers: dimensions.resolvers
   });
-  if (!repository || repository.capabilities.read !== true || repository.capabilities.write !== false) {
+  if (!repository || repository.capabilities.read !== true || repository.capabilities.write !== false ||
+      repository.capabilities.latest_month_projection !== true ||
+      typeof repository.readLatestCalendarMonth !== 'function') {
     prhR2FinFail_('R2_RUNTIME_REPOSITORY_CAPABILITY_INVALID');
   }
 
-  // PERF-012 is the live cold-read authority: one underlying readAll materializes
-  // the canonical point-in-time snapshot. All consumers below reuse that cycle.
-  var cycle = runtime.singleScanRefresh.createSingleScanRefresh(repository, {
-    max_age_ms: 120000,
-    max_operations: 16
-  });
-  var transactions = cycle.readAll();
-  if (!Array.isArray(transactions) || !transactions.length) prhR2FinFail_('R2_RUNTIME_NO_TRANSACTIONS');
-  var scanTelemetry = cycle.getTelemetry();
-  var dimensionTelemetry = dimensions.telemetry();
-  if (scanTelemetry.canonical_snapshot_read_count !== 1 || gatewayCallCount !== 1) {
-    prhR2FinFail_('R2_RUNTIME_SINGLE_SCAN_INVARIANT_FAILED');
+  // PERF-REC recovery: Home is a latest-calendar-month view. Scan only the
+  // lightweight ID/timestamp projection across history, then canonicalize full
+  // rows for the selected month. Full-history readAll remains available to
+  // other repository consumers but is intentionally not used by Home.
+  var projected = repository.readLatestCalendarMonth();
+  if (!projected || projected.schema !== PRH_R2_FIN_RUNTIME.HOME_PROJECTION_SCHEMA ||
+      !projected.period || !Array.isArray(projected.items) || !projected.items.length) {
+    prhR2FinFail_('R2_RUNTIME_HOME_PROJECTION_INVALID');
   }
+  var transactions = projected.items;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(projected.period.start || '')) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(projected.period.end || '')) ||
+      projected.period.start >= projected.period.end) {
+    prhR2FinFail_('R2_RUNTIME_HOME_PERIOD_INVALID');
+  }
+  if (gatewayCallCount < 2) prhR2FinFail_('R2_RUNTIME_HOME_PROJECTION_READ_PLAN_INVALID');
+
+  var revisionMaterial = transactions.map(function(tx) {
+    if (!tx || !tx.provenance || !/^[0-9a-f]{64}$/.test(String(tx.provenance.source_fingerprint || ''))) {
+      prhR2FinFail_('R2_RUNTIME_HOME_FINGERPRINT_INVALID');
+    }
+    return String(tx.transaction_id) + ':' + String(tx.provenance.source_fingerprint);
+  }).join('|');
+  var canonicalRevision = prhR2FinSha256Hex_(
+    'PRH_HOME_PERIOD_SNAPSHOT_V1|' + projected.period.start + '|' + projected.period.end + '|' + revisionMaterial
+  );
+  if (!/^[0-9a-f]{64}$/.test(canonicalRevision)) prhR2FinFail_('R2_RUNTIME_HOME_REVISION_INVALID');
+
+  var dimensionTelemetry = dimensions.telemetry();
   if (typeof prhPerfRecRecordSource_ === 'function') {
     prhPerfRecRecordSource_({
       gateway_call_count: gatewayCallCount,
       range_read_count: gatewayRangeReadCount,
       cell_read_count: gatewayCellReadCount,
-      canonical_snapshot_read_count: scanTelemetry.canonical_snapshot_read_count,
-      snapshot_reuse_count: scanTelemetry.snapshot_reuse_count,
+      canonical_snapshot_read_count: 1,
+      snapshot_reuse_count: 0,
       unique_dimension_hash_count: dimensionTelemetry.unique_dimension_hash_count,
       dimension_hash_memo_hit_count: dimensionTelemetry.dimension_hash_memo_hit_count,
-      canonical_revision_hash_prefix: String(scanTelemetry.revision_token_hash_prefix || '')
+      canonical_revision_hash_prefix: canonicalRevision.slice(0, 12)
     });
     prhPerfRecRecordPhase_('canonical_snapshot_ms', Date.now() - started);
   }
@@ -200,7 +220,12 @@ function prhR2FinReadTransactions_() {
     currency: currency,
     transactions: Object.freeze(transactions.slice()),
     dimensions: dimensions,
-    canonical_revision: cycle.getRevision()
+    period: Object.freeze({
+      start: projected.period.start,
+      end: projected.period.end,
+      partial: projected.period.partial === true
+    }),
+    canonical_revision: canonicalRevision
   });
 }
 
@@ -259,7 +284,7 @@ function prhR2BuildFinancialHomeRuntimeUncached_() {
   var started = Date.now();
   var runtime = prhR2CanonicalRuntime_();
   var source = prhR2FinReadTransactions_();
-  var period = prhR2FinLatestMonthPeriod_(source.transactions);
+  var period = source.period;
   var canonicalHome = runtime.home.buildFinancialHome(source.transactions, {
     currency: source.currency,
     period: period
@@ -281,7 +306,8 @@ function prhR2BuildFinancialHomeRuntimeUncached_() {
   provenance.dimension_resolver = PRH_R2_FIN_RUNTIME.DIMENSION_RESOLVER_SCHEMA;
   provenance.persistent_identity_authority = false;
   provenance.legacy_total_cells_used = false;
-  provenance.perf_single_scan_contract = 'PRH_SINGLE_SCAN_REFRESH_V1@1.0.0';
+  provenance.perf_projection_contract = PRH_R2_FIN_RUNTIME.HOME_PROJECTION_CONTRACT;
+  provenance.perf_full_history_canonical_scan_used = false;
 
   var result = Object.freeze({
     schema: canonicalHome.schema,
