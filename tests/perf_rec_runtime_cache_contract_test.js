@@ -50,9 +50,9 @@ function createHarness() {
   function privateHome() {
     builderCalls += 1;
     context.prhPerfRecRecordSource_({
-      gateway_call_count: 1, range_read_count: 4, cell_read_count: 1500,
+      gateway_call_count: 2, range_read_count: 5, cell_read_count: 700,
       canonical_snapshot_read_count: 1, snapshot_reuse_count: 0,
-      unique_dimension_hash_count: 11, dimension_hash_memo_hit_count: 389,
+      unique_dimension_hash_count: 11, dimension_hash_memo_hit_count: 89,
       canonical_revision_hash_prefix: 'abcdef654321'
     });
     context.prhPerfRecRecordPhase_('sheet_read_ms', 35);
@@ -86,11 +86,11 @@ const cold = h.context.prhPerfRecBaselineProbe('COLD');
 assert.strictEqual(h.builderCalls, 1);
 assert.strictEqual(cold.mode, 'COLD');
 assert.strictEqual(cold.cache_status, 'MISS');
-assert.strictEqual(cold.reason_code, 'COLD_SINGLE_SCAN_BUILT');
-assert.strictEqual(cold.gateway_call_count, 1);
+assert.strictEqual(cold.reason_code, 'COLD_PROJECTED_HOME_BUILT');
+assert.strictEqual(cold.gateway_call_count, 2);
 assert.strictEqual(cold.canonical_snapshot_read_count, 1);
 assert.strictEqual(cold.unique_dimension_hash_count, 11);
-assert.strictEqual(cold.dimension_hash_memo_hit_count, 389);
+assert.strictEqual(cold.dimension_hash_memo_hit_count, 89);
 assert.strictEqual(cold.source_revision_probe_count, 3);
 assert.strictEqual(cold.candidate_sha, 'a'.repeat(40));
 assert(/^[0-9a-f]{12}$/.test(cold.source_revision_hash_prefix));
@@ -133,11 +133,12 @@ for (const evidence of [cold, warm, changed, geometryChanged]) {
 assert.match(source, /CacheService\.getUserCache\(\)/);
 assert.match(source, /DriveApp\.getFileById/);
 assert.match(source, /revisionAwareCache\.cacheKeyHash/);
+assert.match(source, /COLD_PROJECTED_HOME_BUILT/);
 assert.doesNotMatch(source, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
 
 console.log('perf_rec_runtime_cache_contract_test: OK', {
   contract: 'PRH_PERF_REC_RUNTIME_V1@1.0.0', perf011CacheIdentity: true,
   exactSourceRevisionHit: true, revisionChangeMiss: true,
-  concurrentChangeFailClosed: true, userPrivateCache: true,
+  projectedColdHome: true, concurrentChangeFailClosed: true, userPrivateCache: true,
   baselineFinancialPayload: false, financialWriteAuthority: false, freeOnly: true
 });
