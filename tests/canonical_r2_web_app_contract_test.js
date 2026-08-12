@@ -59,8 +59,10 @@ assert.strictEqual(context.PRH_CANONICAL_R2_WEB.PRIVATE_EXPOSURE, 'MYSELF');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.FINANCIAL_WRITE, false);
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.CANONICAL_MUTATION, false);
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.FREE_ONLY, true);
-assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home']);
+assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home','studio']);
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH.home.runtime_private_data, true);
+assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH.studio.navigation, 'PRIMARY');
+assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH.studio.runtime_private_data, false);
 for (const id of ['transactions','expenses','income','cash-flow','budget','obligations','data-quality']) {
   assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH[id].navigation, 'HIDDEN');
   assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH[id].runtime_private_data, false);
@@ -93,6 +95,9 @@ assert(home.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
 assert(home.includes(`href="${selfUrl}?surface=home"`));
 assert(home.includes(`href="${selfUrl}?surface=studio&amp;mode=explore"`));
 assert(home.includes(`href="${selfUrl}?surface=legacy"`));
+assert(home.includes('data-r2-nav="home"'));
+assert(home.includes('data-r2-nav="studio"'));
+assert(home.includes('data-r2-studio-launcher="1"'));
 assert(home.includes('>Главная</a>'));
 assert(home.includes('>Студия аналитики</a>'));
 assert(home.includes('>Старый интерфейс</a>'));
@@ -143,8 +148,9 @@ assert.doesNotMatch(legacySource, /function\s+doGet\s*\(/);
 
 console.log('canonical_r2_web_app_contract_test: OK', {
   defaultRoute: 'home',
-  primaryNavigationCount: 1,
+  primaryNavigationCount: 2,
   liveBoundRoutes: ['home'],
+  primaryStudioRoute: 'studio',
   hiddenUnboundRoutes: 7,
   navigationLinkMode: 'RUNTIME_SELF_URL_ABSOLUTE_WITH_TEST_FALLBACK',
   homeDataDelivery: 'ASYNC_GOOGLE_SCRIPT_RUN',
