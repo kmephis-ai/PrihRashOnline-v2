@@ -36,6 +36,7 @@ const viewports = [
   { name: 'tablet', width: 820, height: 980 },
   { name: 'mobile', width: 390, height: 844 }
 ];
+const UNBOUND = ['transactions','expenses','income','cash-flow','budget','obligations','data-quality'];
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -47,56 +48,55 @@ const viewports = [
         const errors = [];
         page.on('pageerror', (error) => errors.push(error.message));
         await page.goto(`file://${tempFile}`, { waitUntil: 'load', timeout: 15000 });
-        await page.waitForTimeout(150);
+        await page.waitForTimeout(120);
         assert.deepStrictEqual(errors, [], `${viewport.name} startup errors: ${errors.join(' | ')}`);
         const state = await page.evaluate(() => {
-          const nav = document.getElementById('prh-r2-canonical-nav');
-          if (!nav) throw new Error('R2_NAV_MISSING');
-          const primary = Array.from(nav.querySelectorAll('a[data-r2-nav]:not([data-r2-nav="legacy"])'));
-          const legacy = nav.querySelector('a[data-r2-nav="legacy"]');
+          const shell = document.getElementById('prh-r2-shell');
+          const primaryNav = document.getElementById('prh-r2-canonical-nav');
+          const secondaryNav = document.getElementById('prh-r2-secondary-nav');
+          if (!shell || !primaryNav || !secondaryNav) throw new Error('R2_NAV_MISSING');
+          const primary = Array.from(primaryNav.querySelectorAll('a'));
+          const secondary = Array.from(secondaryNav.querySelectorAll('a'));
           const root = document.documentElement;
           const body = document.body;
           const forbiddenFinancialKeys = /^(?:amount|amount_minor|income|income_minor|expense|expense_minor|cash_flow|cash_flow_minor|balance|balance_minor|value|value_minor|budget_minor)$/i;
-          const links = primary.concat(legacy ? [legacy] : []);
+          const links = primary.concat(secondary);
           return {
-            primary: primary.map((link) => ({ id: link.dataset.r2Nav, href: link.getAttribute('href'), current: link.getAttribute('aria-current') })),
-            legacyHref: legacy && legacy.getAttribute('href'),
-            active: nav.dataset.activeSurface,
-            navScrollWidth: nav.scrollWidth,
-            navClientWidth: nav.clientWidth,
+            primary: primary.map((link) => ({ id: link.dataset.r2Nav, href: link.getAttribute('href'), label: link.textContent.trim(), current: link.getAttribute('aria-current') })),
+            secondary: secondary.map((link) => ({ href: link.getAttribute('href'), label: link.textContent.trim(), current: link.getAttribute('aria-current') })),
+            active: shell.dataset.activeSurface,
+            policy: shell.dataset.navigationPolicy,
             bodyOverflow: Math.max(root.scrollWidth, body.scrollWidth) - innerWidth,
             marker: document.querySelector('meta[name="prh-canonical-r2"]')?.content || '',
+            visibleShellText: shell.innerText.replace(/\s+/g, ' ').trim(),
             financialPayloadInHrefs: links.some((link) => {
               const url = new URL(link.getAttribute('href') || '', location.href);
               return Array.from(url.searchParams.keys()).some((key) => forbiddenFinancialKeys.test(key));
-            })
+            }),
+            hrefs: links.map((link) => link.getAttribute('href'))
           };
         });
-        assert.strictEqual(state.marker, '1.0.0');
+        assert.strictEqual(state.marker, '1.1.0');
         assert.strictEqual(state.active, 'home');
-        assert.strictEqual(state.primary.length, 8);
-        assert.deepStrictEqual(state.primary.map((item) => item.id), ['home','transactions','expenses','income','cash-flow','budget','obligations','data-quality']);
-        assert.strictEqual(state.primary[0].current, 'page');
-        assert(state.primary.slice(1).every((item) => item.current == null));
-        assert.strictEqual(state.legacyHref, '?surface=legacy');
+        assert.strictEqual(state.policy, 'PROVEN_DESTINATIONS_ONLY');
+        assert.deepStrictEqual(state.primary, [{ id: 'home', href: '?surface=home', label: 'Главная', current: 'page' }]);
+        assert.deepStrictEqual(state.secondary.map((item) => item.label), ['Студия аналитики','Старый интерфейс']);
         assert.strictEqual(state.financialPayloadInHrefs, false);
+        for (const route of UNBOUND) assert(!state.hrefs.includes(`?surface=${route}`), `${viewport.name}: unbound ${route} is visible`);
+        assert(!/Explore|Studio|Legacy|rollback|configuration/i.test(state.visibleShellText), `${viewport.name}: English/developer navigation terminology visible`);
         assert(state.bodyOverflow <= 1, `${viewport.name} body overflow ${state.bodyOverflow}`);
-        // Horizontal scrolling inside the sticky nav is an intentional mobile/tablet behavior.
-        assert(state.navScrollWidth >= state.navClientWidth);
-        evidence.push({ viewport: viewport.name, ...state, primary: state.primary.map((item) => item.id) });
+        evidence.push({ viewport: viewport.name, ...state });
         await page.screenshot({ path: path.join(artifactDir, `canonical-r2-nav-${viewport.name}.png`), fullPage: true });
       } finally {
         await page.close().catch(() => {});
       }
     }
     fs.writeFileSync(path.join(artifactDir, 'canonical-r2-navigation.json'), JSON.stringify({
-      schema: 'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V1', privacy_class: 'PUBLIC_SYNTHETIC', evidence
+      schema: 'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V2', privacy_class: 'PUBLIC_SYNTHETIC', truthfulNavigation: true, evidence
     }, null, 2));
     console.log('canonical_r2_navigation_visual_test: OK', {
-      viewports: viewports.map((item) => item.name),
-      primaryRoutes: 8,
-      legacyRollback: true,
-      privacyCheck: 'QUERY_PARAMETER_KEYS_ONLY'
+      viewports: viewports.map((item) => item.name), primaryRoutes: 1,
+      secondaryTools: 2, hiddenUnboundRoutes: UNBOUND.length, privacyCheck: 'QUERY_PARAMETER_KEYS_ONLY'
     });
   } finally {
     await browser.close().catch(() => {});
