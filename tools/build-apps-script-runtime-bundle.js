@@ -10,6 +10,7 @@ const ENTRY_MODULES = Object.freeze({
   kpiDictionary: 'lib/finance/kpi_dictionary.js',
   home: 'lib/home/financial_home.js',
   googleAdapter: 'lib/adapters/google_sheets_transaction_repository.js',
+  recentMonthsProjection: 'lib/adapters/google_sheets_recent_months_projection.js',
   revisionAwareCache: 'lib/repository/revision_aware_cache.js',
   singleScanRefresh: 'lib/repository/single_scan_refresh.js'
 });
