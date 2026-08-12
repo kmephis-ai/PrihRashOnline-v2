@@ -170,14 +170,19 @@ assert(studioOutput.includes('href="?surface=composer"'));
 assert(!studioOutput.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
 assert(!/SYN-ACCOUNT|SYN-TX-|PUBLIC_SYNTHETIC/.test(studioOutput));
 
-context.doGet({ parameter: {} });
-assert.strictEqual(homeRuntimeCalls, 1, 'Daily default must keep canonical Financial Home runtime');
+const dailyOutput = context.doGet({ parameter: {} }).getContent();
+assert.strictEqual(homeRuntimeCalls, 0, 'Daily default HTML must render before private financial runtime');
+assert(dailyOutput.includes('PRH_R2_HOME_ASYNC_BOOTSTRAP_V1'));
+context.prhR2FetchFinancialHomePayload('NORMAL');
+assert.strictEqual(homeRuntimeCalls, 1, 'Daily async payload must keep canonical Financial Home runtime');
 assert.strictEqual(legacyCalls, 0);
 
 console.log('analytics-studio-shell-contract: PASS', {
   defaultMode: 'DAILY',
   modes: STUDIO.MODES,
   studioFinancialRuntimeFetch: false,
+  dailyInitialFinancialRuntimeFetch: false,
+  dailyAsyncFinancialRuntimeFetch: true,
   dashboardComposerReady: true,
   privateExposure: 'MYSELF',
   freeOnly: true
