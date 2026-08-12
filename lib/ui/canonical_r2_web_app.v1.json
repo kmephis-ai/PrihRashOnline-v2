@@ -4,8 +4,8 @@
   "roadmap_id": "UI-REC-001",
   "default_route": "home",
   "private_exposure": "MYSELF",
-  "primary_navigation": ["home"],
-  "secondary_navigation": ["studio", "legacy"],
+  "primary_navigation": ["home", "studio"],
+  "secondary_navigation": ["legacy"],
   "hidden_unbound_routes": [
     "transactions",
     "expenses",
@@ -39,7 +39,7 @@
       "financial_formula_copy": false,
       "parity_gate_required": true
     },
-    "studio": {"state":"CONFIGURATION_ONLY","navigation":"SECONDARY","runtime_private_data":false,"surface":"AnalyticsStudioWebApp"},
+    "studio": {"state":"CONFIGURATION_ONLY","navigation":"PRIMARY","runtime_private_data":false,"surface":"AnalyticsStudioWebApp"},
     "legacy": {"state":"BOUND_READ_ONLY","navigation":"SECONDARY","runtime_private_data":true,"surface":"LEGACY_DASHBOARD"},
     "transactions": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"TransactionExplorerWebApp"},
     "expenses": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ExpenseAnalyticsWebApp"},
