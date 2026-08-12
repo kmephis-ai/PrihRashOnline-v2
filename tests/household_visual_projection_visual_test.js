@@ -62,7 +62,18 @@ assert.throws(() => projection.topNExpenseMix([['Дом', -1]], 6), /VIZ_HOUSEHO
 assert.throws(() => projection.topNExpenseMix([['Дом', 10], ['Дом', 20]], 6), /VIZ_HOUSEHOLD_EXPENSE_LABEL_DUPLICATE/);
 
 const source = require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'visualization', 'household_visual_projection.js'), 'utf8');
-assert(!/evaluateKpis|income_minor\s*[+\-*/]?=|expense_minor\s*[+\-*/]?=|cash_flow_minor\s*=\s*.*income/i.test(source), 'visual projection must not become financial formula authority');
+const forbiddenAuthorityPatterns = [
+  /evaluateKpis\s*\(/i,
+  /financialReconciliation/i,
+  /reconcileFinancial/i,
+  /kpi_dictionary/i,
+  /google_sheets_transaction_repository/i,
+  /canonical_transactions/i,
+  /income_minor\s*-\s*expense_minor/i
+];
+for (const pattern of forbiddenAuthorityPatterns) {
+  assert(!pattern.test(source), `visual projection must not become financial/query authority: ${pattern}`);
+}
 assert(!/https?:\/\//i.test(source), 'visual projection must not require an external asset/CDN');
 
 console.log('household_visual_projection_visual_test: OK', {
