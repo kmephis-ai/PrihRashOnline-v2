@@ -119,8 +119,12 @@ assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.schema, RUNTIME_SCHEMA);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.generated_from_canonical_lib, true);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.financial_formula_copy, false);
 assert.deepStrictEqual(Object.keys(ENTRY_MODULES).sort(), [
-  'financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary', 'revisionAwareCache', 'singleScanRefresh'
+  'financialReconciliation', 'googleAdapter', 'home', 'kpiDictionary', 'recentMonthsProjection',
+  'revisionAwareCache', 'singleScanRefresh'
 ].sort());
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.recentMonthsProjection.SCHEMA, 'PRH_GOOGLE_RECENT_MONTHS_SNAPSHOT_V1');
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.recentMonthsProjection.VERSION, '1.0.0');
+assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.recentMonthsProjection.DEFAULT_PERIOD_COUNT, 6);
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.revisionAwareCache.CONTRACT.roadmap_id, 'PERF-011');
 assert.strictEqual(context.PRH_R2_CANONICAL_RUNTIME.singleScanRefresh.CONTRACT.roadmap_id, 'PERF-012');
 assert.strictEqual(context.PRH_R2_FIN_RUNTIME.SCHEMA, 'PRH_R2_FIN_RUNTIME_BRIDGE_V1');
@@ -232,6 +236,7 @@ assert.match(bridgeSource, /id_by_normalized/);
 assert.match(bridgeSource, /runtime\.home\.buildFinancialHome/);
 assert.match(bridgeSource, /runtime\.googleAdapter\.createGoogleSheetsTransactionRepository/);
 assert.match(bridgeSource, /runtime\.financialReconciliation\.aggregateTransactions/);
+assert.match(bundleSource, /lib\/adapters\/google_sheets_recent_months_projection\.js/);
 assert.match(bundleSource, /lib\/repository\/revision_aware_cache\.js/);
 assert.match(bundleSource, /lib\/repository\/single_scan_refresh\.js/);
 assert.match(bundleSource, /lib\/crypto\/sha256\.js/);
@@ -240,6 +245,7 @@ console.log('r2_financial_runtime_parity_contract_test: OK', {
   policy: 'FIN-TRUTH-v1',
   kpiDictionary: '1.0.0',
   generatedCanonicalBundle: true,
+  recentMonthsProjectionBundled: true,
   perf011Bundled: true,
   perf012BundledNotLiveHomeAuthority: true,
   perfLatestMonthProjection: true,
