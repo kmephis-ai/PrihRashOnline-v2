@@ -115,7 +115,10 @@ function prhR2NavigationHtml_(activeSurface) {
 
 function prhR2InjectShell_(html, activeSurface) {
   var marker = '<meta name="prh-canonical-r2" content="' + prhR2EscapeHtml_(PRH_CANONICAL_R2_WEB.VERSION) + '">';
-  if (html.indexOf('</head>') < 0 || html.indexOf('<body') < 0) throw new Error('R2_SURFACE_HTML_STRUCTURE_INVALID');
+  var headEnd = html.indexOf('</head>');
+  if (headEnd < 0) throw new Error('R2_SURFACE_HTML_STRUCTURE_INVALID');
+  var bodyStart = html.indexOf('<body', headEnd + '</head>'.length);
+  if (bodyStart < 0) throw new Error('R2_SURFACE_HTML_STRUCTURE_INVALID');
   var selfUrl = prhR2SelfUrl_();
   if (selfUrl) {
     var baseTag = '<base href="' + prhR2EscapeHtml_(selfUrl) + '" target="_top">';
@@ -126,7 +129,9 @@ function prhR2InjectShell_(html, activeSurface) {
     }
   }
   html = html.replace('</head>', marker + '</head>');
-  var bodyEnd = html.indexOf('>', html.indexOf('<body'));
+  headEnd = html.indexOf('</head>');
+  bodyStart = html.indexOf('<body', headEnd + '</head>'.length);
+  var bodyEnd = bodyStart < 0 ? -1 : html.indexOf('>', bodyStart);
   if (bodyEnd < 0) throw new Error('R2_SURFACE_BODY_INVALID');
   return html.slice(0, bodyEnd + 1) + prhR2NavigationHtml_(activeSurface) + html.slice(bodyEnd + 1);
 }
