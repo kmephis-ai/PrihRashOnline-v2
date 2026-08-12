@@ -1,5 +1,14 @@
 'use strict';
 
+process.on('uncaughtException', (error) => {
+  const message = String(error && error.stack || error && error.message || error || 'UNKNOWN_TEST_FAILURE')
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A');
+  console.error(`::error file=tests/household_visual_projection_visual_test.js,title=VIZ-REC household projection synthetic test::${message}`);
+  process.exit(1);
+});
+
 const assert = require('assert');
 const home = require('../lib/home/financial_home');
 const projection = require('../lib/visualization/household_visual_projection');
