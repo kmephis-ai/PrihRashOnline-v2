@@ -92,19 +92,29 @@ for (const mode of ['MASKED', 'ZEN']) {
 
 privateReads = 0;
 const maskedHtml = context.doGet({ parameter: { surface: 'home', privacy: 'masked' } }).getContent();
-assert.strictEqual(privateReads, 1, 'MASKED reads canonical private view exactly once server-side');
+assert.strictEqual(privateReads, 0, 'MASKED initial HTML must render before private read');
 assert(maskedHtml.includes('data-prh-privacy-mode="MASKED"'));
 assert(maskedHtml.includes('data-prh-privacy-security-boundary="false"'));
 assert(maskedHtml.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
-for (const token of SECRET_TOKENS) assert.strictEqual(maskedHtml.includes(token), false, `MASKED DOM payload leak: ${token}`);
-assert(maskedHtml.includes('"cash_flow_minor":[]'));
-assert(maskedHtml.includes('"expense_mix":[]'));
+assert(maskedHtml.includes('PRH_R2_HOME_ASYNC_BOOTSTRAP_V1'));
+assert(maskedHtml.includes('"privacy_mode":"MASKED"'));
+for (const token of SECRET_TOKENS) assert.strictEqual(maskedHtml.includes(token), false, `MASKED initial DOM leak: ${token}`);
+const maskedPayload = context.prhR2FetchFinancialHomePayload('MASKED');
+assert.strictEqual(privateReads, 1, 'MASKED async fetch reads canonical private view exactly once server-side');
+const maskedSerialized = JSON.stringify(maskedPayload);
+for (const token of SECRET_TOKENS) assert.strictEqual(maskedSerialized.includes(token), false, `MASKED async payload leak: ${token}`);
+assert.deepStrictEqual(maskedPayload.visual_data.cash_flow_minor, []);
+assert.deepStrictEqual(maskedPayload.visual_data.expense_mix, []);
 
 privateReads = 0;
 const invalidHtml = context.doGet({ parameter: { surface: 'home', privacy: 'invalid-mode' } }).getContent();
-assert.strictEqual(privateReads, 1);
+assert.strictEqual(privateReads, 0, 'invalid privacy initial HTML must fail safe before private read');
 assert(invalidHtml.includes('data-prh-privacy-mode="MASKED"'));
-for (const token of SECRET_TOKENS) assert.strictEqual(invalidHtml.includes(token), false, `invalid fail-safe leak: ${token}`);
+assert(invalidHtml.includes('"privacy_mode":"MASKED"'));
+for (const token of SECRET_TOKENS) assert.strictEqual(invalidHtml.includes(token), false, `invalid initial fail-safe leak: ${token}`);
+const invalidPayload = context.prhR2FetchFinancialHomePayload('invalid-mode');
+assert.strictEqual(privateReads, 1, 'invalid privacy async fetch resolves to MASKED server-side');
+for (const token of SECRET_TOKENS) assert.strictEqual(JSON.stringify(invalidPayload).includes(token), false, `invalid async fail-safe leak: ${token}`);
 
 privateReads = 0;
 const zenHtml = context.doGet({ parameter: { surface: 'home', privacy: 'zen' } }).getContent();
@@ -127,9 +137,13 @@ for (const token of SECRET_TOKENS) assert.strictEqual(demoHtml.includes(token), 
 
 privateReads = 0;
 const normalHtml = context.doGet({ parameter: { surface: 'home' } }).getContent();
-assert.strictEqual(privateReads, 1);
+assert.strictEqual(privateReads, 0, 'NORMAL initial HTML must not block on private read');
 assert(normalHtml.includes('data-prh-privacy-mode="NORMAL"'));
-assert(normalHtml.includes('918273645'), 'NORMAL preserves already-authorized presentation values');
+assert(normalHtml.includes('PRH_R2_HOME_ASYNC_BOOTSTRAP_V1'));
+for (const token of SECRET_TOKENS) assert.strictEqual(normalHtml.includes(token), false, `NORMAL initial DOM must not contain financial payload: ${token}`);
+const normalPayload = context.prhR2FetchFinancialHomePayload('NORMAL');
+assert.strictEqual(privateReads, 1, 'NORMAL async fetch reads canonical private view once');
+assert.strictEqual(normalPayload.cards.INCOME.value_minor, 918273645, 'NORMAL preserves already-authorized presentation values in async payload');
 
 privateReads = 0;
 const studioOutput = context.doGet({ parameter: { surface: 'studio', mode: 'studio', privacy: 'masked' } }).getContent();
@@ -152,6 +166,9 @@ console.log('privacy-presentation-runtime: PASS', {
   invalidFailSafe: 'MASKED',
   demoPrivateReads: 0,
   studioPrivateReads: 0,
+  normalInitialPrivateReads: 0,
+  maskedInitialPrivateReads: 0,
+  asyncServerSidePrivacy: true,
   dashboardComposerAffordance: true,
   maskedPreRender: true,
   zenStructuralOnly: true,
