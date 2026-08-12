@@ -20,20 +20,20 @@ function sample(mode, pair, totalMs) {
     candidate_sha: sha,
     mode,
     cache_status: cold ? 'MISS' : 'HIT',
-    reason_code: cold ? 'COLD_SINGLE_SCAN_BUILT' : 'EXACT_SOURCE_REVISION_MATCH',
+    reason_code: cold ? 'COLD_PROJECTED_HOME_BUILT' : 'EXACT_SOURCE_REVISION_MATCH',
     phase_ms: {
       revision_probe_ms: 5, cache_read_ms: cold ? 0 : 2, cache_write_ms: cold ? 3 : 0,
       settings_read_ms: cold ? 5 : 0, sheet_read_ms: cold ? 40 : 0,
       canonical_snapshot_ms: cold ? 70 : 0, home_build_ms: cold ? 50 : 0, total_ms: totalMs
     },
     source_revision_probe_count: cold ? 3 : 2,
-    gateway_call_count: cold ? 1 : 0,
-    range_read_count: cold ? 4 : 0,
-    cell_read_count: cold ? 1500 : 0,
+    gateway_call_count: cold ? 2 : 0,
+    range_read_count: cold ? 5 : 0,
+    cell_read_count: cold ? 700 : 0,
     canonical_snapshot_read_count: cold ? 1 : 0,
     snapshot_reuse_count: cold ? 0 : 1,
     unique_dimension_hash_count: cold ? 11 : 0,
-    dimension_hash_memo_hit_count: cold ? 389 : 0,
+    dimension_hash_memo_hit_count: cold ? 89 : 0,
     cache_payload_utf8_bytes: 5000,
     source_revision_hash_prefix: `abcdef${String(pair).padStart(6, '0')}`,
     canonical_revision_hash_prefix: '123456abcdef',
@@ -51,6 +51,7 @@ assert.strictEqual(summary.ok, true);
 assert.strictEqual(summary.schema, EVIDENCE_SCHEMA);
 assert.deepStrictEqual(summary.sample_counts, { cold: 20, warm: 20, paired: 20 });
 assert.strictEqual(summary.invariants.pass, true);
+assert.strictEqual(summary.invariants.projected_home_reads_per_cold, true);
 assert.strictEqual(summary.slo.cold_first_usable_p95_ms.pass, true);
 assert.strictEqual(summary.slo.warm_home_p95_ms.pass, true);
 assert.strictEqual(summary.slo.runtime_hang_gt_15000_ms.pass, true);
@@ -60,8 +61,10 @@ assert.strictEqual(summary.optimization.canonical_snapshot_reads.cold_observed_t
 assert.strictEqual(summary.optimization.canonical_snapshot_reads.warm_observed_total, 0);
 assert.strictEqual(summary.optimization.canonical_snapshot_reads.prior_path_counterfactual_per_40_requests, 40);
 assert.strictEqual(summary.optimization.canonical_snapshot_reads.recovered_path_observed_per_40_requests, 20);
-assert.strictEqual(summary.optimization.dimension_hashing.prior_hash_calls_counterfactual_p50, 400);
+assert.strictEqual(summary.optimization.dimension_hashing.prior_hash_calls_counterfactual_p50, 100);
 assert.strictEqual(summary.optimization.dimension_hashing.recovered_hash_calls_observed_p50, 11);
+assert.strictEqual(summary.optimization.projected_io.cold_gateway_calls_p50, 2);
+assert.strictEqual(summary.optimization.projected_io.cold_cell_reads_p50, 700);
 
 const serialized = JSON.stringify(summary);
 for (const forbidden of ['source_revision_hash_prefix','canonical_revision_hash_prefix','abcdef000001','123456abcdef']) {
@@ -83,6 +86,12 @@ assert.strictEqual(staleSummary.ok, false);
 assert.strictEqual(staleSummary.invariants.source_revision_stable_within_pairs, false);
 assert(!JSON.stringify(staleSummary).includes('fedcba654321'));
 
+const fullScanMasquerade = samples.map((entry) => JSON.parse(JSON.stringify(entry)));
+fullScanMasquerade[0].reason_code = 'COLD_SINGLE_SCAN_BUILT';
+const fullScanSummary = summarize(fullScanMasquerade, sha);
+assert.strictEqual(fullScanSummary.ok, false);
+assert.strictEqual(fullScanSummary.invariants.projected_home_reads_per_cold, false);
+
 assert.strictEqual(executor.FUNCTION_NAME, 'prhPerfRecBaselineProbeJson');
 assert.match(executorSource, /const FUNCTION_NAME = 'prhPerfRecBaselineProbeJson'/);
 assert.doesNotMatch(executorSource, /process\.argv\[3\].*function/i);
@@ -99,6 +108,7 @@ console.log('perf_rec_runtime_baseline_contract_test: OK', {
   samples: '20C+20W',
   exactSha: true,
   privacySafeSummary: true,
+  projectedHomeTruth: true,
   routeSwitchOverclaim: false,
   trustedExecutorNarrow: true,
   homeSloGate: true
