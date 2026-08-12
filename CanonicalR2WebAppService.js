@@ -4,7 +4,8 @@
  * Financial Home remains the canonical default. Primary navigation contains
  * only proven user-facing destinations. Unbound financial routes remain
  * directly addressable for fail-closed diagnostics but are never advertised as
- * working household navigation. Studio and the legacy view are secondary tools.
+ * working household navigation. Studio is a proven read-only/configuration
+ * destination; the legacy view remains a secondary emergency tool.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
@@ -27,7 +28,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   }),
   ROUTE_TRUTH: Object.freeze({
     home: Object.freeze({ label: 'Главная', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
-    studio: Object.freeze({ label: 'Студия аналитики', runtime_private_data: false, navigation: 'SECONDARY', binding_state: 'CONFIGURATION_ONLY' }),
+    studio: Object.freeze({ label: 'Студия аналитики', runtime_private_data: false, navigation: 'PRIMARY', binding_state: 'CONFIGURATION_ONLY' }),
     legacy: Object.freeze({ label: 'Старый интерфейс', runtime_private_data: true, navigation: 'SECONDARY', binding_state: 'BOUND_READ_ONLY' }),
     transactions: Object.freeze({ label: 'Транзакции', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     expenses: Object.freeze({ label: 'Расходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
@@ -37,7 +38,10 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
     obligations: Object.freeze({ label: 'Обязательства', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     'data-quality': Object.freeze({ label: 'Качество данных', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' })
   }),
-  NAVIGATION: Object.freeze([Object.freeze(['home', 'Главная'])]),
+  NAVIGATION: Object.freeze([
+    Object.freeze(['home', 'Главная']),
+    Object.freeze(['studio', 'Студия аналитики'])
+  ]),
   STUDIO_SURFACE: 'studio',
   COMPOSER_SURFACE: 'composer',
   LEGACY_SURFACE: 'legacy',
@@ -95,17 +99,18 @@ function prhR2NavigationHtml_(activeSurface) {
   var primary = PRH_CANONICAL_R2_WEB.NAVIGATION.map(function(item) {
     var id = item[0];
     var current = id === activeSurface ? ' aria-current="page"' : '';
-    return '<a data-r2-nav="' + prhR2EscapeHtml_(id) + '"' + current +
-      ' href="' + prhR2EscapeHtml_(prhR2RouteHref_(id)) + '">' + prhR2EscapeHtml_(item[1]) + '</a>';
+    var studio = id === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE;
+    var href = studio ? prhR2RouteHref_(id, { mode: 'explore' }) : prhR2RouteHref_(id);
+    var launcher = studio ? ' data-r2-studio-launcher="1" title="Студия аналитики"' : '';
+    return '<a data-r2-nav="' + prhR2EscapeHtml_(id) + '"' + launcher + current +
+      ' href="' + prhR2EscapeHtml_(href) + '">' + prhR2EscapeHtml_(item[1]) + '</a>';
   }).join('');
-  var studioCurrent = activeSurface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE ? ' aria-current="page"' : '';
   var legacyCurrent = activeSurface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE ? ' aria-current="page"' : '';
-  var secondary = '<a data-r2-studio-launcher="1"' + studioCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('studio', { mode: 'explore' })) + '" title="Дополнительный инструмент анализа">Студия аналитики</a>' +
-    '<a data-r2-nav="legacy" data-r2-emergency-rollback="1"' + legacyCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('legacy')) + '" title="Предыдущая версия интерфейса">Старый интерфейс</a>';
+  var secondary = '<a data-r2-nav="legacy" data-r2-emergency-rollback="1"' + legacyCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('legacy')) + '" title="Предыдущая версия интерфейса">Старый интерфейс</a>';
   return '<div id="prh-r2-shell" data-prh-canonical-r2-shell="1" data-navigation-policy="PROVEN_DESTINATIONS_ONLY" data-route-link-mode="SELF_URL" data-active-surface="' + prhR2EscapeHtml_(activeSurface) + '">' +
     '<nav id="prh-r2-canonical-nav" aria-label="Основная навигация PrihRashOnline">' + primary + '</nav>' +
     '<nav id="prh-r2-secondary-nav" aria-label="Дополнительные инструменты PrihRashOnline">' + secondary + '</nav></div>' +
-    '<style id="prh-r2-canonical-nav-style">#prh-r2-shell{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#061d37;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif}#prh-r2-canonical-nav,#prh-r2-secondary-nav{display:flex;align-items:center;gap:6px}#prh-r2-secondary-nav{margin-left:auto}#prh-r2-shell a{color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}#prh-r2-shell a:hover,#prh-r2-shell a:focus-visible{background:#123f66;color:#fff}#prh-r2-shell a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-secondary-nav a{border-color:rgba(255,255,255,.18);color:#bfdbfe}@media(max-width:620px){#prh-r2-shell{align-items:flex-start;flex-direction:column}#prh-r2-secondary-nav{margin-left:0;max-width:100%;overflow-x:auto}}</style>';
+    '<style id="prh-r2-canonical-nav-style">#prh-r2-shell{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#061d37;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif}#prh-r2-canonical-nav,#prh-r2-secondary-nav{display:flex;align-items:center;gap:6px}#prh-r2-canonical-nav{min-width:0;overflow-x:auto;scrollbar-width:none}#prh-r2-canonical-nav::-webkit-scrollbar{display:none}#prh-r2-secondary-nav{margin-left:auto}#prh-r2-shell a{color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}#prh-r2-shell a:hover,#prh-r2-shell a:focus-visible{background:#123f66;color:#fff}#prh-r2-shell a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-secondary-nav a{border-color:rgba(255,255,255,.18);color:#bfdbfe}@media(max-width:620px){#prh-r2-shell{gap:6px;padding:7px 8px}#prh-r2-canonical-nav{flex:1 1 auto}#prh-r2-secondary-nav{flex:0 0 auto;margin-left:0}#prh-r2-shell a{padding:7px 9px;font-size:12px}#prh-r2-secondary-nav a{max-width:92px;overflow:hidden;text-overflow:ellipsis}}</style>';
 }
 
 function prhR2InjectShell_(html, activeSurface) {
