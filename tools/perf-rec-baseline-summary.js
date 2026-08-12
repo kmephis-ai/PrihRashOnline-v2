@@ -103,8 +103,8 @@ function summarize(samples, candidateSha) {
     if (coldSample.source_revision_hash_prefix !== warmSample.source_revision_hash_prefix) {
       invariantFailures.push(`PAIR_${pair + 1}_SOURCE_REVISION_CHANGED`);
     }
-    if (coldSample.cache_status !== 'MISS' || coldSample.reason_code !== 'COLD_SINGLE_SCAN_BUILT' ||
-        Number(coldSample.gateway_call_count) !== 1 || Number(coldSample.canonical_snapshot_read_count) !== 1) {
+    if (coldSample.cache_status !== 'MISS' || coldSample.reason_code !== 'COLD_PROJECTED_HOME_BUILT' ||
+        Number(coldSample.gateway_call_count) < 2 || Number(coldSample.canonical_snapshot_read_count) !== 1) {
       invariantFailures.push(`PAIR_${pair + 1}_COLD_PATH_INVALID`);
     }
     if (warmSample.cache_status !== 'HIT' || warmSample.reason_code !== 'EXACT_SOURCE_REVISION_MATCH' ||
@@ -138,7 +138,7 @@ function summarize(samples, candidateSha) {
       warm_observed_total: warmSnapshotReads.reduce((sum, value) => sum + value, 0),
       prior_path_counterfactual_per_40_requests: 40,
       recovered_path_observed_per_40_requests: coldSnapshotReads.reduce((sum, value) => sum + value, 0) + warmSnapshotReads.reduce((sum, value) => sum + value, 0),
-      model: 'PRIOR_HOME_READALL_EACH_REQUEST_VS_EXACT_REVISION_CACHE'
+      model: 'PRIOR_HOME_FULL_HISTORY_READALL_EACH_REQUEST_VS_PROJECTED_HOME_EXACT_REVISION_CACHE'
     },
     dimension_hashing: {
       cold_unique_hashes_p50: percentile(uniqueHashes, 0.50),
@@ -146,6 +146,13 @@ function summarize(samples, candidateSha) {
       prior_hash_calls_counterfactual_p50: percentile(uniqueHashes.map((value, index) => value + memoHits[index]), 0.50),
       recovered_hash_calls_observed_p50: percentile(uniqueHashes, 0.50),
       model: 'COUNTERFACTUAL_FROM_EXACT_SOURCE_COLD_COUNTERS'
+    },
+    projected_io: {
+      cold_gateway_calls_p50: coldAggregate.counters.gateway_call_count.p50,
+      cold_gateway_calls_p95: coldAggregate.counters.gateway_call_count.p95,
+      cold_cell_reads_p50: coldAggregate.counters.cell_read_count.p50,
+      cold_cell_reads_p95: coldAggregate.counters.cell_read_count.p95,
+      model: 'FULL_HISTORY_ID_TIMESTAMP_PLUS_SELECTED_MONTH_CANONICAL_ROWS'
     }
   };
 
@@ -164,6 +171,7 @@ function summarize(samples, candidateSha) {
       source_revision_stable_within_pairs: !invariantFailures.some((item) => item.includes('SOURCE_REVISION_CHANGED')),
       one_canonical_snapshot_per_cold: !invariantFailures.some((item) => item.includes('COLD_PATH_INVALID')),
       zero_canonical_snapshot_reads_per_warm: !invariantFailures.some((item) => item.includes('WARM_PATH_INVALID')),
+      projected_home_reads_per_cold: !invariantFailures.some((item) => item.includes('COLD_PATH_INVALID')),
       failures: invariantFailures
     },
     optimization,
