@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 1000, maxPageHeight: 1900 },
   { name: 'laptop', width: 1024, height: 900, maxPageHeight: 2800 },
-  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5200 }
+  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5400 }
 ];
 const RUSSIAN_CARD_LABELS = ['Доходы','Расходы','Денежный поток','Сбережения','Бюджет','Ликвидность','Сигналы'];
 const FORBIDDEN_VISIBLE = [
@@ -48,6 +48,7 @@ async function inspect(page, viewport) {
       budget: document.querySelector('[data-home-card="BUDGET"]')?.textContent.replace(/\s+/g, ' ').trim() || '',
       truth: document.getElementById('truth-note')?.textContent || '',
       visualReady: root.getAttribute('data-home-visual-ready') || '',
+      fetchStrategy: root.getAttribute('data-home-fetch-strategy') || '',
       visibleText: document.body.innerText.replace(/\s+/g, ' ').trim()
     };
   }, viewport.maxPageHeight);
@@ -74,9 +75,24 @@ async function inspect(page, viewport) {
   expect(!html.includes('Показать контекст'), 'Source Home must not render fake context action');
   expect(html.includes('.prhR2FetchFinancialHomeVisualPayload(marker.privacy_mode||\'NORMAL\')'), 'Separate async visual RPC missing');
   expect(html.includes('instance.setOption(compiled.option'), 'Browser must pass the server-compiled option directly to ECharts');
+  expect(html.includes("setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL')"), 'Parallel Home fetch strategy marker missing');
+  expect(html.includes('applyChartPresentationSkin(instance,key,currency)'), 'Responsive chart presentation skin missing');
   expect(!html.includes('Math.round(value/total*100)'), 'Browser must not rebuild expense percentages as chart authority');
   expect(!html.includes('class="bar"'), 'CSS pseudo-trend must be removed');
   expect(!html.includes('class="mix-row"'), 'Legacy percentage-bar expense mix must be removed');
+
+  const loadAsyncStart = html.indexOf('function loadAsync(marker)');
+  const loadAsyncEnd = html.indexOf('function refreshChartPresentation', loadAsyncStart);
+  expect(loadAsyncStart >= 0 && loadAsyncEnd > loadAsyncStart, 'Home async loader source missing');
+  const loadAsyncSource = html.slice(loadAsyncStart, loadAsyncEnd);
+  const visualKickoff = loadAsyncSource.indexOf('loadVisualAsync(marker,generation);');
+  const kpiRpc = loadAsyncSource.indexOf('.prhR2FetchFinancialHomePayload');
+  expect(visualKickoff >= 0 && kpiRpc >= 0 && visualKickoff < kpiRpc,
+    'Visual request must start independently before KPI RPC completion to avoid serial waterfall');
+  const kpiSuccessStart = loadAsyncSource.indexOf('.withSuccessHandler(function(data)');
+  const kpiSuccessEnd = loadAsyncSource.indexOf('.withFailureHandler', kpiSuccessStart);
+  const kpiSuccess = loadAsyncSource.slice(kpiSuccessStart, kpiSuccessEnd);
+  expect(!kpiSuccess.includes('loadVisualAsync'), 'KPI success handler must not serialize visual RPC behind KPI completion');
 
   expect(visualRuntimeSource.includes("SCHEMA: 'PRH_R2_HOUSEHOLD_VISUAL_PRESENTATION_V1'"), 'Server visual presentation boundary missing');
   expect(visualRuntimeSource.includes('chart_options_redacted: true'), 'MASKED chart-option redaction marker missing');
@@ -134,7 +150,7 @@ async function inspect(page, viewport) {
     await page.close();
   }
 
-  const bridgePage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const bridgePage = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   const bridgeErrors = [];
   bridgePage.on('pageerror', (error) => bridgeErrors.push(error.message));
   await bridgePage.addInitScript(() => {
@@ -156,16 +172,37 @@ async function inspect(page, viewport) {
   await bridgePage.goto(`file://${htmlPath}`, { waitUntil: 'load' });
   await bridgePage.waitForTimeout(150);
   const bridge = await bridgePage.evaluate(() => ({
-    calls: window.__prhEchartsCalls,
+    calls: window.__prhEchartsCalls.map((call) => ({
+      id: call.id,
+      notMerge: call.settings && call.settings.notMerge,
+      seriesType: call.option && call.option.series && call.option.series[0] && call.option.series[0].type || '',
+      carriesData: !!(call.option && call.option.series && call.option.series[0] && Array.isArray(call.option.series[0].data)),
+      titleShown: call.option && call.option.title ? call.option.title.show : undefined,
+      legendBottom: call.option && call.option.legend ? call.option.legend.bottom : undefined,
+      legendColor: call.option && call.option.legend && call.option.legend.textStyle ? call.option.legend.textStyle.color : '',
+      ySample: call.option && call.option.yAxis && call.option.yAxis.axisLabel && typeof call.option.yAxis.axisLabel.formatter === 'function'
+        ? call.option.yAxis.axisLabel.formatter(20000000) : ''
+    })),
     cashRendered: document.getElementById('cashflow-chart')?.dataset.echartsRendered || '',
     expenseRendered: document.getElementById('expense-mix')?.dataset.echartsRendered || '',
     visualReady: document.documentElement.getAttribute('data-home-visual-ready') || ''
   }));
   expect(!bridgeErrors.length, `ECharts bridge startup errors: ${bridgeErrors.join(' | ')}`);
-  expect(bridge.calls.length === 2, `ECharts bridge must initialize exactly two charts, got ${bridge.calls.length}`);
-  expect(bridge.calls[0].id === 'cashflow-chart' && bridge.calls[0].option.series[0].type === 'line', 'Cash-flow server option was not passed to ECharts');
-  expect(bridge.calls[1].id === 'expense-mix' && bridge.calls[1].option.series[0].type === 'pie', 'Expense server option was not passed to ECharts');
-  expect(bridge.calls.every((call) => call.settings && call.settings.notMerge === true), 'ECharts bridge must use bounded replacement semantics');
+  expect(bridge.calls.length === 4, `ECharts bridge must apply server option plus presentation skin for two charts, got ${bridge.calls.length}`);
+  expect(bridge.calls[0].id === 'cashflow-chart' && bridge.calls[0].seriesType === 'line' && bridge.calls[0].notMerge === true,
+    'Cash-flow server option was not passed to ECharts first');
+  expect(bridge.calls[1].id === 'cashflow-chart' && bridge.calls[1].notMerge === false && bridge.calls[1].carriesData === false,
+    'Cash-flow presentation skin must merge without carrying financial series data');
+  expect(bridge.calls[2].id === 'expense-mix' && bridge.calls[2].seriesType === 'pie' && bridge.calls[2].notMerge === true,
+    'Expense server option was not passed to ECharts first');
+  expect(bridge.calls[3].id === 'expense-mix' && bridge.calls[3].notMerge === false && bridge.calls[3].carriesData === false,
+    'Expense presentation skin must merge without carrying financial series data');
+  expect(bridge.calls[1].titleShown === false && bridge.calls[3].titleShown === false,
+    'Canvas-internal duplicate ECharts titles must be suppressed by presentation skin');
+  expect(bridge.calls[1].ySample.includes('₽') && !bridge.calls[1].ySample.includes('20 000 000'),
+    `Cash-flow axis must format minor units into household currency labels: ${bridge.calls[1].ySample}`);
+  expect(bridge.calls[3].legendBottom === 0, 'Mobile donut legend must be anchored below the donut');
+  expect(bridge.calls[3].legendColor, 'Donut legend must receive an explicit theme-aware text color');
   expect(bridge.cashRendered === '1' && bridge.expenseRendered === '1' && bridge.visualReady === '1', 'ECharts bridge render markers missing');
   await bridgePage.close();
 
@@ -190,11 +227,13 @@ async function inspect(page, viewport) {
   fs.writeFileSync(
     path.join(artifactDir, 'financial-home-layout.json'),
     JSON.stringify({
-      schema: 'PRH_FINANCIAL_HOME_VISUAL_EVIDENCE_V3',
+      schema: 'PRH_FINANCIAL_HOME_VISUAL_EVIDENCE_V4',
       privacy_class: 'PUBLIC_SYNTHETIC',
       truthfulHouseholdUi: true,
       localEchartsBridge: true,
       serverCompiledOptions: true,
+      presentationSkinNoFinancialData: true,
+      parallelKpiVisualFetch: true,
       maskedChartOptionRedaction: true,
       cssPseudoTrendRemoved: true,
       semanticFallback: true,
@@ -206,6 +245,8 @@ async function inspect(page, viewport) {
     truthfulHouseholdUi: true,
     localEchartsBridge: true,
     serverCompiledOptions: true,
+    presentationSkinNoFinancialData: true,
+    parallelKpiVisualFetch: true,
     maskedChartOptionRedaction: true,
     cssPseudoTrendRemoved: true,
     semanticFallback: true,
