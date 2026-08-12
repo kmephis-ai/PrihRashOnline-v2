@@ -189,3 +189,100 @@ function prhR2BuildFinancialHomeVisualRuntime_() {
   });
   return result;
 }
+
+var PRH_R2_VISUAL_PRESENTATION = Object.freeze({
+  SCHEMA: 'PRH_R2_HOUSEHOLD_VISUAL_PRESENTATION_V1',
+  VERSION: '1.0.0',
+  NORMAL: 'NORMAL',
+  MASKED: 'MASKED',
+  REDACTED: 'REDACTED',
+  CHART_OPTION_AUTHORITY: 'SERVER_ONLY',
+  WRITE_AUTHORITY: false,
+  FREE_ONLY: true
+});
+
+function prhR2VisualPresentation_(mode, payload) {
+  var normalizedMode = String(mode || '').trim().toUpperCase();
+  if (normalizedMode !== PRH_R2_VISUAL_PRESENTATION.NORMAL &&
+      normalizedMode !== PRH_R2_VISUAL_PRESENTATION.MASKED) {
+    prhR2VisualFail_('R2_VISUAL_PRESENTATION_MODE_FORBIDDEN');
+  }
+
+  if (normalizedMode === PRH_R2_VISUAL_PRESENTATION.MASKED) {
+    return Object.freeze({
+      schema: PRH_R2_VISUAL_PRESENTATION.SCHEMA,
+      contract_version: PRH_R2_VISUAL_PRESENTATION.VERSION,
+      mode: PRH_R2_VISUAL_PRESENTATION.MASKED,
+      status: PRH_R2_VISUAL_PRESENTATION.REDACTED,
+      currency: null,
+      requested_period_count: PRH_R2_VISUAL_RUNTIME.PERIOD_COUNT,
+      available_period_count: null,
+      observed_period_count: null,
+      cash_flow_periods: Object.freeze([]),
+      expense_mix: Object.freeze([]),
+      charts: Object.freeze({ cash_flow: null, expense_mix: null }),
+      latest_period: null,
+      privacy: Object.freeze({
+        values_redacted: true,
+        chart_options_redacted: true,
+        private_visual_runtime_read: false
+      }),
+      provenance: Object.freeze({
+        renderer: PRH_R2_VISUAL_RUNTIME.RENDERER,
+        chart_option_authority: PRH_R2_VISUAL_PRESENTATION.CHART_OPTION_AUTHORITY,
+        ui_chart_option_authority: false,
+        write_authority: false,
+        free_only: true
+      })
+    });
+  }
+
+  if (!payload || payload.schema !== PRH_R2_VISUAL_RUNTIME.PAYLOAD_SCHEMA ||
+      payload.contract_version !== PRH_R2_VISUAL_RUNTIME.VERSION || !payload.charts) {
+    prhR2VisualFail_('R2_VISUAL_PRESENTATION_PAYLOAD_INVALID');
+  }
+  return Object.freeze({
+    schema: PRH_R2_VISUAL_PRESENTATION.SCHEMA,
+    contract_version: PRH_R2_VISUAL_PRESENTATION.VERSION,
+    mode: PRH_R2_VISUAL_PRESENTATION.NORMAL,
+    status: payload.status,
+    currency: payload.currency,
+    requested_period_count: payload.requested_period_count,
+    available_period_count: payload.available_period_count,
+    observed_period_count: payload.observed_period_count,
+    cash_flow_periods: payload.cash_flow_periods,
+    expense_mix: payload.expense_mix,
+    charts: payload.charts,
+    latest_period: payload.latest_period,
+    privacy: Object.freeze({
+      values_redacted: false,
+      chart_options_redacted: false,
+      private_visual_runtime_read: true
+    }),
+    provenance: Object.freeze({
+      financial_truth_policy: payload.provenance.financial_truth_policy,
+      financial_authority: payload.provenance.financial_authority,
+      chart_spec_authority: payload.provenance.chart_spec_authority,
+      chart_compiler: payload.provenance.chart_compiler,
+      renderer: payload.provenance.renderer,
+      chart_option_authority: PRH_R2_VISUAL_PRESENTATION.CHART_OPTION_AUTHORITY,
+      ui_chart_option_authority: false,
+      write_authority: false,
+      free_only: true
+    })
+  });
+}
+
+function prhR2FetchFinancialHomeVisualPayload(privacyMode) {
+  if (typeof prhPrivacyResolveMode_ !== 'function') {
+    prhR2VisualFail_('R2_VISUAL_PRIVACY_RUNTIME_REQUIRED');
+  }
+  var mode = prhPrivacyResolveMode_(privacyMode);
+  if (mode !== PRH_R2_VISUAL_PRESENTATION.NORMAL && mode !== PRH_R2_VISUAL_PRESENTATION.MASKED) {
+    prhR2VisualFail_('R2_VISUAL_ASYNC_MODE_FORBIDDEN');
+  }
+  if (mode === PRH_R2_VISUAL_PRESENTATION.MASKED) {
+    return prhR2VisualPresentation_(mode, null);
+  }
+  return prhR2VisualPresentation_(mode, prhR2BuildFinancialHomeVisualRuntime_());
+}

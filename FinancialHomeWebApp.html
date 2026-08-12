@@ -39,14 +39,16 @@
     .budget-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:13px}.budget-cell{padding:8px;border-radius:10px;background:var(--surface-soft);font-size:11px;color:var(--muted)}.budget-cell b{display:block;margin-top:3px;color:var(--text);font-size:13px}
     .visuals{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(330px,.8fr);gap:14px;margin-top:18px}.panel{min-width:0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
     .panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.panel h3{margin:0;font-size:18px}.panel-label{padding:4px 8px;border-radius:999px;background:var(--surface-soft);color:var(--muted);font-size:10px;font-weight:800}
-    .chart{min-height:220px;display:flex;align-items:end;gap:10px;padding:16px 6px 4px;border-bottom:1px solid var(--line)}.bar{flex:1;min-width:12px;border-radius:8px 8px 3px 3px;background:var(--brand);opacity:.85}.visual-empty{min-height:220px;display:grid;place-items:center;padding:28px;text-align:center;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}.visual-empty strong{display:block;margin-bottom:5px;color:var(--text);font-size:15px}
-    .mix{display:grid;gap:10px}.mix-row{display:grid;grid-template-columns:minmax(0,1fr) 50px;gap:10px;align-items:center}.mix-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}.mix-track{height:10px;margin-top:4px;border-radius:999px;background:var(--surface-soft);overflow:hidden}.mix-fill{height:100%;border-radius:inherit;background:var(--brand)}.mix-value{text-align:right;font-size:12px;font-weight:800}.mix-empty{padding:28px;text-align:center;color:var(--muted);background:var(--surface-soft);border-radius:var(--radius-sm)}
+    .echart-host{width:100%;min-height:260px}.visual-empty,.visual-mask,.semantic-fallback{min-height:220px;display:grid;align-content:center;padding:24px;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}
+    .visual-empty{text-align:center;place-items:center}.visual-empty strong,.visual-mask strong,.semantic-fallback strong{display:block;margin-bottom:5px;color:var(--text);font-size:15px}.visual-mask{text-align:center;place-items:center}
+    .semantic-fallback{align-content:start}.semantic-fallback ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}.semantic-row{display:flex;justify-content:space-between;gap:14px;padding:8px 10px;border-radius:10px;background:var(--surface)}.semantic-row span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}.semantic-row b{white-space:nowrap;color:var(--text)}
     .footnote{margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);font-size:12px}.fatal{max-width:760px;margin:32px auto;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.fatal h2{margin:0 0 7px}.fatal p{margin:0;color:var(--muted)}
     .retry{margin-top:16px;border:0;border-radius:999px;padding:9px 14px;background:var(--brand-strong);color:#fff;font-weight:800;cursor:pointer}.loading-card{overflow:hidden}.loading-line{height:13px;border-radius:999px;background:var(--surface-soft);margin-top:14px;animation:prhPulse 1.2s ease-in-out infinite alternate}.loading-line.short{width:42%}.loading-line.value-line{height:30px;width:72%;margin-top:22px}.loading-note{color:var(--muted);font-size:12px}.loading-visual{min-height:220px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);text-align:center;padding:24px}@keyframes prhPulse{from{opacity:.45}to{opacity:1}}
     @media(max-width:1050px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.visuals{grid-template-columns:1fr}}
-    @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.chart,.visual-empty,.loading-visual{min-height:180px}}
+    @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.echart-host,.visual-empty,.visual-mask,.semantic-fallback,.loading-visual{min-height:190px}.semantic-row{align-items:flex-start;flex-direction:column;gap:2px}}
     @media(prefers-reduced-motion:reduce){.loading-line{animation:none}}
   </style>
+  <!-- PRH_LOCAL_ECHARTS_VENDOR -->
 </head>
 <body>
   <script id="initial-home-data" type="application/json"><?!= initialHomeData ?></script>
@@ -61,8 +63,8 @@
     <div class="alert-strip" id="alert-strip" aria-label="Финансовые сигналы"></div>
     <section class="cards" id="cards" aria-label="Ключевые показатели"></section>
     <section class="visuals" aria-label="Финансовые визуализации">
-      <article class="panel"><div class="panel-head"><div><h3>Динамика денежного потока</h3><div class="section-note">Изменение результата по периодам</div></div><span class="panel-label">Динамика</span></div><div id="cashflow-chart"></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Структура расходов</h3><div class="section-note">Доля категорий в расходах периода</div></div><span class="panel-label">Категории</span></div><div class="mix" id="expense-mix"></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Динамика денежного потока</h3><div class="section-note">Последние доступные месяцы</div></div><span class="panel-label">ECharts</span></div><div id="cashflow-chart" aria-live="polite"></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Структура расходов</h3><div class="section-note">Категории последнего периода</div></div><span class="panel-label">ECharts</span></div><div id="expense-mix" aria-live="polite"></div></article>
     </section>
     <div class="footnote">Ликвидность появится после подключения данных об остатках на счетах. Бюджет показывается только при наличии плана на тот же период и в той же валюте.</div>
   </main>
@@ -84,9 +86,23 @@
     visual_data:{cash_flow_minor:[12000,18000,9000,24000,30000],expense_mix:[['SYN-HOME',31000],['SYN-FOOD',23000],['SYN-OTHER',16000]]},
     provenance:{financial_values:'FIN010_EVALUATE_KPIS_RESULT',kpi_evaluation_count:1,ui_financial_formula_used:false,liquidity_proxy_used:false}
   };
+  const SYN_VISUAL={
+    synthetic_compiled_fixture:true,schema:'PRH_R2_HOUSEHOLD_VISUAL_PRESENTATION_V1',contract_version:'1.0.0',mode:'NORMAL',status:'READY',currency:'RUB',requested_period_count:6,available_period_count:6,observed_period_count:6,
+    cash_flow_periods:[
+      {period:{start:'2026-03-01',end:'2026-04-01'},cash_flow_minor:12000},{period:{start:'2026-04-01',end:'2026-05-01'},cash_flow_minor:18000},{period:{start:'2026-05-01',end:'2026-06-01'},cash_flow_minor:9000},
+      {period:{start:'2026-06-01',end:'2026-07-01'},cash_flow_minor:24000},{period:{start:'2026-07-01',end:'2026-08-01'},cash_flow_minor:27000},{period:{start:'2026-08-01',end:'2026-09-01'},cash_flow_minor:30000}
+    ],
+    expense_mix:[['SYN-HOME',31000],['SYN-FOOD',23000],['SYN-OTHER',16000]],
+    charts:{
+      cash_flow:{renderer:'ECHARTS_6',option:{aria:{enabled:true},title:{text:'Денежный поток'},tooltip:{trigger:'axis'},xAxis:{type:'category',data:['2026-03','2026-04','2026-05','2026-06','2026-07','2026-08']},yAxis:{type:'value'},series:[{type:'line',data:[12000,18000,9000,24000,27000,30000],smooth:true}]}},
+      expense_mix:{renderer:'ECHARTS_6',option:{aria:{enabled:true},title:{text:'Структура расходов'},tooltip:{trigger:'item'},series:[{type:'pie',radius:['42%','70%'],data:[{name:'SYN-HOME',value:31000},{name:'SYN-FOOD',value:23000},{name:'SYN-OTHER',value:16000}]}]}}
+    },
+    latest_period:{start:'2026-08-01',end:'2026-09-01'},privacy:{values_redacted:false,chart_options_redacted:false,private_visual_runtime_read:false},provenance:{renderer:'ECHARTS_6',chart_option_authority:'SERVER_ONLY',ui_chart_option_authority:false,write_authority:false,free_only:true}
+  };
   const CARD_LABELS={INCOME:'Доходы',EXPENSE:'Расходы',CASH_FLOW:'Денежный поток',SAVINGS:'Сбережения',BUDGET:'Бюджет',LIQUIDITY:'Ликвидность',ALERTS:'Сигналы'};
   const ALERT_LABELS={NEGATIVE_CASH_FLOW:'Отрицательный денежный поток',BUDGET_NOT_CONFIGURED:'Бюджет не настроен',LIQUIDITY_SOURCE_UNAVAILABLE:'Ликвидность пока недоступна'};
   const SEVERITY_LABELS={INFO:'информация',WARNING:'предупреждение',ERROR:'важно',CRITICAL:'критично'};
+  const charts={cash_flow:null,expense_mix:null};
   let activeAsyncMarker=null;
   function moneyCard(id,value){return {id:id,state:'READY',source_kpi:id,value_minor:value,currency:'RUB',drill:null};}
   function parse(){try{const text=document.getElementById('initial-home-data').textContent.trim();if(!text||text.indexOf('<?')===0)return SYN;return JSON.parse(text);}catch(e){return SYN;}}
@@ -111,15 +127,57 @@
     const host=document.getElementById('alert-strip');const alerts=Array.isArray(data.alerts)?data.alerts:[];
     host.innerHTML=alerts.map(function(a){const severity=String(a.severity||'INFO').toUpperCase();const css=severity==='WARNING'?'warning':(severity==='ERROR'||severity==='CRITICAL'?'danger':'info');return '<span class="alert-chip '+css+'">'+esc(ALERT_LABELS[a.code]||'Требует внимания')+'</span>';}).join('')||'<span class="alert-chip info">Нет активных предупреждений</span>';
   }
-  function renderCashFlow(data){
-    const host=document.getElementById('cashflow-chart');const values=((data.visual_data||{}).cash_flow_minor||[]).map(Number).filter(Number.isFinite);
-    if(values.length<2){host.className='visual-empty';host.innerHTML='<div><strong>Для графика динамики пока недостаточно данных</strong><span>Сейчас доступен только итог текущего периода. Временной ряд будет показан после подключения истории по периодам.</span></div>';return;}
-    host.className='chart';const max=Math.max.apply(null,values.map(Math.abs).concat([1]));host.innerHTML=values.map(function(v,index){const h=Math.max(8,Math.round(Math.abs(v)/max*92));return '<div class="bar" style="height:'+h+'%" aria-label="Период '+(index+1)+': '+esc(rub(v,data.currency))+'" title="'+esc(rub(v,data.currency))+'"></div>';}).join('');
+  function disposeChart(key){
+    const instance=charts[key];if(instance&&typeof instance.dispose==='function'){try{instance.dispose();}catch(e){}}
+    charts[key]=null;
   }
-  function renderExpenseMix(data){
-    const host=document.getElementById('expense-mix');const mix=Array.isArray((data.visual_data||{}).expense_mix)?data.visual_data.expense_mix:[];const total=mix.reduce(function(sum,row){return sum+Math.max(0,Number(row&&row[1]||0));},0);
-    if(!mix.length||!total){host.innerHTML='<div class="mix-empty">Нет расходов для отображения в этом периоде.</div>';return;}
-    host.innerHTML=mix.map(function(row){const value=Math.max(0,Number(row[1]||0));const pct=Math.max(1,Math.round(value/total*100));return '<div class="mix-row"><div><div class="mix-name" title="'+esc(row[0])+'">'+esc(row[0])+'</div><div class="mix-track"><div class="mix-fill" style="width:'+pct+'%"></div></div></div><div class="mix-value">'+pct+'%</div></div>';}).join('');
+  function renderEChart(hostId,key,compiled){
+    const host=document.getElementById(hostId);disposeChart(key);
+    if(!compiled||compiled.renderer!=='ECHARTS_6'||!compiled.option||typeof compiled.option!=='object')return false;
+    if(!(window.echarts&&typeof window.echarts.init==='function'))return false;
+    host.className='echart-host';host.innerHTML='';
+    const existing=typeof window.echarts.getInstanceByDom==='function'?window.echarts.getInstanceByDom(host):null;
+    const instance=existing||window.echarts.init(host);
+    if(!instance||typeof instance.setOption!=='function')return false;
+    instance.setOption(compiled.option,{notMerge:true,lazyUpdate:false});
+    charts[key]=instance;
+    return true;
+  }
+  function semanticRows(host,rows,currency,emptyMessage){
+    host.className='semantic-fallback';
+    if(!rows.length){host.innerHTML='<div><strong>Недостаточно данных для визуализации</strong><span>'+esc(emptyMessage)+'</span></div>';return;}
+    host.innerHTML='<div><strong>Доступно текстовое представление</strong><span>Графический движок не изменяет финансовые расчёты.</span><ul>'+rows.map(function(row){return '<li class="semantic-row"><span>'+esc(row[0])+'</span><b>'+esc(rub(row[1],currency))+'</b></li>';}).join('')+'</ul></div>';
+  }
+  function renderCashFlowSemantic(presentation){
+    const rows=Array.isArray(presentation.cash_flow_periods)?presentation.cash_flow_periods.map(function(entry,index){const period=entry&&entry.period||{};return [period.start?String(period.start).slice(0,7):'Период '+(index+1),entry&&entry.cash_flow_minor];}):[];
+    semanticRows(document.getElementById('cashflow-chart'),rows,presentation.currency,'Нужно больше реальных периодов истории.');
+  }
+  function renderExpenseSemantic(presentation){
+    const rows=Array.isArray(presentation.expense_mix)?presentation.expense_mix.filter(function(row){return Array.isArray(row)&&row.length>=2;}):[];
+    semanticRows(document.getElementById('expense-mix'),rows,presentation.currency,'В последнем периоде нет расходов для отображения.');
+  }
+  function renderMaskedVisuals(){
+    disposeChart('cash_flow');disposeChart('expense_mix');
+    const html='<div><strong>Графики скрыты режимом приватности</strong><span>Точные значения и ECharts options не передаются в браузер.</span></div>';
+    const cash=document.getElementById('cashflow-chart');cash.className='visual-mask';cash.innerHTML=html;
+    const mix=document.getElementById('expense-mix');mix.className='visual-mask';mix.innerHTML=html;
+  }
+  function renderVisualPayload(presentation){
+    if(!presentation||presentation.schema!=='PRH_R2_HOUSEHOLD_VISUAL_PRESENTATION_V1')throw new Error('HOME_VISUAL_PRESENTATION_INVALID');
+    if(presentation.mode==='MASKED'){renderMaskedVisuals();document.documentElement.setAttribute('data-home-visual-ready','MASKED');return;}
+    if(presentation.mode!=='NORMAL')throw new Error('HOME_VISUAL_PRESENTATION_MODE_INVALID');
+    const cashRendered=renderEChart('cashflow-chart','cash_flow',presentation.charts&&presentation.charts.cash_flow);
+    if(!cashRendered)renderCashFlowSemantic(presentation);
+    const expenseRendered=renderEChart('expense-mix','expense_mix',presentation.charts&&presentation.charts.expense_mix);
+    if(!expenseRendered)renderExpenseSemantic(presentation);
+    document.documentElement.setAttribute('data-home-visual-ready','1');
+  }
+  function renderLegacyVisualData(data){
+    const visual=data&&data.visual_data||{};
+    const cash=Array.isArray(visual.cash_flow_minor)?visual.cash_flow_minor.map(function(value,index){return {period:{start:'Период '+(index+1)},cash_flow_minor:value};}):[];
+    renderCashFlowSemantic({cash_flow_periods:cash,currency:data.currency});
+    renderExpenseSemantic({expense_mix:Array.isArray(visual.expense_mix)?visual.expense_mix:[],currency:data.currency});
+    document.documentElement.setAttribute('data-home-visual-ready','FALLBACK');
   }
   function render(data){
     document.getElementById('period-pill').textContent=data.period&&data.period.start?data.period.start+' → '+data.period.end:'Весь доступный период';
@@ -127,8 +185,12 @@
     renderAlerts(data);
     const order=['INCOME','EXPENSE','CASH_FLOW','SAVINGS','BUDGET','LIQUIDITY','ALERTS'];
     document.getElementById('cards').innerHTML=order.map(function(id){return cardHtml(data.cards&&data.cards[id]);}).join('');
-    renderCashFlow(data);renderExpenseMix(data);
     document.documentElement.setAttribute('data-home-data-ready','1');
+  }
+  function renderVisualLoading(){
+    disposeChart('cash_flow');disposeChart('expense_mix');
+    const cash=document.getElementById('cashflow-chart');cash.className='loading-visual';cash.innerHTML='<div>Загружаем динамику отдельно от ключевых показателей…</div>';
+    const mix=document.getElementById('expense-mix');mix.className='loading-visual';mix.innerHTML='<div>Загружаем структуру расходов отдельно от ключевых показателей…</div>';
   }
   function renderLoading(){
     document.documentElement.setAttribute('data-home-runtime','ASYNC');
@@ -137,27 +199,42 @@
     document.getElementById('alert-strip').innerHTML='<span class="alert-chip info">Обновляем финансовый обзор…</span>';
     const labels=['Доходы','Расходы','Денежный поток','Сбережения','Бюджет','Ликвидность','Сигналы'];
     document.getElementById('cards').innerHTML=labels.map(function(label){return '<article class="card loading-card" aria-busy="true"><div class="card-label">'+esc(label)+'</div><div class="loading-line value-line"></div><div class="loading-line short"></div></article>';}).join('');
-    document.getElementById('cashflow-chart').className='loading-visual';
-    document.getElementById('cashflow-chart').innerHTML='<div>Загружаем динамику…</div>';
-    document.getElementById('expense-mix').innerHTML='<div class="loading-visual">Загружаем структуру расходов…</div>';
+    renderVisualLoading();
+  }
+  function renderVisualFailure(){
+    disposeChart('cash_flow');disposeChart('expense_mix');
+    const html='<div><strong>График временно недоступен</strong><span>Ключевые показатели выше уже загружены. Визуализация запрашивается отдельно и не блокирует финансовый обзор.</span></div>';
+    const cash=document.getElementById('cashflow-chart');cash.className='visual-empty';cash.innerHTML=html;
+    const mix=document.getElementById('expense-mix');mix.className='visual-empty';mix.innerHTML=html;
+    document.documentElement.setAttribute('data-home-visual-ready','ERROR');
   }
   function renderFailure(){
     document.getElementById('home-main').innerHTML='<section class="fatal" role="alert"><h2>Не удалось загрузить финансовый обзор</h2><p>Данные не отображены, чтобы не показывать неполную или недостоверную информацию.</p><button type="button" class="retry" id="home-retry">Повторить загрузку</button></section>';
     const retry=document.getElementById('home-retry');if(retry)retry.addEventListener('click',function(){if(activeAsyncMarker){location.reload();}});
   }
+  function loadVisualAsync(marker){
+    if(!(window.google&&google.script&&google.script.run)){renderVisualFailure();return;}
+    renderVisualLoading();
+    google.script.run
+      .withSuccessHandler(function(data){try{renderVisualPayload(data);}catch(e){renderVisualFailure();}})
+      .withFailureHandler(function(){renderVisualFailure();})
+      .prhR2FetchFinancialHomeVisualPayload(marker.privacy_mode||'NORMAL');
+  }
   function loadAsync(marker){
     activeAsyncMarker=marker;
     if(!(window.google&&google.script&&google.script.run)){renderFailure();return;}
     google.script.run
-      .withSuccessHandler(function(data){try{if(!data||!data.cards)throw new Error('HOME_PAYLOAD_INVALID');render(data);}catch(e){renderFailure();}})
+      .withSuccessHandler(function(data){try{if(!data||!data.cards)throw new Error('HOME_PAYLOAD_INVALID');render(data);loadVisualAsync(marker);}catch(e){renderFailure();}})
       .withFailureHandler(function(){renderFailure();})
       .prhR2FetchFinancialHomePayload(marker.privacy_mode||'NORMAL');
   }
+  window.addEventListener('resize',function(){Object.keys(charts).forEach(function(key){const instance=charts[key];if(instance&&typeof instance.resize==='function'){try{instance.resize();}catch(e){}}});});
   document.addEventListener('DOMContentLoaded',function(){
     try{
       const initial=parse();
       if(initial&&initial.runtime_load==='ASYNC'){renderLoading();loadAsync(initial);return;}
       render(initial);
+      if(initial&&initial.synthetic===true&&window.echarts)renderVisualPayload(SYN_VISUAL);else renderLegacyVisualData(initial);
     }catch(e){renderFailure();}
   });
 }());
