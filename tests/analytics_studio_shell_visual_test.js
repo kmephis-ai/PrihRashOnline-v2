@@ -50,7 +50,8 @@ async function snapshot(page) {
     const body = document.body;
     const tabs = Array.from(document.querySelectorAll('[role="tab"][data-mode]'));
     const activePanels = Array.from(document.querySelectorAll('[data-mode-panel]')).filter((panel) => panel.dataset.active === 'true' && panel.hidden === false);
-    const nav = document.getElementById('prh-r2-canonical-nav');
+    const shell = document.getElementById('prh-r2-shell');
+    const secondary = document.getElementById('prh-r2-secondary-nav');
     const storageRaw = (() => { try { return localStorage.getItem('prh.analyticsStudio.mode.v1'); } catch (_) { return null; } })();
     return {
       mode: body.dataset.studioMode,
@@ -59,8 +60,8 @@ async function snapshot(page) {
       tabIndexes: tabs.map((tab) => ({ mode: tab.dataset.mode, value: tab.tabIndex })),
       activePanels: activePanels.map((panel) => panel.dataset.modePanel),
       bodyOverflow: Math.max(root.scrollWidth, body.scrollWidth) - innerWidth,
-      navActive: nav && nav.dataset.activeSurface,
-      studioLauncherCurrent: nav && nav.querySelector('[data-r2-studio-launcher="1"]')?.getAttribute('aria-current'),
+      navActive: shell && shell.dataset.activeSurface,
+      studioLauncherCurrent: secondary && secondary.querySelector('[data-r2-studio-launcher="1"]')?.getAttribute('aria-current'),
       hasFinancialRuntimeCall: document.documentElement.innerHTML.includes('google.script.run'),
       preference: storageRaw,
       urlMode: new URL(location.href).searchParams.get('mode')

@@ -52,7 +52,7 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING');
   }
   var webAppSmoke = prhWebAppRenderSmokeToken();
-  if (webAppSmoke !== 'PRH_WEBAPP_SMOKE_V3|R2|OK') {
+  if (webAppSmoke !== 'PRH_WEBAPP_SMOKE_V4|R2|OK') {
     throw new Error('RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED');
   }
 

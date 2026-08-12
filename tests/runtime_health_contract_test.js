@@ -8,6 +8,7 @@ const vm = require('vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'RuntimeHealth.js'), 'utf8');
 const candidateSha = 'a'.repeat(40);
 const sourceTreeHash = 'b'.repeat(64);
+const WEB_SMOKE = 'PRH_WEBAPP_SMOKE_V4|R2|OK';
 const HOME_SMOKE = 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7';
 
 function createContext(options = {}) {
@@ -53,7 +54,7 @@ function createContext(options = {}) {
     context.prhWebAppRenderSmokeToken = function () {
       webSmokeCounter.value += 1;
       if (options.webSmokeThrows) throw new Error('synthetic web smoke failure');
-      return options.webSmokeToken || 'PRH_WEBAPP_SMOKE_V3|R2|OK';
+      return options.webSmokeToken || WEB_SMOKE;
     };
   }
   if (!options.homeReadSmokeMissing) {
@@ -115,7 +116,7 @@ assert.throws(() => createContext({ sheets: ['operations', 'settings'] }).contex
 assert.throws(() => createContext({ noSpreadsheet: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_SPREADSHEET_UNAVAILABLE/);
 assert.throws(() => createContext({ readFailure: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic read failure/);
 assert.throws(() => createContext({ webSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_MISSING/);
-assert.throws(() => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V3|R2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
+assert.throws(() => createContext({ webSmokeToken: 'PRH_WEBAPP_SMOKE_V4|R2|FAIL' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_WEBAPP_SMOKE_FAILED/);
 assert.throws(() => createContext({ webSmokeThrows: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /synthetic web smoke failure/);
 assert.throws(() => createContext({ homeReadSmokeMissing: true }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_MISSING/);
 assert.throws(() => createContext({ homeReadSmokeToken: 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|FAIL|0' }).context.prhReleaseHealthCheck({ candidateSha, sourceTreeHash }), /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
@@ -126,7 +127,7 @@ console.log('runtime_health_contract_test: OK', {
   sourceTreeHash: true,
   transportPing: true,
   privateSchemaRead: true,
-  webAppRenderSmoke: 'V3_R2',
+  webAppRenderSmoke: 'V4_R2',
   privateHomeReadSmoke: 'V3_CANONICAL_LIB_DIMENSION_HASH',
   scalarEntrypoint: true,
   financialPayload: false

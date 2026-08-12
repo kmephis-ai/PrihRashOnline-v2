@@ -1,11 +1,12 @@
 {
   "schema": "PRH_CANONICAL_R2_WEB_APP_V1",
-  "version": "1.0.0",
-  "roadmap_id": "UI-MIG-020",
+  "version": "1.1.0",
+  "roadmap_id": "UI-REC-001",
   "default_route": "home",
   "private_exposure": "MYSELF",
-  "primary_navigation": [
-    "home",
+  "primary_navigation": ["home"],
+  "secondary_navigation": ["studio", "legacy"],
+  "hidden_unbound_routes": [
     "transactions",
     "expenses",
     "income",
@@ -14,9 +15,21 @@
     "obligations",
     "data-quality"
   ],
+  "navigation_policy": "PROVEN_DESTINATIONS_ONLY",
+  "navigation_link_mode": "RUNTIME_SELF_URL_ABSOLUTE_WITH_TEST_FALLBACK",
+  "home_data_delivery": {
+    "mode": "ASYNC_GOOGLE_SCRIPT_RUN",
+    "initial_html_financial_read": false,
+    "runtime_function": "prhR2FetchFinancialHomePayload",
+    "allowed_privacy_modes": ["NORMAL", "MASKED"],
+    "loading_state_required": true,
+    "retry_state_required": true,
+    "financial_write": false
+  },
   "runtime_bindings": {
     "home": {
       "state": "BOUND_READ_ONLY",
+      "navigation": "PRIMARY",
       "surface": "FinancialHomeWebApp",
       "data_source": "PRH_R2_FIN_RUNTIME_BRIDGE_V1",
       "canonical_runtime": "PRH_R2_CANONICAL_RUNTIME_BUNDLE_V1",
@@ -26,13 +39,23 @@
       "financial_formula_copy": false,
       "parity_gate_required": true
     },
-    "transactions": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"TransactionExplorerWebApp"},
-    "expenses": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"ExpenseAnalyticsWebApp"},
-    "income": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"IncomeAnalyticsWebApp"},
-    "cash-flow": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"CashFlowWebApp"},
-    "budget": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"BudgetControlWebApp"},
-    "obligations": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"ObligationsWebApp"},
-    "data-quality": {"state":"SAFE_UNBOUND_FAIL_CLOSED","surface":"DataQualityWebApp"}
+    "studio": {"state":"CONFIGURATION_ONLY","navigation":"SECONDARY","runtime_private_data":false,"surface":"AnalyticsStudioWebApp"},
+    "legacy": {"state":"BOUND_READ_ONLY","navigation":"SECONDARY","runtime_private_data":true,"surface":"LEGACY_DASHBOARD"},
+    "transactions": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"TransactionExplorerWebApp"},
+    "expenses": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ExpenseAnalyticsWebApp"},
+    "income": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"IncomeAnalyticsWebApp"},
+    "cash-flow": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"CashFlowWebApp"},
+    "budget": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"BudgetControlWebApp"},
+    "obligations": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ObligationsWebApp"},
+    "data-quality": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"DataQualityWebApp"}
+  },
+  "household_presentation": {
+    "language": "ru",
+    "raw_machine_ids_visible": false,
+    "unproven_actions_visible": false,
+    "developer_reason_codes_visible": false,
+    "one_period_trend_behavior": "SEMANTIC_INSUFFICIENT_HISTORY_FALLBACK",
+    "fake_drill_affordances_allowed": false
   },
   "synthetic_policy": {
     "browser_visual_fixture_allowed": true,
@@ -60,7 +83,7 @@
     "read_gateway": "prhGoogleRepositoryReadOperationsTable_",
     "dimension_resolver": {
       "schema": "PRH_RUNTIME_DIMENSION_LABEL_HASH_V1",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "normalization": "TRIM_COLLAPSE_WHITESPACE_LOWERCASE",
       "identity": "KIND_SCOPED_SHA256_OF_NORMALIZED_LABEL",
       "private_reverse_label_projection": true,
@@ -78,13 +101,14 @@
     "write_authority": false
   },
   "trusted_delivery": {
-    "render_smoke_token": "PRH_WEBAPP_SMOKE_V3|R2|OK",
+    "render_smoke_token": "PRH_WEBAPP_SMOKE_V4|R2|OK",
     "private_home_read_smoke_token": "PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7",
     "runtime_failure_reason_prefix": "RUNTIME_HEALTH_HOME_",
     "runtime_failure_reason_private_payload": false,
     "render_smoke_reads_financial_rows": false,
     "exact_sha_required": true,
     "runtime_health_required": true,
+    "product_ready_e2e_required": true,
     "autonomous_merge_required": true,
     "manual_merge": false
   },

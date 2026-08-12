@@ -92,7 +92,7 @@ assert(r2Rendered.includes('?surface=legacy'));
 assert(!r2Rendered.includes('<?!= initialHomeData ?>'));
 
 const smokeToken = vm.runInContext('prhWebAppRenderSmokeToken()', context);
-assert.strictEqual(smokeToken, 'PRH_WEBAPP_SMOKE_V3|R2|OK');
+assert.strictEqual(smokeToken, 'PRH_WEBAPP_SMOKE_V4|R2|OK');
 assert.strictEqual(homeReadSmokeCalls, 0, 'technical render smoke stays independent of private data');
 
 const healthToken = vm.runInContext(
@@ -109,7 +109,7 @@ assert.match(routerSource, /DEFAULT_SURFACE:\s*'home'/);
 assert.match(routerSource, /\?surface=legacy/);
 assert.match(smokeSource, /prhCanonicalR2WebAppSmokeToken\(\)/);
 assert.doesNotMatch(smokeSource, /SpreadsheetApp|prhGetWebDashboardData/);
-assert.match(runtimeSource, /PRH_WEBAPP_SMOKE_V3\|R2\|OK/);
+assert.match(runtimeSource, /PRH_WEBAPP_SMOKE_V4\|R2\|OK/);
 assert.match(runtimeSource, /PRH_R2_HOME_READ_V3\|CANONICAL_LIB\|DIMENSION_HASH\|OK\|7/);
 assert.match(runtimeSource, /prhR2FinancialHomeReadSmokeToken\(\)/);
 assert.match(runtimeSource, /RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED/);
@@ -118,7 +118,7 @@ console.log('dashboard-web-runtime-smoke: PASS', {
   syntax: 'V8',
   canonicalDefault: 'R2_HOME',
   legacyRollback: true,
-  smokeVersion: 3,
+  renderSmokeVersion: 4,
   privateHomeReadSmokeVersion: 3,
   privateHomeReadSource: 'CANONICAL_LIB',
   privateHomeDimensionIdentity: 'DIMENSION_HASH',
