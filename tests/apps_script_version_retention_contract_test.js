@@ -7,6 +7,7 @@ const {
   DEFAULT_HIGH_WATER,
   DEFAULT_TARGET,
   DEFAULT_RECENT_UNUSED_RESERVE,
+  VERSION_DELETE_API_SUPPORTED,
   candidateVersionDescription,
   planVersionRetention,
   pruneUnusedVersions,
@@ -30,6 +31,8 @@ function deployment(number) {
 assert.strictEqual(DEFAULT_HIGH_WATER, 180);
 assert.strictEqual(DEFAULT_TARGET, 160);
 assert.strictEqual(DEFAULT_RECENT_UNUSED_RESERVE, 12);
+assert.strictEqual(VERSION_DELETE_API_SUPPORTED, false,
+  'Apps Script REST v1 does not expose projects.versions.delete');
 
 const below = planVersionRetention({ versions: versions(180), deployments: [deployment(180)] });
 assert.strictEqual(below.ok, true);
@@ -47,10 +50,10 @@ assert.strictEqual(saturated.before_count, 194);
 assert.strictEqual(saturated.expected_after_count, 160);
 assert.strictEqual(saturated.delete_version_numbers.length, 34);
 for (const protectedVersion of [10, 50, 193, 194]) {
-  assert(!saturated.delete_version_numbers.includes(protectedVersion), `active/protected version scheduled for deletion: ${protectedVersion}`);
+  assert(!saturated.delete_version_numbers.includes(protectedVersion), `active/protected version selected for manual cleanup: ${protectedVersion}`);
 }
 for (let recent = 181; recent <= 192; recent += 1) {
-  assert(!saturated.delete_version_numbers.includes(recent), `recent rollback reserve scheduled for deletion: ${recent}`);
+  assert(!saturated.delete_version_numbers.includes(recent), `recent rollback reserve selected for manual cleanup: ${recent}`);
 }
 
 const blocked = planVersionRetention({
@@ -75,16 +78,20 @@ assert.strictEqual(selectReusableVersion(reusable, [deployment(188)], sha, tree)
 assert.strictEqual(selectReusableVersion(reusable, [], sha, tree), 192,
   'newest trusted exact-candidate version must be reused after a failed promotion');
 
-assert.match(retentionSource, /method:\s*'DELETE'/);
-assert.match(retentionSource, /VERSION_RETENTION_VERIFY_FAILED/);
+// Official Apps Script REST versions resource supports create/get/list, not delete.
+// The trusted tree must therefore never synthesize DELETE /versions/{number}.
+assert.doesNotMatch(retentionSource, /method:\s*'DELETE'/);
+assert.doesNotMatch(retentionSource, /VERSION_DELETE_HTTP_/);
+assert.match(retentionSource, /MANUAL_CLEANUP_REQUIRED/);
+assert.match(retentionSource, /VERSION_DELETE_API_SUPPORTED\s*=\s*false/);
 assert.match(retentionSource, /extraProtectedVersions/);
 assert.doesNotMatch(retentionSource.slice(retentionSource.indexOf('async function main')), /delete_version_numbers/,
   'CLI output must not publish individual Apps Script version numbers');
 
 assert.match(promoter, /selectReusableVersion/);
 assert.match(promoter, /pruneUnusedVersions/);
-assert(promoter.indexOf('pruneUnusedVersions') < promoter.indexOf('method: \'POST\''),
-  'retention must run before a new immutable version is created');
+assert(promoter.indexOf('pruneUnusedVersions') < promoter.indexOf("method: 'POST'"),
+  'capacity/retention inventory must run before a new immutable version is created');
 assert.match(promoter, /deploymentsChanged:\s*false/);
 assert.match(deployWorkflow, /SOURCE_TREE_HASH/);
 assert.match(deployWorkflow, /version_reused/);
@@ -98,27 +105,11 @@ assert.doesNotMatch(retentionWorkflow, /pull_request:/,
   'untrusted PR events must never receive owner retention credentials');
 assert.doesNotMatch(retentionWorkflow, /contents:\s*write/);
 
-async function verifyApplyPath() {
-  const liveVersions = new Map(versions(194).map((version) => [version.versionNumber, version]));
-  const deleted = [];
-  const fetchImpl = async (url, options) => {
-    const method = String(options && options.method || 'GET');
-    const text = String(url);
-    if (method === 'DELETE') {
-      const number = Number(text.split('/').pop());
-      assert(liveVersions.has(number), `synthetic delete target missing: ${number}`);
-      liveVersions.delete(number);
-      deleted.push(number);
-      return { ok: true, status: 200, text: async () => '{}' };
-    }
-    if (method === 'GET' && text.includes('/versions')) {
-      return {
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify({ versions: [...liveVersions.values()] })
-      };
-    }
-    throw new Error(`unexpected synthetic request: ${method}`);
+async function verifyInventoryOnlyPath() {
+  let networkCalls = 0;
+  const fetchImpl = async () => {
+    networkCalls += 1;
+    throw new Error('inventory-only retention must not issue mutation/network calls when inventories are supplied');
   };
   const result = await pruneUnusedVersions({
     scriptId: 'SYNTHETIC_SCRIPT_ID_123456789',
@@ -129,25 +120,44 @@ async function verifyApplyPath() {
     fetchImpl
   });
   assert.strictEqual(result.ok, true);
-  assert.strictEqual(result.reason, 'RETENTION_APPLIED');
+  assert.strictEqual(result.reason, 'MANUAL_CLEANUP_REQUIRED');
   assert.strictEqual(result.evidence.before_count, 194);
-  assert.strictEqual(result.evidence.after_count, 160);
-  assert.strictEqual(result.evidence.deleted_count, 34);
-  assert.strictEqual(deleted.length, 34);
-  for (const protectedVersion of [10, 50, 193, 194]) assert(liveVersions.has(protectedVersion));
+  assert.strictEqual(result.evidence.after_count, 194);
+  assert.strictEqual(result.evidence.expected_after_count, 160);
+  assert.strictEqual(result.evidence.deleted_count, 0);
+  assert.strictEqual(result.evidence.manual_cleanup_candidate_count, 34);
+  assert.strictEqual(result.evidence.version_delete_api_supported, false);
+  assert.strictEqual(networkCalls, 0);
 }
 
-verifyApplyPath().then(() => {
+async function verifyBelowHighWaterPath() {
+  const result = await pruneUnusedVersions({
+    scriptId: 'SYNTHETIC_SCRIPT_ID_123456789',
+    headers: { authorization: 'Bearer SYNTHETIC' },
+    versions: versions(180),
+    deployments: [deployment(180)],
+    fetchImpl: async () => { throw new Error('unexpected request'); }
+  });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.reason, 'BELOW_HIGH_WATER');
+  assert.strictEqual(result.evidence.before_count, 180);
+  assert.strictEqual(result.evidence.after_count, 180);
+  assert.strictEqual(result.evidence.deleted_count, 0);
+  assert.strictEqual(result.evidence.manual_cleanup_candidate_count, 0);
+}
+
+Promise.all([verifyInventoryOnlyPath(), verifyBelowHighWaterPath()]).then(() => {
   console.log('apps_script_version_retention_contract_test: OK', {
     highWater: DEFAULT_HIGH_WATER,
     target: DEFAULT_TARGET,
     recentUnusedReserve: DEFAULT_RECENT_UNUSED_RESERVE,
     syntheticSaturatedBefore: saturated.before_count,
-    syntheticSaturatedAfter: saturated.expected_after_count,
+    manualCleanupTarget: saturated.expected_after_count,
     protectedDeploymentVersions: true,
     exactCandidateReuse: true,
-    deleteReadbackVerified: true,
-    postMainCleanup: true,
+    restVersionDeleteSupported: false,
+    unsupportedDeleteCalls: 0,
+    trustedInventoryPlanning: true,
     pullRequestSecretAccess: false
   });
 }).catch((error) => {

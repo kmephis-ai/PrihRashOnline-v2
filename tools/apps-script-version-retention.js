@@ -9,6 +9,12 @@ const DEFAULT_RECENT_UNUSED_RESERVE = 12;
 const MAX_PAGES = 20;
 const PAGE_SIZE = 50;
 
+// Google Apps Script REST v1 exposes projects.versions create/get/list only.
+// Version deletion is an IDE Project History operation, not a supported REST call.
+// Keep this explicit so trusted automation never treats a 404 from an invented
+// DELETE /versions/{versionNumber} endpoint as successful retention.
+const VERSION_DELETE_API_SUPPORTED = false;
+
 function safeStatus(payload) {
   const raw = String(payload && payload.error && payload.error.status || '').toUpperCase();
   return /^[A-Z][A-Z0-9_]{0,39}$/.test(raw) ? raw : 'UNKNOWN';
@@ -166,16 +172,14 @@ async function listAllDeployments(scriptId, headers, fetchImpl = fetch) {
   return { ok: false, reason: 'RETENTION_DEPLOYMENT_LIST_PAGINATION_EXCEEDED' };
 }
 
-async function deleteUnusedVersion(scriptId, number, headers, fetchImpl = fetch) {
-  const response = await fetchImpl(
-    `https://script.googleapis.com/v1/projects/${encodeURIComponent(scriptId)}/versions/${number}`,
-    { method: 'DELETE', headers }
-  );
-  const payload = await readResponse(response);
-  if (!response.ok) return { ok: false, reason: boundedReason('VERSION_DELETE', response, payload.json) };
-  return { ok: true };
-}
-
+/**
+ * Compatibility entrypoint used by trusted deploy/retention workflows.
+ *
+ * The function intentionally performs inventory + planning only. Apps Script's
+ * supported REST API cannot delete project versions, so a required cleanup is
+ * surfaced as MANUAL_CLEANUP_REQUIRED while returning ok=true: promotion may
+ * continue while capacity remains, and no unsupported mutation is attempted.
+ */
 async function pruneUnusedVersions(options) {
   const scriptId = String(options && options.scriptId || '');
   const headers = options && options.headers;
@@ -206,28 +210,20 @@ async function pruneUnusedVersions(options) {
     return { ok: false, reason: 'VERSION_RETENTION_INVENTORY_INVALID' };
   }
   if (!plan.ok) return { ok: false, reason: plan.reason, evidence: plan };
-  if (!plan.delete_version_numbers.length) return { ok: true, reason: plan.reason, evidence: plan };
 
-  for (const number of plan.delete_version_numbers) {
-    const deleted = await deleteUnusedVersion(scriptId, number, headers, fetchImpl);
-    if (!deleted.ok) return { ok: false, reason: deleted.reason, evidence: plan };
-  }
-  const verified = await listAllVersions(scriptId, headers, fetchImpl);
-  if (!verified.ok) return verified;
-  const remaining = new Set(verified.versions.map(versionNumber));
-  if (plan.delete_version_numbers.some((number) => remaining.has(number)) ||
-      remaining.size !== plan.expected_after_count) {
-    return { ok: false, reason: 'VERSION_RETENTION_VERIFY_FAILED', evidence: plan };
-  }
+  const manualCleanupCandidateCount = plan.delete_version_numbers.length;
   return {
     ok: true,
-    reason: 'RETENTION_APPLIED',
+    reason: manualCleanupCandidateCount ? 'MANUAL_CLEANUP_REQUIRED' : plan.reason,
     evidence: Object.freeze({
       before_count: plan.before_count,
-      after_count: remaining.size,
-      deleted_count: plan.delete_version_numbers.length,
+      after_count: plan.before_count,
+      expected_after_count: plan.expected_after_count,
+      deleted_count: 0,
+      manual_cleanup_candidate_count: manualCleanupCandidateCount,
       protected_count: plan.protected_count,
-      recent_unused_reserve_count: plan.recent_unused_reserve_count
+      recent_unused_reserve_count: plan.recent_unused_reserve_count,
+      version_delete_api_supported: VERSION_DELETE_API_SUPPORTED
     })
   };
 }
@@ -273,10 +269,12 @@ async function main() {
       ok: result.ok === true,
       reason: String(result.reason || 'VERSION_RETENTION_RESULT_INVALID'),
       before_count: Number(evidence.before_count || 0),
-      after_count: Number(evidence.after_count || evidence.expected_after_count || evidence.before_count || 0),
-      deleted_count: Number(evidence.deleted_count || 0),
+      after_count: Number(evidence.after_count || evidence.before_count || 0),
+      deleted_count: 0,
+      manual_cleanup_candidate_count: Number(evidence.manual_cleanup_candidate_count || 0),
       protected_count: Number(evidence.protected_count || 0),
-      recent_unused_reserve_count: Number(evidence.recent_unused_reserve_count || 0)
+      recent_unused_reserve_count: Number(evidence.recent_unused_reserve_count || 0),
+      version_delete_api_supported: false
     }));
     if (!result.ok) process.exitCode = 1;
   } catch (_) {
@@ -291,6 +289,7 @@ module.exports = {
   DEFAULT_HIGH_WATER,
   DEFAULT_TARGET,
   DEFAULT_RECENT_UNUSED_RESERVE,
+  VERSION_DELETE_API_SUPPORTED,
   versionNumber,
   deploymentVersion,
   candidateVersionDescription,
