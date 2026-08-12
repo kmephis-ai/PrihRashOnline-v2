@@ -39,13 +39,13 @@
     .budget-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:13px}.budget-cell{padding:8px;border-radius:10px;background:var(--surface-soft);font-size:11px;color:var(--muted)}.budget-cell b{display:block;margin-top:3px;color:var(--text);font-size:13px}
     .visuals{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(330px,.8fr);gap:14px;margin-top:18px}.panel{min-width:0;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
     .panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.panel h3{margin:0;font-size:18px}.panel-label{padding:4px 8px;border-radius:999px;background:var(--surface-soft);color:var(--muted);font-size:10px;font-weight:800}
-    .echart-host{width:100%;min-height:260px}.visual-empty,.visual-mask,.semantic-fallback{min-height:220px;display:grid;align-content:center;padding:24px;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}
+    .echart-host{width:100%;min-height:280px}.visual-empty,.visual-mask,.semantic-fallback{min-height:220px;display:grid;align-content:center;padding:24px;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}
     .visual-empty{text-align:center;place-items:center}.visual-empty strong,.visual-mask strong,.semantic-fallback strong{display:block;margin-bottom:5px;color:var(--text);font-size:15px}.visual-mask{text-align:center;place-items:center}
     .semantic-fallback{align-content:start}.semantic-fallback ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}.semantic-row{display:flex;justify-content:space-between;gap:14px;padding:8px 10px;border-radius:10px;background:var(--surface)}.semantic-row span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}.semantic-row b{white-space:nowrap;color:var(--text)}
     .footnote{margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);font-size:12px}.fatal{max-width:760px;margin:32px auto;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.fatal h2{margin:0 0 7px}.fatal p{margin:0;color:var(--muted)}
     .retry{margin-top:16px;border:0;border-radius:999px;padding:9px 14px;background:var(--brand-strong);color:#fff;font-weight:800;cursor:pointer}.loading-card{overflow:hidden}.loading-line{height:13px;border-radius:999px;background:var(--surface-soft);margin-top:14px;animation:prhPulse 1.2s ease-in-out infinite alternate}.loading-line.short{width:42%}.loading-line.value-line{height:30px;width:72%;margin-top:22px}.loading-note{color:var(--muted);font-size:12px}.loading-visual{min-height:220px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);text-align:center;padding:24px}@keyframes prhPulse{from{opacity:.45}to{opacity:1}}
     @media(max-width:1050px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.visuals{grid-template-columns:1fr}}
-    @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.echart-host,.visual-empty,.visual-mask,.semantic-fallback,.loading-visual{min-height:190px}.semantic-row{align-items:flex-start;flex-direction:column;gap:2px}}
+    @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.echart-host{min-height:245px}#expense-mix.echart-host{min-height:290px}.visual-empty,.visual-mask,.semantic-fallback,.loading-visual{min-height:190px}.semantic-row{align-items:flex-start;flex-direction:column;gap:2px}}
     @media(prefers-reduced-motion:reduce){.loading-line{animation:none}}
   </style>
   <!-- PRH_LOCAL_ECHARTS_VENDOR -->
@@ -103,12 +103,17 @@
   const ALERT_LABELS={NEGATIVE_CASH_FLOW:'Отрицательный денежный поток',BUDGET_NOT_CONFIGURED:'Бюджет не настроен',LIQUIDITY_SOURCE_UNAVAILABLE:'Ликвидность пока недоступна'};
   const SEVERITY_LABELS={INFO:'информация',WARNING:'предупреждение',ERROR:'важно',CRITICAL:'критично'};
   const charts={cash_flow:null,expense_mix:null};
+  const bootStarted=typeof performance!=='undefined'&&performance.now?performance.now():Date.now();
   let activeAsyncMarker=null;
+  let activeVisualCurrency='RUB';
+  let asyncGeneration=0;
   function moneyCard(id,value){return {id:id,state:'READY',source_kpi:id,value_minor:value,currency:'RUB',drill:null};}
   function parse(){try{const text=document.getElementById('initial-home-data').textContent.trim();if(!text||text.indexOf('<?')===0)return SYN;return JSON.parse(text);}catch(e){return SYN;}}
   function esc(value){return String(value==null?'':value).replace(/[&<>'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c];});}
   function rub(minor,currency){if(minor==null)return '—';return new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency||'RUB',maximumFractionDigits:2}).format(Number(minor)/100);}
+  function compactRub(minor,currency){if(minor==null||!Number.isFinite(Number(minor)))return '';return new Intl.NumberFormat('ru-RU',{notation:'compact',maximumFractionDigits:1}).format(Number(minor)/100)+' ₽';}
   function stateLabel(state){if(state==='READY')return 'готово';if(state==='NOT_CONFIGURED')return 'не настроено';return 'пока недоступно';}
+  function markTiming(name){const now=typeof performance!=='undefined'&&performance.now?performance.now():Date.now();document.documentElement.setAttribute(name,String(Math.max(0,Math.round(now-bootStarted))));}
   function cardHtml(card){
     if(!card)return '';
     const id=String(card.id||'');const pending=card.state==='READY'?'ready':'pending';let body='';
@@ -131,15 +136,30 @@
     const instance=charts[key];if(instance&&typeof instance.dispose==='function'){try{instance.dispose();}catch(e){}}
     charts[key]=null;
   }
-  function renderEChart(hostId,key,compiled){
+  function cssToken(name,fallback){try{return getComputedStyle(document.documentElement).getPropertyValue(name).trim()||fallback;}catch(e){return fallback;}}
+  function chartPresentationSkin(key,currency){
+    const mobile=window.matchMedia&&window.matchMedia('(max-width: 620px)').matches;
+    const text=cssToken('--text','#13243a');const muted=cssToken('--muted','#617086');const line=cssToken('--line','#dbe3ec');const surface=cssToken('--surface','#ffffff');
+    const common={backgroundColor:'transparent',title:{show:false},textStyle:{color:muted},tooltip:{backgroundColor:surface,borderColor:line,textStyle:{color:text},valueFormatter:function(value){return rub(value,currency);}}};
+    if(key==='cash_flow'){
+      return Object.assign(common,{grid:{left:mobile?6:12,right:mobile?8:14,top:8,bottom:mobile?28:32,containLabel:true},xAxis:{axisLabel:{color:muted,fontSize:mobile?10:11,hideOverlap:true},axisLine:{lineStyle:{color:line}},axisTick:{lineStyle:{color:line}}},yAxis:{axisLabel:{color:muted,fontSize:mobile?9:11,formatter:function(value){return compactRub(value,currency);}},axisLine:{show:false},splitLine:{lineStyle:{color:line,opacity:.7}}}});
+    }
+    return Object.assign(common,{legend:{show:true,type:'scroll',orient:'horizontal',left:'center',bottom:0,width:'96%',itemWidth:mobile?12:14,itemHeight:mobile?8:10,itemGap:mobile?8:12,textStyle:{color:muted,fontSize:mobile?10:11}},series:[{center:['50%',mobile?'38%':'42%'],radius:mobile?['34%','58%']:['42%','67%']} ]});
+  }
+  function applyChartPresentationSkin(instance,key,currency){
+    if(!instance||typeof instance.setOption!=='function')return;
+    instance.setOption(chartPresentationSkin(key,currency),{notMerge:false,lazyUpdate:false,silent:true});
+  }
+  function renderEChart(hostId,key,compiled,currency){
     const host=document.getElementById(hostId);disposeChart(key);
-    if(!compiled||compiled.renderer!=='ECHARTS_6'||!compiled.option||typeof compiled.option!=='object')return false;
+    if(!host||!compiled||compiled.renderer!=='ECHARTS_6'||!compiled.option||typeof compiled.option!=='object')return false;
     if(!(window.echarts&&typeof window.echarts.init==='function'))return false;
     host.className='echart-host';host.innerHTML='';
     const existing=typeof window.echarts.getInstanceByDom==='function'?window.echarts.getInstanceByDom(host):null;
     const instance=existing||window.echarts.init(host);
     if(!instance||typeof instance.setOption!=='function')return false;
     instance.setOption(compiled.option,{notMerge:true,lazyUpdate:false});
+    applyChartPresentationSkin(instance,key,currency);
     charts[key]=instance;
     return true;
   }
@@ -159,18 +179,18 @@
   function renderMaskedVisuals(){
     disposeChart('cash_flow');disposeChart('expense_mix');
     const html='<div><strong>Графики скрыты режимом приватности</strong><span>Точные значения и параметры графиков не передаются в браузер.</span></div>';
-    const cash=document.getElementById('cashflow-chart');cash.className='visual-mask';cash.innerHTML=html;
-    const mix=document.getElementById('expense-mix');mix.className='visual-mask';mix.innerHTML=html;
+    const cash=document.getElementById('cashflow-chart');const mix=document.getElementById('expense-mix');if(!cash||!mix)return;cash.className='visual-mask';cash.innerHTML=html;mix.className='visual-mask';mix.innerHTML=html;
   }
   function renderVisualPayload(presentation){
     if(!presentation||presentation.schema!=='PRH_R2_HOUSEHOLD_VISUAL_PRESENTATION_V1')throw new Error('HOME_VISUAL_PRESENTATION_INVALID');
-    if(presentation.mode==='MASKED'){renderMaskedVisuals();document.documentElement.setAttribute('data-home-visual-ready','MASKED');return;}
+    if(presentation.mode==='MASKED'){renderMaskedVisuals();document.documentElement.setAttribute('data-home-visual-ready','MASKED');markTiming('data-home-visual-ms');return;}
     if(presentation.mode!=='NORMAL')throw new Error('HOME_VISUAL_PRESENTATION_MODE_INVALID');
-    const cashRendered=renderEChart('cashflow-chart','cash_flow',presentation.charts&&presentation.charts.cash_flow);
+    activeVisualCurrency=presentation.currency||'RUB';
+    const cashRendered=renderEChart('cashflow-chart','cash_flow',presentation.charts&&presentation.charts.cash_flow,activeVisualCurrency);
     if(!cashRendered)renderCashFlowSemantic(presentation);
-    const expenseRendered=renderEChart('expense-mix','expense_mix',presentation.charts&&presentation.charts.expense_mix);
+    const expenseRendered=renderEChart('expense-mix','expense_mix',presentation.charts&&presentation.charts.expense_mix,activeVisualCurrency);
     if(!expenseRendered)renderExpenseSemantic(presentation);
-    document.documentElement.setAttribute('data-home-visual-ready','1');
+    document.documentElement.setAttribute('data-home-visual-ready','1');markTiming('data-home-visual-ms');
   }
   function renderLegacyVisualData(data){
     const visual=data&&data.visual_data||{};
@@ -185,15 +205,17 @@
     renderAlerts(data);
     const order=['INCOME','EXPENSE','CASH_FLOW','SAVINGS','BUDGET','LIQUIDITY','ALERTS'];
     document.getElementById('cards').innerHTML=order.map(function(id){return cardHtml(data.cards&&data.cards[id]);}).join('');
-    document.documentElement.setAttribute('data-home-data-ready','1');
+    document.documentElement.setAttribute('data-home-data-ready','1');markTiming('data-home-data-ms');
   }
   function renderVisualLoading(){
     disposeChart('cash_flow');disposeChart('expense_mix');
-    const cash=document.getElementById('cashflow-chart');cash.className='loading-visual';cash.innerHTML='<div>Загружаем динамику отдельно от ключевых показателей…</div>';
-    const mix=document.getElementById('expense-mix');mix.className='loading-visual';mix.innerHTML='<div>Загружаем структуру расходов отдельно от ключевых показателей…</div>';
+    const cash=document.getElementById('cashflow-chart');const mix=document.getElementById('expense-mix');if(!cash||!mix)return;
+    cash.className='loading-visual';cash.innerHTML='<div>Загружаем динамику параллельно с ключевыми показателями…</div>';
+    mix.className='loading-visual';mix.innerHTML='<div>Загружаем структуру расходов параллельно с ключевыми показателями…</div>';
   }
   function renderLoading(){
     document.documentElement.setAttribute('data-home-runtime','ASYNC');
+    document.documentElement.setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL');
     document.getElementById('period-pill').textContent='Загрузка данных…';
     document.getElementById('truth-note').textContent='Получаем актуальные данные';
     document.getElementById('alert-strip').innerHTML='<span class="alert-chip info">Обновляем финансовый обзор…</span>';
@@ -203,32 +225,37 @@
   }
   function renderVisualFailure(){
     disposeChart('cash_flow');disposeChart('expense_mix');
-    const html='<div><strong>График временно недоступен</strong><span>Ключевые показатели выше уже загружены. Визуализация запрашивается отдельно и не блокирует финансовый обзор.</span></div>';
-    const cash=document.getElementById('cashflow-chart');cash.className='visual-empty';cash.innerHTML=html;
-    const mix=document.getElementById('expense-mix');mix.className='visual-empty';mix.innerHTML=html;
+    const cash=document.getElementById('cashflow-chart');const mix=document.getElementById('expense-mix');if(!cash||!mix)return;
+    const html='<div><strong>График временно недоступен</strong><span>Ключевые показатели и визуализация загружаются независимо; ошибка графика не блокирует финансовый обзор.</span></div>';
+    cash.className='visual-empty';cash.innerHTML=html;mix.className='visual-empty';mix.innerHTML=html;
     document.documentElement.setAttribute('data-home-visual-ready','ERROR');
   }
   function renderFailure(){
+    asyncGeneration+=1;
     document.getElementById('home-main').innerHTML='<section class="fatal" role="alert"><h2>Не удалось загрузить финансовый обзор</h2><p>Данные не отображены, чтобы не показывать неполную или недостоверную информацию.</p><button type="button" class="retry" id="home-retry">Повторить загрузку</button></section>';
     const retry=document.getElementById('home-retry');if(retry)retry.addEventListener('click',function(){if(activeAsyncMarker){location.reload();}});
   }
-  function loadVisualAsync(marker){
+  function loadVisualAsync(marker,generation){
     if(!(window.google&&google.script&&google.script.run)){renderVisualFailure();return;}
     renderVisualLoading();
     google.script.run
-      .withSuccessHandler(function(data){try{renderVisualPayload(data);}catch(e){renderVisualFailure();}})
-      .withFailureHandler(function(){renderVisualFailure();})
+      .withSuccessHandler(function(data){if(generation!==asyncGeneration)return;try{renderVisualPayload(data);}catch(e){renderVisualFailure();}})
+      .withFailureHandler(function(){if(generation===asyncGeneration)renderVisualFailure();})
       .prhR2FetchFinancialHomeVisualPayload(marker.privacy_mode||'NORMAL');
   }
   function loadAsync(marker){
     activeAsyncMarker=marker;
     if(!(window.google&&google.script&&google.script.run)){renderFailure();return;}
+    const generation=++asyncGeneration;
+    loadVisualAsync(marker,generation);
     google.script.run
-      .withSuccessHandler(function(data){try{if(!data||!data.cards)throw new Error('HOME_PAYLOAD_INVALID');render(data);loadVisualAsync(marker);}catch(e){renderFailure();}})
-      .withFailureHandler(function(){renderFailure();})
+      .withSuccessHandler(function(data){if(generation!==asyncGeneration)return;try{if(!data||!data.cards)throw new Error('HOME_PAYLOAD_INVALID');render(data);}catch(e){renderFailure();}})
+      .withFailureHandler(function(){if(generation===asyncGeneration)renderFailure();})
       .prhR2FetchFinancialHomePayload(marker.privacy_mode||'NORMAL');
   }
-  window.addEventListener('resize',function(){Object.keys(charts).forEach(function(key){const instance=charts[key];if(instance&&typeof instance.resize==='function'){try{instance.resize();}catch(e){}}});});
+  function refreshChartPresentation(){Object.keys(charts).forEach(function(key){const instance=charts[key];if(instance&&typeof instance.resize==='function'){try{instance.resize();applyChartPresentationSkin(instance,key,activeVisualCurrency);}catch(e){}}});}
+  window.addEventListener('resize',refreshChartPresentation);
+  if(window.matchMedia){const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');if(themeMedia&&typeof themeMedia.addEventListener==='function')themeMedia.addEventListener('change',refreshChartPresentation);}
   document.addEventListener('DOMContentLoaded',function(){
     try{
       const initial=parse();
