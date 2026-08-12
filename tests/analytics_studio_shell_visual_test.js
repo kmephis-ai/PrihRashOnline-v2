@@ -51,6 +51,7 @@ async function snapshot(page) {
     const tabs = Array.from(document.querySelectorAll('[role="tab"][data-mode]'));
     const activePanels = Array.from(document.querySelectorAll('[data-mode-panel]')).filter((panel) => panel.dataset.active === 'true' && panel.hidden === false);
     const shell = document.getElementById('prh-r2-shell');
+    const primary = document.getElementById('prh-r2-canonical-nav');
     const secondary = document.getElementById('prh-r2-secondary-nav');
     const storageRaw = (() => { try { return localStorage.getItem('prh.analyticsStudio.mode.v1'); } catch (_) { return null; } })();
     return {
@@ -61,7 +62,10 @@ async function snapshot(page) {
       activePanels: activePanels.map((panel) => panel.dataset.modePanel),
       bodyOverflow: Math.max(root.scrollWidth, body.scrollWidth) - innerWidth,
       navActive: shell && shell.dataset.activeSurface,
-      studioLauncherCurrent: secondary && secondary.querySelector('[data-r2-studio-launcher="1"]')?.getAttribute('aria-current'),
+      primaryLabels: primary ? Array.from(primary.querySelectorAll('a')).map((link) => link.textContent.trim()) : [],
+      secondaryLabels: secondary ? Array.from(secondary.querySelectorAll('a')).map((link) => link.textContent.trim()) : [],
+      studioLauncherCurrent: primary && primary.querySelector('[data-r2-nav="studio"][data-r2-studio-launcher="1"]')?.getAttribute('aria-current'),
+      homeLauncherCurrent: primary && primary.querySelector('[data-r2-nav="home"]')?.getAttribute('aria-current'),
       hasFinancialRuntimeCall: document.documentElement.innerHTML.includes('google.script.run'),
       preference: storageRaw,
       urlMode: new URL(location.href).searchParams.get('mode')
@@ -87,7 +91,10 @@ async function snapshot(page) {
         assert.deepStrictEqual(daily.selected, ['DAILY']);
         assert.deepStrictEqual(daily.activePanels, ['DAILY']);
         assert.strictEqual(daily.navActive, 'studio');
+        assert.deepStrictEqual(daily.primaryLabels, ['Главная', 'Студия аналитики']);
+        assert.deepStrictEqual(daily.secondaryLabels, ['Старый интерфейс']);
         assert.strictEqual(daily.studioLauncherCurrent, 'page');
+        assert.strictEqual(daily.homeLauncherCurrent, null);
         assert.strictEqual(daily.hasFinancialRuntimeCall, false);
         assert(daily.bodyOverflow <= 1, `${viewport.name} default overflow ${daily.bodyOverflow}`);
 
@@ -99,6 +106,8 @@ async function snapshot(page) {
         assert.deepStrictEqual(explore.selected, ['EXPLORE']);
         assert.deepStrictEqual(explore.activePanels, ['EXPLORE']);
         assert.strictEqual(explore.urlMode, 'explore');
+        assert.deepStrictEqual(explore.primaryLabels, ['Главная', 'Студия аналитики']);
+        assert.strictEqual(explore.studioLauncherCurrent, 'page');
         assert(explore.bodyOverflow <= 1, `${viewport.name} explore overflow ${explore.bodyOverflow}`);
 
         await page.locator('#mode-explore').focus();
@@ -111,6 +120,7 @@ async function snapshot(page) {
         assert.deepStrictEqual(studio.selected, ['STUDIO']);
         assert.deepStrictEqual(studio.activePanels, ['STUDIO']);
         assert.strictEqual(studio.urlMode, 'studio');
+        assert.strictEqual(studio.studioLauncherCurrent, 'page');
         assert(studio.preference == null || /"mode":"STUDIO"/.test(studio.preference));
         assert(studio.bodyOverflow <= 1, `${viewport.name} studio overflow ${studio.bodyOverflow}`);
 
@@ -143,10 +153,11 @@ async function snapshot(page) {
       }
     }
     fs.writeFileSync(path.join(artifactDir, 'analytics-studio-shell-visual.json'), JSON.stringify({
-      schema: 'PRH_ANALYTICS_STUDIO_VISUAL_EVIDENCE_V1', privacy_class: 'PUBLIC_CONFIGURATION_ONLY', evidence
+      schema: 'PRH_ANALYTICS_STUDIO_VISUAL_EVIDENCE_V2', privacy_class: 'PUBLIC_CONFIGURATION_ONLY', evidence
     }, null, 2));
     console.log('analytics-studio-shell-visual: PASS', {
       viewports: viewports.map((item) => item.name),
+      canonicalPrimaryNavigation: ['Главная', 'Студия аналитики'],
       dailyDefault: true,
       exploreOptIn: true,
       studioOptIn: true,
