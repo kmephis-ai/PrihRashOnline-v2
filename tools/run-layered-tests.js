@@ -15,6 +15,14 @@ function fail(code, detail) {
   process.exit(1);
 }
 
+function annotateFailure(filename, status) {
+  const safeFilename = String(filename || 'unknown_test.js').replace(/[\r\n,%]/g, '_');
+  const safeStatus = String(status == null ? 'unknown' : status).replace(/[\r\n,%]/g, '_');
+  process.stderr.write(
+    `::error file=tests/${safeFilename},title=Layered test failed::${safeFilename} exited with status ${safeStatus}\n`
+  );
+}
+
 function runSuite(name) {
   const suite = CONTRACT.suites[name];
   if (!suite) fail('TEST_ARCHITECTURE_SUITE_UNKNOWN', name);
@@ -30,8 +38,14 @@ function runSuite(name) {
       stdio: 'inherit',
       env: process.env
     });
-    if (result.error) fail('TEST_ARCHITECTURE_EXECUTION_ERROR', filename);
-    if (result.status !== 0) fail('TEST_ARCHITECTURE_TEST_FAILED', filename);
+    if (result.error) {
+      annotateFailure(filename, 'execution-error');
+      fail('TEST_ARCHITECTURE_EXECUTION_ERROR', filename);
+    }
+    if (result.status !== 0) {
+      annotateFailure(filename, result.status);
+      fail('TEST_ARCHITECTURE_TEST_FAILED', filename);
+    }
   }
   const durationMs = Date.now() - started;
   console.log('layered-test-runner: PASS', {
