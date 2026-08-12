@@ -16,6 +16,16 @@
     "data-quality"
   ],
   "navigation_policy": "PROVEN_DESTINATIONS_ONLY",
+  "navigation_link_mode": "RUNTIME_SELF_URL_ABSOLUTE_WITH_TEST_FALLBACK",
+  "home_data_delivery": {
+    "mode": "ASYNC_GOOGLE_SCRIPT_RUN",
+    "initial_html_financial_read": false,
+    "runtime_function": "prhR2FetchFinancialHomePayload",
+    "allowed_privacy_modes": ["NORMAL", "MASKED"],
+    "loading_state_required": true,
+    "retry_state_required": true,
+    "financial_write": false
+  },
   "runtime_bindings": {
     "home": {
       "state": "BOUND_READ_ONLY",
