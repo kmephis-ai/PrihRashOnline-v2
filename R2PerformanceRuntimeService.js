@@ -3,7 +3,8 @@
  *
  * This service has no financial semantics and no financial write authority.
  * It binds PERF-011 cache identity/freshness rules to Apps Script UserCache and
- * uses a cheap source revision probe before allowing a cache HIT.
+ * uses a cheap source revision probe before allowing a cache HIT. Cold Home is
+ * built through a bounded latest-month projection, never a full-history Home scan.
  */
 var PRH_PERF_REC_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_PERF_REC_RUNTIME_V1',
@@ -219,7 +220,7 @@ function prhPerfRecGetOrBuildHome_(builder) {
     }
     prhPerfRecWriteHomeCache_(buildRevision, home);
     if (PRH_PERF_REC_TELEMETRY_.reason_code === 'CACHE_KEY_ABSENT') {
-      PRH_PERF_REC_TELEMETRY_.reason_code = 'COLD_SINGLE_SCAN_BUILT';
+      PRH_PERF_REC_TELEMETRY_.reason_code = 'COLD_PROJECTED_HOME_BUILT';
     }
     return home;
   } finally {
