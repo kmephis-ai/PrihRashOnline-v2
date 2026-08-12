@@ -61,11 +61,15 @@ function instrumentedGateway(sourceRows) {
   };
 }
 
+function canonicalFixtureId(prefix, label) {
+  return `${prefix}:${Buffer.from(String(label), 'utf8').toString('hex').slice(0, 96)}`;
+}
+
 const resolvers = {
-  account: (label) => `ACC:${label}`,
-  category: (label) => `CAT:${label}`,
-  member: (label) => `MEM:${label}`,
-  project: (label) => `PROJ:${label}`
+  account: (label) => canonicalFixtureId('account', label),
+  category: (label) => canonicalFixtureId('category', label),
+  member: (label) => canonicalFixtureId('member', label),
+  project: (label) => canonicalFixtureId('project', label)
 };
 
 const rows = [
