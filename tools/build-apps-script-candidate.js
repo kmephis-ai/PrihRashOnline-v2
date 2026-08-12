@@ -154,11 +154,16 @@ function injectEchartsVendor(sourceFiles, vendorConfig, fetcher = fetchEchartsVe
   if (targetIndex < 0) throw new Error(`${ECHARTS_TARGET_HTML} is required when ECharts vendor is enabled`);
   const target = sourceFiles[targetIndex];
   const html = target.bytes.toString('utf8');
-  const occurrences = html.split(ECHARTS_VENDOR_PLACEHOLDER).length - 1;
-  if (occurrences !== 1) throw new Error('ECharts vendor placeholder must occur exactly once');
+  const placeholderCount = html.split(ECHARTS_VENDOR_PLACEHOLDER).length - 1;
+  const headCloseCount = (html.match(/<\/head>/gi) || []).length;
+  if (placeholderCount > 1) throw new Error('ECharts vendor placeholder must occur at most once');
+  if (placeholderCount === 0 && headCloseCount !== 1) throw new Error('ECharts vendor injection requires exactly one head close tag');
   const vendorBytes = fetcher(vendorConfig.marker);
   const tag = localEchartsScriptTag(vendorConfig.marker, vendorBytes);
-  const injectedBytes = Buffer.from(html.replace(ECHARTS_VENDOR_PLACEHOLDER, tag), 'utf8');
+  const injectedHtml = placeholderCount === 1
+    ? html.replace(ECHARTS_VENDOR_PLACEHOLDER, tag)
+    : html.replace(/<\/head>/i, `${tag}\n</head>`);
+  const injectedBytes = Buffer.from(injectedHtml, 'utf8');
   const injected = {
     path: target.path,
     sha256: sha256(injectedBytes),
