@@ -3,20 +3,33 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const {
   GENERATED_RUNTIME_BUNDLE,
   buildRuntimeBundleSource
 } = require('./build-apps-script-runtime-bundle');
 
-const POLICY_VERSION = 'apps-script-top-level-v2';
+const POLICY_VERSION = 'apps-script-top-level-v3';
 const BUILD_INFO_SCHEMA_VERSION = 1;
 const GENERATED_BUILD_INFO = 'BuildInfo.js';
 const RUNTIME_BUNDLE_MARKER = 'r2-runtime-bundle.json';
 const RUNTIME_BUNDLE_MARKER_SCHEMA = 'PRH_R2_RUNTIME_BUNDLE_MARKER_V1';
+const ECHARTS_VENDOR_MARKER = 'echarts-vendor.json';
+const ECHARTS_VENDOR_SCHEMA = 'PRH_ECHARTS_VENDOR_LOCK_V1';
+const ECHARTS_VENDOR_PLACEHOLDER = '<!-- PRH_LOCAL_ECHARTS_VENDOR -->';
+const ECHARTS_TARGET_HTML = 'FinancialHomeWebApp.html';
 const SHA_RE = /^[0-9a-f]{40}$/;
 
 function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+function gitBlobSha1(buffer) {
+  const bytes = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  return crypto.createHash('sha1')
+    .update(Buffer.from(`blob ${bytes.length}\0`, 'utf8'))
+    .update(bytes)
+    .digest('hex');
 }
 
 function parseArgs(argv) {
@@ -91,7 +104,88 @@ function runtimeBundleConfig(sourceRoot) {
   return Object.freeze({ enabled: true, marker: Object.freeze({ schema: marker.schema, version: marker.version }) });
 }
 
-function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, candidateSha }) {
+function echartsVendorConfig(sourceRoot) {
+  const markerPath = path.join(sourceRoot, ECHARTS_VENDOR_MARKER);
+  if (!fs.existsSync(markerPath)) return Object.freeze({ enabled: false, marker: null });
+  const stat = fs.lstatSync(markerPath);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('ECharts vendor marker must be a regular file');
+  const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  const valid = marker &&
+    marker.schema === ECHARTS_VENDOR_SCHEMA &&
+    marker.version === '1.0.0' && marker.enabled === true &&
+    marker.vendor === 'Apache ECharts' && marker.package === 'echarts' &&
+    marker.package_version === '6.1.0' && marker.license === 'Apache-2.0' &&
+    marker.upstream_repository === 'apache/echarts' && SHA_RE.test(String(marker.upstream_commit || '')) &&
+    marker.distribution_path === 'dist/echarts.min.js' && SHA_RE.test(String(marker.git_blob_sha1 || '')) &&
+    Number.isInteger(marker.byte_size) && marker.byte_size > 0 &&
+    marker.delivery === 'LOCAL_ONLY' && marker.runtime_network_required === false &&
+    marker.external_cdn_required === false && marker.cost_class === 'FREE_ONLY';
+  if (!valid) throw new Error('ECharts vendor marker is invalid');
+  return Object.freeze({ enabled: true, marker: Object.freeze({ ...marker }) });
+}
+
+function echartsRawUrl(marker) {
+  return `https://raw.githubusercontent.com/${marker.upstream_repository}/${marker.upstream_commit}/${marker.distribution_path}`;
+}
+
+function fetchEchartsVendorBytes(marker) {
+  const url = echartsRawUrl(marker);
+  const bytes = execFileSync('curl', [
+    '--fail', '--silent', '--show-error', '--location',
+    '--proto', '=https', '--tlsv1.2', '--max-time', '45', url
+  ], { encoding: 'buffer', maxBuffer: Math.max(marker.byte_size * 2, 4 * 1024 * 1024) });
+  if (bytes.length !== marker.byte_size) throw new Error('ECharts vendor byte size mismatch');
+  if (gitBlobSha1(bytes) !== marker.git_blob_sha1) throw new Error('ECharts vendor Git blob hash mismatch');
+  return bytes;
+}
+
+function localEchartsScriptTag(marker, vendorBytes) {
+  if (!Buffer.isBuffer(vendorBytes) || vendorBytes.length !== marker.byte_size) {
+    throw new Error('ECharts vendor bytes are invalid');
+  }
+  if (gitBlobSha1(vendorBytes) !== marker.git_blob_sha1) throw new Error('ECharts vendor Git blob hash mismatch');
+  const source = vendorBytes.toString('utf8').replace(/<\/script/gi, '<\\/script');
+  return `<script data-prh-vendor="apache-echarts" data-version="${marker.package_version}" data-delivery="LOCAL_ONLY">\n${source}\n</script>`;
+}
+
+function injectEchartsVendor(sourceFiles, vendorConfig, fetcher = fetchEchartsVendorBytes) {
+  if (!vendorConfig.enabled) return { files: sourceFiles, metadata: null };
+  const targetIndex = sourceFiles.findIndex((item) => item.path === ECHARTS_TARGET_HTML);
+  if (targetIndex < 0) throw new Error(`${ECHARTS_TARGET_HTML} is required when ECharts vendor is enabled`);
+  const target = sourceFiles[targetIndex];
+  const html = target.bytes.toString('utf8');
+  const occurrences = html.split(ECHARTS_VENDOR_PLACEHOLDER).length - 1;
+  if (occurrences !== 1) throw new Error('ECharts vendor placeholder must occur exactly once');
+  const vendorBytes = fetcher(vendorConfig.marker);
+  const tag = localEchartsScriptTag(vendorConfig.marker, vendorBytes);
+  const injectedBytes = Buffer.from(html.replace(ECHARTS_VENDOR_PLACEHOLDER, tag), 'utf8');
+  const injected = {
+    path: target.path,
+    sha256: sha256(injectedBytes),
+    size: injectedBytes.length,
+    bytes: injectedBytes
+  };
+  const files = sourceFiles.slice();
+  files[targetIndex] = injected;
+  return {
+    files,
+    metadata: Object.freeze({
+      schema: vendorConfig.marker.schema,
+      version: vendorConfig.marker.version,
+      package: vendorConfig.marker.package,
+      packageVersion: vendorConfig.marker.package_version,
+      upstreamCommit: vendorConfig.marker.upstream_commit,
+      gitBlobSha1: vendorConfig.marker.git_blob_sha1,
+      upstreamByteSize: vendorConfig.marker.byte_size,
+      delivery: vendorConfig.marker.delivery,
+      runtimeNetworkRequired: false,
+      externalCdnRequired: false,
+      targetHtml: ECHARTS_TARGET_HTML
+    })
+  };
+}
+
+function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, candidateSha, vendorFetcher = fetchEchartsVendorBytes }) {
   if (!SHA_RE.test(String(candidateSha || ''))) throw new Error('candidate SHA must be exactly 40 lowercase hex characters');
   const source = path.resolve(sourceRoot);
   const repository = path.resolve(repositoryRoot);
@@ -104,7 +198,10 @@ function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, cand
   fs.mkdirSync(filesRoot, { recursive: true });
 
   const names = listDeployFiles(source);
-  const sourceFiles = sourceFileDescriptors(source, names);
+  const originalSourceFiles = sourceFileDescriptors(source, names);
+  const vendorConfig = echartsVendorConfig(source);
+  const vendorResult = injectEchartsVendor(originalSourceFiles, vendorConfig, vendorFetcher);
+  const sourceFiles = vendorResult.files;
   const runtimeConfig = runtimeBundleConfig(source);
   const runtimeBundle = runtimeConfig.enabled
     ? descriptorFromGenerated(GENERATED_RUNTIME_BUNDLE, buildRuntimeBundleSource(repository))
@@ -140,6 +237,7 @@ function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, cand
     manifest.generatedRuntimeBundle = GENERATED_RUNTIME_BUNDLE;
     manifest.runtimeBundleMarker = runtimeConfig.marker;
   }
+  if (vendorResult.metadata) manifest.echartsVendor = vendorResult.metadata;
   fs.writeFileSync(path.join(out, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifest;
 }
@@ -175,7 +273,8 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
     sourceTreeHash: actual.sourceTreeHash,
     artifactHash: actual.artifactHash,
     fileCount: actual.fileCount,
-    generatedRuntimeBundle: actual.generatedRuntimeBundle || null
+    generatedRuntimeBundle: actual.generatedRuntimeBundle || null,
+    echartsVendor: actual.echartsVendor || null
   };
 }
 
@@ -196,7 +295,8 @@ if (require.main === module) {
       sourceTreeHash: manifest.sourceTreeHash,
       artifactHash: manifest.artifactHash,
       fileCount: manifest.fileCount,
-      generatedRuntimeBundle: manifest.generatedRuntimeBundle || null
+      generatedRuntimeBundle: manifest.generatedRuntimeBundle || null,
+      echartsVendor: manifest.echartsVendor || null
     });
   }
 }
@@ -208,13 +308,23 @@ module.exports = {
   GENERATED_RUNTIME_BUNDLE,
   RUNTIME_BUNDLE_MARKER,
   RUNTIME_BUNDLE_MARKER_SCHEMA,
+  ECHARTS_VENDOR_MARKER,
+  ECHARTS_VENDOR_SCHEMA,
+  ECHARTS_VENDOR_PLACEHOLDER,
+  ECHARTS_TARGET_HTML,
   SHA_RE,
   sha256,
+  gitBlobSha1,
   listDeployFiles,
   stableFileSetHash,
   buildInfoSource,
   descriptorFromGenerated,
   runtimeBundleConfig,
+  echartsVendorConfig,
+  echartsRawUrl,
+  fetchEchartsVendorBytes,
+  localEchartsScriptTag,
+  injectEchartsVendor,
   buildCandidate,
   verifyCandidate
 };
