@@ -34,18 +34,19 @@ Post-R1 handoff historically начинается с `DESIGN-020`; этот life
 
 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — historical DONE/Main Verification PASS в объявленном engineering scope.
 
-Canonical private Web App default route = R2 Financial Home; private binding доказан только для Home. Семь Daily routes fail-closed/unbound, поэтому R2 Product Ready = false до `MASTER-GUX`. Legacy Dashboard остаётся bounded rollback route. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary и `FREE_ONLY` сохраняются.
+Canonical private Web App default route = R2 Financial Home; private binding доказан только для Home. Семь Daily routes остаются fail-closed/unbound и больше не должны рекламироваться как рабочая primary navigation. Legacy Dashboard остаётся bounded rollback route. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary и `FREE_ONLY` сохраняются.
 
 ## R2R / Product Recovery — текущий critical path
 
 - `GOV-REC-001` — **DONE**, Issue #219 Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`.
-- `UI-REC-001` — **BLOCKED**, Issue #221; owner-authenticated UAT deployed candidate `ba34d244…` доказал initial Home load >60s и `PRODUCT_READY_E2E = FAIL`. Engineering correction `7a322d59…` зелёная, PR #229 остаётся draft и не имеет writer authority до performance recovery.
-- `PERF-REC-001` — **IN_PROGRESS**, Issue #222, branch `agent/PERF-REC-001-live-snapshot-baseline`; единственный current writer. Цель: live integration `PRH_REVISION_AWARE_READ_CACHE_V1@1.0.0` + `PRH_SINGLE_SCAN_REFRESH_V1@1.0.0`, revision-aware Home path и trusted cold/warm baseline без financial payload.
+- `PERF-REC-001` — **DONE_ENGINEERING**, Issue #222 Main Verification PASS, PR #232, merge `dce3558875178edc1b5b6d7391028e7be1f4835e`. Exact deployed candidate `fa921b53…`: owner-authenticated 20C+20W PASS; cold Home p95 = 5,922s, warm Home p95 = 1,306s, cold cell reads 38 059 вместо 263 505. Route-switch SLO перенесён в truthful UI UAT, потому что измерять неработающие destinations нельзя считать product evidence.
+- `UI-REC-001` — **IN_PROGRESS**, Issue #221, branch `agent/UI-REC-001-truthful-canonical-navigation`, PR #229; единственный current writer. Owner UAT отверг прежний UI из-за false/unbound navigation, неработающих affordances, английских household labels, developer-facing markers и ложного one-period chart. Старый candidate `7a322d59…` obsolete/redeploy forbidden; ветка перестроена от post-PERF main.
+- `VIZ-REC-001` — **P0 BACKLOG**, Issue #226; идёт сразу после truthful UI и должен подключить meaningful local renderer/semantic fallback до дальнейшего расширения финансовых экранов.
 - `ANL-090` Issue #217 — BLOCKED `PAUSED_REBASELINE`; PR #218 draft, код сохранён без writer authority.
-- Downstream order: PERF -> UI revalidation -> DATA -> FIN/PLAN -> VIZ -> E2E -> `MASTER-GUX` -> STUDIO -> `MASTER-GSTUDIO`.
+- Downstream order: UI -> VIZ -> DATA -> FIN/PLAN -> E2E -> `MASTER-GUX` -> STUDIO -> `MASTER-GSTUDIO`.
 - R9/R10 feature expansion frozen.
 
-Apps Script version capacity после owner UAT: observed 191/200. Intermediate recovery deployments запрещены; draft PR используется до CODE_COMPLETE, чтобы не расходовать version slots без доказанной необходимости.
+Apps Script version capacity остаётся дефицитным ресурсом. Intermediate UI recovery deployments запрещены; draft PR используется до полного validation, затем разрешён только exact candidate deploy для authenticated Product UAT.
 
 ## R3 / Planning, Wealth, Decision Intelligence
 
@@ -117,7 +118,7 @@ Engineering item закрывается как `DONE_ENGINEERING`. User-facing i
 
 ## Current runtime truth
 
-Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home; private binding доказан только для Home. Owner UAT доказал текущий synchronous full-history Home path неприемлемым по latency; PERF-REC-001 является P0 blocker. R8 UserProperties/portable boundaries configuration-only. VIZ-090 pure semantic planner не читает financial storage и не выполняет ECharts renderer. Public GitHub evidence synthetic/configuration-only; private UI remains `MYSELF`; `FREE_ONLY` mandatory.
+Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home. PERF-REC-001 доказал live Home SLO на real owner-authenticated runtime: cold p95 5,922s, warm p95 1,306s. Product blocker теперь UI truth, а не Home refresh performance: только Home имеет доказанный private binding; unbound Daily routes не должны появляться как рабочая навигация. UI-REC-001 обязан убрать false affordances, английские household labels, developer-facing markers и one-period pseudo-trend до exact-SHA Product UAT. Public GitHub evidence synthetic/configuration-only; private UI остаётся `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
