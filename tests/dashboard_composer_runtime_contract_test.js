@@ -56,11 +56,11 @@ vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js'
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE, 'composer');
 assert.strictEqual(context.prhR2ResolveSurface_('composer'), 'composer');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.LIVE_SURFACES.composer.financial_runtime, false);
-assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home']);
+assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home','studio']);
 for (const route of ['transactions','expenses','income','cash-flow','budget','obligations','data-quality']) {
   assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH[route].navigation, 'HIDDEN');
 }
-assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH.studio.navigation, 'SECONDARY');
+assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH.studio.navigation, 'PRIMARY');
 
 privateReads = 0;
 const studio = context.doGet({ parameter: { surface: 'studio', mode: 'studio', privacy: 'masked' } }).getContent();
