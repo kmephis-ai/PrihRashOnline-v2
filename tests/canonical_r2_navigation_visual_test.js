@@ -79,8 +79,11 @@ const UNBOUND = ['transactions','expenses','income','cash-flow','budget','obliga
         assert.strictEqual(state.marker, '1.1.0');
         assert.strictEqual(state.active, 'home');
         assert.strictEqual(state.policy, 'PROVEN_DESTINATIONS_ONLY');
-        assert.deepStrictEqual(state.primary, [{ id: 'home', href: '?surface=home', label: 'Главная', current: 'page' }]);
-        assert.deepStrictEqual(state.secondary.map((item) => item.label), ['Студия аналитики','Старый интерфейс']);
+        assert.deepStrictEqual(state.primary, [
+          { id: 'home', href: '?surface=home', label: 'Главная', current: 'page' },
+          { id: 'studio', href: '?surface=studio&mode=explore', label: 'Студия аналитики', current: null }
+        ]);
+        assert.deepStrictEqual(state.secondary.map((item) => item.label), ['Старый интерфейс']);
         assert.strictEqual(state.financialPayloadInHrefs, false);
         for (const route of UNBOUND) assert(!state.hrefs.includes(`?surface=${route}`), `${viewport.name}: unbound ${route} is visible`);
         assert(!/Explore|Studio|Legacy|rollback|configuration/i.test(state.visibleShellText), `${viewport.name}: English/developer navigation terminology visible`);
@@ -95,8 +98,8 @@ const UNBOUND = ['transactions','expenses','income','cash-flow','budget','obliga
       schema: 'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V2', privacy_class: 'PUBLIC_SYNTHETIC', truthfulNavigation: true, evidence
     }, null, 2));
     console.log('canonical_r2_navigation_visual_test: OK', {
-      viewports: viewports.map((item) => item.name), primaryRoutes: 1,
-      secondaryTools: 2, hiddenUnboundRoutes: UNBOUND.length, privacyCheck: 'QUERY_PARAMETER_KEYS_ONLY'
+      viewports: viewports.map((item) => item.name), primaryRoutes: 2,
+      secondaryTools: 1, hiddenUnboundRoutes: UNBOUND.length, privacyCheck: 'QUERY_PARAMETER_KEYS_ONLY'
     });
   } finally {
     await browser.close().catch(() => {});
