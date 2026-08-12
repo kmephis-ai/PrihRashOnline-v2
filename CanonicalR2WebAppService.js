@@ -111,6 +111,15 @@ function prhR2NavigationHtml_(activeSurface) {
 function prhR2InjectShell_(html, activeSurface) {
   var marker = '<meta name="prh-canonical-r2" content="' + prhR2EscapeHtml_(PRH_CANONICAL_R2_WEB.VERSION) + '">';
   if (html.indexOf('</head>') < 0 || html.indexOf('<body') < 0) throw new Error('R2_SURFACE_HTML_STRUCTURE_INVALID');
+  var selfUrl = prhR2SelfUrl_();
+  if (selfUrl) {
+    var baseTag = '<base href="' + prhR2EscapeHtml_(selfUrl) + '" target="_top">';
+    if (html.indexOf('<base target="_top">') >= 0) {
+      html = html.replace('<base target="_top">', baseTag);
+    } else if (html.indexOf('<head>') >= 0 && html.indexOf('<base ') < 0) {
+      html = html.replace('<head>', '<head>' + baseTag);
+    }
+  }
   html = html.replace('</head>', marker + '</head>');
   var bodyEnd = html.indexOf('>', html.indexOf('<body'));
   if (bodyEnd < 0) throw new Error('R2_SURFACE_BODY_INVALID');
