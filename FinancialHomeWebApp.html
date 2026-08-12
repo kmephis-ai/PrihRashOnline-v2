@@ -24,7 +24,7 @@
       --positive-bg:#153426;--positive:#a2e8bb;--warn-bg:#3b2b12;--warn:#ffd88a;--danger-bg:#3a1d27;--danger:#ffb4c0;color-scheme:dark;
     }}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--canvas);color:var(--text);font:14px/1.45 var(--font)}
-    .hero{background:linear-gradient(118deg,#061d37 0%,#0b4f78 58%,#0b6570 100%);color:#fff;padding:28px clamp(18px,4vw,52px)}
+    button{font:inherit}.hero{background:linear-gradient(118deg,#061d37 0%,#0b4f78 58%,#0b6570 100%);color:#fff;padding:28px clamp(18px,4vw,52px)}
     .hero-inner,.main{max-width:1280px;margin:0 auto}.hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
     .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;opacity:.78}.hero h1{margin:6px 0 0;font-size:clamp(30px,4vw,46px);line-height:1.05}.hero p{max-width:720px;margin:9px 0 0;font-size:15px;opacity:.86}
     .period-pill{flex:0 0 auto;padding:9px 13px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(255,255,255,.07);font-weight:700;white-space:nowrap}
@@ -42,8 +42,10 @@
     .chart{min-height:220px;display:flex;align-items:end;gap:10px;padding:16px 6px 4px;border-bottom:1px solid var(--line)}.bar{flex:1;min-width:12px;border-radius:8px 8px 3px 3px;background:var(--brand);opacity:.85}.visual-empty{min-height:220px;display:grid;place-items:center;padding:28px;text-align:center;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted)}.visual-empty strong{display:block;margin-bottom:5px;color:var(--text);font-size:15px}
     .mix{display:grid;gap:10px}.mix-row{display:grid;grid-template-columns:minmax(0,1fr) 50px;gap:10px;align-items:center}.mix-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}.mix-track{height:10px;margin-top:4px;border-radius:999px;background:var(--surface-soft);overflow:hidden}.mix-fill{height:100%;border-radius:inherit;background:var(--brand)}.mix-value{text-align:right;font-size:12px;font-weight:800}.mix-empty{padding:28px;text-align:center;color:var(--muted);background:var(--surface-soft);border-radius:var(--radius-sm)}
     .footnote{margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);font-size:12px}.fatal{max-width:760px;margin:32px auto;padding:22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.fatal h2{margin:0 0 7px}.fatal p{margin:0;color:var(--muted)}
+    .retry{margin-top:16px;border:0;border-radius:999px;padding:9px 14px;background:var(--brand-strong);color:#fff;font-weight:800;cursor:pointer}.loading-card{overflow:hidden}.loading-line{height:13px;border-radius:999px;background:var(--surface-soft);margin-top:14px;animation:prhPulse 1.2s ease-in-out infinite alternate}.loading-line.short{width:42%}.loading-line.value-line{height:30px;width:72%;margin-top:22px}.loading-note{color:var(--muted);font-size:12px}.loading-visual{min-height:220px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:var(--radius-sm);background:var(--surface-soft);color:var(--muted);text-align:center;padding:24px}@keyframes prhPulse{from{opacity:.45}to{opacity:1}}
     @media(max-width:1050px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.visuals{grid-template-columns:1fr}}
-    @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.chart,.visual-empty{min-height:180px}}
+    @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.chart,.visual-empty,.loading-visual{min-height:180px}}
+    @media(prefers-reduced-motion:reduce){.loading-line{animation:none}}
   </style>
 </head>
 <body>
@@ -55,7 +57,7 @@
     </div></div>
   </header>
   <main class="main" id="home-main">
-    <div class="section-head"><div><h2>Состояние финансов</h2><div class="section-note">Сводка по данным выбранного периода</div></div><div class="section-note" id="truth-note">Данные рассчитаны</div></div>
+    <div class="section-head"><div><h2>Состояние финансов</h2><div class="section-note">Сводка по данным выбранного периода</div></div><div class="section-note" id="truth-note">Получаем актуальные данные</div></div>
     <div class="alert-strip" id="alert-strip" aria-label="Финансовые сигналы"></div>
     <section class="cards" id="cards" aria-label="Ключевые показатели"></section>
     <section class="visuals" aria-label="Финансовые визуализации">
@@ -85,6 +87,7 @@
   const CARD_LABELS={INCOME:'Доходы',EXPENSE:'Расходы',CASH_FLOW:'Денежный поток',SAVINGS:'Сбережения',BUDGET:'Бюджет',LIQUIDITY:'Ликвидность',ALERTS:'Сигналы'};
   const ALERT_LABELS={NEGATIVE_CASH_FLOW:'Отрицательный денежный поток',BUDGET_NOT_CONFIGURED:'Бюджет не настроен',LIQUIDITY_SOURCE_UNAVAILABLE:'Ликвидность пока недоступна'};
   const SEVERITY_LABELS={INFO:'информация',WARNING:'предупреждение',ERROR:'важно',CRITICAL:'критично'};
+  let activeAsyncMarker=null;
   function moneyCard(id,value){return {id:id,state:'READY',source_kpi:id,value_minor:value,currency:'RUB',drill:null};}
   function parse(){try{const text=document.getElementById('initial-home-data').textContent.trim();if(!text||text.indexOf('<?')===0)return SYN;return JSON.parse(text);}catch(e){return SYN;}}
   function esc(value){return String(value==null?'':value).replace(/[&<>'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c];});}
@@ -125,11 +128,38 @@
     const order=['INCOME','EXPENSE','CASH_FLOW','SAVINGS','BUDGET','LIQUIDITY','ALERTS'];
     document.getElementById('cards').innerHTML=order.map(function(id){return cardHtml(data.cards&&data.cards[id]);}).join('');
     renderCashFlow(data);renderExpenseMix(data);
+    document.documentElement.setAttribute('data-home-data-ready','1');
+  }
+  function renderLoading(){
+    document.documentElement.setAttribute('data-home-runtime','ASYNC');
+    document.getElementById('period-pill').textContent='Загрузка данных…';
+    document.getElementById('truth-note').textContent='Получаем актуальные данные';
+    document.getElementById('alert-strip').innerHTML='<span class="alert-chip info">Обновляем финансовый обзор…</span>';
+    const labels=['Доходы','Расходы','Денежный поток','Сбережения','Бюджет','Ликвидность','Сигналы'];
+    document.getElementById('cards').innerHTML=labels.map(function(label){return '<article class="card loading-card" aria-busy="true"><div class="card-label">'+esc(label)+'</div><div class="loading-line value-line"></div><div class="loading-line short"></div></article>';}).join('');
+    document.getElementById('cashflow-chart').className='loading-visual';
+    document.getElementById('cashflow-chart').innerHTML='<div>Загружаем динамику…</div>';
+    document.getElementById('expense-mix').innerHTML='<div class="loading-visual">Загружаем структуру расходов…</div>';
   }
   function renderFailure(){
-    document.getElementById('home-main').innerHTML='<section class="fatal" role="alert"><h2>Не удалось загрузить финансовый обзор</h2><p>Данные не отображены, чтобы не показывать неполную или недостоверную информацию. Обновите страницу немного позже.</p></section>';
+    document.getElementById('home-main').innerHTML='<section class="fatal" role="alert"><h2>Не удалось загрузить финансовый обзор</h2><p>Данные не отображены, чтобы не показывать неполную или недостоверную информацию.</p><button type="button" class="retry" id="home-retry">Повторить загрузку</button></section>';
+    const retry=document.getElementById('home-retry');if(retry)retry.addEventListener('click',function(){if(activeAsyncMarker){location.reload();}});
   }
-  document.addEventListener('DOMContentLoaded',function(){try{render(parse());}catch(e){renderFailure();}});
+  function loadAsync(marker){
+    activeAsyncMarker=marker;
+    if(!(window.google&&google.script&&google.script.run)){renderFailure();return;}
+    google.script.run
+      .withSuccessHandler(function(data){try{if(!data||!data.cards)throw new Error('HOME_PAYLOAD_INVALID');render(data);}catch(e){renderFailure();}})
+      .withFailureHandler(function(){renderFailure();})
+      .prhR2FetchFinancialHomePayload(marker.privacy_mode||'NORMAL');
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    try{
+      const initial=parse();
+      if(initial&&initial.runtime_load==='ASYNC'){renderLoading();loadAsync(initial);return;}
+      render(initial);
+    }catch(e){renderFailure();}
+  });
 }());
 </script>
 </body>
