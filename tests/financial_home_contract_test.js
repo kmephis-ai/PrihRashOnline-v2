@@ -4,6 +4,7 @@ const assert = require('assert');
 const home = require('../lib/home/financial_home');
 const { evaluateKpis } = require('../lib/finance/kpi_dictionary');
 const viz = require('../lib/visualization/visualization_foundation');
+const projection = require('../lib/visualization/household_visual_projection');
 
 function tx(id, date, type, amount, category = 'SYN-BASE') {
   return {
@@ -140,6 +141,63 @@ for (const forbidden of ['amount_minor', 'income_minor', 'expense_minor', 'cash_
   assert(!widgetText.includes(forbidden), `Home WidgetSpecs must remain configuration-only: ${forbidden}`);
 }
 
+// VIZ-REC-001: keep truthful household projection coverage inside the canonical
+// Financial Home contract instead of creating a parallel visual-test authority.
+const visualPeriods = [
+  ['2026-01-01', '2026-02-01', 12000],
+  ['2026-02-01', '2026-03-01', -5000],
+  ['2026-03-01', '2026-04-01', 18000],
+  ['2026-04-01', '2026-05-01', 9000],
+  ['2026-05-01', '2026-06-01', 24000],
+  ['2026-06-01', '2026-07-01', 30000]
+].map(([start, end, cash_flow_minor]) => ({ period: { start, end }, cash_flow_minor }));
+const cashFlowDataset = projection.cashFlowRenderDataset(visualPeriods);
+assert.strictEqual(cashFlowDataset.schema, viz.RENDER_DATASET_SCHEMA);
+assert.strictEqual(cashFlowDataset.rows.length, 6);
+assert.deepStrictEqual(cashFlowDataset.rows.map((row) => row.dimensions.time_bucket), [
+  '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'
+]);
+assert.deepStrictEqual(cashFlowDataset.rows.map((row) => row.measures.CASH_FLOW), [
+  12000, -5000, 18000, 9000, 24000, 30000
+]);
+
+const expenseInput = [
+  ['Дом', 60000], ['Кредиты', 10000], ['Продукты', 8000], ['Коммуналка', 4000],
+  ['Подарки', 3000], ['Связь', 2500], ['Бензин', 2000], ['Одежда', 1000]
+];
+const shapedExpense = projection.topNExpenseMix(expenseInput, 6);
+assert.strictEqual(shapedExpense.length, 7);
+const otherExpense = shapedExpense.find((entry) => entry.label === 'Прочее');
+assert(otherExpense, 'Top-N must expose Прочее when categories exceed the limit');
+assert.strictEqual(otherExpense.value_minor, 3000);
+assert.strictEqual(otherExpense.source_count, 2);
+assert.strictEqual(
+  shapedExpense.reduce((sum, entry) => sum + entry.value_minor, 0),
+  expenseInput.reduce((sum, entry) => sum + entry[1], 0),
+  'Top-N + Прочее must preserve the authoritative expense total exactly'
+);
+
+const expenseDataset = projection.expenseMixRenderDataset(expenseInput, 6);
+const lineWidget = view.widgets.find((widget) => widget.id === 'home-cash-flow-trend');
+const donutWidget = view.widgets.find((widget) => widget.id === 'home-expense-mix');
+assert(lineWidget && donutWidget, 'Canonical Home LINE/DONUT widgets must remain present');
+const lineOption = projection.compileHouseholdChart(lineWidget.chart_spec, cashFlowDataset);
+const donutOption = projection.compileHouseholdChart(donutWidget.chart_spec, expenseDataset);
+assert.strictEqual(lineOption.renderer, 'ECHARTS_6');
+assert.strictEqual(lineOption.option.aria.enabled, true);
+assert.deepStrictEqual(lineOption.option.xAxis.data, ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06']);
+assert.deepStrictEqual(lineOption.option.series[0].data, [12000, -5000, 18000, 9000, 24000, 30000]);
+assert.strictEqual(donutOption.renderer, 'ECHARTS_6');
+assert.strictEqual(donutOption.option.aria.enabled, true);
+assert.strictEqual(donutOption.option.series[0].data.find((item) => item.name === 'Прочее').value, 3000);
+
+expectCode(() => projection.cashFlowRenderDataset([
+  { period: { start: '2026-01-01', end: '2026-02-01' }, cash_flow_minor: 1 },
+  { period: { start: '2026-01-15', end: '2026-02-15' }, cash_flow_minor: 2 }
+]), 'VIZ_HOUSEHOLD_CASH_FLOW_PERIOD_DUPLICATE');
+expectCode(() => projection.topNExpenseMix([['Дом', -1]], 6), 'VIZ_HOUSEHOLD_EXPENSE_ENTRY_INVALID');
+expectCode(() => projection.topNExpenseMix([['Дом', 10], ['Дом', 20]], 6), 'VIZ_HOUSEHOLD_EXPENSE_LABEL_DUPLICATE');
+
 const same = home.buildFinancialHome(negative, {
   currency: 'RUB', period, budget_minor: 60000, base_filter_context: baseFilter
 });
@@ -161,5 +219,8 @@ console.log('financial_home_contract_test: OK', {
   budgetOverrunAlert: true,
   deterministicDrill: true,
   widgetSpecsConfigurationOnly: true,
+  vizRecPeriods: cashFlowDataset.rows.length,
+  vizRecTopN: 6,
+  vizRecRenderer: lineOption.renderer,
   freeOnly: true
 });
