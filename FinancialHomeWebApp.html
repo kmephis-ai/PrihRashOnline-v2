@@ -63,8 +63,8 @@
     <div class="alert-strip" id="alert-strip" aria-label="Финансовые сигналы"></div>
     <section class="cards" id="cards" aria-label="Ключевые показатели"></section>
     <section class="visuals" aria-label="Финансовые визуализации">
-      <article class="panel"><div class="panel-head"><div><h3>Динамика денежного потока</h3><div class="section-note">Последние доступные месяцы</div></div><span class="panel-label">ECharts</span></div><div id="cashflow-chart" aria-live="polite"></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Структура расходов</h3><div class="section-note">Категории последнего периода</div></div><span class="panel-label">ECharts</span></div><div id="expense-mix" aria-live="polite"></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Динамика денежного потока</h3><div class="section-note">Последние доступные месяцы</div></div><span class="panel-label">Тренд</span></div><div id="cashflow-chart" aria-live="polite"></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Структура расходов</h3><div class="section-note">Категории последнего периода</div></div><span class="panel-label">Категории</span></div><div id="expense-mix" aria-live="polite"></div></article>
     </section>
     <div class="footnote">Ликвидность появится после подключения данных об остатках на счетах. Бюджет показывается только при наличии плана на тот же период и в той же валюте.</div>
   </main>
@@ -83,7 +83,7 @@
     },
     alerts:[{code:'LIQUIDITY_SOURCE_UNAVAILABLE',severity:'INFO',source_kpi:null,source_capability:'LIQUIDITY',drill:null}],
     widgets:[],
-    visual_data:{cash_flow_minor:[12000,18000,9000,24000,30000],expense_mix:[['SYN-HOME',31000],['SYN-FOOD',23000],['SYN-OTHER',16000]]},
+    visual_data:{cash_flow_minor:[12000,18000,9000,24000,30000],expense_mix:[['Дом',31000],['Продукты',23000],['Прочее',16000]]},
     provenance:{financial_values:'FIN010_EVALUATE_KPIS_RESULT',kpi_evaluation_count:1,ui_financial_formula_used:false,liquidity_proxy_used:false}
   };
   const SYN_VISUAL={
@@ -92,10 +92,10 @@
       {period:{start:'2026-03-01',end:'2026-04-01'},cash_flow_minor:12000},{period:{start:'2026-04-01',end:'2026-05-01'},cash_flow_minor:18000},{period:{start:'2026-05-01',end:'2026-06-01'},cash_flow_minor:9000},
       {period:{start:'2026-06-01',end:'2026-07-01'},cash_flow_minor:24000},{period:{start:'2026-07-01',end:'2026-08-01'},cash_flow_minor:27000},{period:{start:'2026-08-01',end:'2026-09-01'},cash_flow_minor:30000}
     ],
-    expense_mix:[['SYN-HOME',31000],['SYN-FOOD',23000],['SYN-OTHER',16000]],
+    expense_mix:[['Дом',31000],['Продукты',23000],['Прочее',16000]],
     charts:{
-      cash_flow:{renderer:'ECHARTS_6',option:{aria:{enabled:true},title:{text:'Денежный поток'},tooltip:{trigger:'axis'},xAxis:{type:'category',data:['2026-03','2026-04','2026-05','2026-06','2026-07','2026-08']},yAxis:{type:'value'},series:[{type:'line',data:[12000,18000,9000,24000,27000,30000],smooth:true}]}},
-      expense_mix:{renderer:'ECHARTS_6',option:{aria:{enabled:true},title:{text:'Структура расходов'},tooltip:{trigger:'item'},series:[{type:'pie',radius:['42%','70%'],data:[{name:'SYN-HOME',value:31000},{name:'SYN-FOOD',value:23000},{name:'SYN-OTHER',value:16000}]}]}}
+      cash_flow:{renderer:'ECHARTS_6',option:{aria:{enabled:true,label:{description:'Денежный поток'}},title:{text:'Денежный поток'},tooltip:{trigger:'axis'},xAxis:{type:'category',data:['2026-03','2026-04','2026-05','2026-06','2026-07','2026-08']},yAxis:{type:'value'},series:[{type:'line',data:[12000,18000,9000,24000,27000,30000],smooth:true}]}},
+      expense_mix:{renderer:'ECHARTS_6',option:{aria:{enabled:true,label:{description:'Структура расходов'}},title:{text:'Структура расходов'},tooltip:{trigger:'item'},series:[{type:'pie',radius:['42%','70%'],data:[{name:'Дом',value:31000},{name:'Продукты',value:23000},{name:'Прочее',value:16000}]}]}}
     },
     latest_period:{start:'2026-08-01',end:'2026-09-01'},privacy:{values_redacted:false,chart_options_redacted:false,private_visual_runtime_read:false},provenance:{renderer:'ECHARTS_6',chart_option_authority:'SERVER_ONLY',ui_chart_option_authority:false,write_authority:false,free_only:true}
   };
@@ -149,7 +149,7 @@
     host.innerHTML='<div><strong>Доступно текстовое представление</strong><span>Графический движок не изменяет финансовые расчёты.</span><ul>'+rows.map(function(row){return '<li class="semantic-row"><span>'+esc(row[0])+'</span><b>'+esc(rub(row[1],currency))+'</b></li>';}).join('')+'</ul></div>';
   }
   function renderCashFlowSemantic(presentation){
-    const rows=Array.isArray(presentation.cash_flow_periods)?presentation.cash_flow_periods.map(function(entry,index){const period=entry&&entry.period||{};return [period.start?String(period.start).slice(0,7):'Период '+(index+1),entry&&entry.cash_flow_minor];}):[];
+    const rows=Array.isArray(presentation.cash_flow_periods)?presentation.cash_flow_periods.map(function(entry,index){const period=entry&&entry.period||{};const raw=String(period.start||'');const label=/^\d{4}-\d{2}/.test(raw)?raw.slice(0,7):(raw||'Период '+(index+1));return [label,entry&&entry.cash_flow_minor];}):[];
     semanticRows(document.getElementById('cashflow-chart'),rows,presentation.currency,'Нужно больше реальных периодов истории.');
   }
   function renderExpenseSemantic(presentation){
@@ -158,7 +158,7 @@
   }
   function renderMaskedVisuals(){
     disposeChart('cash_flow');disposeChart('expense_mix');
-    const html='<div><strong>Графики скрыты режимом приватности</strong><span>Точные значения и ECharts options не передаются в браузер.</span></div>';
+    const html='<div><strong>Графики скрыты режимом приватности</strong><span>Точные значения и параметры графиков не передаются в браузер.</span></div>';
     const cash=document.getElementById('cashflow-chart');cash.className='visual-mask';cash.innerHTML=html;
     const mix=document.getElementById('expense-mix');mix.className='visual-mask';mix.innerHTML=html;
   }

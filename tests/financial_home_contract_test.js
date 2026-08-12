@@ -185,10 +185,14 @@ const lineOption = projection.compileHouseholdChart(lineWidget.chart_spec, cashF
 const donutOption = projection.compileHouseholdChart(donutWidget.chart_spec, expenseDataset);
 assert.strictEqual(lineOption.renderer, 'ECHARTS_6');
 assert.strictEqual(lineOption.option.aria.enabled, true);
+assert.strictEqual(lineOption.option.aria.label.description, 'Денежный поток');
+assert(/[А-Яа-яЁё]/.test(lineOption.option.aria.label.description), 'Cash-flow ARIA description must be household-facing Russian');
 assert.deepStrictEqual(lineOption.option.xAxis.data, ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06']);
 assert.deepStrictEqual(lineOption.option.series[0].data, [12000, -5000, 18000, 9000, 24000, 30000]);
 assert.strictEqual(donutOption.renderer, 'ECHARTS_6');
 assert.strictEqual(donutOption.option.aria.enabled, true);
+assert.strictEqual(donutOption.option.aria.label.description, 'Структура расходов');
+assert(/[А-Яа-яЁё]/.test(donutOption.option.aria.label.description), 'Expense ARIA description must be household-facing Russian');
 assert.strictEqual(donutOption.option.series[0].data.find((item) => item.name === 'Прочее').value, 3000);
 
 expectCode(() => projection.cashFlowRenderDataset([
@@ -222,5 +226,6 @@ console.log('financial_home_contract_test: OK', {
   vizRecPeriods: cashFlowDataset.rows.length,
   vizRecTopN: 6,
   vizRecRenderer: lineOption.renderer,
+  vizRecRussianAria: true,
   freeOnly: true
 });
