@@ -146,6 +146,8 @@ jobs:
         run: node tests/ydb_serverless_poc_contract_test.js
       - name: Family Auth
         run: node tests/family_auth_contract_test.js
+      - name: Apps Script version retention
+        run: node tests/apps_script_version_retention_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
       - name: Roadmap task protocol

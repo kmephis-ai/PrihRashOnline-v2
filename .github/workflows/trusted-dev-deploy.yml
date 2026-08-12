@@ -178,13 +178,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          SOURCE_TREE_HASH="$(jq -r '.sourceTreeHash // empty' "${RUNNER_TEMP}/promoted/manifest.json")"
+          [[ "${SOURCE_TREE_HASH}" =~ ^[0-9a-f]{64}$ ]] || {
+            echo '::error::Verified candidate source tree hash is invalid.'
+            exit 1
+          }
+          export SOURCE_TREE_HASH
           PROMOTE_JSON="$(node "${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-promote.js")"
           PROMOTE_OK="$(jq -r '.ok // false' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'false')"
           PROMOTE_REASON="$(jq -r '.reason // "DEPLOYMENT_PROMOTION_FAILED"' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'DEPLOYMENT_PROMOTION_FAILED')"
           VERSION_NUMBER="$(jq -r '.versionNumber // 0' <<<"${PROMOTE_JSON}" 2>/dev/null || printf '0')"
+          VERSION_REUSED="$(jq -r '.versionReused // false' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'false')"
+          VERSIONS_DELETED="$(jq -r '.versionsDeleted // 0' <<<"${PROMOTE_JSON}" 2>/dev/null || printf '0')"
           [[ "${PROMOTE_REASON}" =~ ^[A-Z0-9_]+$ ]] || PROMOTE_REASON='DEPLOYMENT_PROMOTION_FAILED'
+          [[ "${VERSION_REUSED}" == 'true' || "${VERSION_REUSED}" == 'false' ]] || VERSION_REUSED='false'
+          [[ "${VERSIONS_DELETED}" =~ ^[0-9]+$ ]] || VERSIONS_DELETED='0'
           echo "reason=${PROMOTE_REASON}" >> "$GITHUB_OUTPUT"
           echo "version_number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "version_reused=${VERSION_REUSED}" >> "$GITHUB_OUTPUT"
+          echo "versions_deleted=${VERSIONS_DELETED}" >> "$GITHUB_OUTPUT"
           if [[ "${PROMOTE_OK}" != 'true' || ! "${VERSION_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then exit 1; fi
           echo 'reason=OK' >> "$GITHUB_OUTPUT"
 
@@ -192,6 +204,8 @@ jobs:
         id: deploy_evidence
         env:
           VERSION_NUMBER: ${{ steps.version_promote.outputs.version_number }}
+          VERSION_REUSED: ${{ steps.version_promote.outputs.version_reused }}
+          VERSIONS_DELETED: ${{ steps.version_promote.outputs.versions_deleted }}
         shell: bash
         run: |
           set -euo pipefail
@@ -202,8 +216,10 @@ jobs:
             --arg sourceRunId "${SOURCE_RUN_ID}" \
             --arg artifactHash "${ARTIFACT_HASH}" \
             --argjson versionNumber "${VERSION_NUMBER}" \
+            --argjson versionReused "${VERSION_REUSED}" \
+            --argjson versionsDeleted "${VERSIONS_DELETED}" \
             --arg status 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' \
-            '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,artifactHash:$artifactHash,versionNumber:$versionNumber,status:$status}' \
+            '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,artifactHash:$artifactHash,versionNumber:$versionNumber,versionReused:$versionReused,versionsDeleted:$versionsDeleted,status:$status}' \
             > trusted-deploy-evidence/evidence.json
 
       - name: Upload trusted deploy evidence

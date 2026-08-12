@@ -117,6 +117,12 @@ Anonymous `curl`/login-page smoke не является доказательст
 
 DEV Web App остаётся private `MYSELF`. Его deployment/runtime locator не публикуется и не синхронизируется публичным README. Владелец использует private Google environment/book menu или локальную закладку.
 
+### Apps Script version capacity
+
+Trusted promotion переиспользует существующую immutable version для повторного exact candidate и до создания новой версии выполняет fail-closed retention. При количестве версий выше 180 самые старые proven-unused versions удаляются до target 160; все версии, используемые любым deployment, exact-candidate reuse и 12 последних unused rollback versions защищены.
+
+После успешного Main Verification workflow `Apps Script Version Retention` повторяет bounded cleanup из default-branch policy. PR events не получают retention credentials. Подробный contract и recovery procedure: `docs/operations/APPS_SCRIPT_VERSION_RETENTION.md`.
+
 Доступность runtime доказывается authenticated Execution API health, а не наличием публичной URL-ссылки.
 
 ## Safety boundaries

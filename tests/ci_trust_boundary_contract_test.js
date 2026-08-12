@@ -6,6 +6,7 @@ const {
   scanTrustedWorkflow,
   scanRuntimeWorkflow,
   scanMainVerification,
+  scanVersionRetentionWorkflow,
   scanLegacyWorkflow
 } = require('../tools/ci-trust-boundary-scan');
 
@@ -121,6 +122,32 @@ assert.deepStrictEqual(scanMainVerification(mainVerifySafe), []);
 assert(scanMainVerification(`${mainVerifySafe}\nenv:\n  TOKEN: \${{ secrets.PRIVATE_TOKEN }}\n`).includes('main-verification-must-be-secret-free'));
 assert(scanMainVerification(`${mainVerifySafe}\n# git push origin main\n`).includes('main-verification-post-merge-direct-commit-or-legacy-gate'));
 
+const retentionSafe = `
+on:
+  workflow_run:
+    workflows: [Main Verification]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prune:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    environment: DEV
+    steps:
+      - uses: actions/checkout@${'a'.repeat(40)}
+        with:
+          ref: \${{ github.event.repository.default_branch }}
+      - env:
+          CLASPRC_JSON: \${{ secrets.CLASPRC_JSON }}
+          APPS_SCRIPT_ID: \${{ secrets.APPS_SCRIPT_ID }}
+        run: node tools/apps-script-version-retention.js --apply
+`;
+assert.deepStrictEqual(scanVersionRetentionWorkflow(retentionSafe), []);
+assert(scanVersionRetentionWorkflow(`${retentionSafe}\npull_request:\n`).includes('retention-pr-trigger-forbidden'));
+assert(scanVersionRetentionWorkflow(retentionSafe.replace("github.event.workflow_run.conclusion == 'success'", 'true')).includes('retention-success-or-owner-dispatch-guard-missing'));
+assert(scanVersionRetentionWorkflow(`${retentionSafe}\npermissions:\n  contents: write\n`).includes('retention-permissions-not-read-only'));
+
 const legacySafe = `
 name: Legacy release disabled
 on: workflow_dispatch
@@ -138,5 +165,6 @@ console.log('ci_trust_boundary_contract_test: OK', {
   pr: 'all-main-targeting branches, no secrets',
   trustedDeploy: 'exact candidate',
   runtime: 'health-gated exact-head squash',
-  mainVerification: 'secret-free issue close'
+  mainVerification: 'secret-free issue close',
+  versionRetention: 'post-main/default-branch/owner-secret isolated'
 });
