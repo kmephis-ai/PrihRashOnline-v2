@@ -163,7 +163,11 @@ assert.strictEqual(homeRuntimeCalls, 0, 'Studio route must not fetch private fin
 assert.strictEqual(legacyCalls, 0);
 assert(studioOutput.includes('data-prh-studio-shell="1"'));
 assert(studioOutput.includes('data-active-surface="studio"'));
-assert(studioOutput.includes('data-r2-studio-launcher="1" aria-current="page"'));
+const studioLauncher = studioOutput.match(/<a[^>]*data-r2-nav="studio"[^>]*>Студия аналитики<\/a>/);
+assert(studioLauncher, 'Canonical Studio launcher missing');
+assert(studioLauncher[0].includes('data-r2-studio-launcher="1"'));
+assert(studioLauncher[0].includes('aria-current="page"'));
+assert(studioLauncher[0].includes('?surface=studio&amp;mode=explore'));
 assert(studioOutput.includes('?surface=home&mode=daily'));
 assert(studioOutput.includes('data-dash080-composer-launcher="1"'));
 assert(studioOutput.includes('href="?surface=composer"'));
