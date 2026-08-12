@@ -103,8 +103,8 @@ const maskedPayload = context.prhR2FetchFinancialHomePayload('MASKED');
 assert.strictEqual(privateReads, 1, 'MASKED async fetch reads canonical private view exactly once server-side');
 const maskedSerialized = JSON.stringify(maskedPayload);
 for (const token of SECRET_TOKENS) assert.strictEqual(maskedSerialized.includes(token), false, `MASKED async payload leak: ${token}`);
-assert.deepStrictEqual(maskedPayload.visual_data.cash_flow_minor, []);
-assert.deepStrictEqual(maskedPayload.visual_data.expense_mix, []);
+assert.strictEqual(JSON.stringify(maskedPayload.visual_data.cash_flow_minor), '[]');
+assert.strictEqual(JSON.stringify(maskedPayload.visual_data.expense_mix), '[]');
 
 privateReads = 0;
 const invalidHtml = context.doGet({ parameter: { surface: 'home', privacy: 'invalid-mode' } }).getContent();
