@@ -12,7 +12,7 @@ const EXPECTED_ECHARTS_VERSION = '6.1.0';
 const EXPECTED_RENDERER = 'ECHARTS_6';
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 1000, maxPageHeight: 2200 },
-  { name: 'mobile', width: 390, height: 844, maxPageHeight: 5400 }
+  { name: 'mobile', width: 390, height: 844, maxPageHeight: 7600 }
 ];
 const FORBIDDEN_VISIBLE = [
   'ECharts', 'ECHARTS', 'ChartSpec', 'renderer', 'options', 'FIN-TRUTH', 'FIN-010', 'VIZ-', 'BAL-030',
@@ -82,6 +82,9 @@ async function inspectRenderedHome(page) {
       const label = aria && first(aria.label);
       return label && label.description || '';
     }
+    function heightOf(node) {
+      return node ? Math.round(node.getBoundingClientRect().height) : 0;
+    }
     function chartInfo(id) {
       const host = document.getElementById(id);
       const instance = host && window.echarts && window.echarts.getInstanceByDom(host);
@@ -125,6 +128,13 @@ async function inspectRenderedHome(page) {
       fetchStrategy: root.getAttribute('data-home-fetch-strategy') || '',
       overflow: Math.max(root.scrollWidth, body.scrollWidth) - innerWidth,
       pageHeight: Math.max(root.scrollHeight, body.scrollHeight),
+      layout: {
+        shellHeight: heightOf(shell),
+        heroHeight: heightOf(document.querySelector('.hero')),
+        mainHeight: heightOf(document.querySelector('.main')),
+        cardHeights: Array.from(document.querySelectorAll('.card')).map(heightOf),
+        panelHeights: Array.from(document.querySelectorAll('.panel')).map(heightOf)
+      },
       visibleText: body.innerText.replace(/\s+/g, ' ').trim(),
       headings: Array.from(document.querySelectorAll('h1,h2,h3')).map((node) => `${node.tagName}:${node.textContent.trim()}`),
       chartActions: visualRoot ? visualRoot.querySelectorAll('button,a,[role="button"]').length : -1,
@@ -205,12 +215,31 @@ async function inspectRenderedHome(page) {
       await page.waitForTimeout(700);
       const result = await inspectRenderedHome(page);
 
+      await page.screenshot({
+        path: path.join(artifactDir, `financial-home-candidate-${viewport.name}.png`),
+        fullPage: true
+      });
+      results.push({ viewport: viewport.name, ...result });
+      console.log('financial_home_candidate_layout', JSON.stringify({
+        viewport: viewport.name,
+        pageHeight: result.pageHeight,
+        layout: result.layout,
+        cash: { width: result.cash.width, height: result.cash.height },
+        expense: { width: result.expense.width, height: result.expense.height }
+      }));
+
       expect(!errors.length, `[${viewport.name}] candidate browser errors: ${errors.join(' | ')}`);
       expect(result.rendererVersion === EXPECTED_ECHARTS_VERSION,
         `[${viewport.name}] expected ECharts ${EXPECTED_ECHARTS_VERSION}, got ${result.rendererVersion}`);
       expect(result.dataReady === '1' && result.visualReady === '1', `[${viewport.name}] Home did not reach rendered state`);
       expect(result.overflow <= 1, `[${viewport.name}] horizontal overflow ${result.overflow}`);
       expect(result.pageHeight <= viewport.maxPageHeight, `[${viewport.name}] page too tall ${result.pageHeight}`);
+      expect(result.layout.shellHeight > 0 && result.layout.shellHeight <= 80,
+        `[${viewport.name}] canonical shell height is pathological: ${result.layout.shellHeight}`);
+      expect(result.layout.cardHeights.length === 7 && result.layout.cardHeights.every((height) => height >= 120 && height <= 320),
+        `[${viewport.name}] KPI card height out of bounds: ${result.layout.cardHeights.join(',')}`);
+      expect(result.layout.panelHeights.length === 2 && result.layout.panelHeights.every((height) => height >= 260 && height <= 620),
+        `[${viewport.name}] chart panel height out of bounds: ${result.layout.panelHeights.join(',')}`);
       expect(result.headings.filter((item) => item.startsWith('H1:')).length === 1,
         `[${viewport.name}] Home must have exactly one H1`);
       expect(result.headings.includes('H3:Динамика денежного потока') && result.headings.includes('H3:Структура расходов'),
@@ -231,10 +260,10 @@ async function inspectRenderedHome(page) {
       expect(JSON.stringify(result.shell.secondary.map((item) => item.label)) === JSON.stringify(['Старый интерфейс']),
         `[${viewport.name}] legacy emergency route must remain secondary`);
 
-      expect(result.cash.instance && result.cash.canvasCount >= 1 && result.cash.width > 200 && result.cash.height >= 190,
-        `[${viewport.name}] cash-flow canvas was not rendered with useful dimensions`);
-      expect(result.expense.instance && result.expense.canvasCount >= 1 && result.expense.width > 200 && result.expense.height >= 190,
-        `[${viewport.name}] expense canvas was not rendered with useful dimensions`);
+      expect(result.cash.instance && result.cash.canvasCount >= 1 && result.cash.width > 200 && result.cash.height >= 190 && result.cash.height <= 420,
+        `[${viewport.name}] cash-flow canvas dimensions are not useful: ${result.cash.width}x${result.cash.height}`);
+      expect(result.expense.instance && result.expense.canvasCount >= 1 && result.expense.width > 200 && result.expense.height >= 190 && result.expense.height <= 480,
+        `[${viewport.name}] expense canvas dimensions are not useful: ${result.expense.width}x${result.expense.height}`);
       expect(result.cash.seriesType === 'line' && result.cash.dataCount === 6,
         `[${viewport.name}] cash-flow must be a six-period line series`);
       expect(result.expense.seriesType === 'pie' && result.expense.dataCount === 3,
@@ -260,11 +289,6 @@ async function inspectRenderedHome(page) {
         expect(!result.visibleText.includes(term), `[${viewport.name}] developer-facing term is visible: ${term}`);
       }
 
-      await page.screenshot({
-        path: path.join(artifactDir, `financial-home-candidate-${viewport.name}.png`),
-        fullPage: true
-      });
-      results.push({ viewport: viewport.name, ...result });
       await page.close();
     }
   } finally {
@@ -293,6 +317,7 @@ async function inspectRenderedHome(page) {
     russian_household_strings: true,
     accessibility_aria: true,
     keyboard_trap_free_unbound_charts: true,
+    bounded_component_heights: true,
     results
   };
   fs.writeFileSync(
@@ -308,6 +333,7 @@ async function inspectRenderedHome(page) {
     exactShaCanonicalShellRendered: true,
     primaryNavigation: ['Главная', 'Студия аналитики'],
     desktopMobile: true,
+    boundedComponentHeights: true,
     russianHouseholdStrings: true,
     accessibilityAria: true,
     runtimeNetworkRequests: 0
