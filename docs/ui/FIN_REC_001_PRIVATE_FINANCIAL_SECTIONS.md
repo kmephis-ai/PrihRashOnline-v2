@@ -8,15 +8,15 @@
 
 Каждый запрос раздела использует один immutable canonical snapshot. Клиент передаёт активный `section`, период и bounded account/category/member filters. Сервер строит ровно один соответствующий analytics view: `Расходы`, `Доходы` или `Денежный поток`. Остальные два view в этом запросе не вычисляются.
 
-После повторного owner UAT развернутого exact candidate `1e994fe790f43c5480e917a2e8d4b9a626fa14f1` графики всё ещё появлялись через **10–15 секунд**. Это повторный Product UAT performance FAIL; данный runtime candidate считается superseded для Product Ready.
+Owner UAT развернутого exact candidate `1e994fe790f43c5480e917a2e8d4b9a626fa14f1` подтвердил повторный performance FAIL: графики появляются через **10–15 секунд**. Этот runtime candidate не может получить Product Ready.
 
-Второй performance rework дополнительно ограничивает вход canonical analytics только двумя равными окнами, которые реально нужны экрану: текущим периодом и периодом сравнения. Более старые операции больше не передаются в многократные расчёты daily trend, но остаются частью canonical snapshot и источником общей revision. Это не меняет FIN-TRUTH: все финансовые значения по-прежнему вычисляют canonical analytics modules.
+Второй performance rework ограничивает вход canonical analytics только двумя равными окнами, реально необходимыми экрану: текущим периодом и периодом сравнения. Более старые операции не передаются в многократные daily-trend расчёты, но остаются частью canonical snapshot и общей source revision. FIN-TRUTH не меняется: денежные значения по-прежнему вычисляют canonical analytics modules.
 
-В runtime telemetry добавлены только безопасные технические метрики: `snapshot_elapsed_ms`, `analytics_elapsed_ms`, `total_elapsed_ms`, `analytics_input_record_count` и `analytics_scope_days`. Денежные значения, private labels и identifiers в telemetry не добавляются.
+Runtime telemetry содержит только безопасные технические метрики: `snapshot_elapsed_ms`, `analytics_elapsed_ms`, `total_elapsed_ms`, `analytics_input_record_count` и `analytics_scope_days`. Денежные значения, private labels и identifiers в telemetry отсутствуют.
 
 ## Product truth
 
-Переключение разделов на предыдущем candidate было приемлемым, но графики 10–15 секунд неприемлемы. Поэтому Product Ready, merge и Main Verification не утверждаются. После PR Validation и trusted exact-SHA deployment нового candidate требуется свежий owner UAT на компьютере и телефоне.
+Product Ready, merge и Main Verification остаются заблокированы. После полного PR Validation и trusted exact-SHA deployment нового candidate требуется свежий owner UAT на компьютере и телефоне. UAT предыдущего SHA на новый candidate не переносится.
 
 ## Ограничения
 
