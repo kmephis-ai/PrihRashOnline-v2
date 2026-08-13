@@ -30,7 +30,7 @@ Recovery state после UI Product Ready, VIZ runtime integration и GOV stage
 - `E2E-REC-001` #227 остаётся BACKLOG: VIZ dependency теперь stage-aware, но обычные DATA/FIN/PLAN prerequisites обязаны честно достичь DONE;
 - `ANL-090` #217 / PR #218 остаётся BLOCKED/draft `PAUSED_REBASELINE` без writer authority.
 
-Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%. Issue-count completion не является product metric. Home private-bound; прочие surfaces получают product credit только после доказанного runtime/E2E. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не автоматически deployed private product. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
+Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; R2R product completion gate = `MASTER-GUX`, который не может быть пройден synthetic-only evidence; independent overall Product Readiness ≈25%. Issue-count completion не является product metric. Home private-bound; прочие surfaces получают product credit только после доказанного runtime/E2E. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не автоматически deployed private product. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
 
 Новый product lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
 
