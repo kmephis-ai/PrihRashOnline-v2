@@ -95,24 +95,50 @@ function prhR2RouteHref_(surface, extraParams) {
   return (base || '') + '?' + parts.join('&');
 }
 
-function prhR2NavigationHtml_(activeSurface) {
+function prhR2RoutePrivacyParams_(params) {
+  var value = params && params.privacy;
+  if (value == null || String(value).trim() === '') return {};
+  var mode = String(value).trim().toUpperCase();
+  if (['NORMAL', 'MASKED', 'DEMO', 'ZEN'].indexOf(mode) < 0) throw new Error('R2_ROUTE_PRIVACY_MODE_INVALID');
+  return { privacy: mode };
+}
+
+function prhR2MergeRouteParams_(left, right) {
+  var merged = {};
+  Object.keys(left || {}).forEach(function(key) { merged[key] = left[key]; });
+  Object.keys(right || {}).forEach(function(key) { merged[key] = right[key]; });
+  return merged;
+}
+
+function prhR2PrivacyRouteScript_() {
+  return '<script id="prh-r2-privacy-route-script">(function(){' +
+    'var raw=new URLSearchParams(location.search).get("privacy");if(!raw)return;' +
+    'var mode=String(raw).trim().toUpperCase();if(["NORMAL","MASKED","DEMO","ZEN"].indexOf(mode)<0)return;' +
+    'function preserve(a){if(!a)return;var href=a.getAttribute("href");if(!href)return;try{var u=new URL(href,location.href);if(!u.searchParams.has("surface"))return;u.searchParams.set("privacy",mode);a.setAttribute("href",u.toString());}catch(e){}}' +
+    'function apply(){document.querySelectorAll("#prh-r2-shell a,#dq-link,#tx-link,a.back").forEach(preserve);}' +
+    'document.addEventListener("DOMContentLoaded",apply);document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a"):null;preserve(a);},true);' +
+    '})();</script>';
+}
+
+function prhR2NavigationHtml_(activeSurface, routeParams) {
+  var privacyParams = prhR2RoutePrivacyParams_(routeParams);
   var primary = PRH_CANONICAL_R2_WEB.NAVIGATION.map(function(item) {
     var id = item[0];
     var current = id === activeSurface ? ' aria-current="page"' : '';
     return '<a data-r2-nav="' + prhR2EscapeHtml_(id) + '"' + current +
-      ' href="' + prhR2EscapeHtml_(prhR2RouteHref_(id)) + '">' + prhR2EscapeHtml_(item[1]) + '</a>';
+      ' href="' + prhR2EscapeHtml_(prhR2RouteHref_(id, privacyParams)) + '">' + prhR2EscapeHtml_(item[1]) + '</a>';
   }).join('');
   var studioCurrent = activeSurface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE ? ' aria-current="page"' : '';
   var legacyCurrent = activeSurface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE ? ' aria-current="page"' : '';
-  var secondary = '<a data-r2-studio-launcher="1"' + studioCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('studio', { mode: 'explore' })) + '" title="Дополнительный инструмент анализа">Студия аналитики</a>' +
-    '<a data-r2-nav="legacy" data-r2-emergency-rollback="1"' + legacyCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('legacy')) + '" title="Предыдущая версия интерфейса">Старый интерфейс</a>';
-  return '<div id="prh-r2-shell" data-prh-canonical-r2-shell="1" data-navigation-policy="PROVEN_DESTINATIONS_ONLY" data-route-link-mode="SELF_URL" data-active-surface="' + prhR2EscapeHtml_(activeSurface) + '">' +
+  var secondary = '<a data-r2-studio-launcher="1"' + studioCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('studio', prhR2MergeRouteParams_(privacyParams, { mode: 'explore' }))) + '" title="Дополнительный инструмент анализа">Студия аналитики</a>' +
+    '<a data-r2-nav="legacy" data-r2-emergency-rollback="1"' + legacyCurrent + ' href="' + prhR2EscapeHtml_(prhR2RouteHref_('legacy', privacyParams)) + '" title="Предыдущая версия интерфейса">Старый интерфейс</a>';
+  return '<div id="prh-r2-shell" data-prh-canonical-r2-shell="1" data-navigation-policy="PROVEN_DESTINATIONS_ONLY" data-route-link-mode="SELF_URL" data-privacy-route-policy="PRESERVE_EXPLICIT_MODE" data-active-surface="' + prhR2EscapeHtml_(activeSurface) + '">' +
     '<nav id="prh-r2-canonical-nav" aria-label="Основная навигация PrihRashOnline">' + primary + '</nav>' +
     '<nav id="prh-r2-secondary-nav" aria-label="Дополнительные инструменты PrihRashOnline">' + secondary + '</nav></div>' +
-    '<style id="prh-r2-canonical-nav-style">#prh-r2-shell{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#061d37;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif}#prh-r2-canonical-nav,#prh-r2-secondary-nav{display:flex;align-items:center;gap:6px}#prh-r2-secondary-nav{margin-left:auto}#prh-r2-shell a{color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}#prh-r2-shell a:hover,#prh-r2-shell a:focus-visible{background:#123f66;color:#fff}#prh-r2-shell a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-secondary-nav a{border-color:rgba(255,255,255,.18);color:#bfdbfe}@media(max-width:760px){#prh-r2-shell{align-items:flex-start;flex-direction:column}#prh-r2-canonical-nav,#prh-r2-secondary-nav{max-width:100%;overflow-x:auto}#prh-r2-secondary-nav{margin-left:0}}</style>';
+    '<style id="prh-r2-canonical-nav-style">#prh-r2-shell{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#061d37;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif}#prh-r2-canonical-nav,#prh-r2-secondary-nav{display:flex;align-items:center;gap:6px}#prh-r2-secondary-nav{margin-left:auto}#prh-r2-shell a{color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}#prh-r2-shell a:hover,#prh-r2-shell a:focus-visible{background:#123f66;color:#fff}#prh-r2-shell a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-secondary-nav a{border-color:rgba(255,255,255,.18);color:#bfdbfe}@media(max-width:760px){#prh-r2-shell{align-items:flex-start;flex-direction:column}#prh-r2-canonical-nav,#prh-r2-secondary-nav{max-width:100%;overflow-x:auto}#prh-r2-secondary-nav{margin-left:0}}</style>' + prhR2PrivacyRouteScript_();
 }
 
-function prhR2InjectShell_(html, activeSurface) {
+function prhR2InjectShell_(html, activeSurface, routeParams) {
   var marker = '<meta name="prh-canonical-r2" content="' + prhR2EscapeHtml_(PRH_CANONICAL_R2_WEB.VERSION) + '">';
   if (html.indexOf('</head>') < 0 || html.indexOf('<body') < 0) throw new Error('R2_SURFACE_HTML_STRUCTURE_INVALID');
   var selfUrl = prhR2SelfUrl_();
@@ -127,7 +153,7 @@ function prhR2InjectShell_(html, activeSurface) {
   html = html.replace('</head>', marker + '</head>');
   var bodyEnd = html.indexOf('>', html.indexOf('<body'));
   if (bodyEnd < 0) throw new Error('R2_SURFACE_BODY_INVALID');
-  return html.slice(0, bodyEnd + 1) + prhR2NavigationHtml_(activeSurface) + html.slice(bodyEnd + 1);
+  return html.slice(0, bodyEnd + 1) + prhR2NavigationHtml_(activeSurface, routeParams) + html.slice(bodyEnd + 1);
 }
 
 function prhR2HardenPrivateHome_(html) {
@@ -141,7 +167,7 @@ function prhR2HardenPrivateHome_(html) {
   return html;
 }
 
-function prhR2RenderFile_(surface, payload) {
+function prhR2RenderFile_(surface, payload, routeParams) {
   var spec = PRH_CANONICAL_R2_WEB.LIVE_SURFACES[surface];
   if (!spec) throw new Error('R2_LIVE_SURFACE_UNKNOWN');
   var output = HtmlService.createHtmlOutputFromFile(spec.file);
@@ -154,18 +180,19 @@ function prhR2RenderFile_(surface, payload) {
     throw new Error('R2_STATIC_SURFACE_PAYLOAD_FORBIDDEN');
   }
   if (surface === 'home') html = prhR2HardenPrivateHome_(html);
-  html = prhR2InjectShell_(html, surface);
+  html = prhR2InjectShell_(html, surface, routeParams);
   var rendered = HtmlService.createHtmlOutput(html);
   rendered.setTitle('PrihRashOnline — ' + spec.title);
   rendered.addMetaTag('viewport', 'width=device-width, initial-scale=1');
   return rendered;
 }
 
-function prhR2RenderUnavailable_(surface) {
+function prhR2RenderUnavailable_(surface, routeParams) {
   var title = PRH_CANONICAL_R2_WEB.SAFE_UNBOUND_SURFACES[surface];
   if (!title) throw new Error('R2_UNBOUND_SURFACE_UNKNOWN');
-  var html = '<!doctype html><html lang="ru"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#13243a;font:14px/1.5 Inter,system-ui,sans-serif}.r2-state{max-width:760px;margin:56px auto;padding:0 18px}.r2-card{background:#fff;border:1px solid #dbe3ec;border-radius:18px;padding:26px;box-shadow:0 8px 28px rgba(24,45,74,.08)}h1{margin:4px 0 10px;font-size:30px}.note{color:#617086}.back{display:inline-block;margin-top:18px;padding:9px 13px;border-radius:999px;background:#0b5d65;color:#fff;text-decoration:none;font-weight:700}@media(prefers-color-scheme:dark){body{background:#0b1220;color:#f2f6fb}.r2-card{background:#111b2c;border-color:#32445d}.note{color:#a9b8cb}}</style></head><body><main class="r2-state"><section class="r2-card" data-r2-unbound-surface="' + prhR2EscapeHtml_(surface) + '"><div class="note">PrihRashOnline</div><h1>' + prhR2EscapeHtml_(title) + '</h1><p>Этот раздел ещё подключается к реальным данным. Мы не показываем здесь демонстрационные значения вместо ваших финансов.</p><p class="note">Пока используйте финансовый обзор на главной странице.</p><a class="back" href="' + prhR2EscapeHtml_(prhR2RouteHref_('home')) + '">Вернуться на главную</a></section></main></body></html>';
-  html = prhR2InjectShell_(html, surface);
+  var privacyParams = prhR2RoutePrivacyParams_(routeParams);
+  var html = '<!doctype html><html lang="ru"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#13243a;font:14px/1.5 Inter,system-ui,sans-serif}.r2-state{max-width:760px;margin:56px auto;padding:0 18px}.r2-card{background:#fff;border:1px solid #dbe3ec;border-radius:18px;padding:26px;box-shadow:0 8px 28px rgba(24,45,74,.08)}h1{margin:4px 0 10px;font-size:30px}.note{color:#617086}.back{display:inline-block;margin-top:18px;padding:9px 13px;border-radius:999px;background:#0b5d65;color:#fff;text-decoration:none;font-weight:700}@media(prefers-color-scheme:dark){body{background:#0b1220;color:#f2f6fb}.r2-card{background:#111b2c;border-color:#32445d}.note{color:#a9b8cb}}</style></head><body><main class="r2-state"><section class="r2-card" data-r2-unbound-surface="' + prhR2EscapeHtml_(surface) + '"><div class="note">PrihRashOnline</div><h1>' + prhR2EscapeHtml_(title) + '</h1><p>Этот раздел ещё подключается к реальным данным. Мы не показываем здесь демонстрационные значения вместо ваших финансов.</p><p class="note">Пока используйте финансовый обзор на главной странице.</p><a class="back" href="' + prhR2EscapeHtml_(prhR2RouteHref_('home', privacyParams)) + '">Вернуться на главную</a></section></main></body></html>';
+  html = prhR2InjectShell_(html, surface, routeParams);
   return HtmlService.createHtmlOutput(html).setTitle('PrihRashOnline — ' + title).addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
@@ -195,7 +222,7 @@ function prhR2RenderHomeWithPrivacy_(params) {
   var mode = prhPrivacyResolveMode_(params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]);
   if (mode === 'DEMO') {
     var demo = prhPrivacyTransform_(prhPrivacyDemoFinancialHome_(), 'DEMO', PRH_PRIVACY_PRESENTATION_RUNTIME.SYNTHETIC_SOURCE);
-    return prhPrivacyDecorateOutput_(prhR2RenderFile_('home', demo.payload), demo.mode, demo.source, 'PrihRashOnline — Демо');
+    return prhPrivacyDecorateOutput_(prhR2RenderFile_('home', demo.payload, params), demo.mode, demo.source, 'PrihRashOnline — Демо');
   }
   if (mode === 'ZEN') {
     var zenView = prhR2BuildFinancialHomeRuntime_();
@@ -203,7 +230,7 @@ function prhR2RenderHomeWithPrivacy_(params) {
     return prhPrivacyRenderZenCanonical_(zen);
   }
   return prhPrivacyDecorateOutput_(
-    prhR2RenderFile_('home', prhR2AsyncHomeMarker_(mode)),
+    prhR2RenderFile_('home', prhR2AsyncHomeMarker_(mode), params),
     mode,
     PRH_PRIVACY_PRESENTATION_RUNTIME.PRIVATE_SOURCE,
     'PrihRashOnline — Финансовый обзор'
@@ -215,12 +242,12 @@ function doGet(e) {
   var surface = prhR2ResolveSurface_(params[PRH_CANONICAL_R2_WEB.ROUTE_PARAMETER]);
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
   if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) return prhR2RenderHomeWithPrivacy_(params);
-  if (surface === 'transactions' || surface === 'data-quality') return prhR2RenderFile_(surface, null);
+  if (surface === 'transactions' || surface === 'data-quality') return prhR2RenderFile_(surface, null, params);
   if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
-    return prhDashboardComposerDecorateStudioOutput_(prhPrivacyDecorateStudioOutput_(prhR2RenderFile_('studio', null), params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]));
+    return prhDashboardComposerDecorateStudioOutput_(prhPrivacyDecorateStudioOutput_(prhR2RenderFile_('studio', null, params), params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]));
   }
-  if (surface === PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE) return prhR2RenderFile_('composer', null);
-  return prhR2RenderUnavailable_(surface);
+  if (surface === PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE) return prhR2RenderFile_('composer', null, params);
+  return prhR2RenderUnavailable_(surface, params);
 }
 
 function prhR2SmokePayload_() {
@@ -251,6 +278,7 @@ function prhCanonicalR2WebAppSmokeToken() {
   if (!html || html.indexOf('data-prh-canonical-r2-shell="1"') < 0 ||
       html.indexOf('data-navigation-policy="PROVEN_DESTINATIONS_ONLY"') < 0 ||
       html.indexOf('data-route-link-mode="SELF_URL"') < 0 ||
+      html.indexOf('data-privacy-route-policy="PRESERVE_EXPLICIT_MODE"') < 0 ||
       html.indexOf('data-active-surface="home"') < 0 || html.indexOf('Финансовый обзор') < 0 ||
       html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0 ||
       html.indexOf('?surface=transactions') < 0 || html.indexOf('?surface=data-quality') < 0 ||
