@@ -5,6 +5,8 @@
  * It binds PERF-011 cache identity/freshness rules to Apps Script UserCache and
  * uses a cheap source revision probe before allowing a cache HIT. Cold Home is
  * built through a bounded latest-month projection, never a full-history Home scan.
+ * Household visual presentation uses the same private, revision-aware cache rule
+ * so repeat renders do not rescan six months when the source has not changed.
  */
 var PRH_PERF_REC_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_PERF_REC_RUNTIME_V1',
@@ -12,6 +14,8 @@ var PRH_PERF_REC_RUNTIME = Object.freeze({
   ROADMAP_ID: 'PERF-REC-001',
   SOURCE_REVISION_SCHEMA: 'PRH_GOOGLE_SHEETS_SOURCE_REVISION_V1',
   HOME_CACHE_SCHEMA: 'PRH_FINANCIAL_HOME_REVISION_CACHE_V1',
+  VISUAL_CACHE_SCHEMA: 'PRH_FINANCIAL_HOME_VISUAL_REVISION_CACHE_V1',
+  VISUAL_PRESENTATION_SCHEMA: 'PRH_R2_HOUSEHOLD_VISUAL_PRESENTATION_V1',
   CACHE_TTL_SECONDS: 300,
   CACHE_MAX_UTF8_BYTES: 85000,
   PROJECTION_IDENTITY: 'PRH_GOOGLE_QUERY_PROJECTION_V1@1.0.0',
@@ -131,6 +135,10 @@ function prhPerfRecHomeCacheKey_(sourceRevision) {
   return 'prh-r2-home-v1-' + prhPerfRecCacheIdentity_(sourceRevision);
 }
 
+function prhPerfRecVisualCacheKey_(sourceRevision) {
+  return 'prh-r2-visual-v1-' + prhPerfRecCacheIdentity_(sourceRevision);
+}
+
 function prhPerfRecUtf8Size_(value) {
   var text = String(value || '');
   if (typeof Utilities !== 'undefined' && Utilities && typeof Utilities.newBlob === 'function') {
@@ -186,8 +194,62 @@ function prhPerfRecWriteHomeCache_(sourceRevision, home) {
   }
 }
 
+function prhPerfRecReadVisualCache_(sourceRevision) {
+  var started = prhPerfRecNowMs_();
+  try {
+    var raw = CacheService.getUserCache().get(prhPerfRecVisualCacheKey_(sourceRevision));
+    if (!raw) return null;
+    var wrapper;
+    try { wrapper = JSON.parse(raw); } catch (_) { return null; }
+    if (!wrapper || wrapper.schema !== PRH_PERF_REC_RUNTIME.VISUAL_CACHE_SCHEMA ||
+        wrapper.contract_version !== PRH_PERF_REC_RUNTIME.VERSION ||
+        wrapper.source_revision !== sourceRevision || !wrapper.presentation ||
+        wrapper.presentation.schema !== PRH_PERF_REC_RUNTIME.VISUAL_PRESENTATION_SCHEMA ||
+        wrapper.presentation.mode !== 'NORMAL') return null;
+    if (PRH_PERF_REC_TELEMETRY_) {
+      PRH_PERF_REC_TELEMETRY_.cache_payload_utf8_bytes = prhPerfRecUtf8Size_(raw);
+    }
+    return wrapper.presentation;
+  } finally {
+    prhPerfRecRecordPhase_('cache_read_ms', prhPerfRecNowMs_() - started);
+  }
+}
+
+function prhPerfRecWriteVisualCache_(sourceRevision, presentation) {
+  var started = prhPerfRecNowMs_();
+  try {
+    if (!presentation || presentation.schema !== PRH_PERF_REC_RUNTIME.VISUAL_PRESENTATION_SCHEMA ||
+        presentation.mode !== 'NORMAL') prhPerfRecFail_('PERF_REC_VISUAL_PRESENTATION_INVALID');
+    var wrapper = {
+      schema: PRH_PERF_REC_RUNTIME.VISUAL_CACHE_SCHEMA,
+      contract_version: PRH_PERF_REC_RUNTIME.VERSION,
+      source_revision: sourceRevision,
+      presentation: presentation
+    };
+    var serialized = JSON.stringify(wrapper);
+    var bytes = prhPerfRecUtf8Size_(serialized);
+    if (PRH_PERF_REC_TELEMETRY_) PRH_PERF_REC_TELEMETRY_.cache_payload_utf8_bytes = bytes;
+    if (bytes > PRH_PERF_REC_RUNTIME.CACHE_MAX_UTF8_BYTES) {
+      if (PRH_PERF_REC_TELEMETRY_) PRH_PERF_REC_TELEMETRY_.reason_code = 'VISUAL_CACHE_PAYLOAD_TOO_LARGE';
+      return false;
+    }
+    CacheService.getUserCache().put(
+      prhPerfRecVisualCacheKey_(sourceRevision),
+      serialized,
+      PRH_PERF_REC_RUNTIME.CACHE_TTL_SECONDS
+    );
+    return true;
+  } finally {
+    prhPerfRecRecordPhase_('cache_write_ms', prhPerfRecNowMs_() - started);
+  }
+}
+
 function prhPerfRecRemoveHomeCache_(sourceRevision) {
   CacheService.getUserCache().remove(prhPerfRecHomeCacheKey_(sourceRevision));
+}
+
+function prhPerfRecRemoveVisualCache_(sourceRevision) {
+  CacheService.getUserCache().remove(prhPerfRecVisualCacheKey_(sourceRevision));
 }
 
 function prhPerfRecGetOrBuildHome_(builder) {
@@ -223,6 +285,44 @@ function prhPerfRecGetOrBuildHome_(builder) {
       PRH_PERF_REC_TELEMETRY_.reason_code = 'COLD_PROJECTED_HOME_BUILT';
     }
     return home;
+  } finally {
+    prhPerfRecRecordPhase_('total_ms', prhPerfRecNowMs_() - totalStarted);
+  }
+}
+
+function prhPerfRecGetOrBuildVisual_(builder) {
+  if (typeof builder !== 'function') prhPerfRecFail_('PERF_REC_VISUAL_BUILDER_REQUIRED');
+  prhPerfRecResetTelemetry_('VISUAL');
+  var totalStarted = prhPerfRecNowMs_();
+  try {
+    var revisionBefore = prhPerfRecSourceRevision_();
+    var cached = prhPerfRecReadVisualCache_(revisionBefore);
+    var revisionAfterCache = prhPerfRecSourceRevision_();
+    if (cached && revisionAfterCache === revisionBefore) {
+      PRH_PERF_REC_TELEMETRY_.cache_status = 'HIT';
+      PRH_PERF_REC_TELEMETRY_.reason_code = 'EXACT_SOURCE_REVISION_MATCH';
+      return cached;
+    }
+    if (cached && revisionAfterCache !== revisionBefore) {
+      PRH_PERF_REC_TELEMETRY_.cache_status = 'MISS';
+      PRH_PERF_REC_TELEMETRY_.reason_code = 'SOURCE_REVISION_CHANGED_DURING_VISUAL_CACHE_READ';
+    } else {
+      PRH_PERF_REC_TELEMETRY_.cache_status = 'MISS';
+      PRH_PERF_REC_TELEMETRY_.reason_code = 'VISUAL_CACHE_KEY_ABSENT';
+    }
+
+    var buildRevision = revisionAfterCache;
+    var presentation = builder();
+    var revisionAfterBuild = prhPerfRecSourceRevision_();
+    if (revisionAfterBuild !== buildRevision) {
+      PRH_PERF_REC_TELEMETRY_.reason_code = 'SOURCE_REVISION_CHANGED_DURING_VISUAL_BUILD';
+      prhPerfRecFail_('PERF_REC_SOURCE_REVISION_CHANGED_DURING_VISUAL_BUILD');
+    }
+    prhPerfRecWriteVisualCache_(buildRevision, presentation);
+    if (PRH_PERF_REC_TELEMETRY_.reason_code === 'VISUAL_CACHE_KEY_ABSENT') {
+      PRH_PERF_REC_TELEMETRY_.reason_code = 'COLD_PROJECTED_VISUAL_BUILT';
+    }
+    return presentation;
   } finally {
     prhPerfRecRecordPhase_('total_ms', prhPerfRecNowMs_() - totalStarted);
   }
