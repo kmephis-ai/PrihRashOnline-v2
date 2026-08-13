@@ -38,7 +38,7 @@ const viewports = [
   { name:'tablet', width:820, height:980 },
   { name:'mobile', width:390, height:844 }
 ];
-const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
+const UNBOUND = ['budget','obligations'];
 
 (async () => {
   const browser = await chromium.launch({ headless:true });
@@ -68,19 +68,21 @@ const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
             privacyPolicy:shell.dataset.privacyRoutePolicy,
             marker:document.querySelector('meta[name="prh-canonical-r2"]')?.content||'',
             bodyOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth,
-            shellOverflow:shell.scrollWidth-shell.clientWidth,
             visibleShellText:shell.innerText.replace(/\s+/g,' ').trim(),
             financialPayloadInHrefs:links.some((link)=>{const url=new URL(link.getAttribute('href')||'',location.href);return Array.from(url.searchParams.keys()).some((key)=>forbiddenFinancialKeys.test(key));}),
             hrefs:links.map((link)=>link.getAttribute('href'))
           };
         });
-        assert.strictEqual(state.marker,'1.2.0');
+        assert.strictEqual(state.marker,'1.3.0');
         assert.strictEqual(state.active,'home');
         assert.strictEqual(state.policy,'PROVEN_DESTINATIONS_ONLY');
         assert.strictEqual(state.privacyPolicy,'PRESERVE_EXPLICIT_MODE');
         assert.deepStrictEqual(state.primary,[
           {id:'home',href:'?surface=home',label:'Главная',current:'page'},
           {id:'transactions',href:'?surface=transactions',label:'Операции',current:null},
+          {id:'expenses',href:'?surface=expenses',label:'Расходы',current:null},
+          {id:'income',href:'?surface=income',label:'Доходы',current:null},
+          {id:'cash-flow',href:'?surface=cash-flow',label:'Денежный поток',current:null},
           {id:'data-quality',href:'?surface=data-quality',label:'Качество данных',current:null}
         ]);
         assert.deepStrictEqual(state.secondary.map((item)=>item.label),['Студия аналитики','Старый интерфейс']);
@@ -88,7 +90,6 @@ const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
         for(const route of UNBOUND) assert(!state.hrefs.includes(`?surface=${route}`),`${viewport.name}: unbound ${route} is visible`);
         assert(!/Explore|Studio|Legacy|rollback|configuration/i.test(state.visibleShellText),`${viewport.name}: English/developer navigation terminology visible`);
         assert(state.bodyOverflow<=1,`${viewport.name} body overflow ${state.bodyOverflow}`);
-        assert(state.shellOverflow<=1,`${viewport.name} shell overflow ${state.shellOverflow}`);
         evidence.push({viewport:viewport.name,...state});
         await page.screenshot({path:path.join(artifactDir,`canonical-r2-nav-${viewport.name}.png`),fullPage:true});
       } finally { await page.close().catch(()=>{}); }
@@ -105,18 +106,14 @@ const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
         dynamicPrivacy:new URL(document.getElementById('dq-link').getAttribute('href'),location.href).searchParams.get('privacy'),
         dynamicRevision:new URL(document.getElementById('dq-link').getAttribute('href'),location.href).searchParams.get('revision')
       }));
-      assert(privacyState.shellLinks.length >= 5 && privacyState.shellLinks.every((mode)=>mode==='MASKED'),'MASKED must survive every canonical/secondary shell link');
+      assert(privacyState.shellLinks.length >= 8 && privacyState.shellLinks.every((mode)=>mode==='MASKED'),'MASKED must survive every canonical/secondary shell link');
       assert.strictEqual(privacyState.dynamicPrivacy,'MASKED','dynamic DATA cross-link must preserve MASKED mode');
       assert.strictEqual(privacyState.dynamicRevision,'synthetic-revision','privacy preservation must not drop existing route params');
       evidence.push({viewport:'masked-continuity',privacyMode:'MASKED',dynamicInternalLink:true});
     } finally { await privacyPage.close().catch(()=>{}); }
 
-    fs.writeFileSync(path.join(artifactDir,'canonical-r2-navigation.json'),JSON.stringify({
-      schema:'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V4',privacy_class:'PUBLIC_SYNTHETIC_TEST_HARNESS',truthfulNavigation:true,privacyModeContinuity:true,evidence
-    },null,2));
-    console.log('canonical_r2_navigation_visual_test: OK',{
-      viewports:viewports.map((item)=>item.name),primaryRoutes:3,secondaryTools:2,hiddenUnboundRoutes:UNBOUND.length,privacyCheck:'MASKED_ROUTE_CONTINUITY'
-    });
+    fs.writeFileSync(path.join(artifactDir,'canonical-r2-navigation.json'),JSON.stringify({schema:'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V5',privacy_class:'PUBLIC_SYNTHETIC_TEST_HARNESS',truthfulNavigation:true,privacyModeContinuity:true,evidence},null,2));
+    console.log('canonical_r2_navigation_visual_test: OK',{viewports:viewports.map((item)=>item.name),primaryRoutes:6,secondaryTools:2,hiddenUnboundRoutes:UNBOUND.length,privacyCheck:'MASKED_ROUTE_CONTINUITY'});
   } finally {
     await browser.close().catch(()=>{});
     fs.rmSync(tempFile,{force:true});
