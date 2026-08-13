@@ -27,9 +27,9 @@ assert.strictEqual(lock.package_version, '6.1.0');
 assert.strictEqual(lock.license, 'Apache-2.0');
 assert.strictEqual(lock.upstream_repository, 'apache/echarts');
 assert.strictEqual(lock.upstream_commit, 'c5a48f5f97d23e5379720870b8444cd05b50ffb4');
-assert.strictEqual(lock.distribution_path, 'dist/echarts.min.js');
-assert.strictEqual(lock.git_blob_sha1, '3b8ed4bcd17f7c838d86d4920af588f1a0aeb389');
-assert.strictEqual(lock.byte_size, 1121883);
+assert.strictEqual(lock.distribution_path, 'dist/echarts.simple.min.js');
+assert.strictEqual(lock.git_blob_sha1, 'bce369777512967b396793bf4a382a1d617fdb52');
+assert.strictEqual(lock.byte_size, 500315);
 assert.strictEqual(lock.delivery, 'LOCAL_ONLY');
 assert.strictEqual(lock.runtime_network_required, false);
 assert.strictEqual(lock.external_cdn_required, false);
@@ -37,8 +37,9 @@ assert.strictEqual(lock.cost_class, 'FREE_ONLY');
 assert.strictEqual(ECHARTS_TARGET_HTML, 'FinancialHomeWebApp.html');
 assert.strictEqual(
   echartsRawUrl(lock),
-  'https://raw.githubusercontent.com/apache/echarts/c5a48f5f97d23e5379720870b8444cd05b50ffb4/dist/echarts.min.js'
+  'https://raw.githubusercontent.com/apache/echarts/c5a48f5f97d23e5379720870b8444cd05b50ffb4/dist/echarts.simple.min.js'
 );
+assert(lock.byte_size < 600000, 'Home renderer vendor must stay below the performance size ceiling');
 
 const syntheticBytes = Buffer.from('window.echarts={version:"SYN"};</script><script>window.x=1;', 'utf8');
 const syntheticMarker = {
@@ -64,7 +65,7 @@ assert.doesNotMatch(buildSource, /cdn\.jsdelivr|unpkg\.com|cdnjs\.cloudflare/,
   'runtime/CDN vendor sources are forbidden');
 
 console.log('echarts_supply_chain_contract_test: OK', {
-  renderer: 'Apache ECharts 6.1.0',
+  renderer: 'Apache ECharts 6.1.0 simple',
   upstreamCommit: lock.upstream_commit,
   gitBlobSha1: lock.git_blob_sha1,
   byteSize: lock.byte_size,
