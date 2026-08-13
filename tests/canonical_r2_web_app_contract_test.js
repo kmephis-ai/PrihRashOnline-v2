@@ -15,6 +15,7 @@ const files = {
   FinancialSectionsWebApp: fs.readFileSync(path.join(root, 'FinancialSectionsWebApp.html'), 'utf8'),
   DataQualityWebApp: fs.readFileSync(path.join(root, 'DataQualityWebApp.html'), 'utf8')
 };
+const financialSectionsSource = files.FinancialSectionsWebApp;
 const contract = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'ui', 'canonical_r2_web_app.v1.json'), 'utf8'));
 new vm.Script(privacyRuntimeSource, { filename:'PrivacyPresentationService.js' });
 new vm.Script(routerSource, { filename:'CanonicalR2WebAppService.js' });
@@ -65,6 +66,12 @@ for (const id of ['expenses','income','cash-flow']) {
   assert.strictEqual(contract.runtime_bindings[id].navigation, 'PRIMARY');
   assert.strictEqual(contract.runtime_bindings[id].write_authority, false);
 }
+
+assert.match(financialSectionsSource, /function shellSurface\(\)/, 'FIN client must resolve initial section from canonical shell inside Apps Script iframe');
+assert.match(financialSectionsSource, /history\.pushState\(\{prhFin:true,section:next\},''\)/, 'warm navigation must use same-origin History state only');
+assert.doesNotMatch(financialSectionsSource, /history\.pushState\([^\n;]*url\.pathname/, 'canonical script.google.com path must never be passed into iframe pushState');
+assert.match(financialSectionsSource, /inflight\[section\]\.waiters\.push\(waiter\)/, 'active click during prefetch must join the in-flight request instead of being dropped');
+assert.match(financialSectionsSource, /function fallbackNavigate\(href\)/, 'History API failure must retain truthful canonical navigation fallback');
 
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.VERSION, '1.3.0');
 assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home','transactions','expenses','income','cash-flow','data-quality']);
@@ -147,6 +154,8 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   primaryRoutes:['home','transactions','expenses','income','cash-flow','data-quality'],
   hiddenUnboundRoutes:2,
   financialSectionsAsync:true,
+  warmNavigationIframeSafe:true,
+  inflightPrefetchRaceSafe:true,
   privacyModeContinuity:'PRESERVE_EXPLICIT_MODE',
   financialWrite:false,
   smoke:'PRH_WEBAPP_SMOKE_V5|R2|OK'
