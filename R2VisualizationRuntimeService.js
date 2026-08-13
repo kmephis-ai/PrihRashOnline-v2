@@ -284,5 +284,11 @@ function prhR2FetchFinancialHomeVisualPayload(privacyMode) {
   if (mode === PRH_R2_VISUAL_PRESENTATION.MASKED) {
     return prhR2VisualPresentation_(mode, null);
   }
-  return prhR2VisualPresentation_(mode, prhR2BuildFinancialHomeVisualRuntime_());
+  var buildPresentation = function() {
+    return prhR2VisualPresentation_(mode, prhR2BuildFinancialHomeVisualRuntime_());
+  };
+  if (typeof prhPerfRecGetOrBuildVisual_ === 'function') {
+    return prhPerfRecGetOrBuildVisual_(buildPresentation);
+  }
+  return buildPresentation();
 }
