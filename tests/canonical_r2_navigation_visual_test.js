@@ -26,8 +26,12 @@ const context = vm.createContext({
 });
 vm.runInContext(source, context, { filename:'CanonicalR2WebAppService.js' });
 const rendered = vm.runInContext("prhR2RenderFile_('home',prhR2SmokePayload_()).getContent()", context);
+const maskedRendered = vm.runInContext("prhR2RenderFile_('home',prhR2SmokePayload_(),{privacy:'MASKED'}).getContent()", context)
+  .replace('</body>', '<a id="dq-link" href="?surface=data-quality&revision=synthetic-revision">dynamic cross-link</a></body>');
 const tempFile = path.join(os.tmpdir(), `prh-r2-nav-${process.pid}.html`);
+const maskedTempFile = path.join(os.tmpdir(), `prh-r2-nav-masked-${process.pid}.html`);
 fs.writeFileSync(tempFile, rendered, 'utf8');
+fs.writeFileSync(maskedTempFile, maskedRendered, 'utf8');
 
 const viewports = [
   { name:'desktop', width:1440, height:900 },
@@ -61,6 +65,7 @@ const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
             secondary:secondary.map((link)=>({href:link.getAttribute('href'),label:link.textContent.trim(),current:link.getAttribute('aria-current')})),
             active:shell.dataset.activeSurface,
             policy:shell.dataset.navigationPolicy,
+            privacyPolicy:shell.dataset.privacyRoutePolicy,
             marker:document.querySelector('meta[name="prh-canonical-r2"]')?.content||'',
             bodyOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth,
             shellOverflow:shell.scrollWidth-shell.clientWidth,
@@ -72,6 +77,7 @@ const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
         assert.strictEqual(state.marker,'1.2.0');
         assert.strictEqual(state.active,'home');
         assert.strictEqual(state.policy,'PROVEN_DESTINATIONS_ONLY');
+        assert.strictEqual(state.privacyPolicy,'PRESERVE_EXPLICIT_MODE');
         assert.deepStrictEqual(state.primary,[
           {id:'home',href:'?surface=home',label:'Главная',current:'page'},
           {id:'transactions',href:'?surface=transactions',label:'Операции',current:null},
@@ -87,14 +93,33 @@ const UNBOUND = ['expenses','income','cash-flow','budget','obligations'];
         await page.screenshot({path:path.join(artifactDir,`canonical-r2-nav-${viewport.name}.png`),fullPage:true});
       } finally { await page.close().catch(()=>{}); }
     }
+
+    const privacyPage = await browser.newPage({ viewport:{ width:1280, height:900 } });
+    try {
+      const errors=[]; privacyPage.on('pageerror',(error)=>errors.push(error.message));
+      await privacyPage.goto(`file://${maskedTempFile}?privacy=MASKED`, { waitUntil:'load', timeout:15000 });
+      await privacyPage.waitForTimeout(120);
+      assert.deepStrictEqual(errors, [], `MASKED continuity startup errors: ${errors.join(' | ')}`);
+      const privacyState = await privacyPage.evaluate(() => ({
+        shellLinks:Array.from(document.querySelectorAll('#prh-r2-shell a')).map((a)=>new URL(a.getAttribute('href'),location.href).searchParams.get('privacy')),
+        dynamicPrivacy:new URL(document.getElementById('dq-link').getAttribute('href'),location.href).searchParams.get('privacy'),
+        dynamicRevision:new URL(document.getElementById('dq-link').getAttribute('href'),location.href).searchParams.get('revision')
+      }));
+      assert(privacyState.shellLinks.length >= 5 && privacyState.shellLinks.every((mode)=>mode==='MASKED'),'MASKED must survive every canonical/secondary shell link');
+      assert.strictEqual(privacyState.dynamicPrivacy,'MASKED','dynamic DATA cross-link must preserve MASKED mode');
+      assert.strictEqual(privacyState.dynamicRevision,'synthetic-revision','privacy preservation must not drop existing route params');
+      evidence.push({viewport:'masked-continuity',privacyMode:'MASKED',dynamicInternalLink:true});
+    } finally { await privacyPage.close().catch(()=>{}); }
+
     fs.writeFileSync(path.join(artifactDir,'canonical-r2-navigation.json'),JSON.stringify({
-      schema:'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V3',privacy_class:'PUBLIC_SYNTHETIC_TEST_HARNESS',truthfulNavigation:true,evidence
+      schema:'PRH_CANONICAL_R2_NAV_VISUAL_EVIDENCE_V4',privacy_class:'PUBLIC_SYNTHETIC_TEST_HARNESS',truthfulNavigation:true,privacyModeContinuity:true,evidence
     },null,2));
     console.log('canonical_r2_navigation_visual_test: OK',{
-      viewports:viewports.map((item)=>item.name),primaryRoutes:3,secondaryTools:2,hiddenUnboundRoutes:UNBOUND.length,privacyCheck:'QUERY_PARAMETER_KEYS_ONLY'
+      viewports:viewports.map((item)=>item.name),primaryRoutes:3,secondaryTools:2,hiddenUnboundRoutes:UNBOUND.length,privacyCheck:'MASKED_ROUTE_CONTINUITY'
     });
   } finally {
     await browser.close().catch(()=>{});
     fs.rmSync(tempFile,{force:true});
+    fs.rmSync(maskedTempFile,{force:true});
   }
 })().catch((error)=>{console.error(error.stack||error.message);process.exitCode=1;});
