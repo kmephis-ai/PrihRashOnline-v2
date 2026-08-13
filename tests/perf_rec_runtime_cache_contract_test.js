@@ -55,7 +55,7 @@ function createHarness() {
       gateway_call_count: 2, range_read_count: 5, cell_read_count: 700,
       canonical_snapshot_read_count: 1, snapshot_reuse_count: 0,
       unique_dimension_hash_count: 11, dimension_hash_memo_hit_count: 89,
-      canonical_revision_hash_prefix: 'abcdef654321'
+      canonical_revision_hash_prefix: 'abcdefabcdef'
     });
     context.prhPerfRecRecordPhase_('sheet_read_ms', 35);
     if (mutateDuringBuild) modifiedMs += 1;
@@ -114,7 +114,7 @@ assert.strictEqual(cold.dimension_hash_memo_hit_count, 89);
 assert.strictEqual(cold.source_revision_probe_count, 3);
 assert.strictEqual(cold.candidate_sha, 'a'.repeat(40));
 assert(/^[0-9a-f]{12}$/.test(cold.source_revision_hash_prefix));
-assert.strictEqual(cold.canonical_revision_hash_prefix, 'abcdef654321');
+assert.strictEqual(cold.canonical_revision_hash_prefix, 'abcdefabcdef');
 assert(h.cache.size > 0);
 
 const warm = h.context.prhPerfRecBaselineProbe('WARM');
