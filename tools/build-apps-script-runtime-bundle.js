@@ -10,6 +10,8 @@ const ENTRY_MODULES = Object.freeze({
   kpiDictionary: 'lib/finance/kpi_dictionary.js',
   home: 'lib/home/financial_home.js',
   googleAdapter: 'lib/adapters/google_sheets_transaction_repository.js',
+  transactionExplorer: 'lib/explorer/transaction_explorer.js',
+  dataQuality: 'lib/data_quality/data_quality_center.js',
   revisionAwareCache: 'lib/repository/revision_aware_cache.js',
   singleScanRefresh: 'lib/repository/single_scan_refresh.js'
 });
@@ -123,7 +125,7 @@ function buildRuntimeBundleSource(sourceRoot, entryModules = ENTRY_MODULES) {
     " factory(module,module.exports,function(request){var resolved=dependencyMap[request];if(!resolved)throw new Error('R2_RUNTIME_REQUIRE_UNKNOWN:'+id+':'+request);return __load(resolved);});",
     ' return module.exports;',
     '}',
-    'var runtime={schema:__schema,version:"1.1.0",generated_from_canonical_lib:true,financial_formula_copy:false};'
+    'var runtime={schema:__schema,version:"1.2.0",generated_from_canonical_lib:true,financial_formula_copy:false};'
   );
   Object.entries(effectiveEntries).forEach(([name, id]) => {
     lines.push(`runtime[${JSON.stringify(name)}]=__load(${JSON.stringify(normalizeId(id))});`);
