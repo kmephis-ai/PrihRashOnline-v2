@@ -15,6 +15,14 @@
   ],
   "navigation_policy": "PROVEN_DESTINATIONS_ONLY",
   "navigation_link_mode": "RUNTIME_SELF_URL_ABSOLUTE_WITH_TEST_FALLBACK",
+  "route_privacy_continuity": {
+    "policy": "PRESERVE_EXPLICIT_MODE",
+    "allowed_modes": ["NORMAL", "MASKED", "DEMO", "ZEN"],
+    "server_generated_links": true,
+    "dynamic_internal_links": true,
+    "invalid_mode_behavior": "FAIL_CLOSED",
+    "masked_to_normal_downgrade_allowed": false
+  },
   "home_data_delivery": {
     "mode": "ASYNC_GOOGLE_SCRIPT_RUN",
     "initial_html_financial_read": false,
