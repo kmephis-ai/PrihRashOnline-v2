@@ -1,18 +1,12 @@
 {
   "schema": "PRH_CANONICAL_R2_WEB_APP_V1",
-  "version": "1.2.0",
-  "roadmap_id": "DATA-REC-001",
+  "version": "1.3.0",
+  "roadmap_id": "FIN-REC-001",
   "default_route": "home",
   "private_exposure": "MYSELF",
-  "primary_navigation": ["home", "transactions", "data-quality"],
+  "primary_navigation": ["home", "transactions", "expenses", "income", "cash-flow", "data-quality"],
   "secondary_navigation": ["studio", "legacy"],
-  "hidden_unbound_routes": [
-    "expenses",
-    "income",
-    "cash-flow",
-    "budget",
-    "obligations"
-  ],
+  "hidden_unbound_routes": ["budget", "obligations"],
   "navigation_policy": "PROVEN_DESTINATIONS_ONLY",
   "navigation_link_mode": "RUNTIME_SELF_URL_ABSOLUTE_WITH_TEST_FALLBACK",
   "route_privacy_continuity": {
@@ -75,9 +69,9 @@
       "financial_summary_authority":"FIN-TRUTH-v1",
       "write_authority":false
     },
-    "expenses": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ExpenseAnalyticsWebApp"},
-    "income": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"IncomeAnalyticsWebApp"},
-    "cash-flow": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"CashFlowWebApp"},
+    "expenses": {"state":"BOUND_READ_ONLY","navigation":"PRIMARY","runtime_private_data":true,"surface":"FinancialSectionsWebApp","data_source":"PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1","canonical_engine":"PRH_EXPENSE_ANALYTICS_V1@1.0.0","write_authority":false},
+    "income": {"state":"BOUND_READ_ONLY","navigation":"PRIMARY","runtime_private_data":true,"surface":"FinancialSectionsWebApp","data_source":"PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1","canonical_engine":"PRH_INCOME_ANALYTICS_V1@1.0.0","write_authority":false},
+    "cash-flow": {"state":"BOUND_READ_ONLY","navigation":"PRIMARY","runtime_private_data":true,"surface":"FinancialSectionsWebApp","data_source":"PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1","canonical_engine":"PRH_CASH_FLOW_DASHBOARD_V1@1.0.0","write_authority":false},
     "budget": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"BudgetControlWebApp"},
     "obligations": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ObligationsWebApp"},
     "data-quality": {
@@ -122,6 +116,9 @@
       "lib/home/financial_home.js",
       "lib/explorer/transaction_explorer.js",
       "lib/data_quality/data_quality_center.js",
+      "lib/expense/expense_analytics.js",
+      "lib/income/income_analytics.js",
+      "lib/cashflow/cash_flow_dashboard.js",
       "lib/repository/single_scan_refresh.js"
     ],
     "source": "01 Операции",
