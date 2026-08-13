@@ -1,19 +1,17 @@
 {
   "schema": "PRH_CANONICAL_R2_WEB_APP_V1",
-  "version": "1.1.0",
-  "roadmap_id": "UI-REC-001",
+  "version": "1.2.0",
+  "roadmap_id": "DATA-REC-001",
   "default_route": "home",
   "private_exposure": "MYSELF",
-  "primary_navigation": ["home"],
+  "primary_navigation": ["home", "transactions", "data-quality"],
   "secondary_navigation": ["studio", "legacy"],
   "hidden_unbound_routes": [
-    "transactions",
     "expenses",
     "income",
     "cash-flow",
     "budget",
-    "obligations",
-    "data-quality"
+    "obligations"
   ],
   "navigation_policy": "PROVEN_DESTINATIONS_ONLY",
   "navigation_link_mode": "RUNTIME_SELF_URL_ABSOLUTE_WITH_TEST_FALLBACK",
@@ -25,6 +23,24 @@
     "loading_state_required": true,
     "retry_state_required": true,
     "financial_write": false
+  },
+  "data_runtime": {
+    "schema": "PRH_R2_DATA_RUNTIME_BRIDGE_V1",
+    "version": "1.0.0",
+    "snapshot_contract": "PRH_SINGLE_SCAN_REFRESH_V1@1.0.0",
+    "snapshot_identity": "CANONICAL_REPOSITORY_REVISION",
+    "canonical_snapshot_reads_per_request": 1,
+    "transactions_runtime_function": "prhR2FetchTransactionsPayload",
+    "data_quality_runtime_function": "prhR2FetchDataQualityPayload",
+    "allowed_privacy_modes": ["NORMAL", "MASKED"],
+    "stale_revision_behavior": "FAIL_CLOSED_RETRY",
+    "malformed_source_behavior": "FAIL_CLOSED_NO_PARTIAL_TRUTH",
+    "unavailable_source_behavior": "FAIL_CLOSED_NO_PARTIAL_TRUTH",
+    "browser_transaction_identity": "OPAQUE_REVISION_SCOPED_ROW_KEY",
+    "browser_dq_record_hashes": false,
+    "financial_write": false,
+    "repair_write": false,
+    "automatic_repair": false
   },
   "runtime_bindings": {
     "home": {
@@ -41,13 +57,31 @@
     },
     "studio": {"state":"CONFIGURATION_ONLY","navigation":"SECONDARY","runtime_private_data":false,"surface":"AnalyticsStudioWebApp"},
     "legacy": {"state":"BOUND_READ_ONLY","navigation":"SECONDARY","runtime_private_data":true,"surface":"LEGACY_DASHBOARD"},
-    "transactions": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"TransactionExplorerWebApp"},
+    "transactions": {
+      "state":"BOUND_READ_ONLY",
+      "navigation":"PRIMARY",
+      "runtime_private_data":true,
+      "surface":"TransactionExplorerWebApp",
+      "data_source":"PRH_R2_DATA_RUNTIME_BRIDGE_V1",
+      "canonical_engine":"PRH_TRANSACTION_EXPLORER_V1@1.0.0",
+      "financial_summary_authority":"FIN-TRUTH-v1",
+      "write_authority":false
+    },
     "expenses": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ExpenseAnalyticsWebApp"},
     "income": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"IncomeAnalyticsWebApp"},
     "cash-flow": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"CashFlowWebApp"},
     "budget": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"BudgetControlWebApp"},
     "obligations": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"ObligationsWebApp"},
-    "data-quality": {"state":"SAFE_UNBOUND_FAIL_CLOSED","navigation":"HIDDEN","surface":"DataQualityWebApp"}
+    "data-quality": {
+      "state":"BOUND_READ_ONLY",
+      "navigation":"PRIMARY",
+      "runtime_private_data":true,
+      "surface":"DataQualityWebApp",
+      "data_source":"PRH_R2_DATA_RUNTIME_BRIDGE_V1",
+      "canonical_engine":"PRH_DATA_QUALITY_CENTER_V1@1.0.0",
+      "repair_preview_only":true,
+      "write_authority":false
+    }
   },
   "household_presentation": {
     "language": "ru",
@@ -59,6 +93,7 @@
   },
   "synthetic_policy": {
     "browser_visual_fixture_allowed": true,
+    "browser_visual_fixture_scope": "TEST_HARNESS_ONLY",
     "private_runtime_fallback_allowed": false,
     "unproven_binding_behavior": "FAIL_CLOSED_NO_SYNTHETIC_TRUTH"
   },
@@ -76,7 +111,10 @@
       "lib/adapters/google_sheets_transaction_repository.js",
       "lib/finance/financial_reconciliation.js",
       "lib/finance/kpi_dictionary.js",
-      "lib/home/financial_home.js"
+      "lib/home/financial_home.js",
+      "lib/explorer/transaction_explorer.js",
+      "lib/data_quality/data_quality_center.js",
+      "lib/repository/single_scan_refresh.js"
     ],
     "source": "01 Операции",
     "currency_setting": "09 Настройки:currency",
@@ -101,9 +139,10 @@
     "write_authority": false
   },
   "trusted_delivery": {
-    "render_smoke_token": "PRH_WEBAPP_SMOKE_V4|R2|OK",
+    "render_smoke_token": "PRH_WEBAPP_SMOKE_V5|R2|OK",
     "private_home_read_smoke_token": "PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7",
-    "runtime_failure_reason_prefix": "RUNTIME_HEALTH_HOME_",
+    "private_data_runtime_smoke_token": "PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK",
+    "runtime_failure_reason_prefix": "RUNTIME_HEALTH_",
     "runtime_failure_reason_private_payload": false,
     "render_smoke_reads_financial_rows": false,
     "exact_sha_required": true,
@@ -113,8 +152,9 @@
     "manual_merge": false
   },
   "observability": {
-    "public_allowlist": ["schema","version","route","surface","binding_state","render_status","reason_code","latency_ms"],
+    "public_allowlist": ["schema","version","route","surface","binding_state","render_status","reason_code","latency_ms","revision_hash_prefix","query_hash_prefix","record_count","issue_count"],
     "financial_payload_allowed": false,
+    "transaction_identity_allowed": false,
     "private_runtime_locator_allowed": false
   },
   "authority": {
