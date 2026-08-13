@@ -7,6 +7,7 @@ const {
   ECHARTS_VENDOR_MARKER,
   ECHARTS_VENDOR_SCHEMA,
   ECHARTS_TARGET_HTML,
+  ECHARTS_VENDOR_PLACEHOLDER,
   gitBlobSha1,
   echartsVendorConfig,
   echartsRawUrl,
@@ -41,6 +42,19 @@ assert.strictEqual(
 );
 assert(lock.byte_size < 600000, 'Home renderer vendor must stay below the performance size ceiling');
 
+const homeSource = fs.readFileSync(path.join(root, ECHARTS_TARGET_HTML), 'utf8');
+const bootCall = homeSource.lastIndexOf('boot();');
+const vendorPlaceholder = homeSource.indexOf(ECHARTS_VENDOR_PLACEHOLDER);
+assert(bootCall >= 0, 'Home bootstrap call missing');
+assert(vendorPlaceholder > bootCall,
+  'Local ECharts must be parsed only after Home bootstrap can dispatch KPI/visual runtime requests');
+assert(homeSource.includes("setAttribute('data-home-early-dispatch','BEFORE_RENDERER')"),
+  'Home early-dispatch performance marker missing');
+assert(homeSource.includes("setAttribute('data-home-renderer-stage','AFTER_RUNTIME_DISPATCH')"),
+  'Home renderer-stage performance marker missing');
+assert(homeSource.includes("setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL')"),
+  'Home KPI/visual requests must remain parallel');
+
 const syntheticBytes = Buffer.from('window.echarts={version:"SYN"};</script><script>window.x=1;', 'utf8');
 const syntheticMarker = {
   package_version: 'SYN',
@@ -70,6 +84,7 @@ console.log('echarts_supply_chain_contract_test: OK', {
   gitBlobSha1: lock.git_blob_sha1,
   byteSize: lock.byte_size,
   targetHtml: ECHARTS_TARGET_HTML,
+  runtimeBeforeRenderer: true,
   delivery: lock.delivery,
   runtimeNetworkRequired: false,
   externalCdnRequired: false,
