@@ -99,7 +99,7 @@ function prhR2RoutePrivacyParams_(params) {
   var value = params && params.privacy;
   if (value == null || String(value).trim() === '') return {};
   var mode = String(value).trim().toUpperCase();
-  if (['NORMAL', 'MASKED', 'DEMO', 'ZEN'].indexOf(mode) < 0) throw new Error('R2_ROUTE_PRIVACY_MODE_INVALID');
+  if (['NORMAL', 'MASKED', 'DEMO', 'ZEN'].indexOf(mode) < 0) mode = 'MASKED';
   return { privacy: mode };
 }
 
@@ -113,7 +113,7 @@ function prhR2MergeRouteParams_(left, right) {
 function prhR2PrivacyRouteScript_() {
   return '<script id="prh-r2-privacy-route-script">(function(){' +
     'var raw=new URLSearchParams(location.search).get("privacy");if(!raw)return;' +
-    'var mode=String(raw).trim().toUpperCase();if(["NORMAL","MASKED","DEMO","ZEN"].indexOf(mode)<0)return;' +
+    'var mode=String(raw).trim().toUpperCase();if(["NORMAL","MASKED","DEMO","ZEN"].indexOf(mode)<0)mode="MASKED";' +
     'function preserve(a){if(!a)return;var href=a.getAttribute("href");if(!href)return;try{var u=new URL(href,location.href);if(!u.searchParams.has("surface"))return;u.searchParams.set("privacy",mode);a.setAttribute("href",u.toString());}catch(e){}}' +
     'function apply(){document.querySelectorAll("#prh-r2-shell a,#dq-link,#tx-link,a.back").forEach(preserve);}' +
     'document.addEventListener("DOMContentLoaded",apply);document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a"):null;preserve(a);},true);' +
