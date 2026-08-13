@@ -1,43 +1,47 @@
 /**
- * UI-REC-001 truthful canonical R2 Web App router/runtime bridge.
+ * UI-REC-001 / DATA-REC-001 truthful canonical R2 Web App router/runtime bridge.
  *
  * Financial Home remains the canonical default. Primary navigation contains
- * only proven user-facing destinations. Unbound financial routes remain
+ * only proven read-only private destinations. Unbound financial routes remain
  * directly addressable for fail-closed diagnostics but are never advertised as
  * working household navigation. Studio and the legacy view are secondary tools.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
-  VERSION: '1.1.0',
+  VERSION: '1.2.0',
   DEFAULT_SURFACE: 'home',
   ROUTE_PARAMETER: 'surface',
   LIVE_SURFACES: Object.freeze({
     home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Финансовый обзор', financial_runtime: true, runtime_private_data: true }),
+    transactions: Object.freeze({ file: 'TransactionExplorerWebApp', placeholder: null, title: 'Операции', financial_runtime: true, runtime_private_data: true }),
+    'data-quality': Object.freeze({ file: 'DataQualityWebApp', placeholder: null, title: 'Качество данных', financial_runtime: true, runtime_private_data: true }),
     studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Студия аналитики', financial_runtime: false, runtime_private_data: false }),
     composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Конструктор', financial_runtime: false, runtime_private_data: false })
   }),
   SAFE_UNBOUND_SURFACES: Object.freeze({
-    transactions: 'Транзакции',
     expenses: 'Расходы',
     income: 'Доходы',
     'cash-flow': 'Денежный поток',
     budget: 'Бюджет',
-    obligations: 'Обязательства',
-    'data-quality': 'Качество данных'
+    obligations: 'Обязательства'
   }),
   ROUTE_TRUTH: Object.freeze({
     home: Object.freeze({ label: 'Главная', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
     studio: Object.freeze({ label: 'Студия аналитики', runtime_private_data: false, navigation: 'SECONDARY', binding_state: 'CONFIGURATION_ONLY' }),
     legacy: Object.freeze({ label: 'Старый интерфейс', runtime_private_data: true, navigation: 'SECONDARY', binding_state: 'BOUND_READ_ONLY' }),
-    transactions: Object.freeze({ label: 'Транзакции', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
+    transactions: Object.freeze({ label: 'Операции', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
     expenses: Object.freeze({ label: 'Расходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     income: Object.freeze({ label: 'Доходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     'cash-flow': Object.freeze({ label: 'Денежный поток', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     budget: Object.freeze({ label: 'Бюджет', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     obligations: Object.freeze({ label: 'Обязательства', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
-    'data-quality': Object.freeze({ label: 'Качество данных', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' })
+    'data-quality': Object.freeze({ label: 'Качество данных', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' })
   }),
-  NAVIGATION: Object.freeze([Object.freeze(['home', 'Главная'])]),
+  NAVIGATION: Object.freeze([
+    Object.freeze(['home', 'Главная']),
+    Object.freeze(['transactions', 'Операции']),
+    Object.freeze(['data-quality', 'Качество данных'])
+  ]),
   STUDIO_SURFACE: 'studio',
   COMPOSER_SURFACE: 'composer',
   LEGACY_SURFACE: 'legacy',
@@ -105,7 +109,7 @@ function prhR2NavigationHtml_(activeSurface) {
   return '<div id="prh-r2-shell" data-prh-canonical-r2-shell="1" data-navigation-policy="PROVEN_DESTINATIONS_ONLY" data-route-link-mode="SELF_URL" data-active-surface="' + prhR2EscapeHtml_(activeSurface) + '">' +
     '<nav id="prh-r2-canonical-nav" aria-label="Основная навигация PrihRashOnline">' + primary + '</nav>' +
     '<nav id="prh-r2-secondary-nav" aria-label="Дополнительные инструменты PrihRashOnline">' + secondary + '</nav></div>' +
-    '<style id="prh-r2-canonical-nav-style">#prh-r2-shell{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#061d37;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif}#prh-r2-canonical-nav,#prh-r2-secondary-nav{display:flex;align-items:center;gap:6px}#prh-r2-secondary-nav{margin-left:auto}#prh-r2-shell a{color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}#prh-r2-shell a:hover,#prh-r2-shell a:focus-visible{background:#123f66;color:#fff}#prh-r2-shell a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-secondary-nav a{border-color:rgba(255,255,255,.18);color:#bfdbfe}@media(max-width:620px){#prh-r2-shell{align-items:flex-start;flex-direction:column}#prh-r2-secondary-nav{margin-left:0;max-width:100%;overflow-x:auto}}</style>';
+    '<style id="prh-r2-canonical-nav-style">#prh-r2-shell{position:sticky;top:0;z-index:1000;display:flex;align-items:center;gap:10px;padding:8px 12px;background:#061d37;border-bottom:1px solid rgba(255,255,255,.16);font:600 13px/1.2 Inter,system-ui,sans-serif}#prh-r2-canonical-nav,#prh-r2-secondary-nav{display:flex;align-items:center;gap:6px}#prh-r2-secondary-nav{margin-left:auto}#prh-r2-shell a{color:#dbeafe;text-decoration:none;padding:8px 10px;border-radius:999px;border:1px solid transparent;white-space:nowrap}#prh-r2-shell a:hover,#prh-r2-shell a:focus-visible{background:#123f66;color:#fff}#prh-r2-shell a[aria-current="page"]{background:#fff;color:#061d37}#prh-r2-secondary-nav a{border-color:rgba(255,255,255,.18);color:#bfdbfe}@media(max-width:760px){#prh-r2-shell{align-items:flex-start;flex-direction:column}#prh-r2-canonical-nav,#prh-r2-secondary-nav{max-width:100%;overflow-x:auto}#prh-r2-secondary-nav{margin-left:0}}</style>';
 }
 
 function prhR2InjectShell_(html, activeSurface) {
@@ -211,6 +215,7 @@ function doGet(e) {
   var surface = prhR2ResolveSurface_(params[PRH_CANONICAL_R2_WEB.ROUTE_PARAMETER]);
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
   if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) return prhR2RenderHomeWithPrivacy_(params);
+  if (surface === 'transactions' || surface === 'data-quality') return prhR2RenderFile_(surface, null);
   if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
     return prhDashboardComposerDecorateStudioOutput_(prhPrivacyDecorateStudioOutput_(prhR2RenderFile_('studio', null), params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]));
   }
@@ -248,13 +253,14 @@ function prhCanonicalR2WebAppSmokeToken() {
       html.indexOf('data-route-link-mode="SELF_URL"') < 0 ||
       html.indexOf('data-active-surface="home"') < 0 || html.indexOf('Финансовый обзор') < 0 ||
       html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0 ||
+      html.indexOf('?surface=transactions') < 0 || html.indexOf('?surface=data-quality') < 0 ||
       html.indexOf('Студия аналитики') < 0 || html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0) {
     throw new Error('R2_CANONICAL_RENDER_SMOKE_FAILED');
   }
-  ['transactions','expenses','income','cash-flow','budget','obligations','data-quality'].forEach(function(surface) {
+  ['expenses','income','cash-flow','budget','obligations'].forEach(function(surface) {
     if (html.indexOf('?surface=' + surface) >= 0) throw new Error('R2_CANONICAL_FALSE_AFFORDANCE_PRESENT');
   });
   if (html.indexOf('Показать контекст') >= 0 || html.indexOf('data-drill-card') >= 0) throw new Error('R2_CANONICAL_FALSE_HOME_ACTION_PRESENT');
   if (html.indexOf('<' + '?!= initialHomeData ?' + '>') >= 0) throw new Error('R2_CANONICAL_PAYLOAD_NOT_INJECTED');
-  return 'PRH_WEBAPP_SMOKE_V4|R2|OK';
+  return 'PRH_WEBAPP_SMOKE_V5|R2|OK';
 }
