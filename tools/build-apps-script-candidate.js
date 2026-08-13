@@ -116,7 +116,7 @@ function echartsVendorConfig(sourceRoot) {
     marker.vendor === 'Apache ECharts' && marker.package === 'echarts' &&
     marker.package_version === '6.1.0' && marker.license === 'Apache-2.0' &&
     marker.upstream_repository === 'apache/echarts' && SHA_RE.test(String(marker.upstream_commit || '')) &&
-    marker.distribution_path === 'dist/echarts.min.js' && SHA_RE.test(String(marker.git_blob_sha1 || '')) &&
+    marker.distribution_path === 'dist/echarts.simple.min.js' && SHA_RE.test(String(marker.git_blob_sha1 || '')) &&
     Number.isInteger(marker.byte_size) && marker.byte_size > 0 &&
     marker.delivery === 'LOCAL_ONLY' && marker.runtime_network_required === false &&
     marker.external_cdn_required === false && marker.cost_class === 'FREE_ONLY';
