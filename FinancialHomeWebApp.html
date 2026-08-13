@@ -48,7 +48,6 @@
     @media(max-width:620px){.hero{padding-top:22px;padding-bottom:22px}.hero-row{align-items:flex-start;flex-direction:column}.period-pill{white-space:normal}.main{padding-top:18px}.cards{grid-template-columns:1fr}.budget-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.echart-host{min-height:245px}#expense-mix.echart-host{min-height:290px}.visual-empty,.visual-mask,.semantic-fallback,.loading-visual{min-height:190px}.semantic-row{align-items:flex-start;flex-direction:column;gap:2px}}
     @media(prefers-reduced-motion:reduce){.loading-line{animation:none}}
   </style>
-  <!-- PRH_LOCAL_ECHARTS_VENDOR -->
 </head>
 <body>
   <script id="initial-home-data" type="application/json"><?!= initialHomeData ?></script>
@@ -215,7 +214,8 @@
   }
   function renderLoading(){
     document.documentElement.setAttribute('data-home-runtime','ASYNC');
-    document.documentElement.setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL');
+    document.documentElement.setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL_EARLY_DISPATCH');
+    document.documentElement.setAttribute('data-home-renderer-stage','AFTER_RUNTIME_DISPATCH');
     document.getElementById('period-pill').textContent='Загрузка данных…';
     document.getElementById('truth-note').textContent='Получаем актуальные данные';
     document.getElementById('alert-strip').innerHTML='<span class="alert-chip info">Обновляем финансовый обзор…</span>';
@@ -252,19 +252,32 @@
       .withSuccessHandler(function(data){if(generation!==asyncGeneration)return;try{if(!data||!data.cards)throw new Error('HOME_PAYLOAD_INVALID');render(data);}catch(e){renderFailure();}})
       .withFailureHandler(function(){if(generation===asyncGeneration)renderFailure();})
       .prhR2FetchFinancialHomePayload(marker.privacy_mode||'NORMAL');
+    markTiming('data-home-runtime-dispatch-ms');
   }
   function refreshChartPresentation(){Object.keys(charts).forEach(function(key){const instance=charts[key];if(instance&&typeof instance.resize==='function'){try{instance.resize();applyChartPresentationSkin(instance,key,activeVisualCurrency);}catch(e){}}});}
   window.addEventListener('resize',refreshChartPresentation);
   if(window.matchMedia){const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');if(themeMedia&&typeof themeMedia.addEventListener==='function')themeMedia.addEventListener('change',refreshChartPresentation);}
-  document.addEventListener('DOMContentLoaded',function(){
+  function boot(){
     try{
       const initial=parse();
-      if(initial&&initial.runtime_load==='ASYNC'){renderLoading();loadAsync(initial);return;}
+      if(initial&&initial.runtime_load==='ASYNC'){
+        document.documentElement.setAttribute('data-home-boot-order','RUNTIME_BEFORE_RENDERER');
+        renderLoading();
+        loadAsync(initial);
+        return;
+      }
       render(initial);
-      if(initial&&initial.synthetic===true&&window.echarts)renderVisualPayload(SYN_VISUAL);else renderLegacyVisualData(initial);
+      if(initial&&initial.synthetic===true){
+        if(window.echarts){renderVisualPayload(SYN_VISUAL);}
+        else{window.addEventListener('load',function(){try{renderVisualPayload(SYN_VISUAL);}catch(e){renderLegacyVisualData(initial);}},{once:true});}
+      }else{
+        renderLegacyVisualData(initial);
+      }
     }catch(e){renderFailure();}
-  });
+  }
+  boot();
 }());
 </script>
+<!-- PRH_LOCAL_ECHARTS_VENDOR -->
 </body>
 </html>
