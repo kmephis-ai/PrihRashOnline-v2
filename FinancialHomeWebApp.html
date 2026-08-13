@@ -214,8 +214,9 @@
   }
   function renderLoading(){
     document.documentElement.setAttribute('data-home-runtime','ASYNC');
-    document.documentElement.setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL_EARLY_DISPATCH');
+    document.documentElement.setAttribute('data-home-fetch-strategy','PARALLEL_KPI_VISUAL');
     document.documentElement.setAttribute('data-home-renderer-stage','AFTER_RUNTIME_DISPATCH');
+    document.documentElement.setAttribute('data-home-early-dispatch','BEFORE_RENDERER');
     document.getElementById('period-pill').textContent='Загрузка данных…';
     document.getElementById('truth-note').textContent='Получаем актуальные данные';
     document.getElementById('alert-strip').innerHTML='<span class="alert-chip info">Обновляем финансовый обзор…</span>';
@@ -269,7 +270,7 @@
       render(initial);
       if(initial&&initial.synthetic===true){
         if(window.echarts){renderVisualPayload(SYN_VISUAL);}
-        else{window.addEventListener('load',function(){try{renderVisualPayload(SYN_VISUAL);}catch(e){renderLegacyVisualData(initial);}},{once:true});}
+        else{window.addEventListener('load',function(){try{if(window.echarts){renderVisualPayload(SYN_VISUAL);}else{renderLegacyVisualData(initial);}}catch(e){renderLegacyVisualData(initial);}},{once:true});}
       }else{
         renderLegacyVisualData(initial);
       }
