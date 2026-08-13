@@ -8,13 +8,15 @@
 
 Каждый запрос раздела использует один immutable canonical snapshot. Клиент передаёт активный `section`, период и bounded account/category/member filters. Сервер строит ровно один соответствующий analytics view: `Расходы`, `Доходы` или `Денежный поток`. Остальные два view в этом запросе не вычисляются.
 
-После owner UAT, где графики на runtime candidate `1e994fe790f43c5480e917a2e8d4b9a626fa14f1` появлялись через 10–15 секунд, выполнен второй performance rework. Перед canonical analytics build входные операции теперь дополнительно ограничиваются только двумя равными окнами, которые реально нужны экрану: текущим периодом и периодом сравнения. Более старые операции не передаются в многократные расчёты daily trend, но остаются частью canonical snapshot и источником общей revision. Это не меняет FIN-TRUTH: все финансовые значения по-прежнему вычисляют canonical analytics modules.
+После повторного owner UAT развернутого exact candidate `1e994fe790f43c5480e917a2e8d4b9a626fa14f1` графики всё ещё появлялись через **10–15 секунд**. Это повторный Product UAT performance FAIL; данный runtime candidate считается superseded для Product Ready.
+
+Второй performance rework дополнительно ограничивает вход canonical analytics только двумя равными окнами, которые реально нужны экрану: текущим периодом и периодом сравнения. Более старые операции больше не передаются в многократные расчёты daily trend, но остаются частью canonical snapshot и источником общей revision. Это не меняет FIN-TRUTH: все финансовые значения по-прежнему вычисляют canonical analytics modules.
 
 В runtime telemetry добавлены только безопасные технические метрики: `snapshot_elapsed_ms`, `analytics_elapsed_ms`, `total_elapsed_ms`, `analytics_input_record_count` и `analytics_scope_days`. Денежные значения, private labels и identifiers в telemetry не добавляются.
 
 ## Product truth
 
-Переключение разделов на предыдущем candidate было приемлемым, но owner UAT графиков 10–15 секунд считается performance FAIL. Поэтому Product Ready, merge и Main Verification не утверждаются. После PR Validation и trusted exact-SHA deployment нового candidate требуется свежий owner UAT на компьютере и телефоне.
+Переключение разделов на предыдущем candidate было приемлемым, но графики 10–15 секунд неприемлемы. Поэтому Product Ready, merge и Main Verification не утверждаются. После PR Validation и trusted exact-SHA deployment нового candidate требуется свежий owner UAT на компьютере и телефоне.
 
 ## Ограничения
 
