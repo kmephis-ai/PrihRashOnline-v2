@@ -58,6 +58,9 @@ assert.strictEqual(contract.data_runtime.canonical_snapshot_reads_per_request, 1
 assert.strictEqual(contract.data_runtime.financial_write, false);
 assert.strictEqual(contract.data_runtime.repair_write, false);
 assert.strictEqual(contract.data_runtime.automatic_repair, false);
+assert.strictEqual(contract.route_privacy_continuity.policy, 'PRESERVE_EXPLICIT_MODE');
+assert.strictEqual(contract.route_privacy_continuity.dynamic_internal_links, true);
+assert.deepStrictEqual(contract.route_privacy_continuity.allowed_modes, ['NORMAL','MASKED','DEMO','ZEN']);
 assert.strictEqual(contract.trusted_delivery.render_smoke_token, 'PRH_WEBAPP_SMOKE_V5|R2|OK');
 assert.strictEqual(contract.trusted_delivery.private_data_runtime_smoke_token, 'PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK');
 
@@ -77,6 +80,8 @@ for (const route of ['home','transactions','expenses','income','cash-flow','budg
 }
 assert.strictEqual(context.prhR2RouteHref_('transactions'), `${selfUrl}?surface=transactions`);
 assert.strictEqual(context.prhR2RouteHref_('data-quality'), `${selfUrl}?surface=data-quality`);
+assert.strictEqual(context.prhR2RouteHref_('transactions', context.prhR2RoutePrivacyParams_({privacy:'masked'})), `${selfUrl}?surface=transactions&privacy=MASKED`);
+assert.throws(() => context.prhR2RoutePrivacyParams_({privacy:'unexpected'}), /R2_ROUTE_PRIVACY_MODE_INVALID/);
 
 const home = context.doGet({parameter:{}}).getContent();
 assert.strictEqual(homeRuntimeCalls, 0, 'initial Home HTML must remain async');
@@ -84,8 +89,18 @@ for (const marker of ['>Главная</a>','>Операции</a>','>Качес
 for (const route of ['expenses','income','cash-flow','budget','obligations']) assert(!home.includes(`surface=${route}`), `unbound ${route} advertised`);
 assert(home.includes(`${selfUrl}?surface=transactions`));
 assert(home.includes(`${selfUrl}?surface=data-quality`));
+assert(home.includes('data-privacy-route-policy="PRESERVE_EXPLICIT_MODE"'));
+assert(home.includes('id="prh-r2-privacy-route-script"'));
 assert(home.includes('R2_PRIVATE_HOME_PAYLOAD_REQUIRED'));
 assert(!/SYN-TX-|PUBLIC_SYNTHETIC/.test(home));
+
+const maskedHome = context.doGet({parameter:{privacy:'MASKED'}}).getContent();
+assert.strictEqual(homeRuntimeCalls, 0, 'MASKED initial Home HTML must remain async');
+assert(maskedHome.includes(`${selfUrl}?surface=home&amp;privacy=MASKED`));
+assert(maskedHome.includes(`${selfUrl}?surface=transactions&amp;privacy=MASKED`));
+assert(maskedHome.includes(`${selfUrl}?surface=data-quality&amp;privacy=MASKED`));
+assert(maskedHome.includes(`${selfUrl}?surface=legacy&amp;privacy=MASKED`));
+assert(maskedHome.includes(`${selfUrl}?surface=studio&amp;mode=explore&amp;privacy=MASKED`));
 
 const tx = context.doGet({parameter:{surface:'transactions'}}).getContent();
 assert(tx.includes('data-active-surface="transactions"'));
@@ -93,6 +108,12 @@ assert(tx.includes('data-private-runtime="READ_ONLY"'));
 assert(tx.includes('prhR2FetchTransactionsPayload'));
 assert(tx.includes('Только чтение'));
 assert(!/SYN-TX-|PUBLIC_SYNTHETIC|WRITE_BLOCKED/.test(tx));
+
+const maskedTx = context.doGet({parameter:{surface:'transactions',privacy:'MASKED'}}).getContent();
+assert(maskedTx.includes(`${selfUrl}?surface=home&amp;privacy=MASKED`));
+assert(maskedTx.includes(`${selfUrl}?surface=data-quality&amp;privacy=MASKED`));
+assert(maskedTx.includes('#dq-link'));
+assert(maskedTx.includes('u.searchParams.set("privacy",mode)'));
 
 const dq = context.doGet({parameter:{surface:'data-quality'}}).getContent();
 assert(dq.includes('data-active-surface="data-quality"'));
@@ -102,10 +123,15 @@ assert(dq.includes('Автоисправление выключено'));
 assert(!/SYNTHETIC • READ_ONLY|WRITE NOT AUTHORIZED|GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED/.test(dq));
 assert.strictEqual(homeRuntimeCalls, 0, 'static DATA shells must not read private rows while rendering');
 
+const maskedDq = context.doGet({parameter:{surface:'data-quality',privacy:'MASKED'}}).getContent();
+assert(maskedDq.includes(`${selfUrl}?surface=transactions&amp;privacy=MASKED`));
+assert(maskedDq.includes('#tx-link'));
+
 for (const route of ['expenses','income','cash-flow','budget','obligations']) {
-  const html = context.doGet({parameter:{surface:route}}).getContent();
+  const html = context.doGet({parameter:{surface:route,privacy:'MASKED'}}).getContent();
   assert(html.includes(`data-r2-unbound-surface="${route}"`));
   assert(html.includes('Этот раздел ещё подключается к реальным данным'));
+  assert(html.includes(`${selfUrl}?surface=home&amp;privacy=MASKED`));
   assert(!/SYN-TX-|PUBLIC_SYNTHETIC/.test(html));
 }
 
@@ -126,6 +152,7 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   version:'1.2.0',
   primaryRoutes:['home','transactions','data-quality'],
   hiddenUnboundRoutes:5,
+  privacyModeContinuity:'PRESERVE_EXPLICIT_MODE',
   privateDataShellsAsync:true,
   productSyntheticFallback:false,
   financialWrite:false,
