@@ -7,7 +7,7 @@ function prhWebAppRenderSmokeToken() {
     throw new Error('R2_CANONICAL_SMOKE_MISSING');
   }
   var token = prhCanonicalR2WebAppSmokeToken();
-  if (token !== 'PRH_WEBAPP_SMOKE_V4|R2|OK') {
+  if (token !== 'PRH_WEBAPP_SMOKE_V5|R2|OK') {
     throw new Error('R2_CANONICAL_SMOKE_FAILED');
   }
   return token;
