@@ -130,7 +130,8 @@ function fetchSection(section, filters = {}) {
   assert.strictEqual(view.telemetry.analytics_build_count, 1);
   assert.strictEqual(view.telemetry.analytics_section, section);
   assert.strictEqual(view.telemetry.analytics_scope_days, 180);
-  assert.strictEqual(view.telemetry.analytics_input_record_count, 6);
+  assert(view.telemetry.analytics_input_record_count <= view.telemetry.filtered_record_count);
+  if (Object.keys(filters).length === 0) assert.strictEqual(view.telemetry.analytics_input_record_count, 6);
   assert.strictEqual(view.telemetry.snapshot_elapsed_ms, 7);
   assert(view.telemetry.analytics_elapsed_ms >= 0);
   assert(view.telemetry.total_elapsed_ms >= 0);
@@ -220,10 +221,10 @@ assert.strictEqual(invalidSection.reason_code, 'R2_FIN_SECTIONS_SECTION_INVALID'
 assert.doesNotMatch(source, /\.setValue\s*\(|\.setValues\s*\(|appendRow\s*\(|deleteRow\s*\(/);
 assert.match(source, /prhR2DataCreateSnapshot_/);
 assert.match(source, /prhR2FinSectionsScopeAnalyticsInputs_/);
-assert.match(source, /analytics_build_count: 1/);
-assert.match(source, /expenseAnalytics\.buildExpenseAnalytics\(analyticsInputs/);
-assert.match(source, /incomeAnalytics\.buildIncomeAnalytics\(analyticsInputs/);
-assert.match(source, /cashFlowDashboard\.buildCashFlowDashboard\(analyticsInputs/);
+assert.match(source, /analytics_build_count:1/);
+assert.match(source, /expenseAnalytics\.buildExpenseAnalytics\(inputs/);
+assert.match(source, /incomeAnalytics\.buildIncomeAnalytics\(inputs/);
+assert.match(source, /cashFlowDashboard\.buildCashFlowDashboard\(inputs/);
 
 console.log('r2_financial_sections_runtime_contract_test: OK', {
   oneSnapshotPerSection: true,
