@@ -1,18 +1,18 @@
 /**
  * FIN-REC-001 read-only private Expenses / Income / Cash Flow runtime bridge.
  *
- * Performance recovery v3:
- * - one immutable canonical snapshot per request;
- * - two bounded canonical analytics queries per visible section;
- * - daily trend is grouped once by PRH_ANALYTICS_CONTRACT_V1 instead of
- *   re-scanning the same transaction set once per day bucket;
- * - comparison/category rows are computed by the same canonical analytics
- *   authority, so the Web App still owns no financial formulas;
+ * Performance recovery v4:
+ * - scan only ID + timestamp across the historical source to locate the latest day;
+ * - read/canonicalize all mapped columns only for the current + comparison window;
+ * - keep one immutable canonical snapshot per request and two bounded canonical
+ *   analytics queries per visible section;
+ * - preserve PRH_ANALYTICS_CONTRACT_V1 / FIN-TRUTH authority and exact revision;
  * - zero financial write / canonical mutation authority.
  */
 var PRH_R2_FIN_SECTIONS_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1',
   VERSION: '1.0.0',
+  SOURCE_PROJECTION_SCHEMA: 'PRH_R2_FIN_SOURCE_PROJECTION_V1',
   FINANCIAL_TRUTH_POLICY: 'FIN-TRUTH-v1',
   ANALYTICS_QUERY_SCHEMA: 'PRH_ANALYTICS_QUERY_V1',
   ANALYTICS_RESULT_SCHEMA: 'PRH_ANALYTICS_RESULT_V1',
@@ -138,6 +138,176 @@ function prhR2FinSectionsPeriod_(transactions, windowDays) {
     current: Object.freeze({ start: start, end: end, partial: false }),
     comparison: Object.freeze({ start: comparisonStart, end: comparisonEnd, partial: false }),
     window_days: windowDays
+  });
+}
+
+function prhR2FinSectionsGroupRows_(rowNumbers) {
+  var sorted = rowNumbers.slice().sort(function(left, right) { return left - right; });
+  var groups = [];
+  sorted.forEach(function(rowNumber) {
+    if (!Number.isInteger(rowNumber) || rowNumber < 2) {
+      prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_ROW_INVALID');
+    }
+    var last = groups.length ? groups[groups.length - 1] : null;
+    if (last && rowNumber < last.start_row + last.row_count) {
+      prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_ROW_DUPLICATE');
+    }
+    if (last && rowNumber === last.start_row + last.row_count) {
+      last.row_count += 1;
+    } else {
+      groups.push({ start_row: rowNumber, row_count: 1 });
+    }
+  });
+  return groups;
+}
+
+function prhR2FinSectionsCreateProjectedSource_(windowDays) {
+  // Compatibility path exists only for synthetic/legacy harnesses that do not expose
+  // the production Google gateway. The deployed runtime exposes it and therefore
+  // always takes the bounded projection path below.
+  if (typeof prhGoogleRepositoryReadOperationsTable_ !== 'function') {
+    if (typeof prhR2DataCreateSnapshot_ !== 'function') {
+      prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_GATEWAY_MISSING');
+    }
+    return prhR2DataCreateSnapshot_();
+  }
+
+  var started = Date.now();
+  var runtime = prhR2DataRuntime_();
+  var adapter = runtime && runtime.googleAdapter;
+  var refresh = runtime && runtime.singleScanRefresh;
+  if (!adapter || !refresh || typeof adapter.normalizeHeaderIndex !== 'function' ||
+      typeof adapter.toRfc3339 !== 'function' || typeof adapter.rowToCanonical !== 'function' ||
+      !adapter.MAPPING || !Array.isArray(adapter.MAPPING.required_headers) ||
+      typeof refresh.createSingleScanRefresh !== 'function') {
+    prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_RUNTIME_MISSING');
+  }
+
+  var currency = prhR2FinCurrency_();
+  var dimensions = prhR2FinCreateDimensionResolverState_();
+  var gatewayCallCount = 0;
+  var rangeReadCount = 0;
+  var cellReadCount = 0;
+
+  function readTable(request) {
+    var snapshot = prhGoogleRepositoryReadOperationsTable_(request);
+    gatewayCallCount += 1;
+    if (!snapshot || snapshot.schema !== 'PRH_GOOGLE_OPERATIONS_TABLE_V1' ||
+        !Array.isArray(snapshot.headers) || !Array.isArray(snapshot.rows)) {
+      prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_SNAPSHOT_INVALID');
+    }
+    if (snapshot.read_plan) {
+      rangeReadCount += Number(snapshot.read_plan.range_read_count || 0);
+      cellReadCount += Number(snapshot.read_plan.cell_read_count || 0);
+    }
+    return snapshot;
+  }
+
+  var timelineHeaders = ['ID', 'Дата и время'];
+  var timeline = readTable({ required_headers: timelineHeaders.slice() });
+  var timelineIndex = adapter.normalizeHeaderIndex(timeline.headers, timelineHeaders);
+  var timelineStartRow = timeline.start_row == null ? 2 : Number(timeline.start_row);
+  if (!Number.isInteger(timelineStartRow) || timelineStartRow < 2) {
+    prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_START_ROW_INVALID');
+  }
+
+  var ids = {};
+  var candidates = [];
+  var latestDay = '';
+  timeline.rows.forEach(function(row, offset) {
+    if (!Array.isArray(row)) prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_ROW_INVALID');
+    var transactionId = String(row[timelineIndex.ID] == null ? '' : row[timelineIndex.ID]).trim();
+    if (!transactionId) return;
+    if (ids[transactionId]) prhR2FinSectionsFail_('GOOGLE_ADAPTER_TRANSACTION_ID_DUPLICATE');
+    ids[transactionId] = true;
+    var occurredAt = adapter.toRfc3339(row[timelineIndex['Дата и время']]);
+    var day = occurredAt.slice(0, 10);
+    if (!latestDay || day > latestDay) latestDay = day;
+    candidates.push(Object.freeze({
+      row_number: timelineStartRow + offset,
+      transaction_id: transactionId,
+      occurred_at: occurredAt,
+      day: day
+    }));
+  });
+
+  var projectionDays = windowDays * 2;
+  var selected = [];
+  var projectionStart = null;
+  var projectionEnd = null;
+  if (latestDay) {
+    projectionEnd = prhR2FinSectionsAddDays_(latestDay, 1);
+    projectionStart = prhR2FinSectionsAddDays_(projectionEnd, -projectionDays);
+    selected = candidates.filter(function(candidate) {
+      return candidate.day >= projectionStart && candidate.day < projectionEnd;
+    });
+  }
+
+  var selectedIds = {};
+  selected.forEach(function(candidate) { selectedIds[candidate.transaction_id] = true; });
+  var fullHeaders = adapter.MAPPING.required_headers.slice();
+  var byId = {};
+  prhR2FinSectionsGroupRows_(selected.map(function(candidate) { return candidate.row_number; })).forEach(function(group) {
+    var snapshot = readTable({
+      required_headers: fullHeaders.slice(),
+      start_row: group.start_row,
+      row_count: group.row_count
+    });
+    var index = adapter.normalizeHeaderIndex(snapshot.headers, fullHeaders);
+    var startRow = snapshot.start_row == null ? group.start_row : Number(snapshot.start_row);
+    snapshot.rows.forEach(function(row, offset) {
+      var tx = adapter.rowToCanonical(row, startRow + offset, index, {
+        default_currency: currency,
+        resolvers: dimensions.resolvers
+      });
+      if (!tx || !selectedIds[tx.transaction_id]) return;
+      if (byId[tx.transaction_id]) prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_READBACK_DUPLICATE');
+      byId[tx.transaction_id] = tx;
+    });
+  });
+
+  var projected = selected.map(function(candidate) {
+    var tx = byId[candidate.transaction_id];
+    if (!tx) prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_READBACK_MISSING');
+    return tx;
+  });
+  var repository = Object.freeze({
+    schema: 'PRH_TRANSACTION_REPOSITORY_V1',
+    capabilities: Object.freeze({ read: true, query: false, write: false }),
+    readAll: function() { return Object.freeze(projected.slice()); }
+  });
+  var cycle = refresh.createSingleScanRefresh(repository, {
+    max_age_ms: 120000,
+    max_operations: 16
+  });
+  var transactions = cycle.readAll();
+  var revision = cycle.getRevision();
+  if (!Array.isArray(transactions) || !/^[0-9a-f]{64}$/.test(String(revision || ''))) {
+    prhR2FinSectionsFail_('R2_FIN_SECTIONS_PROJECTION_CANONICAL_INVALID');
+  }
+
+  return Object.freeze({
+    schema: PRH_R2_FIN_SECTIONS_RUNTIME.SOURCE_PROJECTION_SCHEMA,
+    runtime: runtime,
+    currency: currency,
+    dimensions: dimensions,
+    cycle: cycle,
+    transactions: Object.freeze(transactions.slice()),
+    revision: revision,
+    telemetry: Object.freeze({
+      canonical_snapshot_read_count: 1,
+      source_projection: 'RECENT_DAY_WINDOW',
+      projection_window_days: projectionDays,
+      projection_start: projectionStart,
+      projection_end: projectionEnd,
+      timeline_record_count: candidates.length,
+      projected_record_count: transactions.length,
+      gateway_call_count: gatewayCallCount,
+      range_read_count: rangeReadCount,
+      cell_read_count: cellReadCount,
+      elapsed_ms: Math.max(0, Date.now() - started),
+      financial_payload_in_telemetry: false
+    })
   });
 }
 
@@ -578,7 +748,7 @@ function prhR2BuildFinancialSectionsView_(request) {
   }
 
   prhR2FinSectionsRuntime_();
-  var source = prhR2DataCreateSnapshot_();
+  var source = prhR2FinSectionsCreateProjectedSource_(normalized.window_days);
   var snapshotMs = source.telemetry && Number.isFinite(Number(source.telemetry.elapsed_ms))
     ? Math.max(0, Number(source.telemetry.elapsed_ms))
     : Math.max(0, Date.now() - started);
@@ -640,6 +810,7 @@ function prhR2BuildFinancialSectionsView_(request) {
         analytics_build_count: 0,
         analytics_query_count: 0,
         analytics_section: normalized.section,
+        source_projection: source.telemetry && source.telemetry.source_projection || 'FULL_CANONICAL_SNAPSHOT_COMPAT',
         snapshot_elapsed_ms: snapshotMs,
         financial_payload_in_telemetry: false
       })
@@ -666,6 +837,7 @@ function prhR2BuildFinancialSectionsView_(request) {
   var cycleTelemetry = source.cycle && typeof source.cycle.getTelemetry === 'function'
     ? source.cycle.getTelemetry()
     : {};
+  var sourceTelemetry = source.telemetry || {};
 
   return Object.freeze({
     schema: PRH_R2_FIN_SECTIONS_RUNTIME.SCHEMA,
@@ -706,6 +878,13 @@ function prhR2BuildFinancialSectionsView_(request) {
       analytics_query_count: 2,
       analytics_section: normalized.section,
       analytics_runtime_authority: 'PRH_ANALYTICS_CONTRACT_V1',
+      source_projection: sourceTelemetry.source_projection || 'FULL_CANONICAL_SNAPSHOT_COMPAT',
+      projection_window_days: Number(sourceTelemetry.projection_window_days || 0),
+      timeline_record_count: Number(sourceTelemetry.timeline_record_count || 0),
+      projected_record_count: Number(sourceTelemetry.projected_record_count || source.transactions.length),
+      gateway_call_count: Number(sourceTelemetry.gateway_call_count || 0),
+      range_read_count: Number(sourceTelemetry.range_read_count || 0),
+      cell_read_count: Number(sourceTelemetry.cell_read_count || 0),
       snapshot_elapsed_ms: snapshotMs,
       analytics_elapsed_ms: analyticsMs,
       total_elapsed_ms: Math.max(0, Date.now() - started),
