@@ -63,7 +63,7 @@ assert.strictEqual(homeReadSmokeCalls,0);
 assert.strictEqual(dataRuntimeSmokeCalls,0);
 
 const healthToken=vm.runInContext("prhReleaseHealthCheckToken({candidateSha:'"+'a'.repeat(40)+"',sourceTreeHash:'"+'b'.repeat(64)+"'})",context);
-assert.match(healthToken,/^PRH_HEALTH_V1\|OK\|a{40}\|b{64}\|1\|V8\|3\|1\|1\|[0-9]+$/);
+assert.match(healthToken,/^PRH_HEALTH_V1\|OK\|a{40}\|b{64}\|1\|V8\|3\|1\|[0-9]+$/);
 assert.strictEqual(homeReadSmokeCalls,1,'trusted health must prove private Home read path exactly once');
 assert.strictEqual(dataRuntimeSmokeCalls,1,'trusted health must prove DATA canonical modules exactly once');
 
@@ -75,9 +75,10 @@ assert.match(runtimeSource,/PRH_R2_HOME_READ_V3\|CANONICAL_LIB\|DIMENSION_HASH\|
 assert.match(runtimeSource,/PRH_R2_DATA_RUNTIME_V1\|READ_ONLY\|OK/);
 assert.match(runtimeSource,/prhR2DataRuntimeSmokeToken\(\)/);
 assert.match(runtimeSource,/RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED/);
+assert.match(runtimeSource,/Stable scalar transport contract/);
 
 console.log('dashboard-web-runtime-smoke: PASS',{
   syntax:'V8',canonicalDefault:'R2_HOME',primaryDataRoutes:['transactions','data-quality'],legacyRollback:true,
   renderSmokeVersion:5,privateHomeReadSmokeVersion:3,dataRuntimeSmokeVersion:1,technicalRenderReadsFinancialRows:false,
-  trustedPrivateHomeReadProof:true,trustedDataModuleProof:true,healthTokenShapeVersion:2
+  trustedPrivateHomeReadProof:true,trustedDataModuleProof:true,healthTokenShapePreserved:true
 });
