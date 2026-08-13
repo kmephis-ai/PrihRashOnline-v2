@@ -26,7 +26,7 @@ let ordinal = 1;
 function tx(id, day, type, amount, category, account = 'ACC-1') {
   return Object.freeze({
     schema: 'PRH_CANONICAL_TRANSACTION_V1', schema_version: 1,
-    transaction_id: id, occurred_at: `${day}T12:00:00Z`, type, status: 'posted',
+    transaction_id: `TX-${id}`, occurred_at: `${day}T12:00:00Z`, type, status: 'posted',
     amount_minor: amount, currency: 'RUB', account_id: account,
     destination_account_id: null, category_id: category, member_id: 'MEM-1', project_id: null,
     tags: Object.freeze([]), counterparty: null, description: null, reverses_transaction_id: null,
