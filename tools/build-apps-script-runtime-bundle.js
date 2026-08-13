@@ -10,11 +10,12 @@ const ENTRY_MODULES = Object.freeze({
   kpiDictionary: 'lib/finance/kpi_dictionary.js',
   home: 'lib/home/financial_home.js',
   googleAdapter: 'lib/adapters/google_sheets_transaction_repository.js',
-  recentMonthsProjection: 'lib/adapters/google_sheets_recent_months_projection.js',
   revisionAwareCache: 'lib/repository/revision_aware_cache.js',
   singleScanRefresh: 'lib/repository/single_scan_refresh.js'
 });
-const OPTIONAL_ENTRY_NAMES = Object.freeze(new Set(['recentMonthsProjection']));
+const OPTIONAL_ENTRY_MODULES = Object.freeze({
+  recentMonthsProjection: 'lib/adapters/google_sheets_recent_months_projection.js'
+});
 
 const REQUIRE_RE = /require\(\s*['\"]([^'\"]+)['\"]\s*\)/g;
 
@@ -23,12 +24,13 @@ function normalizeId(value) {
 }
 
 function effectiveEntryModules(root, entryModules = ENTRY_MODULES) {
-  const result = {};
-  for (const [name, id] of Object.entries(entryModules)) {
-    const normalized = normalizeId(id);
-    const fullPath = path.join(root, normalized);
-    if (OPTIONAL_ENTRY_NAMES.has(name) && !fs.existsSync(fullPath)) continue;
-    result[name] = normalized;
+  const result = Object.fromEntries(Object.entries(entryModules).map(([name, id]) => [name, normalizeId(id)]));
+  if (entryModules === ENTRY_MODULES) {
+    for (const [name, id] of Object.entries(OPTIONAL_ENTRY_MODULES)) {
+      const normalized = normalizeId(id);
+      const fullPath = path.join(root, normalized);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) result[name] = normalized;
+    }
   }
   return Object.freeze(result);
 }
@@ -146,7 +148,7 @@ module.exports = {
   GENERATED_RUNTIME_BUNDLE,
   RUNTIME_SCHEMA,
   ENTRY_MODULES,
-  OPTIONAL_ENTRY_NAMES,
+  OPTIONAL_ENTRY_MODULES,
   effectiveEntryModules,
   resolveLocalModule,
   collectModules,
