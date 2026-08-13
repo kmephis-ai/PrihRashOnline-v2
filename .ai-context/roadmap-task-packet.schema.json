@@ -49,12 +49,12 @@
         "required": ["roadmap_id", "status", "product_stage", "required_stage"],
         "properties": {
           "roadmap_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9-]*-[0-9]{3}$" },
-          "status": { "const": "DONE" },
+          "status": { "enum": ["IN_PROGRESS", "BLOCKED", "DONE"] },
           "issue": { "type": ["integer", "null"], "minimum": 1 },
           "product_stage": {
             "enum": ["NOT_APPLICABLE", "NOT_STARTED", "CODE_COMPLETE", "RUNTIME_INTEGRATED", "REAL_E2E_VERIFIED", "PRODUCT_READY", "DONE"]
           },
-          "required_stage": { "enum": ["DONE_ENGINEERING", "PRODUCT_READY"] }
+          "required_stage": { "enum": ["DONE_ENGINEERING", "RUNTIME_INTEGRATED", "PRODUCT_READY"] }
         }
       }
     },
