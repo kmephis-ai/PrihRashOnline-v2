@@ -9,6 +9,8 @@ const {
   PRODUCT_READY_GATE,
   REQUIRED_DELIVERY_GATES,
   normalizeRoadmapItem,
+  stateIndex,
+  dependenciesDone,
   resolveContinuation,
   validateLifecycleTransition,
   assertPublicSafe
@@ -36,6 +38,7 @@ function item(overrides = {}) {
     goal: 'Resolve continuation to one concrete task.',
     non_goals: ['Do not implement multi-AI review.'],
     depends_on: ['AIENG-001'],
+    depends_on_runtime_integrated: [],
     depends_on_product_ready: [],
     data_touched: 'none',
     privacy_class: 'public-safe',
@@ -314,6 +317,53 @@ assert.strictEqual(validateLifecycleTransition('IN_PROGRESS', 'DONE', {
   assert.strictEqual(ready.task.dependencies[0].required_stage, 'PRODUCT_READY');
 }
 
+{
+  const runtimeDependency = item({
+    roadmap_id: 'VIZ-REC-001',
+    issue: 226,
+    status: 'BLOCKED',
+    work_class: 'user_facing',
+    engineering_status: 'CODE_COMPLETE',
+    product_stage: 'RUNTIME_INTEGRATED',
+    target_stage: 'DONE',
+    blocking_product_gate: 'MASTER-GREC-6',
+    depends_on: [],
+    branch_slug: 'household-visuals'
+  });
+  const gateBuilder = item({
+    roadmap_id: 'E2E-REC-001',
+    issue: 227,
+    priority: 'P0',
+    wave: 'R2R',
+    work_class: 'user_facing',
+    engineering_status: 'IN_PROGRESS',
+    product_stage: 'NOT_STARTED',
+    target_stage: 'DONE',
+    blocking_product_gate: 'MASTER-GREC-7',
+    depends_on: [],
+    depends_on_runtime_integrated: ['VIZ-REC-001'],
+    branch_slug: 'authenticated-journey'
+  });
+  const ready = resolveContinuation([runtimeDependency, gateBuilder]);
+  assert.strictEqual(ready.status, 'RESOLVED');
+  assert.strictEqual(ready.roadmap_id, 'E2E-REC-001');
+  assert.deepStrictEqual(ready.task.dependencies[0], {
+    roadmap_id: 'VIZ-REC-001',
+    status: 'BLOCKED',
+    issue: 226,
+    product_stage: 'RUNTIME_INTEGRATED',
+    required_stage: 'RUNTIME_INTEGRATED'
+  });
+
+  runtimeDependency.product_stage = 'CODE_COMPLETE';
+  assert.strictEqual(dependenciesDone(gateBuilder, stateIndex([runtimeDependency, gateBuilder])), false);
+  runtimeDependency.product_stage = 'RUNTIME_INTEGRATED';
+  runtimeDependency.status = 'READY';
+  assert.strictEqual(dependenciesDone(gateBuilder, stateIndex([runtimeDependency, gateBuilder])), false);
+  runtimeDependency.status = 'BACKLOG';
+  assert.strictEqual(dependenciesDone(gateBuilder, stateIndex([runtimeDependency, gateBuilder])), false);
+}
+
 assert.throws(() => validateLifecycleTransition('IN_PROGRESS', 'DONE', {
   prValidation: 'PASS',
   trustedDevDeploy: 'PASS',
@@ -349,6 +399,10 @@ assert.throws(() => assertPublicSafe({ path: 'G:\\PrihRashOnline-Keys\\private.k
 assert.throws(() => normalizeRoadmapItem(item({ cost_class: 'PAID_ALLOWED' })), /ROADMAP_COST_CLASS_NOT_FREE_ONLY/);
 assert.throws(() => normalizeRoadmapItem(item({ branch_slug: 'Bad_Slug' })), /ROADMAP_BRANCH_SLUG_INVALID/);
 assert.throws(() => normalizeRoadmapItem(item({ acceptance: [] })), /ROADMAP_ACCEPTANCE_INVALID/);
+assert.throws(() => normalizeRoadmapItem(item({
+  depends_on: ['AIENG-001'],
+  depends_on_runtime_integrated: ['AIENG-001']
+})), /ROADMAP_DEPENDENCY_DUPLICATE|ROADMAP_PROTOCOL_FAILED/);
 
 const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '.ai-context', 'roadmap-task-packet.schema.json'), 'utf8'));
 assert.strictEqual(schema.properties.schema.const, TASK_SCHEMA);
@@ -366,6 +420,8 @@ assert(schema.required.includes('acceptance'));
 assert(schema.required.includes('evidence_required'));
 assert(schema.required.includes('branch'));
 assert(schema.required.includes('pr_close_line'));
+assert(schema.properties.dependencies.items.properties.required_stage.enum.includes('RUNTIME_INTEGRATED'));
+assert(schema.properties.dependencies.items.properties.status.enum.includes('BLOCKED'));
 
 console.log('roadmap_task_protocol_contract_test: OK', {
   concreteReadyResolution: true,
@@ -379,5 +435,6 @@ console.log('roadmap_task_protocol_contract_test: OK', {
   mainVerificationRequiredForDone: true,
   productReadyE2ERequiredForUserFacingDone: true,
   productStageDependencies: true,
+  runtimeIntegratedDependencies: true,
   privateContextRejected: true
 });
