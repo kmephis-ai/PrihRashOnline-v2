@@ -30,9 +30,10 @@ expect(html.includes('id="action-bar"'), 'Dashboard must be prepared through v1 
 expect(!service.includes('function doGet('),
   'Legacy dashboard data service must not own canonical doGet after UI-MIG-020');
 [
-  'function doGet(e)', "DEFAULT_SURFACE: 'home'", "LEGACY_SURFACE: 'legacy'",
-  'function prhR2RenderLegacy_('
+  'function doGet(e)', "DEFAULT_SURFACE: 'home'", 'function prhR2RenderLegacy_('
 ].forEach((required) => expect(canonicalRouter.includes(required), `Missing canonical R2 router contract: ${required}`));
+expect(/LEGACY_SURFACE\s*:\s*'legacy'/.test(canonicalRouter),
+  'Missing canonical R2 router contract: LEGACY_SURFACE=legacy');
 
 expect(!service.includes("HtmlService.createTemplateFromFile('DashboardWebApp')"),
   'Dashboard must not reintroduce Apps Script template parser for DashboardWebApp');
