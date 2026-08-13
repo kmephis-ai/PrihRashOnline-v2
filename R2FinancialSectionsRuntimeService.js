@@ -1,12 +1,23 @@
+/**
+ * FIN-REC-001 read-only private Expenses / Income / Cash Flow runtime bridge.
+ *
+ * Each request is built from one immutable canonical snapshot, one bounded
+ * period/filter state and exactly one selected canonical FIN module. This
+ * bridge owns no financial formulas and has no write authority.
+ */
 var PRH_R2_FIN_SECTIONS_RUNTIME = Object.freeze({
   SCHEMA: 'PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1',
   VERSION: '1.0.0',
   FINANCIAL_TRUTH_POLICY: 'FIN-TRUTH-v1',
+  FILTER_CONTEXT_SCHEMA: 'PRH_FILTER_CONTEXT_V1',
+  FILTER_CONTEXT_VERSION: '1.0.0',
+  DEFAULT_WINDOW_DAYS: 90,
+  ALLOWED_WINDOW_DAYS: Object.freeze([30, 90, 180, 365]),
+  ALLOWED_SECTIONS: Object.freeze(['expenses', 'income', 'cash-flow']),
+  MAX_FILTER_VALUES: 16,
   WRITE_AUTHORITY: false,
   CANONICAL_MUTATION_AUTHORITY: false,
-  FREE_ONLY: true,
-  WINDOW_DAYS: Object.freeze([30, 90, 180, 365]),
-  SECTIONS: Object.freeze(['expenses', 'income', 'cash-flow'])
+  FREE_ONLY: true
 });
 
 function prhR2FinSectionsFail_(reason) {
@@ -16,217 +27,197 @@ function prhR2FinSectionsFail_(reason) {
 }
 
 function prhR2FinSectionsRuntime_() {
-  var runtime = typeof prhR2CanonicalRuntime_ === 'function' ? prhR2CanonicalRuntime_() : null;
-  if (!runtime || !runtime.expenseAnalytics || !runtime.incomeAnalytics || !runtime.cashFlowDashboard) {
-    prhR2FinSectionsFail_('R2_FIN_SECTIONS_RUNTIME_UNAVAILABLE');
+  var runtime = prhR2CanonicalRuntime_();
+  if (!runtime.expenseAnalytics || !runtime.incomeAnalytics || !runtime.cashFlowDashboard ||
+      typeof runtime.expenseAnalytics.buildExpenseAnalytics !== 'function' ||
+      typeof runtime.incomeAnalytics.buildIncomeAnalytics !== 'function' ||
+      typeof runtime.cashFlowDashboard.buildCashFlowDashboard !== 'function') {
+    prhR2FinSectionsFail_('R2_FIN_SECTIONS_RUNTIME_MODULE_MISSING');
   }
   return runtime;
 }
 
 function prhR2FinSectionsPrivacyMode_(value) {
-  if (typeof prhPrivacyResolveMode_ === 'function') return prhPrivacyResolveMode_(value);
-  var mode = String(value || 'NORMAL').trim().toUpperCase();
-  return mode || 'NORMAL';
+  var mode = typeof prhPrivacyResolveMode_ === 'function'
+    ? prhPrivacyResolveMode_(value)
+    : String(value || 'NORMAL').trim().toUpperCase();
+  if (['NORMAL', 'MASKED', 'DEMO', 'ZEN'].indexOf(mode) < 0) prhR2FinSectionsFail_('R2_FIN_SECTIONS_PRIVACY_MODE_INVALID');
+  return mode;
+}
+
+function prhR2FinSectionsWindowDays_(value) {
+  var days = value == null || value === '' ? PRH_R2_FIN_SECTIONS_RUNTIME.DEFAULT_WINDOW_DAYS : Number(value);
+  if (PRH_R2_FIN_SECTIONS_RUNTIME.ALLOWED_WINDOW_DAYS.indexOf(days) < 0) {
+    prhR2FinSectionsFail_('R2_FIN_SECTIONS_WINDOW_INVALID');
+  }
+  return days;
 }
 
 function prhR2FinSectionsSection_(value) {
   var section = String(value || 'expenses').trim().toLowerCase();
-  if (PRH_R2_FIN_SECTIONS_RUNTIME.SECTIONS.indexOf(section) < 0) {
-    prhR2FinSectionsFail_('R2_FIN_SECTIONS_SECTION_UNSUPPORTED');
+  if (PRH_R2_FIN_SECTIONS_RUNTIME.ALLOWED_SECTIONS.indexOf(section) < 0) {
+    prhR2FinSectionsFail_('R2_FIN_SECTIONS_SECTION_INVALID');
   }
   return section;
 }
 
-function prhR2FinSectionsWindowDays_(value) {
-  var parsed = Number(value || 90);
-  if (PRH_R2_FIN_SECTIONS_RUNTIME.WINDOW_DAYS.indexOf(parsed) < 0) {
-    prhR2FinSectionsFail_('R2_FIN_SECTIONS_WINDOW_UNSUPPORTED');
-  }
-  return parsed;
-}
-
-function prhR2FinSectionsStringArray_(value, maxItems) {
-  if (value === undefined || value === null || value === '') return Object.freeze([]);
-  if (!Array.isArray(value)) prhR2FinSectionsFail_('R2_FIN_SECTIONS_FILTER_INVALID');
-  if (value.length > maxItems) prhR2FinSectionsFail_('R2_FIN_SECTIONS_FILTER_LIMIT_EXCEEDED');
+function prhR2FinSectionsIds_(value) {
+  var source = Array.isArray(value) ? value : [];
+  if (source.length > PRH_R2_FIN_SECTIONS_RUNTIME.MAX_FILTER_VALUES) prhR2FinSectionsFail_('R2_FIN_SECTIONS_FILTER_LIMIT');
   var seen = {};
-  var result = [];
-  value.forEach(function(item) {
-    var normalized = String(item || '').trim();
-    if (!normalized || normalized.length > 160) prhR2FinSectionsFail_('R2_FIN_SECTIONS_FILTER_INVALID');
-    if (!seen[normalized]) {
-      seen[normalized] = true;
-      result.push(normalized);
-    }
-  });
-  result.sort();
-  return Object.freeze(result);
+  return source.map(function(item) { return String(item || '').trim(); }).filter(function(item) {
+    if (!item || item.length > 160 || seen[item]) return false;
+    seen[item] = true;
+    return true;
+  }).sort();
 }
 
 function prhR2FinSectionsRequest_(request) {
-  var input = request || {};
-  var filters = input.filters || {};
+  var input = request && typeof request === 'object' && !Array.isArray(request) ? request : {};
+  var filters = input.filters && typeof input.filters === 'object' && !Array.isArray(input.filters) ? input.filters : {};
   return Object.freeze({
     privacy_mode: prhR2FinSectionsPrivacyMode_(input.privacy_mode),
     section: prhR2FinSectionsSection_(input.section),
     window_days: prhR2FinSectionsWindowDays_(input.window_days),
-    expected_revision: input.expected_revision ? String(input.expected_revision).trim() : '',
+    expected_revision: String(input.expected_revision || '').trim().toLowerCase(),
     filters: Object.freeze({
-      account_ids: prhR2FinSectionsStringArray_(filters.account_ids, 20),
-      category_ids: prhR2FinSectionsStringArray_(filters.category_ids, 40),
-      member_ids: prhR2FinSectionsStringArray_(filters.member_ids, 20)
+      account_ids: Object.freeze(prhR2FinSectionsIds_(filters.account_ids)),
+      category_ids: Object.freeze(prhR2FinSectionsIds_(filters.category_ids)),
+      member_ids: Object.freeze(prhR2FinSectionsIds_(filters.member_ids))
     })
   });
 }
 
-function prhR2FinSectionsDate_(isoDay) {
-  var value = String(isoDay || '');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) prhR2FinSectionsFail_('R2_FIN_SECTIONS_DATE_INVALID');
-  var date = new Date(value + 'T00:00:00Z');
-  if (!isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
-    prhR2FinSectionsFail_('R2_FIN_SECTIONS_DATE_INVALID');
-  }
-  return date;
-}
-
-function prhR2FinSectionsAddDays_(isoDay, days) {
-  var date = prhR2FinSectionsDate_(isoDay);
-  date.setUTCDate(date.getUTCDate() + Number(days));
+function prhR2FinSectionsIsoDay_(date) {
   return date.toISOString().slice(0, 10);
 }
 
-function prhR2FinSectionsLatestDay_(transactions) {
-  var latest = '';
-  (transactions || []).forEach(function(transaction) {
-    var day = String(transaction && transaction.occurred_at || '').slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(day) && day > latest) latest = day;
-  });
-  if (!latest) prhR2FinSectionsFail_('R2_FIN_SECTIONS_EMPTY_SOURCE');
-  return latest;
+function prhR2FinSectionsAddDays_(isoDay, days) {
+  var date = new Date(String(isoDay) + 'T00:00:00Z');
+  if (!Number.isFinite(date.getTime()) || prhR2FinSectionsIsoDay_(date) !== isoDay) prhR2FinSectionsFail_('R2_FIN_SECTIONS_DATE_INVALID');
+  date.setUTCDate(date.getUTCDate() + days);
+  return prhR2FinSectionsIsoDay_(date);
 }
 
 function prhR2FinSectionsPeriod_(transactions, windowDays) {
-  var latest = prhR2FinSectionsLatestDay_(transactions);
-  var currentEnd = prhR2FinSectionsAddDays_(latest, 1);
-  var currentStart = prhR2FinSectionsAddDays_(currentEnd, -windowDays);
-  var comparisonEnd = currentStart;
+  var latest = '';
+  transactions.forEach(function(tx) {
+    var day = String(tx && tx.occurred_at || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) prhR2FinSectionsFail_('R2_FIN_SECTIONS_TRANSACTION_DATE_INVALID');
+    if (!latest || day > latest) latest = day;
+  });
+  if (!latest) return null;
+  var end = prhR2FinSectionsAddDays_(latest, 1);
+  var start = prhR2FinSectionsAddDays_(end, -windowDays);
+  var comparisonEnd = start;
   var comparisonStart = prhR2FinSectionsAddDays_(comparisonEnd, -windowDays);
   return Object.freeze({
-    current: Object.freeze({ start: currentStart, end: currentEnd, partial: false }),
+    current: Object.freeze({ start: start, end: end, partial: false }),
     comparison: Object.freeze({ start: comparisonStart, end: comparisonEnd, partial: false }),
     window_days: windowDays
   });
 }
 
-function prhR2FinSectionsApplyFilters_(transactions, filters) {
-  return Object.freeze((transactions || []).filter(function(transaction) {
-    if (filters.account_ids.length && filters.account_ids.indexOf(String(transaction.account_id || '')) < 0) return false;
-    if (filters.category_ids.length && filters.category_ids.indexOf(String(transaction.category_id || '')) < 0) return false;
-    if (filters.member_ids.length && filters.member_ids.indexOf(String(transaction.member_id || '')) < 0) return false;
-    return true;
-  }));
-}
-
 function prhR2FinSectionsFilterContext_(filters) {
-  var rows = [];
-  filters.account_ids.forEach(function(value) { rows.push({ kind: 'MEMBER', field: 'account_id', operator: 'IN', values: [value] }); });
-  filters.category_ids.forEach(function(value) { rows.push({ kind: 'MEMBER', field: 'category_id', operator: 'IN', values: [value] }); });
-  filters.member_ids.forEach(function(value) { rows.push({ kind: 'MEMBER', field: 'member_id', operator: 'IN', values: [value] }); });
-  return Object.freeze({ schema: 'PRH_FILTER_CONTEXT_V1', contract_version: '1.0.0', filters: Object.freeze(rows) });
+  var definitions = [
+    ['account_id', filters.account_ids],
+    ['category_id', filters.category_ids],
+    ['member_id', filters.member_ids]
+  ];
+  return Object.freeze({
+    schema: PRH_R2_FIN_SECTIONS_RUNTIME.FILTER_CONTEXT_SCHEMA,
+    contract_version: PRH_R2_FIN_SECTIONS_RUNTIME.FILTER_CONTEXT_VERSION,
+    filters: Object.freeze(definitions.filter(function(item) { return item[1].length > 0; }).map(function(item) {
+      return Object.freeze({ kind: 'DIMENSION', field: item[0], operator: 'INCLUDE', values: Object.freeze(item[1].slice()) });
+    }))
+  });
 }
 
-function prhR2FinSectionsLabel_(source, kind, id) {
-  if (!id) return 'Без категории';
-  try {
-    return source.dimensions.displayLabel(kind, id);
-  } catch (_) {
-    return String(id);
-  }
+function prhR2FinSectionsApplyFilters_(transactions, filters) {
+  function matches(value, allowed) { return !allowed.length || allowed.indexOf(String(value || '')) >= 0; }
+  return transactions.filter(function(tx) {
+    return matches(tx.account_id, filters.account_ids) &&
+      matches(tx.category_id, filters.category_ids) &&
+      matches(tx.member_id, filters.member_ids);
+  });
 }
 
-function prhR2FinSectionsOptions_(source, kind, key) {
+function prhR2FinSectionsLabel_(source, kind, id, fallback) {
+  if (id == null || id === '') return fallback || 'Без значения';
+  try { return source.dimensions.displayLabel(kind, id); } catch (error) { return fallback || 'Без значения'; }
+}
+
+function prhR2FinSectionsOptions_(source, kind, field) {
   var seen = {};
-  var rows = [];
-  (source.transactions || []).forEach(function(transaction) {
-    var id = transaction && transaction[key];
-    if (!id) return;
-    id = String(id);
-    if (seen[id]) return;
+  source.transactions.forEach(function(tx) {
+    var id = tx[field];
+    if (id == null || id === '' || seen[id]) return;
     seen[id] = true;
-    rows.push(Object.freeze({ id: id, label: prhR2FinSectionsLabel_(source, kind, id) }));
   });
-  rows.sort(function(a, b) { return a.label.localeCompare(b.label); });
-  return Object.freeze(rows);
+  return Object.freeze(Object.keys(seen).map(function(id) {
+    return Object.freeze({ value: id, label: prhR2FinSectionsLabel_(source, kind, id, 'Без значения') });
+  }).sort(function(left, right) { return left.label.localeCompare(right.label, 'ru'); }));
 }
 
-function prhR2FinSectionsExpenseView_(source, expense) {
+function prhR2FinSectionsExpenseView_(source, view) {
   return Object.freeze({
-    total_expense_minor: expense.total_expense_minor,
-    comparison_expense_minor: expense.comparison_expense_minor,
-    delta_minor: expense.delta_minor,
-    trend: Object.freeze(expense.trend.points.map(function(point) {
-      return Object.freeze({ day: point.time_bucket, value_minor: point.expense_minor });
+    total_expense_minor: view.total_expense_minor,
+    comparison_expense_minor: view.comparison_expense_minor,
+    delta_minor: view.delta_minor,
+    trend: Object.freeze(view.trend.points.map(function(point) {
+      return Object.freeze({ time_bucket: point.time_bucket, expense_minor: point.expense_minor });
     })),
-    category_mix: Object.freeze(expense.category_mix.rows.map(function(row) {
-      return Object.freeze({
-        category_id: row.category_id,
-        category_label: prhR2FinSectionsLabel_(source, 'category', row.category_id),
-        value_minor: row.expense_minor
-      });
+    category_mix: Object.freeze(view.category_mix.rows.map(function(row) {
+      return Object.freeze({ category_id: row.category_id, category_label: prhR2FinSectionsLabel_(source, 'category', row.category_id, 'Без категории'), expense_minor: row.expense_minor });
     })),
-    drivers: Object.freeze(expense.drivers.rows.map(function(row) {
-      return Object.freeze({
-        category_id: row.category_id,
-        category_label: prhR2FinSectionsLabel_(source, 'category', row.category_id),
-        current_minor: row.current_expense_minor,
-        comparison_minor: row.comparison_expense_minor,
-        delta_minor: row.delta_minor
-      });
+    drivers: Object.freeze(view.drivers.rows.map(function(row) {
+      return Object.freeze({ category_id: row.category_id, category_label: prhR2FinSectionsLabel_(source, 'category', row.category_id, 'Без категории'), delta_minor: row.delta_minor });
     }))
   });
 }
 
-function prhR2FinSectionsIncomeView_(source, income) {
+function prhR2FinSectionsIncomeView_(source, view) {
   return Object.freeze({
-    total_income_minor: income.total_income_minor,
-    comparison_income_minor: income.comparison_income_minor,
-    delta_minor: income.delta_minor,
-    trend: Object.freeze(income.trend.points.map(function(point) {
-      return Object.freeze({ day: point.time_bucket, value_minor: point.income_minor });
+    total_income_minor: view.total_income_minor,
+    comparison_income_minor: view.comparison_income_minor,
+    delta_minor: view.delta_minor,
+    stability: Object.freeze({ state: view.stability.state, stability_score: view.stability.stability_score }),
+    trend: Object.freeze(view.trend.points.map(function(point) {
+      return Object.freeze({ time_bucket: point.time_bucket, income_minor: point.income_minor });
     })),
-    source_mix: Object.freeze(income.source_mix.rows.map(function(row) {
-      return Object.freeze({
-        source_id: row.category_id,
-        source_label: prhR2FinSectionsLabel_(source, 'category', row.category_id),
-        value_minor: row.income_minor
-      });
+    source_mix: Object.freeze(view.source_mix.rows.map(function(row) {
+      return Object.freeze({ source_id: row.source_id, source_label: prhR2FinSectionsLabel_(source, 'category', row.source_id, 'Без категории'), income_minor: row.income_minor });
+    })),
+    source_deltas: Object.freeze(view.source_deltas.rows.map(function(row) {
+      return Object.freeze({ source_id: row.source_id, source_label: prhR2FinSectionsLabel_(source, 'category', row.source_id, 'Без категории'), delta_minor: row.delta_minor });
     }))
   });
 }
 
-function prhR2FinSectionsCashFlowView_(cashFlow) {
+function prhR2FinSectionsCashFlowView_(view) {
   return Object.freeze({
-    inflow_minor: cashFlow.inflow_minor,
-    outflow_minor: cashFlow.outflow_minor,
-    net_minor: cashFlow.net_minor,
-    comparison_inflow_minor: cashFlow.comparison_inflow_minor,
-    comparison_outflow_minor: cashFlow.comparison_outflow_minor,
-    comparison_net_minor: cashFlow.comparison_net_minor,
-    delta_net_minor: cashFlow.delta_net_minor,
-    trend: Object.freeze(cashFlow.trend.points.map(function(point) {
-      return Object.freeze({
-        day: point.time_bucket,
-        inflow_minor: point.inflow_minor,
-        outflow_minor: point.outflow_minor,
-        net_minor: point.net_minor
-      });
-    }))
+    inflow_minor: view.inflow_minor,
+    outflow_minor: view.outflow_minor,
+    net_minor: view.net_minor,
+    comparison: Object.freeze({
+      inflow_minor: view.comparison.inflow_minor,
+      outflow_minor: view.comparison.outflow_minor,
+      net_minor: view.comparison.net_minor,
+      inflow_delta_minor: view.comparison.inflow_delta_minor,
+      outflow_delta_minor: view.comparison.outflow_delta_minor,
+      net_delta_minor: view.comparison.net_delta_minor
+    }),
+    trend: Object.freeze(view.trend.points.map(function(point) {
+      return Object.freeze({ time_bucket: point.time_bucket, inflow_minor: point.inflow_minor, outflow_minor: point.outflow_minor, net_minor: point.net_minor });
+    })),
+    liquidity_state: view.liquidity_state,
+    account_balance_authority: false
   });
 }
 
 function prhR2BuildFinancialSectionsView_(request) {
   var normalized = prhR2FinSectionsRequest_(request);
-  if (normalized.privacy_mode === 'DEMO') {
+  if (normalized.privacy_mode === 'DEMO' || normalized.privacy_mode === 'ZEN') {
     return Object.freeze({
       schema: PRH_R2_FIN_SECTIONS_RUNTIME.SCHEMA,
       version: PRH_R2_FIN_SECTIONS_RUNTIME.VERSION,
@@ -234,26 +225,42 @@ function prhR2BuildFinancialSectionsView_(request) {
       privacy_mode: normalized.privacy_mode,
       section: normalized.section,
       retryable: false,
-      reason_code: 'PRIVATE_FINANCIAL_SECTIONS_DEMO_DISABLED',
+      reason_code: 'R2_FIN_SECTIONS_PRIVATE_ROUTE_REQUIRES_NORMAL_OR_MASKED',
       financial_write_authorized: false,
       canonical_mutation_performed: false
     });
   }
   var source = prhR2DataCreateSnapshot_();
-  if (!source || !Array.isArray(source.transactions) || !source.revision || !source.currency || !source.dimensions) {
-    prhR2FinSectionsFail_('R2_FIN_SECTIONS_SOURCE_UNAVAILABLE');
+  if (normalized.expected_revision) {
+    if (!/^[0-9a-f]{64}$/.test(normalized.expected_revision)) prhR2FinSectionsFail_('R2_FIN_SECTIONS_EXPECTED_REVISION_INVALID');
+    if (normalized.expected_revision !== source.revision) {
+      return Object.freeze({
+        schema: PRH_R2_FIN_SECTIONS_RUNTIME.SCHEMA,
+        version: PRH_R2_FIN_SECTIONS_RUNTIME.VERSION,
+        state: 'STALE_SNAPSHOT',
+        privacy_mode: normalized.privacy_mode,
+        section: normalized.section,
+        snapshot_revision: source.revision,
+        snapshot_revision_prefix: source.revision.slice(0, 12),
+        retryable: true,
+        reason_code: 'R2_FIN_SECTIONS_SNAPSHOT_REVISION_CHANGED',
+        financial_write_authorized: false,
+        canonical_mutation_performed: false
+      });
+    }
   }
-  if (normalized.expected_revision && normalized.expected_revision !== source.revision) {
+  if (!source.transactions.length) {
     return Object.freeze({
       schema: PRH_R2_FIN_SECTIONS_RUNTIME.SCHEMA,
       version: PRH_R2_FIN_SECTIONS_RUNTIME.VERSION,
-      state: 'STALE_SNAPSHOT',
+      state: 'EMPTY',
       privacy_mode: normalized.privacy_mode,
       section: normalized.section,
       snapshot_revision: source.revision,
       snapshot_revision_prefix: source.revision.slice(0, 12),
+      window_days: normalized.window_days,
       retryable: true,
-      reason_code: 'R2_FIN_SECTIONS_STALE_SNAPSHOT',
+      reason_code: null,
       financial_write_authorized: false,
       canonical_mutation_performed: false
     });
