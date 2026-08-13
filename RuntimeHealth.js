@@ -37,11 +37,10 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_R2_HOME_READ_SMOKE_FAILED');
   }
 
-  // DATA-REC-001 module/boundary proof. This validates that the exact deployed
-  // candidate carries the canonical Explorer/DQ/single-scan runtime modules and
-  // that the bridge has no write/autorepair authority. It deliberately performs
-  // no second workbook scan; real private DATA routes are verified downstream by
-  // exact-SHA Product Ready evidence.
+  // DATA-REC-001 module/boundary proof. It validates that exact deployed code
+  // carries Explorer/DQ/single-scan modules and zero write/autorepair authority.
+  // No second workbook scan is performed here; product routes are verified by
+  // exact-SHA Product Ready evidence downstream.
   if (typeof prhR2DataRuntimeSmokeToken !== 'function') throw new Error('RUNTIME_HEALTH_R2_DATA_SMOKE_MISSING');
   var dataRuntimeSmoke = prhR2DataRuntimeSmokeToken();
   if (dataRuntimeSmoke !== 'PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK') {
@@ -66,10 +65,15 @@ function prhRuntimeTransportPing() {
   return 'PRH_TRANSPORT_V1|OK';
 }
 
+/**
+ * Stable scalar transport contract. Keep its field count backward compatible;
+ * DATA runtime proof is enforced inside prhReleaseHealthCheck before this token
+ * can be returned rather than adding a new serialized field.
+ */
 function prhReleaseHealthCheckToken(expectedBuild) {
   var result = prhReleaseHealthCheck(expectedBuild);
   return [
     'PRH_HEALTH_V1',result.status,result.candidateSha,result.sourceTreeHash,result.buildInfoSchemaVersion,result.runtime,
-    result.requiredSheetCount,result.readCheck ? 1 : 0,result.dataRuntimeCheck ? 1 : 0,result.latencyMs
+    result.requiredSheetCount,result.readCheck ? 1 : 0,result.latencyMs
   ].join('|');
 }
