@@ -9,11 +9,36 @@ const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'R2FinancialSectionsRuntimeService.js'), 'utf8');
 new vm.Script(source, { filename: 'R2FinancialSectionsRuntimeService.js' });
 
+const expenseBase = require('../lib/expense/expense_analytics');
+const incomeBase = require('../lib/income/income_analytics');
+const cashFlowBase = require('../lib/cashflow/cash_flow_dashboard');
+const buildCalls = { expenses: 0, income: 0, cashFlow: 0 };
 const runtime = Object.freeze({
-  expenseAnalytics: require('../lib/expense/expense_analytics'),
-  incomeAnalytics: require('../lib/income/income_analytics'),
-  cashFlowDashboard: require('../lib/cashflow/cash_flow_dashboard')
+  expenseAnalytics: Object.assign({}, expenseBase, {
+    buildExpenseAnalytics() {
+      buildCalls.expenses += 1;
+      return expenseBase.buildExpenseAnalytics.apply(expenseBase, arguments);
+    }
+  }),
+  incomeAnalytics: Object.assign({}, incomeBase, {
+    buildIncomeAnalytics() {
+      buildCalls.income += 1;
+      return incomeBase.buildIncomeAnalytics.apply(incomeBase, arguments);
+    }
+  }),
+  cashFlowDashboard: Object.assign({}, cashFlowBase, {
+    buildCashFlowDashboard() {
+      buildCalls.cashFlow += 1;
+      return cashFlowBase.buildCashFlowDashboard.apply(cashFlowBase, arguments);
+    }
+  })
 });
+
+function resetBuildCalls() {
+  buildCalls.expenses = 0;
+  buildCalls.income = 0;
+  buildCalls.cashFlow = 0;
+}
 
 function tx(id, day, type, amount, category, account = 'ACC-1', member = 'MEM-1') {
   return Object.freeze({
@@ -86,74 +111,108 @@ assert.strictEqual(context.PRH_R2_FIN_SECTIONS_RUNTIME.CANONICAL_MUTATION_AUTHOR
 assert.strictEqual(context.PRH_R2_FIN_SECTIONS_RUNTIME.FREE_ONLY, true);
 assert.strictEqual(context.prhR2FinancialSectionsRuntimeSmokeToken(), 'PRH_R2_FIN_SECTIONS_RUNTIME_V1|SHARED_SNAPSHOT|READ_ONLY|OK');
 
-snapshotCalls = 0;
-const view = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', window_days: 90, filters: {} });
-assert.strictEqual(snapshotCalls, 1, 'all three financial sections must reuse one canonical snapshot');
-assert.strictEqual(view.schema, 'PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1');
-assert.strictEqual(view.state, 'READY');
-assert.strictEqual(view.financial_truth_policy, 'FIN-TRUTH-v1');
-assert.strictEqual(view.financial_write_authorized, false);
-assert.strictEqual(view.canonical_mutation_performed, false);
-assert.strictEqual(view.period.end, '2026-08-11');
-assert.strictEqual(view.period.start, '2026-05-13');
-assert.strictEqual(view.comparison_period.end, view.period.start);
-assert.strictEqual(view.comparison_period.start, '2026-02-12');
-assert.strictEqual(view.expenses.total_expense_minor, view.cash_flow.outflow_minor);
-assert.strictEqual(view.income.total_income_minor, view.cash_flow.inflow_minor);
-assert.strictEqual(view.income.total_income_minor - view.expenses.total_expense_minor, view.cash_flow.net_minor);
-assert.strictEqual(view.expenses.trend.length, 90);
-assert.strictEqual(view.income.trend.length, 90);
-assert.strictEqual(view.cash_flow.trend.length, 90);
-assert(view.filters.options.categories.some((item) => item.label === 'Продукты'));
-assert(view.expenses.category_mix.some((item) => item.category_label === 'Продукты'));
-assert(view.income.source_mix.some((item) => item.source_label === 'Зарплата'));
-assert.strictEqual(view.telemetry.canonical_snapshot_read_count, 1);
-assert.strictEqual(view.telemetry.financial_payload_in_telemetry, false);
+function fetchSection(section, filters = {}) {
+  snapshotCalls = 0;
+  resetBuildCalls();
+  const view = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', section, window_days: 90, filters });
+  assert.strictEqual(snapshotCalls, 1, `${section} must read one canonical snapshot`);
+  assert.strictEqual(view.section, section);
+  assert.strictEqual(view.telemetry.canonical_snapshot_read_count, 1);
+  assert.strictEqual(view.telemetry.analytics_build_count, 1);
+  assert.strictEqual(view.telemetry.analytics_section, section);
+  assert.strictEqual(view.telemetry.financial_payload_in_telemetry, false);
+  return view;
+}
+
+const expensesView = fetchSection('expenses');
+assert.deepStrictEqual(buildCalls, { expenses: 1, income: 0, cashFlow: 0 });
+assert.strictEqual(expensesView.schema, 'PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1');
+assert.strictEqual(expensesView.state, 'READY');
+assert.strictEqual(expensesView.financial_truth_policy, 'FIN-TRUTH-v1');
+assert.strictEqual(expensesView.financial_write_authorized, false);
+assert.strictEqual(expensesView.canonical_mutation_performed, false);
+assert.strictEqual(expensesView.period.end, '2026-08-11');
+assert.strictEqual(expensesView.period.start, '2026-05-13');
+assert.strictEqual(expensesView.comparison_period.end, expensesView.period.start);
+assert.strictEqual(expensesView.comparison_period.start, '2026-02-12');
+assert.strictEqual(expensesView.expenses.trend.length, 90);
+assert.strictEqual(expensesView.income, null);
+assert.strictEqual(expensesView.cash_flow, null);
+assert(expensesView.filters.options.categories.some((item) => item.label === 'Продукты'));
+assert(expensesView.expenses.category_mix.some((item) => item.category_label === 'Продукты'));
+
+const incomeView = fetchSection('income');
+assert.deepStrictEqual(buildCalls, { expenses: 0, income: 1, cashFlow: 0 });
+assert.strictEqual(incomeView.expenses, null);
+assert.strictEqual(incomeView.income.trend.length, 90);
+assert.strictEqual(incomeView.cash_flow, null);
+assert(incomeView.income.source_mix.some((item) => item.source_label === 'Зарплата'));
+
+const cashFlowView = fetchSection('cash-flow');
+assert.deepStrictEqual(buildCalls, { expenses: 0, income: 0, cashFlow: 1 });
+assert.strictEqual(cashFlowView.expenses, null);
+assert.strictEqual(cashFlowView.income, null);
+assert.strictEqual(cashFlowView.cash_flow.trend.length, 90);
+assert.strictEqual(expensesView.snapshot_revision, incomeView.snapshot_revision);
+assert.strictEqual(incomeView.snapshot_revision, cashFlowView.snapshot_revision);
+assert.strictEqual(expensesView.expenses.total_expense_minor, cashFlowView.cash_flow.outflow_minor);
+assert.strictEqual(incomeView.income.total_income_minor, cashFlowView.cash_flow.inflow_minor);
+assert.strictEqual(incomeView.income.total_income_minor - expensesView.expenses.total_expense_minor, cashFlowView.cash_flow.net_minor);
+
+const filteredExpenses = fetchSection('expenses', { account_ids: ['ACC-2'] });
+assert.strictEqual(filteredExpenses.expenses.total_expense_minor, 0);
+const filteredIncome = fetchSection('income', { account_ids: ['ACC-2'] });
+assert.strictEqual(filteredIncome.income.total_income_minor, 20000);
+const filteredCashFlow = fetchSection('cash-flow', { account_ids: ['ACC-2'] });
+assert.strictEqual(filteredCashFlow.cash_flow.net_minor, 20000);
 
 snapshotCalls = 0;
-const filtered = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', window_days: 90, filters: { account_ids: ['ACC-2'] } });
+resetBuildCalls();
+const masked = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'MASKED', section: 'income', window_days: 90 });
 assert.strictEqual(snapshotCalls, 1);
-assert.strictEqual(filtered.state, 'READY');
-assert.strictEqual(filtered.income.total_income_minor, 20000);
-assert.strictEqual(filtered.expenses.total_expense_minor, 0);
-assert.strictEqual(filtered.cash_flow.net_minor, 20000);
-
-snapshotCalls = 0;
-const masked = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'MASKED', window_days: 90 });
-assert.strictEqual(snapshotCalls, 1);
+assert.deepStrictEqual(buildCalls, { expenses: 0, income: 0, cashFlow: 0 });
 assert.strictEqual(masked.state, 'MASKED');
+assert.strictEqual(masked.section, 'income');
+assert.strictEqual(masked.telemetry.analytics_build_count, 0);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(masked, 'expenses'), false);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(masked, 'filters'), false);
 assert(!JSON.stringify(masked).includes('Продукты'));
 assert(!JSON.stringify(masked).includes('120000'));
 
-const demo = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'DEMO', window_days: 90 });
+const demo = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'DEMO', section: 'cash-flow', window_days: 90 });
 assert.strictEqual(demo.state, 'PRIVACY_MODE_UNAVAILABLE');
+assert.strictEqual(demo.section, 'cash-flow');
 assert.strictEqual(demo.financial_write_authorized, false);
 
 const oldRevision = revision;
 revision = 'b'.repeat(64);
-const stale = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', window_days: 90, expected_revision: oldRevision });
+const stale = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', section: 'expenses', window_days: 90, expected_revision: oldRevision });
 assert.strictEqual(stale.state, 'STALE_SNAPSHOT');
+assert.strictEqual(stale.section, 'expenses');
 assert.strictEqual(stale.snapshot_revision, revision);
 revision = oldRevision;
 
-const invalidWindow = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', window_days: 7 });
+const invalidWindow = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', section: 'expenses', window_days: 7 });
 assert.strictEqual(invalidWindow.state, 'SOURCE_UNAVAILABLE');
 assert.strictEqual(invalidWindow.financial_write_authorized, false);
+const invalidSection = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', section: 'budget', window_days: 90 });
+assert.strictEqual(invalidSection.state, 'SOURCE_UNAVAILABLE');
+assert.strictEqual(invalidSection.reason_code, 'R2_FIN_SECTIONS_SECTION_INVALID');
 
 assert.doesNotMatch(source, /\.setValue\s*\(|\.setValues\s*\(|appendRow\s*\(|deleteRow\s*\(/);
 assert.match(source, /prhR2DataCreateSnapshot_/);
+assert.match(source, /analytics_build_count: 1/);
 assert.match(source, /expenseAnalytics\.buildExpenseAnalytics/);
 assert.match(source, /incomeAnalytics\.buildIncomeAnalytics/);
 assert.match(source, /cashFlowDashboard\.buildCashFlowDashboard/);
 
 console.log('r2_financial_sections_runtime_contract_test: OK', {
-  oneSnapshotThreeSections: true,
+  oneSnapshotPerSection: true,
+  oneAnalyticsBuildPerSection: true,
   equalWindowComparison: true,
-  finTruthParity: true,
+  crossSectionFinTruthParity: true,
   filterState: true,
-  maskedNoFinancialPayload: true,
+  maskedNoAnalyticsBuild: true,
   staleFailClosed: true,
   zeroWrite: true
 });
