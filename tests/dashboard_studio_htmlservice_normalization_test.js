@@ -46,7 +46,7 @@ const context = vm.createContext({
 vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js' });
 
 const token = context.prhCanonicalR2WebAppSmokeToken();
-assert.strictEqual(token, 'PRH_WEBAPP_SMOKE_V4|R2|OK');
+assert.strictEqual(token, 'PRH_WEBAPP_SMOKE_V5|R2|OK');
 
 const html = context.prhR2RenderFile_(
   context.PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE,

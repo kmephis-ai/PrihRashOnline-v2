@@ -56,9 +56,13 @@ vm.runInContext(routerSource, context, { filename: 'CanonicalR2WebAppService.js'
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE, 'composer');
 assert.strictEqual(context.prhR2ResolveSurface_('composer'), 'composer');
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.LIVE_SURFACES.composer.financial_runtime, false);
-assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home']);
-for (const route of ['transactions','expenses','income','cash-flow','budget','obligations','data-quality']) {
+assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home','transactions','data-quality']);
+for (const route of ['expenses','income','cash-flow','budget','obligations']) {
   assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH[route].navigation, 'HIDDEN');
+}
+for (const route of ['transactions','data-quality']) {
+  assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH[route].navigation, 'PRIMARY');
+  assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH[route].binding_state, 'BOUND_READ_ONLY');
 }
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.ROUTE_TRUTH.studio.navigation, 'SECONDARY');
 
@@ -86,8 +90,13 @@ assert(composer.includes('PRH_DASHBOARD_SPEC_V1'));
 assert(composer.includes('UNBOUND • DASH-081'));
 assert(composer.includes('?surface=studio&mode=studio'));
 assert(composer.includes('?surface=home'));
-assert(!composer.includes('?surface=transactions'));
+assert(composer.includes('?surface=transactions'));
+assert(composer.includes('?surface=data-quality'));
 assert(!composer.includes('?surface=expenses'));
+assert(!composer.includes('?surface=income'));
+assert(!composer.includes('?surface=cash-flow'));
+assert(!composer.includes('?surface=budget'));
+assert(!composer.includes('?surface=obligations'));
 assert(!composer.includes('google.script.run'));
 assert(!composer.includes('localStorage'));
 assert(!composer.includes('sessionStorage'));
@@ -98,6 +107,8 @@ const defaultHome = context.doGet({ parameter: {} }).getContent();
 assert.strictEqual(privateReads, 0, 'Default Home HTML must render before private financial read');
 assert(defaultHome.includes('data-active-surface="home"'));
 assert(defaultHome.includes('PRH_R2_HOME_ASYNC_BOOTSTRAP_V1'));
+assert(defaultHome.includes('?surface=transactions'));
+assert(defaultHome.includes('?surface=data-quality'));
 assert.strictEqual(legacyReads, 0);
 context.prhR2FetchFinancialHomePayload('NORMAL');
 assert.strictEqual(privateReads, 1, 'Async Home payload must perform exactly one runtime build in this fixture');
@@ -108,7 +119,7 @@ console.log('dashboard-composer-runtime: PASS', {
   studioPrivateReads: 0,
   initialHomePrivateReads: 0,
   asyncHomePrivateReads: 1,
-  primaryNavigationTruthful: true,
+  primaryNavigation: ['home','transactions','data-quality'],
   semanticBinding: 'UNBOUND',
   persistence: 'SESSION_ONLY'
 });
