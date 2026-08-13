@@ -1,27 +1,27 @@
 /**
- * UI-REC-001 / DATA-REC-001 truthful canonical R2 Web App router/runtime bridge.
+ * UI-REC-001 / DATA-REC-001 / FIN-REC-001 truthful canonical R2 Web App router/runtime bridge.
  *
  * Financial Home remains the canonical default. Primary navigation contains
- * only proven read-only private destinations. Unbound financial routes remain
+ * only proven read-only private destinations. Budget/obligations remain
  * directly addressable for fail-closed diagnostics but are never advertised as
  * working household navigation. Studio and the legacy view are secondary tools.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
-  VERSION: '1.2.0',
+  VERSION: '1.3.0',
   DEFAULT_SURFACE: 'home',
   ROUTE_PARAMETER: 'surface',
   LIVE_SURFACES: Object.freeze({
     home: Object.freeze({ file: 'FinancialHomeWebApp', placeholder: 'initialHomeData', title: 'Финансовый обзор', financial_runtime: true, runtime_private_data: true }),
     transactions: Object.freeze({ file: 'TransactionExplorerWebApp', placeholder: null, title: 'Операции', financial_runtime: true, runtime_private_data: true }),
+    expenses: Object.freeze({ file: 'FinancialSectionsWebApp', placeholder: null, title: 'Расходы', financial_runtime: true, runtime_private_data: true }),
+    income: Object.freeze({ file: 'FinancialSectionsWebApp', placeholder: null, title: 'Доходы', financial_runtime: true, runtime_private_data: true }),
+    'cash-flow': Object.freeze({ file: 'FinancialSectionsWebApp', placeholder: null, title: 'Денежный поток', financial_runtime: true, runtime_private_data: true }),
     'data-quality': Object.freeze({ file: 'DataQualityWebApp', placeholder: null, title: 'Качество данных', financial_runtime: true, runtime_private_data: true }),
     studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Студия аналитики', financial_runtime: false, runtime_private_data: false }),
     composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Конструктор', financial_runtime: false, runtime_private_data: false })
   }),
   SAFE_UNBOUND_SURFACES: Object.freeze({
-    expenses: 'Расходы',
-    income: 'Доходы',
-    'cash-flow': 'Денежный поток',
     budget: 'Бюджет',
     obligations: 'Обязательства'
   }),
@@ -30,9 +30,9 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
     studio: Object.freeze({ label: 'Студия аналитики', runtime_private_data: false, navigation: 'SECONDARY', binding_state: 'CONFIGURATION_ONLY' }),
     legacy: Object.freeze({ label: 'Старый интерфейс', runtime_private_data: true, navigation: 'SECONDARY', binding_state: 'BOUND_READ_ONLY' }),
     transactions: Object.freeze({ label: 'Операции', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
-    expenses: Object.freeze({ label: 'Расходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
-    income: Object.freeze({ label: 'Доходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
-    'cash-flow': Object.freeze({ label: 'Денежный поток', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
+    expenses: Object.freeze({ label: 'Расходы', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
+    income: Object.freeze({ label: 'Доходы', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
+    'cash-flow': Object.freeze({ label: 'Денежный поток', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
     budget: Object.freeze({ label: 'Бюджет', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     obligations: Object.freeze({ label: 'Обязательства', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
     'data-quality': Object.freeze({ label: 'Качество данных', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' })
@@ -40,6 +40,9 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   NAVIGATION: Object.freeze([
     Object.freeze(['home', 'Главная']),
     Object.freeze(['transactions', 'Операции']),
+    Object.freeze(['expenses', 'Расходы']),
+    Object.freeze(['income', 'Доходы']),
+    Object.freeze(['cash-flow', 'Денежный поток']),
     Object.freeze(['data-quality', 'Качество данных'])
   ]),
   STUDIO_SURFACE: 'studio',
@@ -242,7 +245,7 @@ function doGet(e) {
   var surface = prhR2ResolveSurface_(params[PRH_CANONICAL_R2_WEB.ROUTE_PARAMETER]);
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
   if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) return prhR2RenderHomeWithPrivacy_(params);
-  if (surface === 'transactions' || surface === 'data-quality') return prhR2RenderFile_(surface, null, params);
+  if (surface === 'transactions' || surface === 'expenses' || surface === 'income' || surface === 'cash-flow' || surface === 'data-quality') return prhR2RenderFile_(surface, null, params);
   if (surface === PRH_CANONICAL_R2_WEB.STUDIO_SURFACE) {
     return prhDashboardComposerDecorateStudioOutput_(prhPrivacyDecorateStudioOutput_(prhR2RenderFile_('studio', null, params), params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]));
   }
@@ -281,11 +284,13 @@ function prhCanonicalR2WebAppSmokeToken() {
       html.indexOf('data-privacy-route-policy="PRESERVE_EXPLICIT_MODE"') < 0 ||
       html.indexOf('data-active-surface="home"') < 0 || html.indexOf('Финансовый обзор') < 0 ||
       html.indexOf('"smoke":true') < 0 || html.indexOf('?surface=legacy') < 0 ||
-      html.indexOf('?surface=transactions') < 0 || html.indexOf('?surface=data-quality') < 0 ||
-      html.indexOf('Студия аналитики') < 0 || html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0) {
+      html.indexOf('?surface=transactions') < 0 || html.indexOf('?surface=expenses') < 0 ||
+      html.indexOf('?surface=income') < 0 || html.indexOf('?surface=cash-flow') < 0 ||
+      html.indexOf('?surface=data-quality') < 0 || html.indexOf('Студия аналитики') < 0 ||
+      html.indexOf('R2_PRIVATE_HOME_PAYLOAD_REQUIRED') < 0) {
     throw new Error('R2_CANONICAL_RENDER_SMOKE_FAILED');
   }
-  ['expenses','income','cash-flow','budget','obligations'].forEach(function(surface) {
+  ['budget','obligations'].forEach(function(surface) {
     if (html.indexOf('?surface=' + surface) >= 0) throw new Error('R2_CANONICAL_FALSE_AFFORDANCE_PRESENT');
   });
   if (html.indexOf('Показать контекст') >= 0 || html.indexOf('data-drill-card') >= 0) throw new Error('R2_CANONICAL_FALSE_HOME_ACTION_PRESENT');
