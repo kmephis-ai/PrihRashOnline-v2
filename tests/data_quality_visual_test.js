@@ -71,7 +71,7 @@ function expect(condition, message) { if (!condition) throw new Error(message); 
         txHref:document.getElementById('tx-link').getAttribute('href'),
         runtime:document.getElementById('runtime-pill').textContent,
         summary:document.getElementById('finding-summary').textContent,
-        text:document.body.textContent.replace(/\s+/g,' ')
+        text:document.body.innerText.replace(/\s+/g,' ')
       };
     }, viewport.maxPageHeight);
     expect(r.overflow <= 1, `[${viewport.name}] horizontal overflow ${r.overflow}`);
