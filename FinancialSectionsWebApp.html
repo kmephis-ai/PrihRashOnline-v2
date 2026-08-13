@@ -1,12 +1,18 @@
 <!doctype html>
 <html lang="ru">
-<head>
-  <base target="_top">
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PrihRashOnline — Финансовая аналитика</title>
-</head>
+<head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PrihRashOnline — Финансовая аналитика</title></head>
 <body data-private-runtime="READ_ONLY" data-financial-authority="CANONICAL_FIN_TRUTH" data-back-forward="HISTORY_API">
-  <main id="financial-sections-root">Финансовая аналитика загружается…</main>
+<main><h1 id="title">Финансовая аналитика</h1><p id="status">Загрузка…</p></main>
+<script>
+(function(){
+  'use strict';
+  function request(){return {privacy_mode:'NORMAL',window_days:90,filters:{account_ids:[],category_ids:[],member_ids:[]}};}
+  google.script.run.withSuccessHandler(function(result){
+    document.getElementById('status').textContent=result&&result.state==='READY'?'Данные готовы':'Данные временно недоступны';
+  }).withFailureHandler(function(){
+    document.getElementById('status').textContent='Не удалось загрузить данные';
+  }).prhR2FetchFinancialSectionsPayload(request());
+})();
+</script>
 </body>
 </html>
