@@ -242,20 +242,20 @@ const baselineCashFlow = cashFlowBase.buildCashFlowDashboard(transactions, Objec
 assert.strictEqual(expensesView.expenses.total_expense_minor, baselineExpense.total_expense_minor);
 assert.strictEqual(expensesView.expenses.comparison_expense_minor, baselineExpense.comparison_expense_minor);
 assert.deepStrictEqual(
-  expensesView.expenses.trend.map((row) => row.expense_minor),
+  Array.from(expensesView.expenses.trend, (row) => row.expense_minor),
   baselineExpense.trend.points.map((row) => row.expense_minor)
 );
 assert.strictEqual(incomeView.income.total_income_minor, baselineIncome.total_income_minor);
 assert.strictEqual(incomeView.income.comparison_income_minor, baselineIncome.comparison_income_minor);
 assert.deepStrictEqual(
-  incomeView.income.trend.map((row) => row.income_minor),
+  Array.from(incomeView.income.trend, (row) => row.income_minor),
   baselineIncome.trend.points.map((row) => row.income_minor)
 );
 assert.strictEqual(cashFlowView.cash_flow.inflow_minor, baselineCashFlow.inflow_minor);
 assert.strictEqual(cashFlowView.cash_flow.outflow_minor, baselineCashFlow.outflow_minor);
 assert.strictEqual(cashFlowView.cash_flow.net_minor, baselineCashFlow.net_minor);
 assert.deepStrictEqual(
-  cashFlowView.cash_flow.trend.map((row) => row.net_minor),
+  Array.from(cashFlowView.cash_flow.trend, (row) => row.net_minor),
   baselineCashFlow.trend.points.map((row) => row.net_minor)
 );
 
