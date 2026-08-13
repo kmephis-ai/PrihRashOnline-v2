@@ -137,9 +137,9 @@ const masked = context.prhR2FetchTransactionsPayload({ privacy_mode: 'MASKED', q
 assert.strictEqual(masked.state, 'READY');
 assert(masked.rows.every((row) => row.amount_minor === null));
 assert(masked.rows.every((row) => row.description === null && row.counterparty === null));
-assert.deepStrictEqual(Array.from(masked.filters.accounts), []);
-assert.deepStrictEqual(Array.from(masked.filters.categories), []);
-assert.deepStrictEqual(Array.from(masked.filters.members), []);
+assert.strictEqual(masked.filters.accounts.length, 0);
+assert.strictEqual(masked.filters.categories.length, 0);
+assert.strictEqual(masked.filters.members.length, 0);
 
 const oldRevision = tx.snapshot_revision;
 rawRows = rawRows.map((row, index) => index === 2 ? row.map((value, column) => column === 3 ? '51.00' : value) : row.slice());
