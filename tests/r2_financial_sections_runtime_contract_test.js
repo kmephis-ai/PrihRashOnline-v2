@@ -13,22 +13,26 @@ const expenseBase = require('../lib/expense/expense_analytics');
 const incomeBase = require('../lib/income/income_analytics');
 const cashFlowBase = require('../lib/cashflow/cash_flow_dashboard');
 const buildCalls = { expenses: 0, income: 0, cashFlow: 0 };
+const buildInputIds = { expenses: [], income: [], cashFlow: [] };
 const runtime = Object.freeze({
   expenseAnalytics: Object.assign({}, expenseBase, {
-    buildExpenseAnalytics() {
+    buildExpenseAnalytics(inputs) {
       buildCalls.expenses += 1;
+      buildInputIds.expenses = inputs.map((item) => item.transaction_id);
       return expenseBase.buildExpenseAnalytics.apply(expenseBase, arguments);
     }
   }),
   incomeAnalytics: Object.assign({}, incomeBase, {
-    buildIncomeAnalytics() {
+    buildIncomeAnalytics(inputs) {
       buildCalls.income += 1;
+      buildInputIds.income = inputs.map((item) => item.transaction_id);
       return incomeBase.buildIncomeAnalytics.apply(incomeBase, arguments);
     }
   }),
   cashFlowDashboard: Object.assign({}, cashFlowBase, {
-    buildCashFlowDashboard() {
+    buildCashFlowDashboard(inputs) {
       buildCalls.cashFlow += 1;
+      buildInputIds.cashFlow = inputs.map((item) => item.transaction_id);
       return cashFlowBase.buildCashFlowDashboard.apply(cashFlowBase, arguments);
     }
   })
@@ -38,6 +42,9 @@ function resetBuildCalls() {
   buildCalls.expenses = 0;
   buildCalls.income = 0;
   buildCalls.cashFlow = 0;
+  buildInputIds.expenses = [];
+  buildInputIds.income = [];
+  buildInputIds.cashFlow = [];
 }
 
 function tx(id, day, type, amount, category, account = 'ACC-1', member = 'MEM-1') {
@@ -62,6 +69,7 @@ function tx(id, day, type, amount, category, account = 'ACC-1', member = 'MEM-1'
 }
 
 const transactions = Object.freeze([
+  tx('OLD-OUTSIDE', '2025-01-01', 'expense', 99000, 'CAT-HOME'),
   tx('CUR-EXP-1', '2026-08-10', 'expense', 30000, 'CAT-FOOD'),
   tx('CUR-EXP-2', '2026-07-20', 'expense', 15000, 'CAT-HOME'),
   tx('CUR-INC-1', '2026-08-01', 'income', 120000, 'CAT-SALARY'),
@@ -84,6 +92,7 @@ function snapshot() {
     currency: 'RUB',
     transactions,
     revision,
+    telemetry: Object.freeze({ elapsed_ms: 7 }),
     dimensions: Object.freeze({
       displayLabel(kind, id) {
         if (!labels[id]) throw new Error(`LABEL_MISSING:${kind}:${id}`);
@@ -120,12 +129,18 @@ function fetchSection(section, filters = {}) {
   assert.strictEqual(view.telemetry.canonical_snapshot_read_count, 1);
   assert.strictEqual(view.telemetry.analytics_build_count, 1);
   assert.strictEqual(view.telemetry.analytics_section, section);
+  assert.strictEqual(view.telemetry.analytics_scope_days, 180);
+  assert.strictEqual(view.telemetry.analytics_input_record_count, 6);
+  assert.strictEqual(view.telemetry.snapshot_elapsed_ms, 7);
+  assert(view.telemetry.analytics_elapsed_ms >= 0);
+  assert(view.telemetry.total_elapsed_ms >= 0);
   assert.strictEqual(view.telemetry.financial_payload_in_telemetry, false);
   return view;
 }
 
 const expensesView = fetchSection('expenses');
 assert.deepStrictEqual(buildCalls, { expenses: 1, income: 0, cashFlow: 0 });
+assert(!buildInputIds.expenses.includes('OLD-OUTSIDE'));
 assert.strictEqual(expensesView.schema, 'PRH_R2_PRIVATE_FINANCIAL_SECTIONS_VIEW_V1');
 assert.strictEqual(expensesView.state, 'READY');
 assert.strictEqual(expensesView.financial_truth_policy, 'FIN-TRUTH-v1');
@@ -143,6 +158,7 @@ assert(expensesView.expenses.category_mix.some((item) => item.category_label ===
 
 const incomeView = fetchSection('income');
 assert.deepStrictEqual(buildCalls, { expenses: 0, income: 1, cashFlow: 0 });
+assert(!buildInputIds.income.includes('OLD-OUTSIDE'));
 assert.strictEqual(incomeView.expenses, null);
 assert.strictEqual(incomeView.income.trend.length, 90);
 assert.strictEqual(incomeView.cash_flow, null);
@@ -150,6 +166,7 @@ assert(incomeView.income.source_mix.some((item) => item.source_label === 'Зар
 
 const cashFlowView = fetchSection('cash-flow');
 assert.deepStrictEqual(buildCalls, { expenses: 0, income: 0, cashFlow: 1 });
+assert(!buildInputIds.cashFlow.includes('OLD-OUTSIDE'));
 assert.strictEqual(cashFlowView.expenses, null);
 assert.strictEqual(cashFlowView.income, null);
 assert.strictEqual(cashFlowView.cash_flow.trend.length, 90);
@@ -174,6 +191,7 @@ assert.deepStrictEqual(buildCalls, { expenses: 0, income: 0, cashFlow: 0 });
 assert.strictEqual(masked.state, 'MASKED');
 assert.strictEqual(masked.section, 'income');
 assert.strictEqual(masked.telemetry.analytics_build_count, 0);
+assert.strictEqual(masked.telemetry.snapshot_elapsed_ms, 7);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(masked, 'expenses'), false);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(masked, 'filters'), false);
 assert(!JSON.stringify(masked).includes('Продукты'));
@@ -201,18 +219,21 @@ assert.strictEqual(invalidSection.reason_code, 'R2_FIN_SECTIONS_SECTION_INVALID'
 
 assert.doesNotMatch(source, /\.setValue\s*\(|\.setValues\s*\(|appendRow\s*\(|deleteRow\s*\(/);
 assert.match(source, /prhR2DataCreateSnapshot_/);
+assert.match(source, /prhR2FinSectionsScopeAnalyticsInputs_/);
 assert.match(source, /analytics_build_count: 1/);
-assert.match(source, /expenseAnalytics\.buildExpenseAnalytics/);
-assert.match(source, /incomeAnalytics\.buildIncomeAnalytics/);
-assert.match(source, /cashFlowDashboard\.buildCashFlowDashboard/);
+assert.match(source, /expenseAnalytics\.buildExpenseAnalytics\(analyticsInputs/);
+assert.match(source, /incomeAnalytics\.buildIncomeAnalytics\(analyticsInputs/);
+assert.match(source, /cashFlowDashboard\.buildCashFlowDashboard\(analyticsInputs/);
 
 console.log('r2_financial_sections_runtime_contract_test: OK', {
   oneSnapshotPerSection: true,
+  boundedAnalyticsInput: true,
   oneAnalyticsBuildPerSection: true,
   equalWindowComparison: true,
   crossSectionFinTruthParity: true,
   filterState: true,
   maskedNoAnalyticsBuild: true,
   staleFailClosed: true,
+  timingTelemetry: true,
   zeroWrite: true
 });
