@@ -20,7 +20,7 @@
     "allowed_modes": ["NORMAL", "MASKED", "DEMO", "ZEN"],
     "server_generated_links": true,
     "dynamic_internal_links": true,
-    "invalid_mode_behavior": "FAIL_CLOSED",
+    "invalid_mode_behavior": "MASKED_FAIL_SAFE",
     "masked_to_normal_downgrade_allowed": false
   },
   "home_data_delivery": {
