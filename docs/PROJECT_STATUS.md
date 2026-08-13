@@ -39,14 +39,18 @@ Canonical private Web App default route = R2 Financial Home; private binding д�
 ## R2R / Product Recovery — текущий critical path
 
 - `GOV-REC-001` — **DONE**, Issue #219 Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`.
-- `PERF-REC-001` — **DONE_ENGINEERING**, Issue #222 Main Verification PASS, PR #232, merge `dce3558875178edc1b5b6d7391028e7be1f4835e`. Exact deployed candidate `fa921b53…`: owner-authenticated 20C+20W PASS; cold Home p95 = 5,922s, warm Home p95 = 1,306s, cold cell reads 38 059 вместо 263 505. Route-switch SLO перенесён в truthful UI UAT, потому что измерять неработающие destinations нельзя считать product evidence.
-- `UI-REC-001` — **IN_PROGRESS**, Issue #221, branch `agent/UI-REC-001-truthful-canonical-navigation`, PR #229; единственный current writer. Owner UAT отверг прежний UI из-за false/unbound navigation, неработающих affordances, английских household labels, developer-facing markers и ложного one-period chart. Старый candidate `7a322d59…` obsolete/redeploy forbidden; ветка перестроена от post-PERF main.
-- `VIZ-REC-001` — **P0 BACKLOG**, Issue #226; идёт сразу после truthful UI и должен подключить meaningful local renderer/semantic fallback до дальнейшего расширения финансовых экранов.
+- `PERF-REC-001` — **DONE_ENGINEERING**, Issue #222 Main Verification PASS, PR #232, merge `dce3558875178edc1b5b6d7391028e7be1f4835e`. Exact deployed candidate `fa921b53…`: owner-authenticated 20C+20W PASS; cold Home p95 = 5,922s, warm Home p95 = 1,306s, cold cell reads 38 059 вместо 263 505.
+- `UI-REC-001` — **DONE**, Issue #221, PR #229, merge `313b4eade10b7680306b2096f39d6271bbb30aa3`; exact owner UAT и Product Ready E2E PASS. Truthful navigation/RU household UI восстановлены.
+- `VIZ-REC-001` — **BLOCKED**, Issue #226, PR #238, exact candidate `5bad584e…`, `engineering_status=CODE_COMPLETE`, `product_stage=RUNTIME_INTEGRATED`. Local ECharts/simple renderer, early runtime dispatch и revision-aware visual cache развернуты; владелец принял текущую производительность. Финальный Product Ready ожидает canonical authenticated E2E producer.
+- `GOV-REC-002` — **IN_PROGRESS**, Issue #239, branch `agent/GOV-REC-002-stage-aware-dependencies`, PR #240; единственный current writer. Цель — разорвать dependency deadlock между уже развернутым VIZ и E2E gate-builder без ослабления Product Ready/DONE.
+- `E2E-REC-001` — следующий P0 после GOV-REC-002: должен использовать stage-aware dependency на `VIZ-REC-001=RUNTIME_INTEGRATED` и стать каноническим producer `product-ready-e2e` для exact deployed candidates.
 - `ANL-090` Issue #217 — BLOCKED `PAUSED_REBASELINE`; PR #218 draft, код сохранён без writer authority.
-- Downstream order: UI -> VIZ -> DATA -> FIN/PLAN -> E2E -> `MASTER-GUX` -> STUDIO -> `MASTER-GSTUDIO`.
+- Downstream order: GOV-REC-002 -> E2E -> завершение VIZ Product Ready -> DATA/FIN/PLAN/STUDIO по объявленным dependency/product gates.
 - R9/R10 feature expansion frozen.
 
-Apps Script version capacity остаётся дефицитным ресурсом. Intermediate UI recovery deployments запрещены; draft PR используется до полного validation, затем разрешён только exact candidate deploy для authenticated Product UAT.
+Stage-aware dependency не является Product Ready: обычный `depends_on` всё ещё требует `status=DONE`, `depends_on_product_ready` требует завершённый product item, а `depends_on_runtime_integrated` лишь разрешает gate-builder работать поверх уже развернутого user-facing predecessor. User-facing `DONE` по-прежнему требует exact-SHA `product-ready-e2e=success`.
+
+Apps Script version capacity остаётся дефицитным ресурсом. Intermediate recovery deployments запрещены, если они не нужны для exact candidate verification; повторное создание versions должно оставаться bounded retention policy.
 
 ## R3 / Planning, Wealth, Decision Intelligence
 
@@ -98,7 +102,7 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V2` enforce one-writer and dual engineering/product stages. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative.
+Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V2` enforce one-writer and separate engineering/product stages. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative. GOV-REC-002 добавляет отдельный `depends_on_runtime_integrated` только для честного stage-aware continuation; он не снижает Product Ready требования.
 
 ## Current delivery chain
 
@@ -118,7 +122,7 @@ Engineering item закрывается как `DONE_ENGINEERING`. User-facing i
 
 ## Current runtime truth
 
-Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home. PERF-REC-001 доказал live Home SLO на real owner-authenticated runtime: cold p95 5,922s, warm p95 1,306s. Product blocker теперь UI truth, а не Home refresh performance: только Home имеет доказанный private binding; unbound Daily routes не должны появляться как рабочая навигация. UI-REC-001 обязан убрать false affordances, английские household labels, developer-facing markers и one-period pseudo-trend до exact-SHA Product UAT. Public GitHub evidence synthetic/configuration-only; private UI остаётся `MYSELF`; `FREE_ONLY` mandatory.
+Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home. PERF-REC-001 доказал live Home SLO на real owner-authenticated runtime: cold p95 5,922s, warm p95 1,306s. UI-REC-001 уже Product Ready/DONE. VIZ-REC-001 exact candidate развернут и accepted по текущей производительности, но остаётся `RUNTIME_INTEGRATED` до автоматизированного full Product Ready E2E. Public GitHub evidence synthetic/configuration-only; private UI остаётся `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 

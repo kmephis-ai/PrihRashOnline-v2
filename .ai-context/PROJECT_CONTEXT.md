@@ -16,28 +16,25 @@
 
 ## Текущая инженерная задача
 
-`UI-REC-001` — единственный **current writer**, canonical Issue #221, branch `agent/UI-REC-001-truthful-canonical-navigation`, draft PR #229.
+`GOV-REC-002` — единственный **current writer**, canonical Issue #239, branch `agent/GOV-REC-002-stage-aware-dependencies`, PR #240.
 
-Recovery state после owner-authenticated UI UAT и PERF recovery:
+Recovery state после UI Product Ready и VIZ performance recovery:
 
 - `GOV-REC-001` #219 — DONE/Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`;
 - `PERF-REC-001` #222 — DONE_ENGINEERING/Main Verification PASS, PR #232, merge `dce3558875178edc1b5b6d7391028e7be1f4835e`; exact deployed `fa921b53…` owner-auth 20C+20W: cold p95 5,922s, warm p95 1,306s, cold cell reads 38 059 вместо 263 505;
-- `UI-REC-001` #221 — IN_PROGRESS: owner UAT отверг previous deployed UI из-за false/unbound navigation, fake context actions, English household labels, developer-facing markers и one-period pseudo-trend; old candidate `7a322d59…` obsolete/redeploy forbidden;
-- PR #229 branch был clean-reset на post-PERF main и пересобирается source-level, без наследования устаревшего candidate;
-- unbound Daily financial routes должны оставаться directly addressable fail-closed, но не рекламироваться как рабочая primary navigation;
-- household UI обязан показывать только русские пользовательские labels/statuses/actions; FIN/KPI/VIZ/BAL/reason IDs остаются internal only;
-- action без доказанного handler/destination не рендерится; текущий fake `Показать контекст` запрещён;
-- one-period cash-flow не может маскироваться под trend chart: до VIZ-REC разрешён только честный insufficient-history semantic fallback;
-- route-switch p95 <=2s измеряется только между реально видимыми working destinations на exact deployed UI candidate;
-- Apps Script version slots дефицитны, intermediate UI deployments запрещены;
-- `VIZ-REC-001` #226 — P0 immediately after UI recovery;
+- `UI-REC-001` #221 — DONE/Product Ready E2E/Main Verification PASS, PR #229, merge `313b4eade10b7680306b2096f39d6271bbb30aa3`; truthful navigation и русский household UI восстановлены;
+- `VIZ-REC-001` #226 — BLOCKED после engineering/runtime integration: exact candidate `5bad584e…`, PR #238, `engineering_status=CODE_COMPLETE`, `product_stage=RUNTIME_INTEGRATED`; local ECharts simple build, early runtime dispatch и revision-aware visual cache развернуты; владелец подтвердил приемлемую производительность текущего этапа;
+- VIZ не получает фиктивный полный Product Ready из одного performance acceptance: остаётся нужен canonical authenticated Product Ready E2E;
+- `GOV-REC-002` #239 — IN_PROGRESS: устраняет dependency deadlock, при котором E2E gate-builder должен создать `product-ready-e2e`, но обычный `depends_on` не позволяет ему стартовать до `VIZ-REC-001=DONE`;
+- новое поле `depends_on_runtime_integrated` разрешается только для узкого gate-builder/recovery случая и не является Product Ready;
+- `E2E-REC-001` #227 — следующий P0 после GOV-REC-002; должен использовать stage-aware dependency на уже развернутый VIZ exact candidate и стать canonical authenticated producer `product-ready-e2e`;
 - `ANL-090` #217 / PR #218 остаётся BLOCKED/draft `PAUSED_REBASELINE` без writer authority.
 
-Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%. Home — единственная из восьми Daily surfaces с private financial binding; семь routes fail-closed. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не deployed private Studio. Current charts не доказывают working ECharts product renderer. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
+Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; independent overall Product Readiness ≈25%. Issue-count completion не является product metric. Home private-bound; прочие surfaces получают product credit только после доказанного runtime/E2E. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не автоматически deployed private product. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
 
 Новый product lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
 
-Wave R2R current order: `GOV-REC-001 -> PERF-REC-001 -> UI-REC-001 -> VIZ-REC-001 -> DATA -> FIN/PLAN -> E2E -> MASTER-GUX -> STUDIO -> MASTER-GSTUDIO`. Сейчас execution = `UI-REC-001`. R9/R10 feature expansion frozen.
+Wave R2R execution сейчас = `GOV-REC-002`; далее canonical `E2E-REC-001` должен построить Product Ready producer поверх уже развернутого VIZ, после чего VIZ может честно завершить product gates. DATA/FIN/PLAN/STUDIO продолжаются только по объявленным stage-aware/product dependencies. R9/R10 feature expansion frozen.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -73,9 +70,11 @@ Post-R1 handoff historically начинается с `DESIGN-020`; этот anch
 
 ## Current R2/R2R/R3/R4 truth
 
-R2 через `UI-MIG-020` — historical engineering DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory. Product claim superseded: Home private-bound, остальные семь Daily routes unbound/fail-closed; R2 Product Ready только после `MASTER-GUX`.
+R2 через `UI-MIG-020` — historical engineering DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory. Historical broad product claim superseded: каждое user-facing surface требует отдельного runtime/Product Ready evidence.
 
-R2R Product Recovery — current critical path. `GOV-REC-001` DONE; `PERF-REC-001` DONE_ENGINEERING/Main Verification PASS; `UI-REC-001` IN_PROGRESS and is the only writer. `VIZ-REC-001` is P0 immediately after UI; DATA/FIN/PLAN/E2E/STUDIO remain downstream and obey gates `MASTER-GREC-0..6`, `MASTER-GUX`, `MASTER-GSTUDIO`.
+R2R Product Recovery — current critical path. `GOV-REC-001` DONE; `PERF-REC-001` DONE_ENGINEERING/Main Verification PASS; `UI-REC-001` DONE/Product Ready; `VIZ-REC-001` BLOCKED at `CODE_COMPLETE/RUNTIME_INTEGRATED`; `GOV-REC-002` IN_PROGRESS and is the only writer. `E2E-REC-001` следует сразу после GOV-REC-002 и строит canonical Product Ready gate. DATA/FIN/PLAN/STUDIO obey `MASTER-GREC-*`, `MASTER-GUX`, `MASTER-GSTUDIO` и stage-specific dependencies.
+
+`depends_on_runtime_integrated` не понижает final gate: обычный `depends_on` требует predecessor `DONE`; `depends_on_product_ready` требует завершённый product item; runtime-integrated dependency лишь разрешает gate-builder работать поверх уже deployed user-facing predecessor. User-facing `DONE` всё ещё требует exact-SHA `PRODUCT_READY_E2E` и Main Verification.
 
 R3 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS; canonical product integration не доказана и не получает product credit до отдельного post-GUX scope.
 
@@ -105,11 +104,19 @@ PERF recovery завершён без financial semantics/write authority. Live 
 
 ## UI-REC-001 runtime/presentation boundary
 
-UI recovery не получает financial/query/write authority. Internal machine IDs допускаются в payload/tests/telemetry, но household-visible presentation обязана использовать русские labels и human states. Primary navigation рекламирует только proven destinations; direct unbound routes fail closed с понятным русским сообщением и без synthetic masquerade. Видимое действие допускается только при доказанном handler/destination. One-period cash-flow обязан использовать semantic insufficient-history fallback; полноценный multi-period renderer остаётся VIZ-REC-001. Product Ready требует exact-SHA authenticated desktop/mobile UAT и warm visible-route/action p95 <=2s.
+UI recovery не получает financial/query/write authority. Internal machine IDs допускаются в payload/tests/telemetry, но household-visible presentation обязана использовать русские labels и human states. Primary navigation рекламирует только proven destinations; direct unbound routes fail closed с понятным русским сообщением и без synthetic masquerade. Видимое действие допускается только при доказанном handler/destination. UI-REC-001 exact candidate прошёл owner-authenticated Product Ready E2E; дальнейшие visuals/runtime surfaces всё равно требуют своих gates.
+
+## VIZ-REC-001 runtime/presentation boundary
+
+VIZ recovery использует pinned LOCAL_ONLY Apache ECharts 6.1.0 simple distribution, запускает private KPI/visual reads до renderer parse и применяет private revision-aware visual cache. FIN/query/write authority не переносится в browser renderer. Performance текущего deployed exact candidate принята владельцем, но это только performance acceptance; полный Product Ready должен быть произведён canonical authenticated E2E, а не ручной подстановкой недоказанных UAT полей.
+
+## GOV-REC-002 governance boundary
+
+GOV-REC-002 меняет только dependency semantics/schema/tests/docs. `depends_on_runtime_integrated` допустим для gate-builder/recovery continuation, если predecessor `work_class=user_facing`, lifecycle `IN_PROGRESS/BLOCKED/DONE` и `product_stage >= RUNTIME_INTEGRATED`. Task Packet обязан сохранять фактический lifecycle dependency; ложный `DONE` запрещён. Cross-bucket duplicate Roadmap ID fail-closed. User-facing completion logic `PRODUCT_READY_E2E -> merge -> Main Verification -> DONE` не меняется.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Existing named gates VIZ/DASH/ANL/PRIV/STUDIO/DESIGN/FIN/MIG/privacy/FREE_ONLY остаются обязательны. UI-REC visual/route truth tests обязаны падать при false navigation, fake action, household-visible developer IDs или one-period pseudo-trend. Red-gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Existing named gates VIZ/DASH/ANL/PRIV/STUDIO/DESIGN/FIN/MIG/privacy/FREE_ONLY остаются обязательны. Roadmap protocol contract обязан отдельно проверять ordinary DONE, runtime-integrated и product-ready dependency semantics. Red-gate bypass запрещён.
 
 ## MIG-010 historical verified boundary
 
@@ -139,4 +146,4 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Scope handoff
 
-R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, но product status reclassified в Roadmap v2.4. YC-041/YC-042 remain BLOCKED. `UI-REC-001` / Issue #221 / PR #229 — единственный active writer; PERF-REC-001 #222 DONE_ENGINEERING/Main Verification PASS; VIZ-REC-001 #226 next P0; ANL-090/PR #218 paused/blocked without writer authority.
+R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, product status определяется текущими stage-specific gates. YC-041/YC-042 remain BLOCKED. `GOV-REC-002` / Issue #239 / PR #240 — единственный active writer; `UI-REC-001` #221 DONE/Product Ready; `VIZ-REC-001` #226 BLOCKED at RUNTIME_INTEGRATED pending canonical E2E; `E2E-REC-001` #227 next P0 after governance fix; ANL-090/PR #218 paused/blocked without writer authority.

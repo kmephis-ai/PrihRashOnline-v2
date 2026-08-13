@@ -17,7 +17,10 @@ assert.match(workflow, /actions:\s*write/);
 assert.doesNotMatch(workflow, /secrets\./,
   'owner UAT attestation must not require deployment or OAuth secrets');
 assert.doesNotMatch(workflow, /pull_request_target:/);
-assert.match(workflow, /work_class.*user_facing/);
+assert.match(workflow, /WORK_CLASS="\$\(value work_class\)"/,
+  'owner UAT attestation must read work_class from the exact issue declaration');
+assert.match(workflow, /\[\[ "\$\{WORK_CLASS\}" == 'user_facing' \]\]/,
+  'only user_facing Roadmap work may produce Product UAT attestation');
 assert.match(workflow, /engineering_status/);
 assert.match(workflow, /PRODUCT_READY/);
 assert.match(workflow, /owner_uat_candidate_sha/);

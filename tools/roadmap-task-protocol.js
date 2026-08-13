@@ -16,15 +16,16 @@ const PRIORITY_ORDER = Object.freeze({ P0: 0, P1: 1, P2: 2, P3: 3 });
 const ITEM_STATUSES = new Set(['BACKLOG', 'READY', 'IN_PROGRESS', 'BLOCKED', 'DONE']);
 const WORK_CLASSES = new Set(['engineering', 'user_facing']);
 const ENGINEERING_STATUSES = new Set(['BACKLOG', 'IN_PROGRESS', 'CODE_COMPLETE', 'DONE_ENGINEERING']);
-const PRODUCT_STAGES = new Set([
-  'NOT_APPLICABLE',
-  'NOT_STARTED',
-  'CODE_COMPLETE',
-  'RUNTIME_INTEGRATED',
-  'REAL_E2E_VERIFIED',
-  'PRODUCT_READY',
-  'DONE'
-]);
+const PRODUCT_STAGE_ORDER = Object.freeze({
+  NOT_APPLICABLE: -1,
+  NOT_STARTED: 0,
+  CODE_COMPLETE: 1,
+  RUNTIME_INTEGRATED: 2,
+  REAL_E2E_VERIFIED: 3,
+  PRODUCT_READY: 4,
+  DONE: 5
+});
+const PRODUCT_STAGES = new Set(Object.keys(PRODUCT_STAGE_ORDER));
 const TARGET_STAGES = new Set(['DONE_ENGINEERING', 'DONE']);
 const ROADMAP_ID_RE = /^[A-Z][A-Z0-9-]*-[0-9]{3}$/;
 const BRANCH_SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
@@ -96,6 +97,12 @@ function normalizeRoadmapItem(input) {
     fail('ROADMAP_PRODUCT_GATE_REQUIRED');
   }
 
+  const dependsOn = normalizeStringArray(item.depends_on || [], 'DEPENDENCIES', true);
+  const runtimeDependencies = normalizeStringArray(item.depends_on_runtime_integrated || [], 'RUNTIME_DEPENDENCIES', true);
+  const productDependencies = normalizeStringArray(item.depends_on_product_ready || [], 'PRODUCT_DEPENDENCIES', true);
+  const allDependencies = dependsOn.concat(runtimeDependencies, productDependencies);
+  if (new Set(allDependencies).size !== allDependencies.length) fail('ROADMAP_DEPENDENCY_DUPLICATE');
+
   return {
     roadmap_id: roadmapId,
     issue,
@@ -110,8 +117,9 @@ function normalizeRoadmapItem(input) {
     branch_slug: branchSlug,
     goal,
     non_goals: normalizeStringArray(item.non_goals, 'NON_GOALS', false),
-    depends_on: normalizeStringArray(item.depends_on || [], 'DEPENDENCIES', true),
-    depends_on_product_ready: normalizeStringArray(item.depends_on_product_ready || [], 'PRODUCT_DEPENDENCIES', true),
+    depends_on: dependsOn,
+    depends_on_runtime_integrated: runtimeDependencies,
+    depends_on_product_ready: productDependencies,
     data_touched: dataTouched,
     privacy_class: privacyClass,
     cost_class: costClass,
@@ -139,20 +147,25 @@ function stateIndex(items) {
   return index;
 }
 
+function productStageAtLeast(actual, required) {
+  if (!Object.prototype.hasOwnProperty.call(PRODUCT_STAGE_ORDER, actual)
+      || !Object.prototype.hasOwnProperty.call(PRODUCT_STAGE_ORDER, required)) return false;
+  return PRODUCT_STAGE_ORDER[actual] >= PRODUCT_STAGE_ORDER[required];
+}
+
 function dependencyEvidence(item, index) {
   const ordinary = item.depends_on.map((roadmapId) => ({ roadmapId, requiredStage: 'DONE_ENGINEERING' }));
+  const runtime = item.depends_on_runtime_integrated.map((roadmapId) => ({ roadmapId, requiredStage: 'RUNTIME_INTEGRATED' }));
   const product = item.depends_on_product_ready.map((roadmapId) => ({ roadmapId, requiredStage: 'PRODUCT_READY' }));
-  const seen = new Set();
-  return ordinary.concat(product).map(({ roadmapId, requiredStage }) => {
-    const key = `${roadmapId}:${requiredStage}`;
-    if (seen.has(key)) fail('ROADMAP_DEPENDENCY_DUPLICATE');
-    seen.add(key);
+  return ordinary.concat(runtime, product).map(({ roadmapId, requiredStage }) => {
     const dependency = index.get(roadmapId);
     if (!dependency) fail('ROADMAP_DEPENDENCY_MISSING');
     return {
       roadmap_id: roadmapId,
       status: dependency.status,
       issue: dependency.issue || null,
+      work_class: dependency.work_class,
+      engineering_status: dependency.engineering_status,
       product_stage: dependency.product_stage,
       required_stage: requiredStage
     };
@@ -161,6 +174,11 @@ function dependencyEvidence(item, index) {
 
 function dependenciesDone(item, index) {
   return dependencyEvidence(item, index).every((entry) => {
+    if (entry.required_stage === 'RUNTIME_INTEGRATED') {
+      return entry.work_class === 'user_facing'
+        && ['IN_PROGRESS', 'BLOCKED', 'DONE'].includes(entry.status)
+        && productStageAtLeast(entry.product_stage, 'RUNTIME_INTEGRATED');
+    }
     if (entry.status !== 'DONE') return false;
     if (entry.required_stage === 'PRODUCT_READY') return entry.product_stage === 'DONE';
     return true;
@@ -230,7 +248,7 @@ function buildTaskPacket(item, index, action) {
     non_goals: item.non_goals.slice(),
     dependencies: dependencies.map((entry) => ({
       roadmap_id: entry.roadmap_id,
-      status: 'DONE',
+      status: entry.status,
       issue: entry.issue,
       product_stage: entry.product_stage,
       required_stage: entry.required_stage
@@ -261,6 +279,18 @@ function assertTaskPacket(packet) {
   if (!PRODUCT_STAGES.has(String(packet.product_stage || ''))) fail('ROADMAP_TASK_PRODUCT_STAGE_INVALID');
   if (!TARGET_STAGES.has(String(packet.target_stage || ''))) fail('ROADMAP_TASK_TARGET_STAGE_INVALID');
   if (!Array.isArray(packet.non_goals) || packet.non_goals.length === 0) fail('ROADMAP_TASK_NON_GOALS_INVALID');
+  if (!Array.isArray(packet.dependencies)) fail('ROADMAP_TASK_DEPENDENCIES_INVALID');
+  for (const dependency of packet.dependencies) {
+    if (!ROADMAP_ID_RE.test(String(dependency && dependency.roadmap_id || ''))) fail('ROADMAP_TASK_DEPENDENCIES_INVALID');
+    if (!['IN_PROGRESS', 'BLOCKED', 'DONE'].includes(String(dependency.status || ''))) fail('ROADMAP_TASK_DEPENDENCIES_INVALID');
+    if (!PRODUCT_STAGES.has(String(dependency.product_stage || ''))) fail('ROADMAP_TASK_DEPENDENCIES_INVALID');
+    if (!['DONE_ENGINEERING', 'RUNTIME_INTEGRATED', 'PRODUCT_READY'].includes(String(dependency.required_stage || ''))) {
+      fail('ROADMAP_TASK_DEPENDENCIES_INVALID');
+    }
+    if (dependency.required_stage !== 'RUNTIME_INTEGRATED' && dependency.status !== 'DONE') {
+      fail('ROADMAP_TASK_DEPENDENCIES_INVALID');
+    }
+  }
   if (String(packet.cost_class || '') !== 'FREE_ONLY') fail('ROADMAP_TASK_COST_CLASS_INVALID');
   if (!Array.isArray(packet.acceptance) || packet.acceptance.length === 0) fail('ROADMAP_TASK_ACCEPTANCE_INVALID');
   if (!Array.isArray(packet.evidence_required) || packet.evidence_required.length === 0) fail('ROADMAP_TASK_EVIDENCE_INVALID');
@@ -366,9 +396,11 @@ module.exports = {
   PRODUCT_READY_GATE,
   REQUIRED_DELIVERY_GATES,
   PRIORITY_ORDER,
+  PRODUCT_STAGE_ORDER,
   normalizeRoadmapItem,
   normalizeItems,
   stateIndex,
+  productStageAtLeast,
   dependencyEvidence,
   dependenciesDone,
   requiredDeliveryGates,
