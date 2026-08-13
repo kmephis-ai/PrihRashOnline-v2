@@ -20,7 +20,7 @@ Exact deployed candidate `2a28bdb70e27a91b0728ec2384dd102c55bd8bce`, Apps Script
 
 ## Performance rework v3 — canonical analytics fast path
 
-Предыдущие rework уже устранили расчёт сразу трёх разделов и ограничили вход двумя нужными периодами, но специализированные EXP/INC/CF builders всё ещё строили дневной trend через повторный проход по одному и тому же набору операций для каждого дня. Это оставляло алгоритмический паттерн порядка `days × transactions`.
+Предыдущие rework уже устранили расчёт сразу трёх разделов и ограничили вход двумя нужными периодами, но specialized EXP/INC/CF builders всё ещё строили дневной trend через повторный проход по одному и тому же набору операций для каждого дня. Это оставляло алгоритмический паттерн порядка `days × transactions`.
 
 Runtime v3 убирает этот паттерн без переноса финансовых формул в UI:
 
@@ -29,7 +29,7 @@ Runtime v3 убирает этот паттерн без переноса фин
 3. Первая query группирует текущий период по `DAY` за один проход canonical Analytics Contract.
 4. Вторая query строит текущий/previous-period comparison; для `Расходов` и `Доходов` — по canonical `category_id`, для `Денежного потока` — scalar FIN measures.
 5. Runtime только собирает уже рассчитанные canonical measures в пользовательский view и проверяет parity/invariants. Собственных денежных формул и write authority не появляется.
-6. Старые specialized `EXP-020` / `INC-020` / `CF-020` modules остаются regression/parity reference: contract test сравнивает новый fast path с их числовым результатом.
+6. Specialized `EXP-020` / `INC-020` / `CF-020` modules остаются regression/parity reference: contract test сравнивает числовой результат fast path с прежними canonical builders.
 
 Таким образом дневной график больше не требует полного повторного сканирования входа для каждой точки. Количество canonical analytics queries на один раздел фиксировано и не растёт вместе с количеством дней.
 
