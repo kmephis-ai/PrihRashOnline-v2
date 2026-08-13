@@ -97,6 +97,12 @@ function normalizeRoadmapItem(input) {
     fail('ROADMAP_PRODUCT_GATE_REQUIRED');
   }
 
+  const dependsOn = normalizeStringArray(item.depends_on || [], 'DEPENDENCIES', true);
+  const runtimeDependencies = normalizeStringArray(item.depends_on_runtime_integrated || [], 'RUNTIME_DEPENDENCIES', true);
+  const productDependencies = normalizeStringArray(item.depends_on_product_ready || [], 'PRODUCT_DEPENDENCIES', true);
+  const allDependencies = dependsOn.concat(runtimeDependencies, productDependencies);
+  if (new Set(allDependencies).size !== allDependencies.length) fail('ROADMAP_DEPENDENCY_DUPLICATE');
+
   return {
     roadmap_id: roadmapId,
     issue,
@@ -111,9 +117,9 @@ function normalizeRoadmapItem(input) {
     branch_slug: branchSlug,
     goal,
     non_goals: normalizeStringArray(item.non_goals, 'NON_GOALS', false),
-    depends_on: normalizeStringArray(item.depends_on || [], 'DEPENDENCIES', true),
-    depends_on_runtime_integrated: normalizeStringArray(item.depends_on_runtime_integrated || [], 'RUNTIME_DEPENDENCIES', true),
-    depends_on_product_ready: normalizeStringArray(item.depends_on_product_ready || [], 'PRODUCT_DEPENDENCIES', true),
+    depends_on: dependsOn,
+    depends_on_runtime_integrated: runtimeDependencies,
+    depends_on_product_ready: productDependencies,
     data_touched: dataTouched,
     privacy_class: privacyClass,
     cost_class: costClass,
@@ -151,10 +157,7 @@ function dependencyEvidence(item, index) {
   const ordinary = item.depends_on.map((roadmapId) => ({ roadmapId, requiredStage: 'DONE_ENGINEERING' }));
   const runtime = item.depends_on_runtime_integrated.map((roadmapId) => ({ roadmapId, requiredStage: 'RUNTIME_INTEGRATED' }));
   const product = item.depends_on_product_ready.map((roadmapId) => ({ roadmapId, requiredStage: 'PRODUCT_READY' }));
-  const seen = new Set();
   return ordinary.concat(runtime, product).map(({ roadmapId, requiredStage }) => {
-    if (seen.has(roadmapId)) fail('ROADMAP_DEPENDENCY_DUPLICATE');
-    seen.add(roadmapId);
     const dependency = index.get(roadmapId);
     if (!dependency) fail('ROADMAP_DEPENDENCY_MISSING');
     return {
