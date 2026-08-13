@@ -16,9 +16,9 @@
 
 ## Текущая инженерная задача
 
-`DATA-REC-001` — единственный **current writer**, canonical Issue #223, branch `agent/DATA-REC-001-private-transactions-data-quality`, PR #241.
+`FIN-REC-001` — единственный **current writer**, canonical Issue #224, branch `agent/FIN-REC-001-private-expenses-income-cashflow`, PR #243.
 
-Recovery state после UI Product Ready, VIZ runtime integration и GOV stage-aware recovery:
+Recovery state после UI Product Ready, VIZ runtime integration, GOV stage-aware recovery и DATA Product Ready:
 
 - `GOV-REC-001` #219 — DONE/Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`;
 - `PERF-REC-001` #222 — DONE_ENGINEERING/Main Verification PASS, PR #232, merge `dce3558875178edc1b5b6d7391028e7be1f4835e`; exact deployed `fa921b53…` owner-auth 20C+20W: cold p95 5,922s, warm p95 1,306s, cold cell reads 38 059 вместо 263 505;
@@ -26,15 +26,16 @@ Recovery state после UI Product Ready, VIZ runtime integration и GOV stage
 - `VIZ-REC-001` #226 — BLOCKED после engineering/runtime integration: exact candidate `5bad584e…`, PR #238, `engineering_status=CODE_COMPLETE`, `product_stage=RUNTIME_INTEGRATED`; local ECharts simple build, early runtime dispatch и revision-aware visual cache развернуты; владелец подтвердил приемлемую производительность текущего этапа;
 - VIZ не получает фиктивный полный Product Ready из одного performance acceptance: остаётся нужен canonical authenticated Product Ready E2E;
 - `GOV-REC-002` #239 — DONE_ENGINEERING/Main Verification PASS, PR #240, merge `922c0e07a747dff5ed0852212ca5a5138c1d1340`; добавил узкий `depends_on_runtime_integrated` без снижения final gates;
-- `DATA-REC-001` #223 — IN_PROGRESS: восстанавливает owner-private read-only Transactions + Data Quality на одном canonical revision snapshot, без write/autofix authority и без synthetic product fallback;
-- `E2E-REC-001` #227 остаётся BACKLOG: VIZ dependency теперь stage-aware, но обычные DATA/FIN/PLAN prerequisites обязаны честно достичь DONE;
+- `DATA-REC-001` #223 — DONE/Product Ready/Main Verification PASS, PR #241, merge `a8b24916390825dde4686b93b086cee4aced1081`; owner UAT подтвердил desktop/mobile, Operations, Data Quality, Back/Forward и скорость до 2 секунд;
+- `FIN-REC-001` #224 — IN_PROGRESS: восстанавливает owner-private read-only Expenses + Income + Cash Flow на одном canonical snapshot/period/filter state, FIN-TRUTH и zero-write boundary;
+- `E2E-REC-001` #227 остаётся BACKLOG: VIZ dependency stage-aware, DATA уже DONE, но обычные FIN/PLAN prerequisites обязаны честно достичь DONE;
 - `ANL-090` #217 / PR #218 остаётся BLOCKED/draft `PAUSED_REBASELINE` без writer authority.
 
 Owner-approved forensic rebaseline 2026-08-11 установил: audited legacy Roadmap completion 75/107 = 70,1%; после R2R backlog 75/116 = 64,7%; R2R product completion gate = `MASTER-GUX`, который не может быть пройден synthetic-only evidence; independent overall Product Readiness ≈25%. Issue-count completion не является product metric. Home private-bound; прочие surfaces получают product credit только после доказанного runtime/E2E. R7/R8/VIZ-090 — reusable engineering contracts/shells/planners, но не автоматически deployed private product. Main Verification/exact-SHA health/synthetic Playwright являются engineering/delivery proof, но не Product Ready.
 
 Новый product lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`.
 
-Wave R2R execution сейчас = `DATA-REC-001`; далее FIN/PLAN выполняются по ordinary dependencies, затем canonical `E2E-REC-001` строит Product Ready producer поверх уже развернутого VIZ и завершённых DATA/FIN/PLAN. STUDIO остаётся за product-ready dependency. R9/R10 feature expansion frozen.
+Wave R2R execution сейчас = `FIN-REC-001`; далее PLAN выполняется по ordinary dependencies, затем canonical `E2E-REC-001` строит Product Ready producer поверх уже развернутого VIZ и завершённых DATA/FIN/PLAN. STUDIO остаётся за product-ready dependency. R9/R10 feature expansion frozen.
 
 ## FinOps / worst-case budget / owner estimate / model routing handoff
 
@@ -72,9 +73,9 @@ Post-R1 handoff historically начинается с `DESIGN-020`; этот anch
 
 R2 через `UI-MIG-020` — historical engineering DONE/Main Verification PASS. Canonical private Web App default остаётся R2 Financial Home, exposure `MYSELF`, PWA boundary `NOT_PROVEN_CURRENT_HOST`, `FREE_ONLY` mandatory. Historical broad product claim superseded: каждое user-facing surface требует отдельного runtime/Product Ready evidence.
 
-R2R Product Recovery — current critical path. `GOV-REC-001` DONE; `PERF-REC-001` DONE_ENGINEERING/Main Verification PASS; `UI-REC-001` DONE/Product Ready; `VIZ-REC-001` BLOCKED at `CODE_COMPLETE/RUNTIME_INTEGRATED`; `GOV-REC-002` DONE_ENGINEERING/Main Verification PASS; `DATA-REC-001` IN_PROGRESS and is the only writer. FIN/PLAN следуют по ordinary dependency gates; `E2E-REC-001` ждёт DONE DATA/FIN/PLAN и использует stage-aware VIZ prerequisite. STUDIO obeys `depends_on_product_ready`.
+R2R Product Recovery — current critical path. `GOV-REC-001` DONE; `PERF-REC-001` DONE_ENGINEERING/Main Verification PASS; `UI-REC-001` DONE/Product Ready; `VIZ-REC-001` BLOCKED at `CODE_COMPLETE/RUNTIME_INTEGRATED`; `GOV-REC-002` DONE_ENGINEERING/Main Verification PASS; `DATA-REC-001` DONE/Product Ready/Main Verification PASS; `FIN-REC-001` IN_PROGRESS and is the only writer. PLAN следует по ordinary dependency gate; `E2E-REC-001` ждёт DONE FIN/PLAN и использует stage-aware VIZ prerequisite. STUDIO obeys `depends_on_product_ready`.
 
-`depends_on_runtime_integrated` не понижает final gate: обычный `depends_on` требует predecessor `DONE`; `depends_on_product_ready` требует завершённый product item; runtime-integrated dependency лишь разрешает gate-builder работать поверх уже deployed user-facing predecessor. User-facing `DONE` всё ещё требует exact-SHA `PRODUCT_READY_E2E` и Main Verification.
+`depends_on_runtime_integrated` не понижает final gate: обычный `depends_on` требует predecessor `DONE`; `depends_on_product_ready` требует завершённый product item; runtime-integrated dependency лишь разрешает gate-builder работать поверх already deployed user-facing predecessor. User-facing `DONE` всё ещё требует exact-SHA `PRODUCT_READY_E2E` и Main Verification.
 
 R3 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS; canonical product integration не доказана и не получает product credit до отдельного post-GUX scope.
 
@@ -116,7 +117,11 @@ GOV-REC-002 меняет только dependency semantics/schema/tests/docs. `d
 
 ## DATA-REC-001 runtime boundary
 
-DATA recovery переиспользует canonical Google transaction repository, `PRH_SINGLE_SCAN_REFRESH_V1`, `PRH_TRANSACTION_EXPLORER_V1`, `PRH_DATA_QUALITY_CENTER_V1` и FIN-TRUTH aggregation. На один server request допустим один immutable full canonical snapshot; Transactions/DQ связываются repository revision и fail closed при stale expected revision. Product HTML не содержит synthetic fallback; synthetic допускается только в isolated browser test harness. Browser payload не получает raw transaction IDs или DQ record hashes. Write/autofix authority = false.
+DATA recovery переиспользует canonical Google transaction repository, `PRH_SINGLE_SCAN_REFRESH_V1`, `PRH_TRANSACTION_EXPLORER_V1`, `PRH_DATA_QUALITY_CENTER_V1` и FIN-TRUTH aggregation. На один server request допустим один immutable full canonical snapshot; Transactions/DQ связываются repository revision и fail closed при stale expected revision. Product HTML не содержит synthetic fallback; synthetic допускается только в isolated browser test harness. Browser payload не получает raw transaction IDs или DQ record hashes. Write/autofix authority = false. DATA-REC-001 прошёл owner UAT Product Ready и Main Verification.
+
+## FIN-REC-001 runtime boundary
+
+FIN recovery переиспользует canonical expense/income/cash-flow engines. Три private раздела обязаны использовать один immutable canonical snapshot на server request, один bounded period/filter state и серверную FIN-TRUTH authority. Browser не вычисляет transaction semantics, не получает write authority и не переносит financial values в navigation URL. Equal-window comparison, multi-point trend, filters, drill и Back/Forward требуют engineering evidence и затем exact-SHA owner UAT до Product Ready.
 
 ## TEST-010 boundary
 
@@ -150,4 +155,4 @@ Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPER
 
 ## Scope handoff
 
-R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, product status определяется текущими stage-specific gates. YC-041/YC-042 remain BLOCKED. `DATA-REC-001` / Issue #223 / PR #241 — единственный active writer; `GOV-REC-002` #239 DONE_ENGINEERING; `UI-REC-001` #221 DONE/Product Ready; `VIZ-REC-001` #226 BLOCKED at RUNTIME_INTEGRATED pending canonical E2E; `E2E-REC-001` #227 waits ordinary DATA/FIN/PLAN DONE plus stage-aware VIZ; ANL-090/PR #218 paused/blocked without writer authority.
+R0/R1 foundation сохраняет DONE. R2/R3/R7/R8/VIZ-090 historical engineering completion сохранён, product status определяется текущими stage-specific gates. YC-041/YC-042 remain BLOCKED. `FIN-REC-001` / Issue #224 / PR #243 — единственный active writer; `DATA-REC-001` #223 DONE/Product Ready/Main Verification PASS; `GOV-REC-002` #239 DONE_ENGINEERING; `UI-REC-001` #221 DONE/Product Ready; `VIZ-REC-001` #226 BLOCKED at RUNTIME_INTEGRATED pending canonical E2E; `E2E-REC-001` #227 waits ordinary FIN/PLAN DONE plus stage-aware VIZ; ANL-090/PR #218 paused/blocked without writer authority.
