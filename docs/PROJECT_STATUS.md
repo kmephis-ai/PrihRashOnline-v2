@@ -34,7 +34,7 @@ Post-R1 handoff historically начинается с `DESIGN-020`; этот life
 
 `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — historical DONE/Main Verification PASS в объявленном engineering scope.
 
-Canonical private Web App default route = R2 Financial Home. Home private binding уже доказан; `DATA-REC-001` сейчас восстанавливает реальные owner-private read-only bindings для `Операции` и `Качество данных`. До прохождения exact-SHA runtime/Product Ready gates эти два новых candidate routes не получают product credit. Остальные пять daily finance routes остаются fail-closed/unbound. Legacy Dashboard остаётся bounded rollback route. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary и `FREE_ONLY` сохраняются.
+Canonical private Web App default route = R2 Financial Home. Home private binding доказан; `DATA-REC-001` восстановил реальные owner-private read-only bindings для `Операции` и `Качество данных` и завершил Product Ready/Main Verification. `FIN-REC-001` сейчас восстанавливает private read-only `Расходы`, `Доходы` и `Денежный поток`. `Бюджет` и `Обязательства` остаются fail-closed/unbound до своих recovery gates. Legacy Dashboard остаётся bounded rollback route. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary и `FREE_ONLY` сохраняются.
 
 ## R2R / Product Recovery — текущий critical path
 
@@ -43,10 +43,11 @@ Canonical private Web App default route = R2 Financial Home. Home private bindin
 - `UI-REC-001` — **DONE**, Issue #221, PR #229, merge `313b4eade10b7680306b2096f39d6271bbb30aa3`; exact owner UAT и Product Ready E2E PASS. Truthful navigation/RU household UI восстановлены.
 - `VIZ-REC-001` — **BLOCKED**, Issue #226, PR #238, exact candidate `5bad584e…`, `engineering_status=CODE_COMPLETE`, `product_stage=RUNTIME_INTEGRATED`. Local ECharts/simple renderer, early runtime dispatch и revision-aware visual cache развернуты; владелец принял текущую производительность. Финальный Product Ready ожидает canonical authenticated E2E producer.
 - `GOV-REC-002` — **DONE_ENGINEERING**, Issue #239, PR #240, merge `922c0e07a747dff5ed0852212ca5a5138c1d1340`; stage-aware `depends_on_runtime_integrated` добавлен без ослабления Product Ready/DONE.
-- `DATA-REC-001` — **IN_PROGRESS**, Issue #223, branch `agent/DATA-REC-001-private-transactions-data-quality`, PR #241; единственный current writer. Цель — подключить Transactions + Data Quality к одному revision-bound owner-private canonical snapshot, сохранить FIN-TRUTH и zero-write, убрать synthetic product fallback.
+- `DATA-REC-001` — **DONE**, Issue #223, PR #241, merge `a8b24916390825dde4686b93b086cee4aced1081`; owner UAT Product Ready и Main Verification PASS для `Операции` + `Качество данных`, speed ≤2s.
+- `FIN-REC-001` — **IN_PROGRESS**, Issue #224, branch `agent/FIN-REC-001-private-expenses-income-cashflow`, PR #243; единственный current writer. Цель — подключить private read-only `Расходы`, `Доходы`, `Денежный поток` к одному canonical snapshot/period/filter state, FIN-TRUTH и zero-write boundary.
 - `E2E-REC-001` #227 остаётся BACKLOG. После GOV-REC-002 его VIZ dependency нормализована как `depends_on_runtime_integrated: [VIZ-REC-001]`, но обычные DATA/FIN/PLAN dependencies по-прежнему должны честно достичь DONE до запуска canonical E2E gate-builder.
 - `ANL-090` Issue #217 — BLOCKED `PAUSED_REBASELINE`; PR #218 draft, код сохранён без writer authority.
-- Downstream order: DATA-REC-001 -> FIN-REC-001 и PLAN-REC-001 по их dependency gates -> E2E-REC-001; VIZ уже удовлетворяет узкий runtime-integrated prerequisite E2E, но остаётся без ложного Product Ready. STUDIO ждёт объявленный product-ready dependency.
+- Downstream order: FIN-REC-001 и PLAN-REC-001 по их dependency gates -> E2E-REC-001; DATA уже DONE, VIZ удовлетворяет узкий runtime-integrated prerequisite E2E, но остаётся без ложного Product Ready. STUDIO ждёт объявленный product-ready dependency.
 - R9/R10 feature expansion frozen.
 
 Stage-aware dependency не является Product Ready: обычный `depends_on` всё ещё требует `status=DONE`, `depends_on_product_ready` требует завершённый product item, а `depends_on_runtime_integrated` лишь разрешает gate-builder работать поверх уже развернутого user-facing predecessor. User-facing `DONE` по-прежнему требует exact-SHA `product-ready-e2e=success`.
@@ -123,7 +124,7 @@ Engineering item закрывается как `DONE_ENGINEERING`. User-facing i
 
 ## Current runtime truth
 
-Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home. PERF-REC-001 доказал live Home SLO на real owner-authenticated runtime: cold p95 5,922s, warm Home p95 1,306s. UI-REC-001 уже Product Ready/DONE. VIZ-REC-001 exact candidate развернут и accepted по текущей производительности, но остаётся `RUNTIME_INTEGRATED`. DATA-REC-001 сейчас добавляет candidate private bindings для `Операции` и `Качество данных`: до exact-SHA Product Ready evidence они остаются recovery candidate, а не завершённый product claim. Public GitHub evidence synthetic/configuration-only; private UI остаётся `MYSELF`; `FREE_ONLY` mandatory.
+Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home. PERF-REC-001 доказал live Home SLO на real owner-authenticated runtime: cold p95 5,922s, warm Home p95 1,306s. UI-REC-001 уже Product Ready/DONE. VIZ-REC-001 exact candidate развернут и accepted по текущей производительности, но остаётся `RUNTIME_INTEGRATED`. DATA-REC-001 Product Ready/DONE: private `Операции` и `Качество данных` доказаны owner UAT и Main Verification. FIN-REC-001 сейчас добавляет candidate private bindings для `Расходы`, `Доходы`, `Денежный поток`; до exact-SHA Product Ready evidence они остаются recovery candidate, а не завершённый product claim. Public GitHub evidence synthetic/configuration-only; private UI остаётся `MYSELF`; `FREE_ONLY` mandatory.
 
 ## Source precedence
 
