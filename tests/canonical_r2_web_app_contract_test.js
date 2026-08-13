@@ -61,6 +61,7 @@ assert.strictEqual(contract.data_runtime.automatic_repair, false);
 assert.strictEqual(contract.route_privacy_continuity.policy, 'PRESERVE_EXPLICIT_MODE');
 assert.strictEqual(contract.route_privacy_continuity.dynamic_internal_links, true);
 assert.deepStrictEqual(contract.route_privacy_continuity.allowed_modes, ['NORMAL','MASKED','DEMO','ZEN']);
+assert.strictEqual(contract.route_privacy_continuity.invalid_mode_behavior, 'MASKED_FAIL_SAFE');
 assert.strictEqual(contract.trusted_delivery.render_smoke_token, 'PRH_WEBAPP_SMOKE_V5|R2|OK');
 assert.strictEqual(contract.trusted_delivery.private_data_runtime_smoke_token, 'PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK');
 
@@ -81,7 +82,7 @@ for (const route of ['home','transactions','expenses','income','cash-flow','budg
 assert.strictEqual(context.prhR2RouteHref_('transactions'), `${selfUrl}?surface=transactions`);
 assert.strictEqual(context.prhR2RouteHref_('data-quality'), `${selfUrl}?surface=data-quality`);
 assert.strictEqual(context.prhR2RouteHref_('transactions', context.prhR2RoutePrivacyParams_({privacy:'masked'})), `${selfUrl}?surface=transactions&privacy=MASKED`);
-assert.throws(() => context.prhR2RoutePrivacyParams_({privacy:'unexpected'}), /R2_ROUTE_PRIVACY_MODE_INVALID/);
+assert.strictEqual(context.prhR2RoutePrivacyParams_({privacy:'unexpected'}).privacy, 'MASKED');
 
 const home = context.doGet({parameter:{}}).getContent();
 assert.strictEqual(homeRuntimeCalls, 0, 'initial Home HTML must remain async');
@@ -101,6 +102,11 @@ assert(maskedHome.includes(`${selfUrl}?surface=transactions&amp;privacy=MASKED`)
 assert(maskedHome.includes(`${selfUrl}?surface=data-quality&amp;privacy=MASKED`));
 assert(maskedHome.includes(`${selfUrl}?surface=legacy&amp;privacy=MASKED`));
 assert(maskedHome.includes(`${selfUrl}?surface=studio&amp;mode=explore&amp;privacy=MASKED`));
+
+const invalidHome = context.doGet({parameter:{privacy:'invalid-mode'}}).getContent();
+assert.strictEqual(homeRuntimeCalls, 0, 'invalid privacy initial Home HTML must remain async and fail safe');
+assert(invalidHome.includes(`${selfUrl}?surface=transactions&amp;privacy=MASKED`));
+assert(invalidHome.includes(`${selfUrl}?surface=data-quality&amp;privacy=MASKED`));
 
 const tx = context.doGet({parameter:{surface:'transactions'}}).getContent();
 assert(tx.includes('data-active-surface="transactions"'));
@@ -153,6 +159,7 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   primaryRoutes:['home','transactions','data-quality'],
   hiddenUnboundRoutes:5,
   privacyModeContinuity:'PRESERVE_EXPLICIT_MODE',
+  invalidPrivacy:'MASKED_FAIL_SAFE',
   privateDataShellsAsync:true,
   productSyntheticFallback:false,
   financialWrite:false,
