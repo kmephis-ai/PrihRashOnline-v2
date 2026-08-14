@@ -130,15 +130,17 @@ assert(roadmapContract.items
 assert(adr.includes('Статус: **APPROVED**'));
 assert(adr.includes('PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0'));
 assert(adr.includes('Local-first SPA + IndexedDB Local Read Model + Web Worker analytics'));
-assert(adr.includes('Big-bang cutover запрещён'));
+assert(adr.includes('Немедленный big-bang YDB migration — отклонено'));
 
 for (const required of [
   'Local-first', 'IndexedDB', 'Web Worker', 'background', 'YDB',
-  'zero mandatory network requests', 'Big-bang cutover запрещён'
+  'zero mandatory network requests'
 ]) {
   assert(architecture.includes(required) || roadmap.includes(required) || adr.includes(required),
     `missing normative Local-first concept: ${required}`);
 }
+// Big-bang prohibition is machine-authoritative; wording in human docs may vary.
+assert.strictEqual(contract.ydb_ladder.big_bang_cutover_allowed, false);
 
 for (const id of expectedIds) {
   assert(roadmap.includes(id), `Local-first Roadmap missing ${id}`);
