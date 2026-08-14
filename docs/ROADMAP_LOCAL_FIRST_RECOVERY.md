@@ -4,7 +4,9 @@
 Дата: 2026-08-14  
 Основание: owner decision перейти на `Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization`, затем эволюционно мигрировать remote backend в YDB.
 
-Этот документ — amendment к `docs/ROADMAP.md` v2.4 на период архитектурного восстановления производительности. До консолидации Roadmap v2.5 он задаёт execution order только для wave `LF0..LF4` и не ослабляет security/privacy/FIN-TRUTH/FREE_ONLY/Product Ready contracts основной Roadmap.
+Этот документ — amendment к `docs/ROADMAP.md` v2.4 на период архитектурного восстановления производительности. До консолидации Roadmap v2.5 он задаёт execution order только для Local-first recovery phases `LF0..LF4` и не ослабляет security/privacy/FIN-TRUTH/FREE_ONLY/Product Ready contracts основной Roadmap.
+
+`LF0..LF4` — **архитектурные recovery phases**, а не новое значение legacy machine field `wave`. До Roadmap v2.5 текущий `PRH_ROADMAP_TASK_V2` использует protocol-compatible `wave: R2R` для всей P0 Local-first recovery. Будущие YDB items используют `wave: R4` и не становятся READY до `MASTER-LF-PRODUCT`.
 
 ## 1. Freeze
 
@@ -39,22 +41,22 @@ IndexedDB Local Read Model
 
 Warm user interaction не зависит от Google Sheets/network.
 
-## 3. Waves
+## 3. Recovery phases и machine execution order
 
-| ID | Wave | Priority | depends_on | work_class | Deliverable | Exit gate |
-|---|---|---|---|---|---|---|
-| ARCH-LF-001 | LF0 | P0 | GOV-REC-001, DATA-REC-001 | engineering | architecture rebaseline, contracts, SLO, YDB migration ladder | MASTER-LF-0 |
-| SPA-LF-001 | LF1 | P0 | ARCH-LF-001 | user_facing | единый SPA shell + client routing/history + local renderer lifecycle | MASTER-LF-SPA |
-| STORE-LF-001 | LF1 | P0 | ARCH-LF-001 | engineering | IndexedDB private local read-model, schema/version/generation/wipe/recovery | MASTER-LF-STORE |
-| WORKER-LF-001 | LF2 | P0 | STORE-LF-001 | engineering | Web Worker analytics bridge, generation cancellation, stale discard | MASTER-LF-WORKER |
-| SYNC-LF-001 | LF2 | P0 | STORE-LF-001 | engineering | background full bootstrap + exact revision sync | MASTER-LF-SYNC-BASE |
-| DELTA-LF-001 | LF2 | P0 | SYNC-LF-001 | engineering | idempotent revision-bound delta protocol + full rebuild fallback | MASTER-LF-SYNC-DELTA |
-| FIN-LF-001 | LF3 | P0 | SPA-LF-001, WORKER-LF-001, DELTA-LF-001 | user_facing | Home/Expenses/Income/Cash Flow на одном local snapshot/FilterContext | MASTER-LF-FIN |
-| DATA-LF-001 | LF3 | P0 | SPA-LF-001, STORE-LF-001, DELTA-LF-001 | user_facing | Transactions/Data Quality local-first routes | MASTER-LF-DATA |
-| PERF-LF-001 | LF3 | P0 | FIN-LF-001, DATA-LF-001 | user_facing | real-browser performance truth + zero-network warm interaction gate | MASTER-LF-PERF |
-| E2E-LF-001 | LF4 | P0 | PERF-LF-001 | user_facing | authenticated exact-SHA Local-first Product Ready journey | MASTER-LF-PRODUCT |
-| YDB-LF-001 | FUTURE | P1 | E2E-LF-001, YC-040 | engineering | YDB shadow replica + dual-read compare + FREE_ONLY live envelope | MASTER-YDB-SHADOW |
-| YDB-LF-002 | FUTURE | P1 | YDB-LF-001 | engineering | YDB read canary/read authority without write cutover | MASTER-YDB-READ |
+| ID | LF phase | protocol wave | Priority | depends_on | work_class | Deliverable | Exit gate |
+|---|---|---|---|---|---|---|---|
+| ARCH-LF-001 | LF0 | R2R | P0 | GOV-REC-001, DATA-REC-001 | engineering | architecture rebaseline, contracts, SLO, YDB migration ladder | MASTER-LF-0 |
+| SPA-LF-001 | LF1 | R2R | P0 | ARCH-LF-001 | user_facing | единый SPA shell + client routing/history + local renderer lifecycle | MASTER-LF-SPA |
+| STORE-LF-001 | LF1 | R2R | P0 | ARCH-LF-001 | engineering | IndexedDB private local read-model, schema/version/generation/wipe/recovery | MASTER-LF-STORE |
+| WORKER-LF-001 | LF2 | R2R | P0 | STORE-LF-001 | engineering | Web Worker analytics bridge, generation cancellation, stale discard | MASTER-LF-WORKER |
+| SYNC-LF-001 | LF2 | R2R | P0 | STORE-LF-001 | engineering | background full bootstrap + exact revision sync | MASTER-LF-SYNC-BASE |
+| DELTA-LF-001 | LF2 | R2R | P0 | SYNC-LF-001 | engineering | idempotent revision-bound delta protocol + full rebuild fallback | MASTER-LF-SYNC-DELTA |
+| FIN-LF-001 | LF3 | R2R | P0 | SPA-LF-001, WORKER-LF-001, DELTA-LF-001 | user_facing | Home/Expenses/Income/Cash Flow на одном local snapshot/FilterContext | MASTER-LF-FIN |
+| DATA-LF-001 | LF3 | R2R | P0 | SPA-LF-001, STORE-LF-001, DELTA-LF-001 | user_facing | Transactions/Data Quality local-first routes | MASTER-LF-DATA |
+| PERF-LF-001 | LF3 | R2R | P0 | FIN-LF-001, DATA-LF-001 | user_facing | real-browser performance truth + zero-network warm interaction gate | MASTER-LF-PERF |
+| E2E-LF-001 | LF4 | R2R | P0 | PERF-LF-001 | user_facing | authenticated exact-SHA Local-first Product Ready journey | MASTER-LF-PRODUCT |
+| YDB-LF-001 | FUTURE | R4 | P1 | E2E-LF-001, YC-040 | engineering | YDB shadow replica + dual-read compare + FREE_ONLY live envelope | MASTER-YDB-SHADOW |
+| YDB-LF-002 | FUTURE | R4 | P1 | YDB-LF-001 | engineering | YDB read canary/read authority without write cutover | MASTER-YDB-READ |
 
 ## 4. Mandatory architecture gates
 
@@ -146,10 +148,10 @@ YDB is not a prerequisite for Local-first Product Ready.
 ## 6. Superseded Product Recovery items
 
 - `FIN-REC-001` #224 / PR #243: closed without merge; reference only.
-- `PLAN-REC-001`, `VIZ-REC-001`, `E2E-REC-001`, `STUDIO-REC-001`: не должны становиться active writer до LF rebaseline; их полезный scope либо переносится в `LF3/LF4`, либо будет re-depended после Local-first Product Ready.
+- `PLAN-REC-001`, `VIZ-REC-001`, `E2E-REC-001`, `STUDIO-REC-001`: не должны становиться active writer до LF rebaseline; их полезный scope либо переносится в LF3/LF4, либо будет re-depended после Local-first Product Ready.
 
 ## 7. Resolver rule
 
 Пока открыт `ARCH-LF-001` со `status=IN_PROGRESS`, он единственный active writer.
 
-После его Main Verification resolver выбирает только LF chain по dependency readiness и P0 priority. Соседние feature waves не могут обойти LF freeze даже если их старые dependencies формально DONE.
+После его Main Verification resolver выбирает только Local-first P0 chain по dependency readiness и указанному table order. Соседние feature items не получают writer authority до `MASTER-LF-PRODUCT`, даже если их старые dependencies формально DONE. Это freeze policy recovery amendment, а не ослабление one-writer или Product Ready semantics.
