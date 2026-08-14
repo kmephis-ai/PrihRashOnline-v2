@@ -88,7 +88,7 @@ assert(bundle.module_ids.includes('lib/analytics/analytics_engine.js'), 'canonic
 assert(bundle.module_ids.includes('lib/crypto/sha256.js'), 'tracked SHA-256 implementation missing from worker graph');
 assert(bundle.module_ids.includes('__virtual__/crypto.js'), 'narrow crypto shim missing from worker graph');
 assert(bundle.source.includes('function evaluateAnalytics('), 'worker bundle must contain canonical evaluator implementation');
-assert(bundle.source.includes("__require__('lib/crypto/sha256.js')"), 'worker crypto shim must use tracked SHA implementation');
+assert(bundle.source.includes('__require__("lib/crypto/sha256.js")'), 'worker crypto shim must use tracked SHA implementation');
 assert(!/\brequire\s*\(\s*['"]crypto['"]\s*\)/.test(bundle.source), 'Node crypto require must not survive browser bundle');
 assert(!/\brequire\s*\(\s*['"][^'"]+['"]\s*\)/.test(bundle.source), 'raw CommonJS require must not survive browser bundle');
 
