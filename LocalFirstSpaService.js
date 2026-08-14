@@ -17,8 +17,38 @@ var PRH_LOCAL_FIRST_SPA_PREVIEW = Object.freeze({
   FREE_ONLY: true
 });
 
+function prhLocalFirstSpaSelfUrl_() {
+  try {
+    if (typeof ScriptApp !== 'undefined' && ScriptApp && typeof ScriptApp.getService === 'function') {
+      var service = ScriptApp.getService();
+      var url = service && typeof service.getUrl === 'function' ? service.getUrl() : '';
+      if (url) return String(url).split('#')[0].split('?')[0];
+    }
+  } catch (error) {}
+  return '';
+}
+
+function prhLocalFirstSpaEscapeAttr_(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function prhLocalFirstSpaRender_(params) {
-  var output = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
+  var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
+  var html = source.getContent();
+  var selfUrl = prhLocalFirstSpaSelfUrl_();
+  if (selfUrl) {
+    var rollbackHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=home');
+    if (html.indexOf('data-lf-rollback="canonical-r2"') < 0 || html.indexOf('href="?surface=home"') < 0) {
+      throw new Error('LF_SPA_ROLLBACK_MARKER_MISSING');
+    }
+    html = html.replace('href="?surface=home"', 'href="' + rollbackHref + '"');
+  }
+  var output = HtmlService.createHtmlOutput(html);
   output.setTitle('PrihRashOnline — Local-first preview');
   output.addMetaTag('viewport', 'width=device-width, initial-scale=1');
   return output;
