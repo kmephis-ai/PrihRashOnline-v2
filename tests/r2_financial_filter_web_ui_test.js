@@ -88,6 +88,25 @@ fs.writeFileSync(tempFile, rendered, 'utf8');
     assert(filtered.search.includes('account_id=ACC-1'));
     assert.deepStrictEqual({period:filtered.period,account:filtered.account,category:filtered.category,member:filtered.member},{period:'30',account:'ACC-1',category:'CAT-1',member:'MEM-1'});
 
+    const beforeRouteRequests = await page.evaluate(()=>window.__requests.length);
+    await page.click('#prh-r2-shell a[data-r2-nav="income"]');
+    await page.waitForFunction((count)=>window.__requests.length>count&&window.__requests[window.__requests.length-1].section==='income',beforeRouteRequests,{timeout:10000});
+    const routed = await page.evaluate(()=>({request:window.__requests[window.__requests.length-1],search:location.search,active:document.getElementById('prh-r2-shell').dataset.activeSurface}));
+    assert.strictEqual(routed.request.window_days,30);
+    assert.deepStrictEqual(routed.request.filters,{account_ids:['ACC-1'],category_ids:['CAT-1'],member_ids:['MEM-1']});
+    assert(routed.search.includes('surface=income'));
+    assert(routed.search.includes('account_id=ACC-1'));
+    assert.strictEqual(routed.active,'income');
+
+    const beforeBackRequests = await page.evaluate(()=>window.__requests.length);
+    await page.goBack();
+    await page.waitForFunction((count)=>window.__requests.length>count&&window.__requests[window.__requests.length-1].section==='expenses',beforeBackRequests,{timeout:10000});
+    const backed = await page.evaluate(()=>({request:window.__requests[window.__requests.length-1],search:location.search,active:document.getElementById('prh-r2-shell').dataset.activeSurface}));
+    assert.strictEqual(backed.request.window_days,30);
+    assert.deepStrictEqual(backed.request.filters,{account_ids:['ACC-1'],category_ids:['CAT-1'],member_ids:['MEM-1']});
+    assert(routed.search.includes('account_id=ACC-1'));
+    assert.strictEqual(backed.active,'expenses');
+
     await page.evaluate(()=>{
       document.getElementById('window-days').value='90';
       document.getElementById('account-filter').value='';
@@ -102,7 +121,7 @@ fs.writeFileSync(tempFile, rendered, 'utf8');
     assert.deepStrictEqual(reset.request.filters,{account_ids:[],category_ids:[],member_ids:[]});
     assert(!reset.search.includes('account_id='));
 
-    console.log('r2_financial_filter_web_ui_test: OK',{inPageRpc:true,semanticRequest:true,visibleResultChanged:true,historyState:true,reset:true});
+    console.log('r2_financial_filter_web_ui_test: OK',{inPageRpc:true,semanticRequest:true,visibleResultChanged:true,routeStatePreserved:true,backStatePreserved:true,reset:true});
   }finally{
     await browser.close().catch(()=>{});
     fs.rmSync(tempFile,{force:true});
