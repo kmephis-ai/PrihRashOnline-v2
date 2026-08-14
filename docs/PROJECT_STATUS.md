@@ -27,7 +27,7 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private reconciliation ранее PASS.
-- `ANL-010` — **DONE**, Issue #98 Main Verification PASS.
+- `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
 
 `MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: **open**. FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
