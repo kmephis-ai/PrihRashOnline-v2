@@ -87,11 +87,22 @@ assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.FINANCIAL_WRITE, false);
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.CANONICAL_MUTATION, false);
 assert.strictEqual(context.prhLocalFirstSpaSmokeToken(), 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|OK');
 assert.strictEqual(context.prhR2ResolveSurface_('local-first'), 'local-first');
-const preview = context.doGet({ parameter:{ surface:'local-first', lf_route:'expenses', privacy:'MASKED' } });
-assert.strictEqual(preview.getContent(), html);
+
+const preview = context.doGet({ parameter:{ surface:'local-first', lf_route:'expenses', privacy:'MASKED', lf_diag:'1' } });
+const previewHtml = preview.getContent();
+assert.notStrictEqual(previewHtml, html, 'server render must inject iframe-safe bootstrap state');
+assert(previewHtml.includes('data-lf-server-bootstrap="1"'), 'server bootstrap marker missing');
+assert(previewHtml.includes('history.replaceState'), 'server bootstrap must establish same-origin iframe history state');
+assert(previewHtml.includes('?surface=local-first&lf_route=expenses&privacy=MASKED&lf_diag=1'), 'server bootstrap must preserve route/privacy/diagnostic params');
+assert(previewHtml.indexOf('data-lf-server-bootstrap="1"') < previewHtml.indexOf('<script>\n(function(){'), 'server bootstrap must execute before SPA runtime');
 assert(preview.title.includes('Local-first'));
 assert.strictEqual(localFileReads, 2, 'smoke + route render only');
 assert(!Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (entry) => entry[0]).includes('local-first'), 'preview must not enter canonical primary navigation');
+
+const safePreview = context.doGet({ parameter:{ surface:'local-first', lf_route:'unknown', privacy:'unexpected', lf_diag:'0' } }).getContent();
+assert(safePreview.includes('?surface=local-first&lf_route=home&privacy=MASKED'), 'server bootstrap must fail closed to safe route/privacy state');
+assert(!safePreview.includes('&lf_diag=1'), 'diagnostic must remain opt-in');
+assert.strictEqual(localFileReads, 3, 'smoke + diagnostic route + safe route render');
 
 for (const marker of [
   'data-prh-local-first-spa="1"',
@@ -110,15 +121,26 @@ for (const marker of [
 ]) assert(html.includes(marker), `missing SPA marker ${marker}`);
 for (const route of contract.routes) assert(html.includes(`data-lf-route="${route}"`), `missing route ${route}`);
 
+for (const serverMarker of [
+  'prhLocalFirstSpaNormalizeRoute_',
+  'prhLocalFirstSpaNormalizePrivacy_',
+  'prhLocalFirstSpaBootstrap_',
+  'data-lf-server-bootstrap="1"',
+  'history.replaceState',
+  'window.__PRH_LF_SERVER_BOOT__'
+]) assert(serviceSource.includes(serverMarker), `missing server bootstrap marker ${serverMarker}`);
+
 assert.doesNotMatch(html, /google\.script\.run|\bfetch\s*\(|XMLHttpRequest\s*\(/);
-assert.doesNotMatch(html, /value_minor|amount_minor|balance_minor|SYN-TX-|PUBLIC_SYNTHETIC/);
 assert.doesNotMatch(serviceSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
 assert.doesNotMatch(routerSource, /LOCAL_FIRST_SURFACE[\s\S]{0,300}(setValue|setValues|appendRow)\s*\(/);
+assert.doesNotMatch(previewHtml, /value_minor|amount_minor|balance_minor|SYN-TX-|PUBLIC_SYNTHETIC/);
 
 console.log('local_first_spa_runtime_contract_test: OK', {
   routes:contract.routes.length,
   singleDocument:true,
   historyApi:true,
+  serverIframeBootstrap:true,
+  serverDiagnosticParam:true,
   zeroWarmNetwork:true,
   zeroGoogleReads:true,
   ownerRouteToPaintDiagnostic:true,
