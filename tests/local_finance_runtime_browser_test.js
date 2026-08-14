@@ -207,14 +207,19 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
 
     assert.strictEqual(browserResult.beforeWipe.status, 'READY');
     assert(browserResult.stateCount >= 10);
-    assert.deepStrictEqual(localRequests, [], `warm finance route/filter/Worker operations emitted network requests: ${localRequests.join(' | ')}`);
+    const workerBlobRequests = localRequests.filter((url) => String(url).startsWith('blob:'));
+    const externalNetworkRequests = localRequests.filter((url) => /^(?:https?|wss?):/i.test(String(url)));
+    assert.strictEqual(workerBlobRequests.length, 1, `finance runtime must bootstrap exactly one reusable Worker blob, got: ${workerBlobRequests.join(' | ')}`);
+    assert.deepStrictEqual(externalNetworkRequests, [], `finance initialization/warm route/filter operations emitted backend network requests: ${externalNetworkRequests.join(' | ')}`);
+    assert.strictEqual(localRequests.length, 1, `unexpected browser request beyond singleton Worker blob: ${localRequests.join(' | ')}`);
 
-    console.log('local_finance_runtime_browser_adapter_test: PASS', {
+    console.log('local_finance_runtime_browser_test: PASS', {
       oneVerifiedSnapshot: true,
       sharedFilterContext: true,
       canonicalWorkerParity: true,
       staleDiscard: true,
-      warmNetworkRequests: localRequests.length
+      singletonWorkerBlobBootstrap: workerBlobRequests.length,
+      backendNetworkRequests: externalNetworkRequests.length
     });
   } finally {
     await page.close().catch(() => {});
