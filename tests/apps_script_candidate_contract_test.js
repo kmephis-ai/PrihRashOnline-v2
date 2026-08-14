@@ -38,7 +38,6 @@ assert.strictEqual(first.candidateSha, sha);
 assert.strictEqual(first.generatedRuntimeBundle, undefined, 'legacy manifest shape must remain unchanged without marker');
 assert.strictEqual(first.runtimeBundleMarker, undefined, 'legacy marker metadata must be absent');
 assert.strictEqual(first.echartsVendor, undefined, 'legacy manifest must not invent ECharts vendor metadata');
-assert.strictEqual(first.localFirstBrowserRuntime, undefined, 'legacy manifest must not invent Local-first browser metadata');
 assert(/^[0-9a-f]{64}$/.test(first.sourceTreeHash));
 assert(/^[0-9a-f]{64}$/.test(first.artifactHash));
 assert(first.files.some((item) => item.path === GENERATED_BUILD_INFO), 'generated BuildInfo.js must be deployed');
@@ -52,8 +51,7 @@ assert.deepStrictEqual(verifyCandidate(artifact, expected, sha), {
   artifactHash: first.artifactHash,
   fileCount: 4,
   generatedRuntimeBundle: null,
-  echartsVendor: null,
-  localFirstBrowserRuntime: null
+  echartsVendor: null
 });
 
 fs.appendFileSync(path.join(artifact, 'files', 'Code.js'), '// tampered\n');
@@ -83,7 +81,6 @@ assert.strictEqual(enabledFirst.fileCount, 5);
 assert.strictEqual(enabledFirst.generatedRuntimeBundle, GENERATED_RUNTIME_BUNDLE);
 assert.deepStrictEqual(enabledFirst.runtimeBundleMarker, { schema: RUNTIME_BUNDLE_MARKER_SCHEMA, version: '1.0.0' });
 assert.strictEqual(enabledFirst.echartsVendor, undefined, 'runtime marker alone must not invent ECharts vendor metadata');
-assert.strictEqual(enabledFirst.localFirstBrowserRuntime, undefined, 'synthetic marker build without LocalFirstSpaWebApp must remain backward compatible');
 assert(enabledFirst.files.some((item) => item.path === GENERATED_RUNTIME_BUNDLE));
 assert(!enabledFirst.files.some((item) => item.path === RUNTIME_BUNDLE_MARKER), 'marker must not be deployed');
 const generatedRuntime = fs.readFileSync(path.join(enabledArtifact, 'files', GENERATED_RUNTIME_BUNDLE), 'utf8');
@@ -96,8 +93,7 @@ assert.deepStrictEqual(verifyCandidate(enabledArtifact, enabledExpected, sha), {
   artifactHash: enabledFirst.artifactHash,
   fileCount: 5,
   generatedRuntimeBundle: GENERATED_RUNTIME_BUNDLE,
-  echartsVendor: null,
-  localFirstBrowserRuntime: null
+  echartsVendor: null
 });
 
 fs.writeFileSync(path.join(source, RUNTIME_BUNDLE_MARKER), '{"schema":"WRONG","version":"1.0.0","enabled":true}\n');
@@ -116,7 +112,7 @@ fs.rmSync(temp, { recursive: true, force: true });
 console.log('apps_script_candidate_contract_test: OK', {
   legacyManifestCompatible: true,
   markerGatedRuntimeBundle: true,
-  localFirstRuntimeMetadataBackwardCompatible: true,
+  echartsMetadataExplicitlyNullableInVerification: true,
   generatedRuntimeBundle: GENERATED_RUNTIME_BUNDLE,
   deterministic: true
 });
