@@ -1,20 +1,24 @@
 # PrihRashOnline-v2 — текущий статус проекта
 
-Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Human documentation не может отменять красный machine gate.
+Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` v2.4 + временное approved amendment `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Human documentation не может отменять красный machine gate.
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
-Forensic rebaseline 2026-08-11 отделяет formal engineering progress от продукта: audited legacy baseline = 75/107 (70,1%), после материализации девяти Recovery items = 75/116 (64,7%), independent Product Readiness ≈25%. Issue-count completion не является product metric. Это governance/integration incident, а не доказанный инцидент повреждения financial data.
+## Текущий critical path — Local-first Recovery
 
-## R0 — critical path завершён
+Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — **complete**. `DOC-001`, `DOC-002`, `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-004`, `AIENG-005`, `AIENG-006`, `DR-001`, `OBS-001`, `FINOPS-001` — DONE/Main Verification PASS.
+- `ARCH-LF-001` — **IN_PROGRESS**, Issue #245, branch `agent/ARCH-LF-001-local-first-rebaseline`; единственный current writer. Цель — зафиксировать architecture contract, Local Read Model, IndexedDB/Worker/sync boundaries, SLO и исполняемый LF Roadmap.
 
-- `AIENG-004` — **DONE**, Issue #157 Main Verification PASS, merge `280dea294b086fae3cedf56df7899c9938b42b88`.
-- `AIENG-005` — **DONE**, Issue #159 Main Verification PASS, merge `5fe90929f5f266fcd92bbc9745f78107083f6b5c`.
-- `AIENG-006` — **DONE**, Issue #146 Main Verification PASS, merge `0f7722c48dfc05b12efd861ecaa5d0b1f408c98a`.
+До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
-`LANG-RU` обязателен. PR/Migration review остаются READ_ONLY; machine gates и Main Verification выше human summary.
+`FIN-REC-001` Issue #224 и PR #243 закрыты без merge как superseded request-per-view implementation. Их FIN-TRUTH/filter/revision/zero-write решения остаются engineering reference. `VIZ-REC-001` #226 сохраняет прежний runtime-integrated reference; R9/R10 остаются frozen.
+
+## R0 — завершён
+
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. Исполнимая AI-инженерная цепочка сохраняется: `AIENG-001 = DONE` -> `AIENG-002 = DONE` -> `AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS. `DR-001`, `OBS-001`, `FINOPS-001` — DONE.
+
+`LANG-RU` обязателен. Real or real-derived household finance data остаётся private; public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence. `FREE_ONLY` остаётся executable invariant.
 
 ## R1 / Canonical Financial Platform — завершена
 
@@ -22,74 +26,50 @@ Forensic rebaseline 2026-08-11 отделяет formal engineering progress от
 - `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
-- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private `OWNER_VERIFIED` reconciliation PASS.
+- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
-- `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE**.
+- `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
 
-`MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: open. FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+`MASTER-G3 / Canonical platform` — **complete**; historical pre-close state: **open**. FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-Post-R1 handoff historically начинается с `DESIGN-020`; этот lifecycle anchor сохраняется после завершения R2–R8.
+Post-R1 lifecycle handoff исторически начинается с `DESIGN-020`; этот anchor сохраняется.
 
-## R2 / Family Finance Center — engineering complete, product partial
+## R2/R2R — Product Recovery rebaseline
 
-`DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` — historical DONE/Main Verification PASS в объявленном engineering scope.
+R2 engineering contracts `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` сохраняются как reusable engineering work, но product credit даётся только exact-SHA Product Ready evidence.
 
-Canonical private Web App default route = R2 Financial Home. Home private binding уже доказан; `DATA-REC-001` сейчас восстанавливает реальные owner-private read-only bindings для `Операции` и `Качество данных`. До прохождения exact-SHA runtime/Product Ready gates эти два новых candidate routes не получают product credit. Остальные пять daily finance routes остаются fail-closed/unbound. Legacy Dashboard остаётся bounded rollback route. Web App остаётся `MYSELF`; `NOT_PROVEN_CURRENT_HOST` PWA boundary и `FREE_ONLY` сохраняются.
+Forensic/Product Recovery baseline `R2R` и `MASTER-GUX` остаются причиной freeze feature breadth. `GOV-REC-001`, `PERF-REC-001`, `UI-REC-001`, `GOV-REC-002`, `DATA-REC-001` завершили свои доказанные stages. `FIN-REC-001` superseded новым architecture direction. Старые PLAN/E2E/STUDIO recovery scopes будут re-depended или перенесены в LF3/LF4 после architecture rebaseline.
 
-## R2R / Product Recovery — текущий critical path
+Request-per-view технические оптимизации PERF-010/011/012/013/070 не выбрасываются: они остаются полезными для bootstrap/sync, reconciliation и parity, но больше не определяют warm interaction topology.
 
-- `GOV-REC-001` — **DONE**, Issue #219 Main Verification PASS, merge `5c1fe264bc35d7aaf755e611536dabbf31e3f6c0`.
-- `PERF-REC-001` — **DONE_ENGINEERING**, Issue #222 Main Verification PASS, PR #232, merge `dce3558875178edc1b5b6d7391028e7be1f4835e`. Exact deployed candidate `fa921b53…`: owner-authenticated 20C+20W PASS; cold Home p95 = 5,922s, warm Home p95 = 1,306s, cold cell reads 38 059 вместо 263 505.
-- `UI-REC-001` — **DONE**, Issue #221, PR #229, merge `313b4eade10b7680306b2096f39d6271bbb30aa3`; exact owner UAT и Product Ready E2E PASS. Truthful navigation/RU household UI восстановлены.
-- `VIZ-REC-001` — **BLOCKED**, Issue #226, PR #238, exact candidate `5bad584e…`, `engineering_status=CODE_COMPLETE`, `product_stage=RUNTIME_INTEGRATED`. Local ECharts/simple renderer, early runtime dispatch и revision-aware visual cache развернуты; владелец принял текущую производительность. Финальный Product Ready ожидает canonical authenticated E2E producer.
-- `GOV-REC-002` — **DONE_ENGINEERING**, Issue #239, PR #240, merge `922c0e07a747dff5ed0852212ca5a5138c1d1340`; stage-aware `depends_on_runtime_integrated` добавлен без ослабления Product Ready/DONE.
-- `DATA-REC-001` — **IN_PROGRESS**, Issue #223, branch `agent/DATA-REC-001-private-transactions-data-quality`, PR #241; единственный current writer. Цель — подключить Transactions + Data Quality к одному revision-bound owner-private canonical snapshot, сохранить FIN-TRUTH и zero-write, убрать synthetic product fallback.
-- `E2E-REC-001` #227 остаётся BACKLOG. После GOV-REC-002 его VIZ dependency нормализована как `depends_on_runtime_integrated: [VIZ-REC-001]`, но обычные DATA/FIN/PLAN dependencies по-прежнему должны честно достичь DONE до запуска canonical E2E gate-builder.
-- `ANL-090` Issue #217 — BLOCKED `PAUSED_REBASELINE`; PR #218 draft, код сохранён без writer authority.
-- Downstream order: DATA-REC-001 -> FIN-REC-001 и PLAN-REC-001 по их dependency gates -> E2E-REC-001; VIZ уже удовлетворяет узкий runtime-integrated prerequisite E2E, но остаётся без ложного Product Ready. STUDIO ждёт объявленный product-ready dependency.
-- R9/R10 feature expansion frozen.
+## Local-first target truth
 
-Stage-aware dependency не является Product Ready: обычный `depends_on` всё ещё требует `status=DONE`, `depends_on_product_ready` требует завершённый product item, а `depends_on_runtime_integrated` лишь разрешает gate-builder работать поверх уже развернутого user-facing predecessor. User-facing `DONE` по-прежнему требует exact-SHA `product-ready-e2e=success`.
+После verified bootstrap критический путь обычного действия:
 
-Apps Script version capacity остаётся дефицитным ресурсом. Intermediate recovery deployments запрещены, если они не нужны для exact candidate verification; повторное создание versions должно оставаться bounded retention policy.
+```text
+SPA state
+-> IndexedDB / in-memory Local Read Model
+-> Web Worker analytics
+-> ECharts / UI
+```
 
-## R3 / Planning, Wealth, Decision Intelligence
+Google Sheets + Apps Script работают как canonical source и trusted background sync/reconciliation adapter. Local Read Model read-only, exact-revision bound и не получает canonical write authority. Partial generation не должна становиться visible current state; delta с недоказанной base revision должен переходить в full rebuild.
 
-`TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS; product integration не доказана. SUB-030 precision-first и не имеет automatic canonical mutation/financial truth authority.
+Target Product SLO — будущие acceptance targets, не текущие измерения: warm route p95 <=100 ms, filter/KPI <=200 ms, normal chart desktop <=300 ms, representative mobile <=500 ms, Back/Forward <=100 ms, cached first meaningful paint <=800 ms. Server technical health latency не считается этим Product SLA.
 
-## R4 / Yandex Cloud shadow platform
+## R3 / R7 / R8 — reusable engineering foundation
 
-- `YC-040` — **DONE**, Issue #141 Main Verification PASS.
-- `AUTH-040` — **DONE**, Issue #142 Main Verification PASS.
-- `YC-041` — **BLOCKED**, Issue #148, `OWNER_CLOUD_BOOTSTRAP_REQUIRED`; `writer_authority=false`.
-- `YC-042` — **BLOCKED**, Issue #149, `OWNER_YDB_TARGET_REQUIRED`; `writer_authority=false`.
+`TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. Studio/dashboard configuration contracts R8 также остаются reusable, но не автоматически считаются working private product.
 
-Google остаётся authoritative; cloud blockers не создают billing-backed resources и не меняют canonical write ownership.
+## R4 / YDB future backend
 
-## R7 / Semantic Analytics — engineering complete
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе ARCH-LF Google authoritative store не меняется и live YDB resource не создаётся.
 
-`ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. `MASTER-G7-ENGINEERING` — complete; private runtime/UI integration не доказана.
+Future ladder после Local-first Product Ready:
 
-- `ANL-074` — Issue #155 Main Verification PASS, merge `b461bfea099a6b35b8f156975f405ed4d4b58af1`.
-- `VIZ-070` — Issue #192 Main Verification PASS, merge `13091bb5ba731673bae5357ae7b22b64475592c3`.
+`GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> отдельный future owner-authorized write cutover`.
 
-VIZ-070 authority остаётся `PRH_VISUALIZATION_REGISTRY_V2@2.0.0`; BAR/LINE/DONUT и renderer/query boundaries остаются canonical.
-
-## R8 / Analytics Studio — engineering complete, product unbound
-
-`STUDIO-080`, `PRIV-080`, `DASH-080`, `DASH-081`, `DASH-082`, `DASH-083`, `DASH-084`, `DASH-085`, `DASH-086` — DONE_ENGINEERING/Main Verification PASS. `MASTER-G8-ENGINEERING` — complete; current Studio/composer остаётся configuration/session-only без private analytics execution.
-
-- `DASH-084` — Issue #206 DONE/Main Verification PASS, candidate `3626aab53c2a3b71ffff5dc0be579c061517a893`, merge `06e96ad4cb4d03f9447467224ec66dddea470238`.
-- `DASH-085` — canonical Issue #208 DONE/Main Verification PASS; recovery merge `7aeb044ffed8378d0a4aa3894d60b10caf309f2b`. Duplicate Issue #209 / PR #210 closed without merge, `writer_authority=false`.
-- `DASH-086` — Issue #213 DONE/Main Verification PASS, candidate `e3b78983a22316ae533e94e84135fe5bc4426c58`, merge `a7a73889a4f5deff15e086b5469f00f240cab6e0`.
-
-R8 final guarantees: responsive composer, semantic bindings, cross-filter, drill-through, private saved views, wide visual customization и safe portable dashboard configuration работают без переноса FIN-TRUTH/query/write authority в dashboard layer. DASH-086 import остаётся `DRY_RUN_ONLY`; persistence выполняется только отдельным explicit DASH-084 lifecycle call.
-
-## R9 / Advanced Financial Analytics & Visual Intelligence — frozen
-
-- `VIZ-090` — DONE_ENGINEERING/Main Verification PASS: 18-family semantic planner/validator реализован, но browser renderer/private query consumer отсутствует.
-- `ANL-090` — BLOCKED `PAUSED_REBASELINE`, Issue #217; PR #218 draft.
-- `MASTER-G9-ENGINEERING` не может считаться production gate. Дальнейший execution разрешается только после `MASTER-GSTUDIO` и отдельного owner decision.
+Big-bang YDB cutover запрещён. `paidOverageAllowed=false`; unknown billing state остаётся BLOCKED.
 
 ## MIG-010 historical safety boundary
 
@@ -103,7 +83,9 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 ## Executable AI engineering baseline
 
-Root `AGENTS.md` is public-safe AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V2` enforce one-writer and separate engineering/product stages. Read-only multi-AI reviewers have `writer_authority=false`; machine gates and Main Verification remain authoritative. `depends_on_runtime_integrated` разрешает только честный stage-aware continuation; он не снижает Product Ready требования.
+Root `AGENTS.md` is the public-safe repository AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V2` enforce one-writer and separate engineering/product stages. Read-only multi-AI review остаётся supplementary evidence; machine gates и Main Verification выше textual review.
+
+Временный Local-first Roadmap amendment не отменяет `docs/ROADMAP.md` v2.4: он приоритетно задаёт LF0..LF4 recovery execution до консолидации в следующую каноническую Roadmap version.
 
 ## Current delivery chain
 
@@ -119,16 +101,12 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local/contracts/render smoke недостаточны.
-
-## Current runtime truth
-
-Private primary financial store/runtime = Google Sheets + Apps Script. Canonical default Web App route = R2 Financial Home. PERF-REC-001 доказал live Home SLO на real owner-authenticated runtime: cold p95 5,922s, warm Home p95 1,306s. UI-REC-001 уже Product Ready/DONE. VIZ-REC-001 exact candidate развернут и accepted по текущей производительности, но остаётся `RUNTIME_INTEGRATED`. DATA-REC-001 сейчас добавляет candidate private bindings для `Операции` и `Качество данных`: до exact-SHA Product Ready evidence они остаются recovery candidate, а не завершённый product claim. Public GitHub evidence synthetic/configuration-only; private UI остаётся `MYSELF`; `FREE_ONLY` mandatory.
+Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно.
 
 ## Source precedence
 
 1. security/privacy/cost/irreversible boundaries;
-2. `docs/ROADMAP.md` v2.4 + live GitHub Issues;
+2. `docs/ROADMAP.md` v2.4 + approved `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues;
 3. exact-SHA code/tests/workflows/machine evidence;
 4. versioned contracts;
 5. architecture/ADR/operations docs;

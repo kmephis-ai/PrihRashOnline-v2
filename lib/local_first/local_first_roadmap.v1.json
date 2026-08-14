@@ -1,0 +1,138 @@
+{
+  "schema": "PRH_LOCAL_FIRST_ROADMAP_V1",
+  "version": "1.0.0",
+  "roadmap_id": "ARCH-LF-001",
+  "base_roadmap": "docs/ROADMAP.md@v2.4",
+  "amendment": "docs/ROADMAP_LOCAL_FIRST_RECOVERY.md",
+  "freeze_until_gate": "MASTER-LF-PRODUCT",
+  "feature_expansion_frozen": true,
+  "protocol": {
+    "task_schema": "PRH_ROADMAP_TASK_V2",
+    "local_first_protocol_wave": "R2R",
+    "future_ydb_protocol_wave": "R4",
+    "one_active_writer": true,
+    "paid_dependency_required": false
+  },
+  "items": [
+    {
+      "id": "ARCH-LF-001",
+      "phase": "LF0",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 1,
+      "work_class": "engineering",
+      "depends_on": ["GOV-REC-001", "DATA-REC-001"],
+      "exit_gate": "MASTER-LF-0"
+    },
+    {
+      "id": "SPA-LF-001",
+      "phase": "LF1",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 2,
+      "work_class": "user_facing",
+      "depends_on": ["ARCH-LF-001"],
+      "exit_gate": "MASTER-LF-SPA"
+    },
+    {
+      "id": "STORE-LF-001",
+      "phase": "LF1",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 3,
+      "work_class": "engineering",
+      "depends_on": ["ARCH-LF-001"],
+      "exit_gate": "MASTER-LF-STORE"
+    },
+    {
+      "id": "WORKER-LF-001",
+      "phase": "LF2",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 4,
+      "work_class": "engineering",
+      "depends_on": ["STORE-LF-001"],
+      "exit_gate": "MASTER-LF-WORKER"
+    },
+    {
+      "id": "SYNC-LF-001",
+      "phase": "LF2",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 5,
+      "work_class": "engineering",
+      "depends_on": ["STORE-LF-001"],
+      "exit_gate": "MASTER-LF-SYNC-BASE"
+    },
+    {
+      "id": "DELTA-LF-001",
+      "phase": "LF2",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 6,
+      "work_class": "engineering",
+      "depends_on": ["SYNC-LF-001"],
+      "exit_gate": "MASTER-LF-SYNC-DELTA"
+    },
+    {
+      "id": "FIN-LF-001",
+      "phase": "LF3",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 7,
+      "work_class": "user_facing",
+      "depends_on": ["SPA-LF-001", "WORKER-LF-001", "DELTA-LF-001"],
+      "exit_gate": "MASTER-LF-FIN"
+    },
+    {
+      "id": "DATA-LF-001",
+      "phase": "LF3",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 8,
+      "work_class": "user_facing",
+      "depends_on": ["SPA-LF-001", "STORE-LF-001", "DELTA-LF-001"],
+      "exit_gate": "MASTER-LF-DATA"
+    },
+    {
+      "id": "PERF-LF-001",
+      "phase": "LF3",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 9,
+      "work_class": "user_facing",
+      "depends_on": ["FIN-LF-001", "DATA-LF-001"],
+      "exit_gate": "MASTER-LF-PERF"
+    },
+    {
+      "id": "E2E-LF-001",
+      "phase": "LF4",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 10,
+      "work_class": "user_facing",
+      "depends_on": ["PERF-LF-001"],
+      "exit_gate": "MASTER-LF-PRODUCT"
+    },
+    {
+      "id": "YDB-LF-001",
+      "phase": "FUTURE",
+      "protocol_wave": "R4",
+      "priority": "P1",
+      "order": 11,
+      "work_class": "engineering",
+      "depends_on": ["E2E-LF-001", "YC-040"],
+      "exit_gate": "MASTER-YDB-SHADOW"
+    },
+    {
+      "id": "YDB-LF-002",
+      "phase": "FUTURE",
+      "protocol_wave": "R4",
+      "priority": "P1",
+      "order": 12,
+      "work_class": "engineering",
+      "depends_on": ["YDB-LF-001"],
+      "exit_gate": "MASTER-YDB-READ"
+    }
+  ]
+}
