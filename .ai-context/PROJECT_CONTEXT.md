@@ -29,7 +29,11 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `SYNC-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #255, PR #256, candidate `05f161074a78428a6a96e2df66fde4ef7e0bd70e`, merge `587dc6bd8b7e48d915cc7aef3d31c35802650cd7`; Apps Script version 224, full bootstrap/NOOP/degraded preservation/atomic switch и real Chromium zero-network local read PASS.
 
-`DELTA-LF-001` — **current writer / текущий writer**, Issue #257, branch `agent/DELTA-LF-001-revision-bound-delta`. Это единственный active writer. Цель LF2: idempotent exact-base-revision delta protocol, target revision recomputation и automatic full bootstrap fallback при любой недоказанной base/target chain.
+`DELTA-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #257, PR #258, merge `0756252b5c0619bf53e9e1b24f235fb4fa28b2f6`; idempotent exact-base-revision delta, target revision recomputation, corrupt/race fallback и full bootstrap recovery PASS.
+
+`FIN-LF-001` — **BLOCKED / CODE_COMPLETE**, Issue #259, PR #260 Draft. Candidate `e3ac0fe4a3544349d169822f2b69cb03dc60b247` дважды прошёл PR Validation (#862/#863), включая real Chromium FIN runtime и desktop/mobile exact-candidate UI, но Trusted DEV Deploy #829 остановился до Apps Script push на `CANDIDATE_VERIFY_FAILED`: candidate одновременно менял trusted packager и artifact format.
+
+`PACK-LF-001` — **current writer / текущий writer**, Issue #261, branch `agent/PACK-LF-001-trusted-packager-bootstrap`. Это единственный active writer. Цель: ввести marker-gated Local-first browser-runtime packager capability в trusted `main` **выключенной по умолчанию и output-compatible**, чтобы следующий FIN candidate мог включить её отдельным marker и быть независимо реконструирован trust anchor из `main`.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -57,6 +61,8 @@ Warm route/filter/chart обязан работать без mandatory network r
 `PRH_LOCAL_FIRST_SYNC_V1@1.0.0` добавляет только remote-read/background update boundary. Apps Script adapter переиспользует existing `prhR2DataCreateSnapshot_()` и canonical repository revision; отдельной mapping/FIN authority нет. Same revision -> `NOOP`; новая revision -> STAGING full bootstrap -> STORE-LF count verification -> atomic finalize. Network/source/chunk error до finalize не заменяет предыдущую `ACTIVE + VERIFIED` generation. `readLocal()` не вызывает transport.
 
 `PRH_LOCAL_FIRST_DELTA_V1@1.0.0` развивает sync только как network optimization: request inventory строится из `ACTIVE + VERIFIED` generation и exact-bound к `base_revision`; server сравнивает SHA-256 record etags с текущим canonical snapshot. Delta никогда не мутирует active generation in-place — target материализуется как новая STAGING generation. До finalize browser пересчитывает canonical `PRH_TRANSACTION_REPOSITORY_V1` revision по target transactions и требует exact equality `target_revision`. Base mismatch, invalid/corrupt delta, excessive delta или target mismatch переходят в уже проверенный SYNC-LF-001 full bootstrap fallback.
+
+`PRH_LOCAL_FIRST_BROWSER_RUNTIME_MARKER_CONTRACT_V1@1.0.0` задаёт trust-bootstrap boundary для deployable Local-first browser runtime. Marker `local-first-browser-runtime.json` absent -> capability disabled; deploy artifact обязан оставаться legacy-compatible. Marker имеет закрытую schema/module/policy allow-list; unknown marker fail-closed. Candidate packager self-attestation запрещена: trusted reconstruction использует только packager из `main`. PACK-LF-001 не включает root marker и не активирует product runtime.
 
 Target Product SLO являются будущими acceptance targets, не текущей telemetry: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Server technical health latency и cold bootstrap timing не подменяют эти метрики.
 
@@ -98,7 +104,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На DELTA-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На PACK-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
@@ -126,7 +132,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync и Delta adapter contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta и packager bootstrap contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 

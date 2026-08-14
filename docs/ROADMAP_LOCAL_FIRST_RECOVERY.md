@@ -51,7 +51,8 @@ Warm user interaction не зависит от Google Sheets/network.
 | WORKER-LF-001 | LF2 | R2R | P0 | STORE-LF-001 | engineering | Web Worker analytics bridge, generation cancellation, stale discard | MASTER-LF-WORKER |
 | SYNC-LF-001 | LF2 | R2R | P0 | STORE-LF-001 | engineering | background full bootstrap + exact revision sync | MASTER-LF-SYNC-BASE |
 | DELTA-LF-001 | LF2 | R2R | P0 | SYNC-LF-001 | engineering | idempotent revision-bound delta protocol + full rebuild fallback | MASTER-LF-SYNC-DELTA |
-| FIN-LF-001 | LF3 | R2R | P0 | SPA-LF-001, WORKER-LF-001, DELTA-LF-001 | user_facing | Home/Expenses/Income/Cash Flow на одном local snapshot/FilterContext | MASTER-LF-FIN |
+| PACK-LF-001 | LF3 bootstrap | R2R | P0 | DELTA-LF-001 | engineering | marker-gated trusted Apps Script browser-runtime packager capability, disabled/output-compatible by default | MASTER-LF-PACKAGER |
+| FIN-LF-001 | LF3 | R2R | P0 | SPA-LF-001, WORKER-LF-001, DELTA-LF-001, PACK-LF-001 | user_facing | Home/Expenses/Income/Cash Flow на одном local snapshot/FilterContext | MASTER-LF-FIN |
 | DATA-LF-001 | LF3 | R2R | P0 | SPA-LF-001, STORE-LF-001, DELTA-LF-001 | user_facing | Transactions/Data Quality local-first routes | MASTER-LF-DATA |
 | PERF-LF-001 | LF3 | R2R | P0 | FIN-LF-001, DATA-LF-001 | user_facing | real-browser performance truth + zero-network warm interaction gate | MASTER-LF-PERF |
 | E2E-LF-001 | LF4 | R2R | P0 | PERF-LF-001 | user_facing | authenticated exact-SHA Local-first Product Ready journey | MASTER-LF-PRODUCT |
@@ -105,6 +106,16 @@ Warm user interaction не зависит от Google Sheets/network.
 - local verified data remains readable during network failure;
 - remote sync never blocks already-ready SPA.
 
+### MASTER-LF-PACKAGER
+
+- trusted packager capability вводится в `main` **до** product activation;
+- marker отсутствует -> capability disabled, legacy artifact shape/bytes сохраняются;
+- marker является versioned exact policy, unknown/invalid marker fail-closed;
+- candidate не может использовать собственное изменение trusted packager как доказательство своей реконструируемости;
+- marker-enabled mode детерминированно exact-bind-ит browser modules + canonical Worker;
+- external runtime CDN/loaders запрещены, FREE_ONLY обязателен;
+- Trusted DEV Deploy старым trust anchor должен независимо реконструировать bootstrap candidate.
+
 ### MASTER-LF-PERF
 
 Product SLO targets:
@@ -152,6 +163,8 @@ YDB is not a prerequisite for Local-first Product Ready.
 
 ## 7. Resolver rule
 
-Пока открыт `ARCH-LF-001` со `status=IN_PROGRESS`, он единственный active writer.
+Пока открыт `PACK-LF-001` со `status=IN_PROGRESS`, он единственный active writer; `FIN-LF-001` остаётся `BLOCKED` даже при `CODE_COMPLETE`, потому что его новый artifact format ещё не имеет trusted packager в `main`.
 
-После его Main Verification resolver выбирает только Local-first P0 chain по dependency readiness и указанному table order. Соседние feature items не получают writer authority до `MASTER-LF-PRODUCT`, даже если их старые dependencies формально DONE. Это freeze policy recovery amendment, а не ослабление one-writer или Product Ready semantics.
+После Main Verification `PACK-LF-001` resolver возвращает writer authority в `FIN-LF-001`, который обязан rebase/reconstruct exact candidate поверх нового trusted `main` и только затем продолжить Trusted DEV Deploy/Product Ready.
+
+Соседние feature items не получают writer authority до `MASTER-LF-PRODUCT`, даже если их старые dependencies формально DONE. Это freeze policy recovery amendment, а не ослабление one-writer или Product Ready semantics.

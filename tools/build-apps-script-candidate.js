@@ -8,6 +8,17 @@ const {
   GENERATED_RUNTIME_BUNDLE,
   buildRuntimeBundleSource
 } = require('./build-apps-script-runtime-bundle');
+const {
+  MARKER_FILE: LOCAL_FIRST_RUNTIME_MARKER,
+  MARKER_SCHEMA: LOCAL_FIRST_RUNTIME_MARKER_SCHEMA,
+  MARKER_VERSION: LOCAL_FIRST_RUNTIME_MARKER_VERSION,
+  TARGET_HTML: LOCAL_FIRST_TARGET_HTML,
+  RUNTIME_SCHEMA: LOCAL_FIRST_RUNTIME_SCHEMA,
+  RUNTIME_VERSION: LOCAL_FIRST_RUNTIME_VERSION,
+  localFirstBrowserRuntimeConfig,
+  buildLocalFirstRuntimeInjection,
+  injectIntoHtml: injectLocalFirstRuntimeIntoHtml
+} = require('./build-local-first-browser-runtime');
 
 const POLICY_VERSION = 'apps-script-top-level-v3';
 const BUILD_INFO_SCHEMA_VERSION = 1;
@@ -190,6 +201,41 @@ function injectEchartsVendor(sourceFiles, vendorConfig, fetcher = fetchEchartsVe
   };
 }
 
+function injectLocalFirstBrowserRuntime(sourceFiles, repositoryRoot, config) {
+  if (!config || !config.enabled) return { files: sourceFiles, metadata: null };
+  const targetIndex = sourceFiles.findIndex((item) => item.path === LOCAL_FIRST_TARGET_HTML);
+  if (targetIndex < 0) throw new Error(`${LOCAL_FIRST_TARGET_HTML} is required when Local-first browser runtime is enabled`);
+  const runtime = buildLocalFirstRuntimeInjection({ repositoryRoot, marker: config.marker });
+  const target = sourceFiles[targetIndex];
+  const html = target.bytes.toString('utf8');
+  const injectedHtml = injectLocalFirstRuntimeIntoHtml(html, runtime);
+  const injectedBytes = Buffer.from(injectedHtml, 'utf8');
+  const files = sourceFiles.slice();
+  files[targetIndex] = {
+    path: target.path,
+    sha256: sha256(injectedBytes),
+    size: injectedBytes.length,
+    bytes: injectedBytes
+  };
+  return {
+    files,
+    metadata: Object.freeze({
+      schema: runtime.schema,
+      version: runtime.version,
+      markerSchema: config.marker.schema,
+      markerVersion: config.marker.version,
+      runtimeSha256: runtime.runtime_sha256,
+      workerSha256: runtime.worker_sha256,
+      workerModuleCount: runtime.worker_module_count,
+      modules: runtime.modules,
+      targetHtml: LOCAL_FIRST_TARGET_HTML,
+      runtimeNetworkRequiredForWarmRoute: false,
+      externalCdnRequired: false,
+      costClass: 'FREE_ONLY'
+    })
+  };
+}
+
 function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, candidateSha, vendorFetcher = fetchEchartsVendorBytes }) {
   if (!SHA_RE.test(String(candidateSha || ''))) throw new Error('candidate SHA must be exactly 40 lowercase hex characters');
   const source = path.resolve(sourceRoot);
@@ -206,7 +252,9 @@ function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, cand
   const originalSourceFiles = sourceFileDescriptors(source, names);
   const vendorConfig = echartsVendorConfig(source);
   const vendorResult = injectEchartsVendor(originalSourceFiles, vendorConfig, vendorFetcher);
-  const sourceFiles = vendorResult.files;
+  const localFirstConfig = localFirstBrowserRuntimeConfig(source);
+  const localFirstResult = injectLocalFirstBrowserRuntime(vendorResult.files, repository, localFirstConfig);
+  const sourceFiles = localFirstResult.files;
   const runtimeConfig = runtimeBundleConfig(source);
   const runtimeBundle = runtimeConfig.enabled
     ? descriptorFromGenerated(GENERATED_RUNTIME_BUNDLE, buildRuntimeBundleSource(repository))
@@ -243,8 +291,21 @@ function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, cand
     manifest.runtimeBundleMarker = runtimeConfig.marker;
   }
   if (vendorResult.metadata) manifest.echartsVendor = vendorResult.metadata;
+  if (localFirstResult.metadata) manifest.localFirstBrowserRuntime = localFirstResult.metadata;
   fs.writeFileSync(path.join(out, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifest;
+}
+
+function validateLocalFirstManifestBinding(value) {
+  if (value == null) return;
+  if (!value || value.schema !== LOCAL_FIRST_RUNTIME_SCHEMA || value.version !== LOCAL_FIRST_RUNTIME_VERSION ||
+      value.markerSchema !== LOCAL_FIRST_RUNTIME_MARKER_SCHEMA || value.markerVersion !== LOCAL_FIRST_RUNTIME_MARKER_VERSION ||
+      value.targetHtml !== LOCAL_FIRST_TARGET_HTML || value.runtimeNetworkRequiredForWarmRoute !== false ||
+      value.externalCdnRequired !== false || value.costClass !== 'FREE_ONLY' ||
+      !/^[0-9a-f]{64}$/.test(value.runtimeSha256 || '') || !/^[0-9a-f]{64}$/.test(value.workerSha256 || '') ||
+      !Number.isInteger(value.workerModuleCount) || value.workerModuleCount < 1 || !Array.isArray(value.modules) || value.modules.length < 1) {
+    throw new Error('Local-first browser runtime manifest binding invalid');
+  }
 }
 
 function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
@@ -257,6 +318,8 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
   if (actual.generatedRuntimeBundle != null && actual.generatedRuntimeBundle !== GENERATED_RUNTIME_BUNDLE) {
     throw new Error('canonical runtime bundle manifest binding invalid');
   }
+  validateLocalFirstManifestBinding(actual.localFirstBrowserRuntime);
+  validateLocalFirstManifestBinding(expected.localFirstBrowserRuntime);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('candidate manifest differs from trusted reconstruction');
 
   const actualFilesRoot = path.join(candidateRoot, 'files');
@@ -273,7 +336,7 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
     if (!actualBytes.equals(expectedBytes)) throw new Error(`candidate file differs from trusted reconstruction: ${item.path}`);
     if (sha256(actualBytes) !== item.sha256) throw new Error(`candidate file hash mismatch: ${item.path}`);
   });
-  return {
+  const result = {
     candidateSha: actual.candidateSha,
     sourceTreeHash: actual.sourceTreeHash,
     artifactHash: actual.artifactHash,
@@ -281,6 +344,8 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
     generatedRuntimeBundle: actual.generatedRuntimeBundle || null,
     echartsVendor: actual.echartsVendor || null
   };
+  if (actual.localFirstBrowserRuntime) result.localFirstBrowserRuntime = actual.localFirstBrowserRuntime;
+  return result;
 }
 
 if (require.main === module) {
@@ -295,14 +360,16 @@ if (require.main === module) {
       outRoot: args.out,
       candidateSha: args.sha
     });
-    console.log('apps-script-candidate: BUILT', {
+    const summary = {
       candidateSha: manifest.candidateSha,
       sourceTreeHash: manifest.sourceTreeHash,
       artifactHash: manifest.artifactHash,
       fileCount: manifest.fileCount,
       generatedRuntimeBundle: manifest.generatedRuntimeBundle || null,
       echartsVendor: manifest.echartsVendor || null
-    });
+    };
+    if (manifest.localFirstBrowserRuntime) summary.localFirstBrowserRuntime = manifest.localFirstBrowserRuntime;
+    console.log('apps-script-candidate: BUILT', summary);
   }
 }
 
@@ -317,6 +384,12 @@ module.exports = {
   ECHARTS_VENDOR_SCHEMA,
   ECHARTS_VENDOR_PLACEHOLDER,
   ECHARTS_TARGET_HTML,
+  LOCAL_FIRST_RUNTIME_MARKER,
+  LOCAL_FIRST_RUNTIME_MARKER_SCHEMA,
+  LOCAL_FIRST_RUNTIME_MARKER_VERSION,
+  LOCAL_FIRST_TARGET_HTML,
+  LOCAL_FIRST_RUNTIME_SCHEMA,
+  LOCAL_FIRST_RUNTIME_VERSION,
   SHA_RE,
   sha256,
   gitBlobSha1,
@@ -330,6 +403,8 @@ module.exports = {
   fetchEchartsVendorBytes,
   localEchartsScriptTag,
   injectEchartsVendor,
+  injectLocalFirstBrowserRuntime,
+  validateLocalFirstManifestBinding,
   buildCandidate,
   verifyCandidate
 };

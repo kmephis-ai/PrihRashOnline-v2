@@ -13,7 +13,9 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `STORE-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #251, PR #252, merge `865cd076c4a066ec7f8b789f1030e8c129d91144`; private IndexedDB Local Read Model, immutable generations, atomic active switch, rebuild/wipe и zero-network local operations доказаны real Chromium test.
 - `WORKER-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #253, PR #254, merge `e206a129acb0136f8c3173ae6e55853c4c4401be`; real Web Worker использует тот же canonical `evaluateAnalytics()`, exact generation/revision binding, cancellation/stale discard и zero network/storage/write authority доказаны real Chromium test.
 - `SYNC-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #255, PR #256, candidate `05f161074a78428a6a96e2df66fde4ef7e0bd70e`, merge `587dc6bd8b7e48d915cc7aef3d31c35802650cd7`; Apps Script version 224, full bootstrap/NOOP/degraded preservation/atomic generation switch и zero-network local reads PASS.
-- `DELTA-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #257, branch `agent/DELTA-LF-001-revision-bound-delta`. LF2 реализует idempotent exact-base-revision delta protocol, SHA-256 inventory, target repository-revision verification и automatic full bootstrap fallback при любой недоказанной base/target chain.
+- `DELTA-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #257, PR #258, merge `0756252b5c0619bf53e9e1b24f235fb4fa28b2f6`; idempotent exact-base-revision delta, target revision verification, race/corrupt fallback и full bootstrap recovery PASS.
+- `FIN-LF-001` — **BLOCKED / CODE_COMPLETE**, Issue #259, PR #260 Draft. PR Validation #862/#863 PASS exact `e3ac0fe4a3544349d169822f2b69cb03dc60b247`, но Trusted DEV Deploy #829 корректно остановился до Apps Script push на `CANDIDATE_VERIFY_FAILED`: новый artifact format пока не имеет trusted packager в `main`.
+- `PACK-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #261, branch `agent/PACK-LF-001-trusted-packager-bootstrap`. Цель: сначала ввести marker-gated packager capability в trusted `main` в disabled/output-compatible режиме, затем вернуть writer authority FIN-LF-001.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -64,6 +66,8 @@ Google Sheets + Apps Script работают как canonical source и trusted 
 
 `PRH_LOCAL_FIRST_DELTA_V1@1.0.0` строит owner-private inventory только из `ACTIVE + VERIFIED` generation. Server delta exact-bound к `base_revision` и текущему canonical `target_revision`; browser материализует target в новую STAGING generation и пересчитывает canonical repository revision до finalize. Base mismatch, invalid/corrupt/excessive delta или target mismatch fail-closed переходят в уже проверенный SYNC-LF-001 full bootstrap. Active generation in-place не мутируется.
 
+`PRH_LOCAL_FIRST_BROWSER_RUNTIME_MARKER_CONTRACT_V1@1.0.0` — trust-bootstrap boundary. Пока marker отсутствует, capability выключена и новый packager обязан сохранять legacy artifact shape. Candidate не может сам аттестовать новый trusted builder; activation допускается только после Main Verification PACK-LF-001 и появления capability в `main`.
+
 Worker исполняет тот же canonical analytics evaluator, а не собственный набор финансовых формул. Он не получает network/storage/canonical-write authority; результат старой generation/revision должен быть discarded до UI commit.
 
 Target Product SLO — будущие acceptance targets, не текущие измерения: warm route p95 <=100 ms, filter/KPI <=200 ms, normal chart desktop <=300 ms, representative mobile <=500 ms, Back/Forward <=100 ms, cached first meaningful paint <=800 ms. Server technical health latency не считается этим Product SLA.
@@ -74,7 +78,7 @@ Target Product SLO — будущие acceptance targets, не текущие и
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе DELTA-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе PACK-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 
