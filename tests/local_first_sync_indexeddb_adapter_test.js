@@ -2,23 +2,44 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const http = require('http');
 const path = require('path');
 const { chromium } = require('playwright');
 
 const ROOT = path.resolve(__dirname, '..');
 const storeSource = fs.readFileSync(path.join(ROOT, 'pwa/local_read_model_store.js'), 'utf8');
 const syncSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_sync.js'), 'utf8');
+const harness = `<!doctype html><html><head><meta charset="utf-8"></head><body><script>${storeSource}</script><script>${syncSource}</script></body></html>`;
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve(server.address()));
+  });
+}
+
+function closeServer(server) {
+  return new Promise((resolve) => server.close(() => resolve()));
+}
 
 (async () => {
+  const server = http.createServer((request, response) => {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    response.end(harness);
+  });
+  const address = await listen(server);
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  const networkRequests = [];
-  page.on('request', (request) => networkRequests.push(request.url()));
+  const localOperationRequests = [];
+  let measureLocalNetwork = false;
+  page.on('request', (request) => {
+    if (measureLocalNetwork) localOperationRequests.push(request.url());
+  });
 
   try {
-    await page.setContent('<!doctype html><html><body></body></html>');
-    await page.addScriptTag({ content: storeSource });
-    await page.addScriptTag({ content: syncSource });
+    await page.goto(`http://127.0.0.1:${address.port}/`, { waitUntil: 'load', timeout: 15000 });
+    await page.waitForFunction(() => !!window.PrhLocalReadModelStore && !!window.PrhLocalFirstSync);
+    measureLocalNetwork = true;
 
     const result = await page.evaluate(async () => {
       const REV_A = 'a'.repeat(64);
@@ -99,8 +120,8 @@ const syncSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_sync.js'), '
             return fullEnvelope(REV_A, [tx('a-1', 10000), tx('a-2', -2500)]);
           }
           if (mode === 'B_BAD') {
-            // Two rows with one key intentionally collapse in IndexedDB. The
-            // STORE-LF count verification must fail before active switch.
+            // Same IndexedDB compound key intentionally overwrites one row.
+            // STORE-LF exact count verification must fail before active switch.
             return fullEnvelope(REV_B, [tx('b-duplicate', 12000), tx('b-duplicate', -3000)]);
           }
           if (mode === 'B') {
@@ -110,6 +131,7 @@ const syncSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_sync.js'), '
         }
       };
 
+      await store.wipe();
       const coordinator = PrhLocalFirstSync.createSyncCoordinator({ store, transport, chunkSize: 1 });
 
       const before = await coordinator.readLocal({ includeJournal: true });
@@ -134,9 +156,10 @@ const syncSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_sync.js'), '
       const updatedB = await coordinator.startBackgroundSync();
       const activeB = await coordinator.readLocal({ includeJournal: true });
 
+      const wiped = await store.wipe();
+      const reopened = await store.open();
+      const afterWipe = await coordinator.readLocal({ includeJournal: true });
       store.close();
-      const cleanupStore = PrhLocalReadModelStore.createStore({ indexedDB, IDBKeyRange, name: dbName });
-      await cleanupStore.wipe();
 
       return {
         before,
@@ -152,6 +175,9 @@ const syncSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_sync.js'), '
         activeAfterFailedGeneration,
         updatedB,
         activeB,
+        wiped,
+        reopened,
+        afterWipe,
         transportCalls
       };
     });
@@ -191,14 +217,28 @@ const syncSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_sync.js'), '
     assert.strictEqual(result.activeB.transactions.length, 3);
     assert.strictEqual(result.activeB.sync_journal.length, 1);
 
-    assert.strictEqual(networkRequests.length, 0, 'synthetic local/read-model browser integration must not create real network requests');
+    assert.strictEqual(result.wiped.status, 'WIPED');
+    assert.strictEqual(result.reopened.status, 'OPEN');
+    assert.strictEqual(result.afterWipe.status, 'EMPTY');
+    assert.deepStrictEqual(localOperationRequests, [], `local/synthetic sync operations emitted real network requests: ${localOperationRequests.join(' | ')}`);
     assert.strictEqual(result.transportCalls, 5, 'only explicit sync calls may invoke transport');
 
-    console.log('local_first_sync_indexeddb_adapter_test: PASS');
+    console.log('Local-first sync IndexedDB adapter: PASS', {
+      initialBootstrap: true,
+      sameRevisionNoop: true,
+      networkFailurePreservesVerified: true,
+      failedGenerationPreservesPrevious: true,
+      retryAtomicSwitch: true,
+      explicitWipe: true,
+      localNetworkRequests: localOperationRequests.length,
+      transportCalls: result.transportCalls
+    });
   } finally {
-    await browser.close();
+    await page.close().catch(() => {});
+    await browser.close().catch(() => {});
+    await closeServer(server);
   }
 })().catch((error) => {
-  console.error(error);
+  console.error(error.stack || error.message);
   process.exitCode = 1;
 });
