@@ -37,6 +37,42 @@ function prhLocalFirstSpaEscapeAttr_(value) {
     .replace(/'/g, '&#39;');
 }
 
+function prhLocalFirstSpaNormalizeRoute_(value) {
+  var route = String(value == null ? '' : value).trim().toLowerCase();
+  var allowed = {
+    home: true,
+    transactions: true,
+    expenses: true,
+    income: true,
+    'cash-flow': true,
+    'data-quality': true
+  };
+  return Object.prototype.hasOwnProperty.call(allowed, route) ? route : 'home';
+}
+
+function prhLocalFirstSpaNormalizePrivacy_(value) {
+  var privacy = String(value == null ? '' : value).trim().toUpperCase();
+  if (!privacy) return '';
+  return ['NORMAL', 'MASKED', 'DEMO', 'ZEN'].indexOf(privacy) >= 0 ? privacy : 'MASKED';
+}
+
+function prhLocalFirstSpaBootstrap_(params) {
+  params = params || {};
+  var route = prhLocalFirstSpaNormalizeRoute_(params.lf_route);
+  var privacy = prhLocalFirstSpaNormalizePrivacy_(params.privacy);
+  var diagnostic = String(params.lf_diag == null ? '' : params.lf_diag).trim() === '1';
+  var query = '?surface=local-first&lf_route=' + encodeURIComponent(route);
+  if (privacy) query += '&privacy=' + encodeURIComponent(privacy);
+  if (diagnostic) query += '&lf_diag=1';
+
+  return '<script data-lf-server-bootstrap="1">(function(){' +
+    'var boot=Object.freeze({route:' + JSON.stringify(route) + ',privacy:' + JSON.stringify(privacy) + ',diagnostic:' + (diagnostic ? 'true' : 'false') + '});' +
+    'window.__PRH_LF_SERVER_BOOT__=boot;' +
+    'try{history.replaceState({prhLfRoute:boot.route},"",location.pathname+' + JSON.stringify(query) + '+location.hash);}' +
+    'catch(error){window.__PRH_LF_SERVER_BOOT_ERROR__="HISTORY_REPLACE_FAILED";}' +
+    '})();</script>';
+}
+
 function prhLocalFirstSpaRender_(params) {
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
   var html = source.getContent();
@@ -48,6 +84,11 @@ function prhLocalFirstSpaRender_(params) {
     }
     html = html.replace('href="?surface=home"', 'href="' + rollbackHref + '"');
   }
+
+  var appScriptMarker = '<script>\n(function(){';
+  if (html.indexOf(appScriptMarker) < 0) throw new Error('LF_SPA_APP_SCRIPT_MARKER_MISSING');
+  html = html.replace(appScriptMarker, prhLocalFirstSpaBootstrap_(params) + '\n' + appScriptMarker);
+
   var output = HtmlService.createHtmlOutput(html);
   output.setTitle('PrihRashOnline — Local-first preview');
   output.addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -59,6 +100,8 @@ function prhLocalFirstSpaSmokeToken() {
   var html = output && typeof output.getContent === 'function' ? output.getContent() : '';
   if (!html ||
       html.indexOf('data-prh-local-first-spa="1"') < 0 ||
+      html.indexOf('data-lf-server-bootstrap="1"') < 0 ||
+      html.indexOf('history.replaceState') < 0 ||
       html.indexOf('history.pushState') < 0 ||
       html.indexOf('popstate') < 0 ||
       html.indexOf('data-lf-rollback="canonical-r2"') < 0 ||
