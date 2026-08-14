@@ -104,7 +104,7 @@ fs.writeFileSync(tempFile, rendered, 'utf8');
     const backed = await page.evaluate(()=>({request:window.__requests[window.__requests.length-1],search:location.search,active:document.getElementById('prh-r2-shell').dataset.activeSurface}));
     assert.strictEqual(backed.request.window_days,30);
     assert.deepStrictEqual(backed.request.filters,{account_ids:['ACC-1'],category_ids:['CAT-1'],member_ids:['MEM-1']});
-    assert(routed.search.includes('account_id=ACC-1'));
+    assert(backed.search.includes('account_id=ACC-1'));
     assert.strictEqual(backed.active,'expenses');
 
     await page.evaluate(()=>{
