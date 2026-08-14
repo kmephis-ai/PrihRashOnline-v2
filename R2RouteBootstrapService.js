@@ -1,10 +1,10 @@
 /**
- * FIN-REC-001 safe route bootstrap for private R2 surfaces.
+ * DATA-REC-001 / FIN-REC-001 safe route bootstrap for private R2 surfaces.
  *
- * Google Apps Script renders HtmlService content inside a service iframe whose
- * document URL does not reliably inherit the top-level Web App query string.
- * Route bootstrap therefore rehydrates only bounded navigation/filter context
- * before the page runtime starts. No financial values are placed in route state.
+ * Transaction Explorer still uses bounded server-to-iframe form rehydration.
+ * Financial sections use this bootstrap only for the initial deep-link state;
+ * after boot, filter/navigation state is owned by the in-page RPC/history flow.
+ * No financial values are placed in route state.
  */
 function prhR2TransactionRouteBootstrapScript_(params) {
   var source = params && typeof params === 'object' ? params : {};
