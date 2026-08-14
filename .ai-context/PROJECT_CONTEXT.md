@@ -21,7 +21,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `ARCH-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #245, PR #248, merge `329e5c5c3b5be8286f0c9a397de96f04ca902963`.
 
-`SPA-LF-001` — **current writer / текущий writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. Это единственный active writer. Цель LF1: один постоянно живущий SPA document, client-side History API routing, zero mandatory network warm navigation, responsive shell и bounded rollback на canonical R2. IndexedDB/Worker/sync intentionally не заявляются готовыми в этом item.
+`SPA-LF-001` — **DONE / Main Verification PASS**, Issue #249, PR #250, merge `3c69cb508153b0fc5b953376a614f0031fadc38c`; owner UAT v221 PASS, warm route p95 `29 ms`, `10` переходов, сеть `0`.
+
+`STORE-LF-001` — **current writer / текущий writer**, Issue #251, branch `agent/STORE-LF-001-indexeddb-read-model`. Это единственный active writer. Цель LF1: private IndexedDB Local Read Model, exact canonical revision provenance, immutable generation staging, atomic active pointer switch, fail-closed rebuild и explicit local wipe. Remote sync, Worker analytics и реальные financial routes не входят в этот item.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -41,6 +43,8 @@ SPA state
 Warm route/filter/chart обязан работать без mandatory network request и без Google Sheets read. Background sync не блокирует уже готовую verified local revision.
 
 `PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0` не является financial truth. Local Read Model read-only, привязан к exact canonical revision и immutable generation. Partial bootstrap не становится visible current state. Delta apply требует exact base revision и idempotency; если chain недоказана, выполняется full rebuild. Worker не получает network/storage/financial-write authority; stale generation/revision result отбрасывается до UI commit.
+
+`PRH_LOCAL_READ_MODEL_V1@1.0.0` материализует storage boundary: `meta`, `transactions`, `dimensions`, `aggregates`, `sync_journal`; data records generation-scoped. Только `ACTIVE + VERIFIED` manifest может быть выдан consumer. Partial/failed generation не заменяет текущую verified generation; incompatible/corrupt state возвращает `REBUILD_REQUIRED`. Derived local database допускает explicit wipe/rebuild без canonical mutation.
 
 Target Product SLO являются будущими acceptance targets, не текущей telemetry: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Server technical health latency и cold bootstrap timing не подменяют эти метрики.
 
@@ -82,7 +86,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На SPA-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На STORE-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
@@ -110,7 +114,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA runtime/visual contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA и IndexedDB adapter contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 

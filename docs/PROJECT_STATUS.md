@@ -9,7 +9,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
 
 - `ARCH-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #245, PR #248, merge `329e5c5c3b5be8286f0c9a397de96f04ca902963`.
-- `SPA-LF-001` — **IN_PROGRESS**, **current writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. LF1 строит один SPA document с History API, zero-network warm route и bounded preview `surface=local-first`; canonical R2 пока остаётся default/rollback.
+- `SPA-LF-001` — **DONE / Main Verification PASS**, Issue #249, PR #250, merge `3c69cb508153b0fc5b953376a614f0031fadc38c`; owner UAT v221 PASS, warm route p95 `29 ms`, `10` переходов, сеть `0`.
+- `STORE-LF-001` — **IN_PROGRESS**, **current writer**, Issue #251, branch `agent/STORE-LF-001-indexeddb-read-model`. LF1 реализует private IndexedDB Local Read Model с immutable generations, exact revision provenance, atomic active switch, fail-closed rebuild и explicit wipe; remote sync/Worker/real financial UI остаются следующими items.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -64,7 +65,7 @@ Target Product SLO — будущие acceptance targets, не текущие и
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе SPA-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе STORE-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 
