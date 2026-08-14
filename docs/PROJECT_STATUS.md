@@ -9,7 +9,7 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
 
 - `ARCH-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #245, PR #248, merge `329e5c5c3b5be8286f0c9a397de96f04ca902963`.
-- `SPA-LF-001` — **IN_PROGRESS / current writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. LF1 строит один SPA document с History API, zero-network warm route и bounded preview `surface=local-first`; canonical R2 пока остаётся default/rollback.
+- `SPA-LF-001` — **IN_PROGRESS**, **current writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. LF1 строит один SPA document с History API, zero-network warm route и bounded preview `surface=local-first`; canonical R2 пока остаётся default/rollback.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
