@@ -8,10 +8,12 @@ const root = path.resolve(__dirname, '..');
 const contractPath = path.join(root, 'lib/local_first/local_first_runtime.v1.json');
 const architecturePath = path.join(root, 'docs/architecture/LOCAL_FIRST_RUNTIME.md');
 const roadmapPath = path.join(root, 'docs/ROADMAP_LOCAL_FIRST_RECOVERY.md');
+const adrPath = path.join(root, 'docs/adr/ADR-ARCH-LF-001-LOCAL-FIRST-RUNTIME.md');
 
 const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
 const architecture = fs.readFileSync(architecturePath, 'utf8');
 const roadmap = fs.readFileSync(roadmapPath, 'utf8');
+const adr = fs.readFileSync(adrPath, 'utf8');
 
 assert.strictEqual(contract.schema, 'PRH_LOCAL_FIRST_RUNTIME_V1');
 assert.strictEqual(contract.version, '1.0.0');
@@ -85,11 +87,16 @@ assert.deepStrictEqual(contract.ydb_ladder.stages, [
   'FUTURE_SEPARATE_WRITE_CUTOVER'
 ]);
 
+assert(adr.includes('Статус: **APPROVED**'));
+assert(adr.includes('PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0'));
+assert(adr.includes('Local-first SPA + IndexedDB Local Read Model + Web Worker analytics'));
+assert(adr.includes('Big-bang cutover запрещён'));
+
 for (const required of [
   'Local-first', 'IndexedDB', 'Web Worker', 'background', 'YDB',
   'zero mandatory network requests', 'Big-bang cutover запрещён'
 ]) {
-  assert(architecture.includes(required) || roadmap.includes(required),
+  assert(architecture.includes(required) || roadmap.includes(required) || adr.includes(required),
     `missing normative Local-first concept: ${required}`);
 }
 
@@ -100,5 +107,8 @@ for (const id of [
 ]) {
   assert(roadmap.includes(id), `Local-first Roadmap missing ${id}`);
 }
+
+assert(roadmap.includes('| ARCH-LF-001 | LF0 | R2R | P0 |'));
+assert(roadmap.includes('| YDB-LF-001 | FUTURE | R4 | P1 |'));
 
 console.log('Local-first architecture policy contract: PASS');
