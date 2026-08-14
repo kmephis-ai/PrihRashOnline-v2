@@ -174,14 +174,31 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
     assert.strictEqual(filteredExpenses.view.results.breakdown.rows[0].dimensions.category_id,'cat-food');
 
     await page.goBack();
-    await page.waitForFunction(() => document.body.dataset.activeLfRoute==='home');
+    await page.waitForFunction(() => {
+      const runtime=window.__PRH_LF_FINANCE_RUNTIME__;
+      const state=runtime&&runtime.getState();
+      return document.body.dataset.activeLfRoute==='home' &&
+        state && state.route==='home' && state.view && state.view.status==='READY' && state.view.route==='home' &&
+        document.querySelectorAll('#lf-finance-content .kpi').length>=4;
+    });
     const afterBack=await page.evaluate(()=>window.__PRH_LF_FINANCE_RUNTIME__.getState());
     assert.deepStrictEqual(afterBack.filter_context,filteredHome.filter_context,'FilterContext must persist through Back navigation');
+    assert.strictEqual(afterBack.revision,revision,'Back-rendered Home must remain bound to the same verified revision');
+    assert.strictEqual(afterBack.view.provenance.input_revision,revision,'Back-rendered DOM must be produced from the same canonical Worker revision');
 
-    const finalLayout=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth,toolbar:getComputedStyle(document.getElementById('lf-finance-toolbar')).display,kpiCount:document.querySelectorAll('#lf-finance-content .kpi').length}));
+    const finalLayout=await page.evaluate(()=>({
+      scroll:document.documentElement.scrollWidth,
+      client:document.documentElement.clientWidth,
+      toolbar:getComputedStyle(document.getElementById('lf-finance-toolbar')).display,
+      kpiCount:document.querySelectorAll('#lf-finance-content .kpi').length,
+      active:document.body.dataset.activeLfRoute,
+      financeRoute:window.__PRH_LF_FINANCE_RUNTIME__.getState().view?.route||''
+    }));
     assert(finalLayout.scroll <= finalLayout.client + 2, `final overflow at ${viewport.width}px`);
     assert.notStrictEqual(finalLayout.toolbar,'none');
-    assert(finalLayout.kpiCount>=1);
+    assert(finalLayout.kpiCount>=4,'Back-rendered Home must contain the four canonical KPI cards');
+    assert.strictEqual(finalLayout.active,'home');
+    assert.strictEqual(finalLayout.financeRoute,'home');
     assert.deepStrictEqual(requests,[],`warm route/filter navigation emitted HTTP requests: ${requests.join(' | ')}`);
     const spaCounters=await page.evaluate(()=>window.__PRH_LF_SPA_TEST__.getState());
     assert.strictEqual(spaCounters.mandatoryNetworkCalls,0);
