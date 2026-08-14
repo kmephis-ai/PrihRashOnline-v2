@@ -23,12 +23,12 @@ function fingerprint(value) {
 }
 
 let ordinal = 1;
-function tx(id, day, type, amount, category, account = 'ACC-1') {
+function tx(id, day, type, amount, category, account = 'ACC-1', member = 'MEM-1') {
   return Object.freeze({
     schema: 'PRH_CANONICAL_TRANSACTION_V1', schema_version: 1,
     transaction_id: `TX-${id}`, occurred_at: `${day}T12:00:00Z`, type, status: 'posted',
     amount_minor: amount, currency: 'RUB', account_id: account,
-    destination_account_id: null, category_id: category, member_id: 'MEM-1', project_id: null,
+    destination_account_id: null, category_id: category, member_id: member, project_id: null,
     tags: Object.freeze([]), counterparty: null, description: null, reverses_transaction_id: null,
     adjustment_semantics: null,
     provenance: Object.freeze({
@@ -45,13 +45,13 @@ const transactions = Object.freeze([
   tx('E1', '2026-08-10', 'expense', 30000, 'CAT-FOOD'),
   tx('E2', '2026-07-20', 'expense', 15000, 'CAT-HOME'),
   tx('I1', '2026-08-01', 'income', 120000, 'CAT-SALARY'),
-  tx('I2', '2026-07-01', 'income', 20000, 'CAT-BONUS', 'ACC-2'),
+  tx('I2', '2026-07-01', 'income', 20000, 'CAT-BONUS', 'ACC-2', 'MEM-2'),
   tx('PE', '2026-05-10', 'expense', 25000, 'CAT-FOOD'),
   tx('PI', '2026-05-10', 'income', 100000, 'CAT-SALARY')
 ]);
 const revision = repositoryRevision(transactions);
 const labels = {
-  'ACC-1': 'Основной', 'ACC-2': 'Накопительный', 'MEM-1': 'Семья',
+  'ACC-1': 'Основной', 'ACC-2': 'Накопительный', 'MEM-1': 'Семья', 'MEM-2': 'Другой',
   'CAT-FOOD': 'Продукты', 'CAT-HOME': 'Дом', 'CAT-SALARY': 'Зарплата', 'CAT-BONUS': 'Премия'
 };
 const runtime = Object.freeze({ expenseAnalytics: expenseBase, incomeAnalytics: incomeBase, cashFlowDashboard: cashFlowBase });
@@ -88,17 +88,17 @@ assert.strictEqual(context.PRH_R2_FIN_SECTIONS_RUNTIME.CANONICAL_MUTATION_AUTHOR
 assert.strictEqual(context.PRH_R2_FIN_SECTIONS_RUNTIME.FREE_ONLY, true);
 assert.strictEqual(context.prhR2FinancialSectionsRuntimeSmokeToken(), 'PRH_R2_FIN_SECTIONS_RUNTIME_V1|SHARED_SNAPSHOT|READ_ONLY|OK');
 
-function fetchSection(section, filters = {}) {
+function fetchSection(section, filters = {}, windowDays = 90) {
   snapshotCalls = 0;
   analyticsCalls = 0;
-  const view = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', section, window_days: 90, filters });
+  const view = context.prhR2FetchFinancialSectionsPayload({ privacy_mode: 'NORMAL', section, window_days: windowDays, filters });
   assert.strictEqual(snapshotCalls, 1);
   assert.strictEqual(analyticsCalls, 2);
   assert.strictEqual(view.state, Object.keys(filters).length ? view.state : 'READY');
   assert.strictEqual(view.telemetry.canonical_snapshot_read_count, 1);
   assert.strictEqual(view.telemetry.analytics_query_count, 2);
   assert.strictEqual(view.telemetry.analytics_runtime_authority, 'PRH_ANALYTICS_CONTRACT_V1');
-  assert.strictEqual(view.telemetry.analytics_scope_days, 180);
+  assert.strictEqual(view.telemetry.analytics_scope_days, windowDays * 2);
   assert.strictEqual(view.telemetry.financial_payload_in_telemetry, false);
   return view;
 }
@@ -123,6 +123,7 @@ assert.strictEqual(expenses.expenses.total_expense_minor, cashFlow.cash_flow.out
 assert.strictEqual(income.income.total_income_minor, cashFlow.cash_flow.inflow_minor);
 assert.strictEqual(income.income.total_income_minor - expenses.expenses.total_expense_minor, cashFlow.cash_flow.net_minor);
 assert(expenses.filters.options.categories.some((item) => item.label === 'Продукты'));
+assert(income.filters.options.members.some((item) => item.value === 'MEM-2'));
 assert(income.income.source_mix.some((item) => item.source_label === 'Зарплата'));
 
 const base = {
@@ -139,9 +140,37 @@ assert.deepStrictEqual(Array.from(expenses.expenses.trend, (row) => row.expense_
 assert.deepStrictEqual(Array.from(income.income.trend, (row) => row.income_minor), incBaseline.trend.points.map((row) => row.income_minor));
 assert.deepStrictEqual(Array.from(cashFlow.cash_flow.trend, (row) => row.net_minor), cfBaseline.trend.points.map((row) => row.net_minor));
 
+// Every owner-visible filter dimension must alter the canonical analytics scope,
+// not merely survive routing/UI state.
+const accountIncome = fetchSection('income', { account_ids: ['ACC-2'] });
+assert.strictEqual(accountIncome.income.total_income_minor, 20000);
+assert.deepStrictEqual(Array.from(accountIncome.filters.selected.account_ids), ['ACC-2']);
 assert.strictEqual(fetchSection('expenses', { account_ids: ['ACC-2'] }).expenses.total_expense_minor, 0);
-assert.strictEqual(fetchSection('income', { account_ids: ['ACC-2'] }).income.total_income_minor, 20000);
 assert.strictEqual(fetchSection('cash-flow', { account_ids: ['ACC-2'] }).cash_flow.net_minor, 20000);
+
+const categoryExpenses = fetchSection('expenses', { category_ids: ['CAT-FOOD'] });
+assert.strictEqual(categoryExpenses.expenses.total_expense_minor, 30000);
+assert.strictEqual(categoryExpenses.expenses.comparison_expense_minor, 25000);
+assert.deepStrictEqual(Array.from(categoryExpenses.filters.selected.category_ids), ['CAT-FOOD']);
+const categoryIncome = fetchSection('income', { category_ids: ['CAT-SALARY'] });
+assert.strictEqual(categoryIncome.income.total_income_minor, 120000);
+assert.strictEqual(categoryIncome.income.comparison_income_minor, 100000);
+assert.strictEqual(fetchSection('cash-flow', { category_ids: ['CAT-SALARY'] }).cash_flow.net_minor, 120000);
+
+const memberIncome = fetchSection('income', { member_ids: ['MEM-2'] });
+assert.strictEqual(memberIncome.income.total_income_minor, 20000);
+assert.deepStrictEqual(Array.from(memberIncome.filters.selected.member_ids), ['MEM-2']);
+assert.strictEqual(fetchSection('cash-flow', { member_ids: ['MEM-2'] }).cash_flow.net_minor, 20000);
+assert.strictEqual(fetchSection('expenses', { member_ids: ['MEM-2'] }).expenses.total_expense_minor, 0);
+
+const period30 = fetchSection('income', {}, 30);
+assert.strictEqual(period30.window_days, 30);
+assert.strictEqual(period30.period.start, '2026-07-12');
+assert.strictEqual(period30.period.end, '2026-08-11');
+assert.strictEqual(period30.comparison_period.start, '2026-06-12');
+assert.strictEqual(period30.comparison_period.end, '2026-07-12');
+assert.strictEqual(period30.income.total_income_minor, 120000);
+assert.strictEqual(period30.income.comparison_income_minor, 20000);
 
 snapshotCalls = 0;
 analyticsCalls = 0;
@@ -248,6 +277,8 @@ console.log('r2_financial_sections_runtime_contract_test: OK', {
   projectionOver500Rows: true,
   projectedCellReductionPct: Math.round((1 - projectedCells / fullHistoryCells) * 100),
   crossSectionFinTruthParity: true,
+  allOwnerVisibleFilterDimensions: true,
+  periodFilterSemantics: true,
   staleFailClosed: true,
   zeroWrite: true
 });
