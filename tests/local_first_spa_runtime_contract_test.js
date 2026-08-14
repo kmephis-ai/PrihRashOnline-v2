@@ -102,7 +102,11 @@ for (const marker of [
   'rendererLifecycle:\'APP_SINGLETON\'',
   'mandatoryNetworkCalls:0',
   'googleSheetsReads:0',
-  'data-lf-rollback="canonical-r2"'
+  'data-lf-rollback="canonical-r2"',
+  'data-lf-diagnostic="route-to-paint"',
+  'id="lf-diag-run"',
+  'PRH_LF_ROUTE_TO_PAINT_DIAGNOSTIC_V1',
+  'runDiagnostic:runRouteDiagnostic'
 ]) assert(html.includes(marker), `missing SPA marker ${marker}`);
 for (const route of contract.routes) assert(html.includes(`data-lf-route="${route}"`), `missing route ${route}`);
 
@@ -117,6 +121,7 @@ console.log('local_first_spa_runtime_contract_test: OK', {
   historyApi:true,
   zeroWarmNetwork:true,
   zeroGoogleReads:true,
+  ownerRouteToPaintDiagnostic:true,
   canonicalCutover:false,
   financialWrite:false,
   freeOnly:true

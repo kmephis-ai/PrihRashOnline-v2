@@ -37,9 +37,10 @@
     .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.card{min-width:0;min-height:150px;padding:17px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow)}.card h2{margin:0 0 8px;font-size:17px}.card p{margin:0;color:var(--muted)}
     .state{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:6px 9px;border-radius:999px;background:var(--warn-bg);color:var(--warn);font-size:11px;font-weight:800}.state::before{content:"";width:7px;height:7px;border-radius:999px;background:currentColor}
     .truth{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft);color:var(--muted)}.truth strong{color:var(--text)}
+    .diagnostic{margin-top:16px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow)}.diagnostic h2{margin:0 0 7px;font-size:17px}.diagnostic p{margin:0;color:var(--muted)}.diagnostic-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}.diagnostic button{border:0;border-radius:12px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:800;cursor:pointer}.diagnostic button:disabled{opacity:.55;cursor:wait}.diagnostic output{font-variant-numeric:tabular-nums;font-weight:850;color:var(--ok)}
     .focus-target:focus{outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:4px}
     @media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.side{position:static;overflow:hidden}.nav{display:flex;width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:2px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}.nav a{flex:0 0 auto}.rollback{border-top:0;border-left:1px solid var(--line);margin:0 0 0 5px;display:inline-flex;align-items:center;white-space:normal}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:580px){.top-inner{align-items:flex-start}.preview{font-size:10px}.layout{padding-top:12px}.side{border-radius:14px}.grid{grid-template-columns:1fr}.hero{border-radius:18px}.brand-note{max-width:190px}}
+    @media(max-width:580px){.top-inner{align-items:flex-start}.preview{font-size:10px}.layout{padding-top:12px}.side{border-radius:14px}.grid{grid-template-columns:1fr}.hero{border-radius:18px}.brand-note{max-width:190px}.diagnostic-actions{align-items:stretch}.diagnostic button{width:100%}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
   </style>
 </head>
@@ -76,6 +77,11 @@
       <article class="card"><h2>Расчёты и графики</h2><p>Web Worker и локальные графики будут подключены после локального хранилища. Серверные запросы на каждый клик больше не являются целевой схемой.</p><div class="state">Следующий этап</div></article>
     </section>
     <div class="truth"><strong>Что сейчас проверяем:</strong> один живущий документ, мгновенные переходы, Back/Forward, сохранение безопасного режима отображения и отсутствие выдуманных финансовых данных.</div>
+    <section class="diagnostic" id="lf-diagnostic" data-lf-diagnostic="route-to-paint" aria-label="Проверка скорости переходов" hidden>
+      <h2>Проверка скорости переходов</h2>
+      <p>Десять раз переключает локальные разделы тем же SPA-маршрутом, ждёт фактическую отрисовку кадра и считает консервативный p95. Сеть и Google Sheets в измерении не используются.</p>
+      <div class="diagnostic-actions"><button type="button" id="lf-diag-run">Измерить 10 переходов</button><output id="lf-diag-result" aria-live="polite">Готово к измерению</output></div>
+    </section>
   </main>
 </div>
 <script>
@@ -103,11 +109,17 @@
   const summary=document.getElementById('lf-summary');
   const routePill=document.getElementById('lf-route-pill');
   const rollback=document.getElementById('lf-rollback');
+  const diagnostic=document.getElementById('lf-diagnostic');
+  const diagnosticButton=document.getElementById('lf-diag-run');
+  const diagnosticResult=document.getElementById('lf-diag-result');
 
   function privacyMode(){
     const raw=String(new URL(location.href).searchParams.get('privacy')||'').trim().toUpperCase();
     if(!raw)return '';
     return ALLOWED_PRIVACY.indexOf(raw)>=0?raw:'MASKED';
+  }
+  function diagnosticMode(){
+    return String(new URL(location.href).searchParams.get('lf_diag')||'').trim()==='1';
   }
   function routeFromUrl(){
     const route=String(new URL(location.href).searchParams.get('lf_route')||'home').trim().toLowerCase();
@@ -151,6 +163,47 @@
     history.pushState({prhLfRoute:route},'',safeUrl(route));
     render(route,true);
   }
+  function nextPaint(){
+    return new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve);});});
+  }
+  function backToPreviousRoute(){
+    return new Promise(function(resolve){
+      window.addEventListener('popstate',function(){nextPaint().then(resolve);},{once:true});
+      history.back();
+    });
+  }
+  async function runRouteDiagnostic(){
+    if(!diagnosticMode())throw new Error('LF_SPA_DIAGNOSTIC_MODE_REQUIRED');
+    const original=routeFromUrl();
+    const targets=Object.keys(ROUTES).filter(function(route){return route!==original;});
+    const samples=[];
+    diagnosticButton.disabled=true;
+    diagnosticResult.dataset.status='RUNNING';
+    diagnosticResult.textContent='Измеряем…';
+    try{
+      for(let i=0;i<10;i+=1){
+        const target=targets[i%targets.length];
+        const started=performance.now();
+        navigate(target);
+        await nextPaint();
+        samples.push(performance.now()-started);
+        await backToPreviousRoute();
+      }
+      const sorted=samples.slice().sort(function(a,b){return a-b;});
+      const p95=sorted[Math.max(0,Math.ceil(sorted.length*0.95)-1)];
+      runtime.lastDiagnostic=Object.freeze({schema:'PRH_LF_ROUTE_TO_PAINT_DIAGNOSTIC_V1',sampleCount:samples.length,routeToPaintP95Ms:p95,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads});
+      diagnosticResult.dataset.status='PASS';
+      diagnosticResult.dataset.p95Ms=p95.toFixed(2);
+      diagnosticResult.textContent='P95: '+p95.toFixed(2)+' мс · 10 переходов · сеть: 0';
+      return Object.freeze({p95Ms:p95,samplesMs:samples.slice(),sampleCount:samples.length,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads});
+    }catch(error){
+      diagnosticResult.dataset.status='FAIL';
+      diagnosticResult.textContent='Измерение не завершено';
+      throw error;
+    }finally{
+      diagnosticButton.disabled=false;
+    }
+  }
   nav.addEventListener('click',function(event){
     const link=event.target.closest('[data-lf-route]');
     if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
@@ -158,10 +211,13 @@
     navigate(link.dataset.lfRoute);
   });
   window.addEventListener('popstate',function(){render(routeFromUrl(),true);});
+  diagnostic.hidden=!diagnosticMode();
+  diagnosticButton.addEventListener('click',function(){runRouteDiagnostic().catch(function(){return null;});});
   render(routeFromUrl(),false);
   window.__PRH_LF_SPA_TEST__=Object.freeze({
-    getState:function(){return Object.freeze({activeRoute:runtime.activeRoute,bootCount:runtime.bootCount,routeRenderCount:runtime.routeRenderCount,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads,privacyMode:privacyMode()});},
-    navigate:navigate
+    getState:function(){return Object.freeze({activeRoute:runtime.activeRoute,bootCount:runtime.bootCount,routeRenderCount:runtime.routeRenderCount,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads,privacyMode:privacyMode(),diagnosticMode:diagnosticMode(),lastDiagnostic:runtime.lastDiagnostic||null});},
+    navigate:navigate,
+    runDiagnostic:runRouteDiagnostic
   });
 })();
 </script>

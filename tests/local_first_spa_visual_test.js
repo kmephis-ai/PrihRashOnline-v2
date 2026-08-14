@@ -39,11 +39,12 @@ function p95(values) {
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('request', (request) => { if (warmPhase) warmRequests.push(request.url()); });
       try {
-        const url = `${pathToFileURL(tempFile).href}?surface=local-first&lf_route=home&privacy=MASKED`;
+        const url = `${pathToFileURL(tempFile).href}?surface=local-first&lf_route=home&privacy=MASKED&lf_diag=1`;
         await page.goto(url, { waitUntil:'load', timeout:15000 });
         await page.waitForFunction(() => window.__PRH_LF_SPA_TEST__ && document.body.dataset.activeLfRoute === 'home');
         assert.deepStrictEqual(errors, [], `${viewport.name} startup errors: ${errors.join(' | ')}`);
         assert.strictEqual(loadCount, 1, `${viewport.name} initial document must load once`);
+        assert.strictEqual(await page.isVisible('#lf-diagnostic'), true, `${viewport.name} diagnostic mode must be visible`);
         warmPhase = true;
 
         for (const route of routes.slice(1)) {
@@ -63,7 +64,9 @@ function p95(values) {
           assert.strictEqual(state.runtime.bootCount, 1);
           assert.strictEqual(state.runtime.mandatoryNetworkCalls, 0);
           assert.strictEqual(state.runtime.googleSheetsReads, 0);
+          assert.strictEqual(state.runtime.diagnosticMode, true);
           assert(new URL(state.url).searchParams.get('privacy') === 'MASKED');
+          assert(new URL(state.url).searchParams.get('lf_diag') === '1');
         }
 
         assert.strictEqual(loadCount, 1, `${viewport.name} warm route clicks must not reload document`);
@@ -76,6 +79,27 @@ function p95(values) {
         await page.waitForFunction(() => document.body.dataset.activeLfRoute === 'data-quality');
         assert.strictEqual(loadCount, 1, `${viewport.name} Forward must not reload document`);
         assert.deepStrictEqual(warmRequests, [], `${viewport.name} Back/Forward emitted requests`);
+
+        await page.click('#lf-diag-run');
+        await page.waitForFunction(() => document.getElementById('lf-diag-result')?.dataset.status === 'PASS', null, { timeout:15000 });
+        const embeddedDiagnostic = await page.evaluate(() => {
+          const state=window.__PRH_LF_SPA_TEST__.getState();
+          const output=document.getElementById('lf-diag-result');
+          return {
+            p95Ms:Number(output.dataset.p95Ms),
+            text:output.textContent.trim(),
+            lastDiagnostic:state.lastDiagnostic,
+            activeRoute:state.activeRoute
+          };
+        });
+        assert(Number.isFinite(embeddedDiagnostic.p95Ms) && embeddedDiagnostic.p95Ms >= 0, `${viewport.name} embedded diagnostic p95 invalid`);
+        assert(embeddedDiagnostic.text.startsWith('P95:'), `${viewport.name} embedded diagnostic result must be human-readable`);
+        assert.strictEqual(embeddedDiagnostic.lastDiagnostic.sampleCount, 10);
+        assert.strictEqual(embeddedDiagnostic.lastDiagnostic.mandatoryNetworkCalls, 0);
+        assert.strictEqual(embeddedDiagnostic.lastDiagnostic.googleSheetsReads, 0);
+        assert.strictEqual(embeddedDiagnostic.activeRoute, 'data-quality', `${viewport.name} diagnostic must return to original route`);
+        assert.strictEqual(loadCount, 1, `${viewport.name} embedded diagnostic must stay in one document`);
+        assert.deepStrictEqual(warmRequests, [], `${viewport.name} embedded diagnostic emitted requests`);
 
         const durations = await page.evaluate((routeList) => {
           const out=[];
@@ -120,6 +144,8 @@ function p95(values) {
           warmNetworkRequestCount:warmRequests.length,
           warmRouteSampleCount:durations.length,
           warmRouteP95Ms:Number(routeP95.toFixed(3)),
+          embeddedDiagnosticSampleCount:embeddedDiagnostic.lastDiagnostic.sampleCount,
+          embeddedDiagnosticP95Ms:Number(embeddedDiagnostic.p95Ms.toFixed(3)),
           bootCount:layout.runtime.bootCount,
           routeRenderCount:layout.runtime.routeRenderCount,
           privacyMode:'MASKED',
@@ -137,6 +163,7 @@ function p95(values) {
       candidate_scope:'SYNTHETIC_SHELL_ONLY_NOT_PRODUCT_UAT',
       zeroMandatoryWarmNetwork:true,
       singleDocument:true,
+      embeddedOwnerDiagnosticPresent:true,
       evidence
     }, null, 2));
     console.log('local_first_spa_visual_test: OK', {
@@ -144,6 +171,7 @@ function p95(values) {
       routes:routes.length,
       zeroWarmNetwork:true,
       singleDocument:true,
+      embeddedOwnerDiagnostic:true,
       maxSyntheticWarmRouteP95Ms:Math.max(...evidence.map((item)=>item.warmRouteP95Ms))
     });
   } finally {
