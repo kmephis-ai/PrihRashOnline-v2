@@ -199,7 +199,7 @@ function injectEchartsVendor(sourceFiles, vendorConfig, fetcher = fetchEchartsVe
 
 function injectLocalFirstBrowserRuntime(sourceFiles, repositoryRoot) {
   const targetIndex = sourceFiles.findIndex((item) => item.path === LOCAL_FIRST_TARGET_HTML);
-  if (targetIndex < 0) throw new Error(`${LOCAL_FIRST_TARGET_HTML} is required for Local-first runtime injection`);
+  if (targetIndex < 0) return Object.freeze({ files: sourceFiles, metadata: null });
   const runtime = buildLocalFirstRuntimeInjection({ repositoryRoot });
   const target = sourceFiles[targetIndex];
   const html = target.bytes.toString('utf8');
@@ -282,7 +282,7 @@ function buildCandidate({ sourceRoot, repositoryRoot = sourceRoot, outRoot, cand
     manifest.runtimeBundleMarker = runtimeConfig.marker;
   }
   if (vendorResult.metadata) manifest.echartsVendor = vendorResult.metadata;
-  manifest.localFirstBrowserRuntime = localFirstResult.metadata;
+  if (localFirstResult.metadata) manifest.localFirstBrowserRuntime = localFirstResult.metadata;
   fs.writeFileSync(path.join(out, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifest;
 }
@@ -297,12 +297,14 @@ function verifyCandidate(candidateRoot, expectedRoot, expectedSha) {
   if (actual.generatedRuntimeBundle != null && actual.generatedRuntimeBundle !== GENERATED_RUNTIME_BUNDLE) {
     throw new Error('canonical runtime bundle manifest binding invalid');
   }
-  if (!actual.localFirstBrowserRuntime || actual.localFirstBrowserRuntime.schema !== LOCAL_FIRST_RUNTIME_SCHEMA ||
-      actual.localFirstBrowserRuntime.version !== LOCAL_FIRST_RUNTIME_VERSION ||
-      actual.localFirstBrowserRuntime.targetHtml !== LOCAL_FIRST_TARGET_HTML ||
-      !/^[0-9a-f]{64}$/.test(actual.localFirstBrowserRuntime.runtimeSha256 || '') ||
-      !/^[0-9a-f]{64}$/.test(actual.localFirstBrowserRuntime.workerSha256 || '')) {
-    throw new Error('Local-first browser runtime manifest binding invalid');
+  if (actual.localFirstBrowserRuntime != null) {
+    if (actual.localFirstBrowserRuntime.schema !== LOCAL_FIRST_RUNTIME_SCHEMA ||
+        actual.localFirstBrowserRuntime.version !== LOCAL_FIRST_RUNTIME_VERSION ||
+        actual.localFirstBrowserRuntime.targetHtml !== LOCAL_FIRST_TARGET_HTML ||
+        !/^[0-9a-f]{64}$/.test(actual.localFirstBrowserRuntime.runtimeSha256 || '') ||
+        !/^[0-9a-f]{64}$/.test(actual.localFirstBrowserRuntime.workerSha256 || '')) {
+      throw new Error('Local-first browser runtime manifest binding invalid');
+    }
   }
   if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('candidate manifest differs from trusted reconstruction');
 
