@@ -19,7 +19,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 ## Текущая инженерная задача
 
-`ARCH-LF-001` — **current writer / текущий writer**, Issue #245, branch `agent/ARCH-LF-001-local-first-rebaseline`. Это единственный active writer.
+`ARCH-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #245, PR #248, merge `329e5c5c3b5be8286f0c9a397de96f04ca902963`.
+
+`SPA-LF-001` — **current writer / текущий writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. Это единственный active writer. Цель LF1: один постоянно живущий SPA document, client-side History API routing, zero mandatory network warm navigation, responsive shell и bounded rollback на canonical R2. IndexedDB/Worker/sync intentionally не заявляются готовыми в этом item.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -80,7 +82,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На ARCH-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На SPA-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
@@ -108,7 +110,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first architecture contract должен входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA runtime/visual contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT.
 
 ## Source precedence
 
