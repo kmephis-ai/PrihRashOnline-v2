@@ -97,9 +97,15 @@ function closeServer(server) {
       const C = B.map((row) => row.transaction_id === 'tx-04' ? tx(4, 44444) : row)
         .concat([tx(10)])
         .sort((left, right) => left.transaction_id.localeCompare(right.transaction_id));
+      const D = C.map((row) => row.transaction_id === 'tx-05' ? tx(5, 55555) : row)
+        .sort((left, right) => left.transaction_id.localeCompare(right.transaction_id));
+      const X = C.map((row) => row.transaction_id === 'tx-06' ? tx(6, 66666) : row)
+        .sort((left, right) => left.transaction_id.localeCompare(right.transaction_id));
       const REV_A = await PrhLocalFirstDelta.repositoryRevision(A);
       const REV_B = await PrhLocalFirstDelta.repositoryRevision(B);
       const REV_C = await PrhLocalFirstDelta.repositoryRevision(C);
+      const REV_D = await PrhLocalFirstDelta.repositoryRevision(D);
+      const REV_X = await PrhLocalFirstDelta.repositoryRevision(X);
 
       function fullEnvelope(revision, transactions) {
         const journal = [{ sequence: 1, event: 'FULL_BOOTSTRAP', revision, transaction_count: transactions.length, dimension_count: dimensions.length }];
@@ -112,26 +118,37 @@ function closeServer(server) {
         };
       }
 
+      function fullTarget() {
+        if (fullMode === 'C') return { rows: C, revision: REV_C };
+        if (fullMode === 'D') return { rows: D, revision: REV_D };
+        return { rows: A, revision: REV_A };
+      }
+
       const fullTransport = {
         async fetchBootstrap(request) {
           fullCalls += 1;
           if (fullFailure) throw Object.assign(new Error('synthetic full offline'), { code: 'SYNTHETIC_FULL_SYNC_FAILURE' });
-          const rows = fullMode === 'C' ? C : A;
-          const revision = fullMode === 'C' ? REV_C : REV_A;
-          if (request.local_revision === revision) {
+          const target = fullTarget();
+          if (request.local_revision === target.revision) {
             return {
               schema: 'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1', version: '1.0.0', state: 'NOOP',
-              revision, generation_id: revision,
+              revision: target.revision, generation_id: target.revision,
               financial_write_authorized: false, canonical_mutation_performed: false
             };
           }
-          return fullEnvelope(revision, rows);
+          return fullEnvelope(target.revision, target.rows);
         }
       };
       const fullSync = PrhLocalFirstSync.createSyncCoordinator({ store, transport: fullTransport, chunkSize: 2 });
 
       async function deltaId(request, targetRevision) {
         return PrhLocalFirstDelta.sha256Hex(`PRH_LOCAL_FIRST_DELTA_V1|${request.base_revision}|${targetRevision}|${request.inventory.digest}`);
+      }
+      function targetCount(targetRevision) {
+        if (targetRevision === REV_B) return B.length;
+        if (targetRevision === REV_C) return C.length;
+        if (targetRevision === REV_D) return D.length;
+        throw new Error('UNKNOWN_TARGET_REVISION');
       }
       async function deltaEnvelope(request, targetRevision, upserts, deletes) {
         return {
@@ -144,16 +161,31 @@ function closeServer(server) {
           transaction_upserts: upserts,
           transaction_deletes: deletes,
           dimension_upserts: [], dimension_deletes: [],
-          expected_counts: { transactions: targetRevision === REV_B ? B.length : C.length, dimensions: dimensions.length, aggregates: 0, sync_journal: 1 },
+          expected_counts: { transactions: targetCount(targetRevision), dimensions: dimensions.length, aggregates: 0, sync_journal: 1 },
           financial_write_authorized: false, canonical_mutation_performed: false
         };
+      }
+
+      async function forceActiveGeneration(revision, transactions) {
+        try { await store.abortGeneration(revision); } catch (error) { void error; }
+        await store.beginGeneration({ generationId: revision, revision });
+        await store.writeGenerationChunk({
+          generationId: revision, revision,
+          transactions, dimensions, aggregates: [],
+          sync_journal: [{ sequence: 1, event: 'SYNTHETIC_CONCURRENT_GENERATION', revision }]
+        });
+        await store.finalizeGeneration({
+          generationId: revision,
+          revision,
+          expectedCounts: { transactions: transactions.length, dimensions: dimensions.length, aggregates: 0, sync_journal: 1 }
+        });
       }
 
       const deltaTransport = {
         async fetchDelta(request) {
           deltaCalls += 1;
           if (deltaMode === 'B') return deltaEnvelope(request, REV_B, [tx(3, 33333), tx(9)], ['tx-07']);
-          if (deltaMode === 'NOOP_B') {
+          if (deltaMode === 'NOOP_B' || deltaMode === 'NOOP_C' || deltaMode === 'NOOP_D') {
             return {
               schema: 'PRH_LOCAL_FIRST_DELTA_RESPONSE_V1', version: '1.0.0', state: 'NOOP',
               base_revision: request.base_revision, target_revision: request.base_revision, target_generation_id: request.base_revision,
@@ -170,13 +202,11 @@ function closeServer(server) {
               financial_write_authorized: false, canonical_mutation_performed: false
             };
           }
-          if (deltaMode === 'NOOP_C') {
-            return {
-              schema: 'PRH_LOCAL_FIRST_DELTA_RESPONSE_V1', version: '1.0.0', state: 'NOOP',
-              base_revision: request.base_revision, target_revision: request.base_revision, target_generation_id: request.base_revision,
-              base_inventory_digest: request.inventory.digest,
-              financial_write_authorized: false, canonical_mutation_performed: false
-            };
+          if (deltaMode === 'RACE_D') {
+            // Simulate another verified sync winning after request inventory was
+            // built but before this response is applied.
+            await forceActiveGeneration(REV_X, X);
+            return deltaEnvelope(request, REV_D, [tx(5, 55555)], []);
           }
           throw new Error('UNKNOWN_DELTA_MODE');
         }
@@ -214,19 +244,31 @@ function closeServer(server) {
       const replayC = await delta.startBackgroundSync();
       const activeAfterCReplay = await store.getActiveSnapshot({ includeJournal: true });
 
+      deltaMode = 'RACE_D';
+      fullMode = 'D';
+      const raceD = await delta.sync();
+      const activeD = await store.getActiveSnapshot({ includeJournal: true });
+      const revisionDReadback = await PrhLocalFirstDelta.repositoryRevision(activeD.transactions);
+
+      deltaMode = 'NOOP_D';
+      const replayD = await delta.sync();
+      const activeAfterDReplay = await store.getActiveSnapshot({ includeJournal: true });
+
       const wiped = await store.wipe();
       const reopened = await store.open();
       const afterWipe = await store.getActiveSnapshot({ includeJournal: true });
       store.close();
 
       return {
-        REV_A, REV_B, REV_C,
+        REV_A, REV_B, REV_C, REV_D, REV_X,
         localBefore, callsBeforeBootstrap, bootstrapA, activeA,
         applyB, activeB, revisionBReadback,
         replayB, activeAfterReplay,
         corruptC, activeAfterCorrupt,
         rebuildC, activeC, revisionCReadback,
         replayC, activeAfterCReplay,
+        raceD, activeD, revisionDReadback,
+        replayD, activeAfterDReplay,
         wiped, reopened, afterWipe,
         fullCalls, deltaCalls
       };
@@ -270,12 +312,25 @@ function closeServer(server) {
     assert.strictEqual(result.replayC.status, 'NOOP');
     assert.strictEqual(result.activeAfterCReplay.revision, result.REV_C);
 
+    assert.strictEqual(result.raceD.status, 'FULL_REBUILT', 'base revision race must fail closed into full bootstrap');
+    assert.strictEqual(result.raceD.reason, 'LOCAL_FIRST_DELTA_BASE_REVISION_MISMATCH');
+    assert.notStrictEqual(result.REV_X, result.REV_C);
+    assert.notStrictEqual(result.REV_X, result.REV_D);
+    assert.strictEqual(result.activeD.status, 'READY');
+    assert.strictEqual(result.activeD.revision, result.REV_D);
+    assert.strictEqual(result.activeD.generation_id, result.REV_D);
+    assert.strictEqual(result.activeD.transactions.find((row) => row.transaction_id === 'tx-05').amount_minor, 55555);
+    assert.strictEqual(result.revisionDReadback, result.REV_D);
+
+    assert.strictEqual(result.replayD.status, 'NOOP');
+    assert.strictEqual(result.activeAfterDReplay.revision, result.REV_D);
+
     assert.strictEqual(result.wiped.status, 'WIPED');
     assert.strictEqual(result.reopened.status, 'OPEN');
     assert.strictEqual(result.afterWipe.status, 'EMPTY');
     assert.deepStrictEqual(localOperationRequests, [], `local/synthetic delta operations emitted real network requests: ${localOperationRequests.join(' | ')}`);
-    assert.strictEqual(result.deltaCalls, 5, 'only explicit delta sync calls may invoke delta transport');
-    assert.strictEqual(result.fullCalls, 3, 'full bootstrap only initial + corrupt fallback attempt + explicit rebuild fallback');
+    assert.strictEqual(result.deltaCalls, 7, 'only explicit delta sync calls may invoke delta transport');
+    assert.strictEqual(result.fullCalls, 4, 'full bootstrap only initial + corrupt fallback attempt + explicit rebuild fallback + base-race fallback');
 
     console.log('Local-first delta IndexedDB adapter: PASS', {
       addUpdateDelete: true,
@@ -283,6 +338,7 @@ function closeServer(server) {
       targetRevisionRecomputed: true,
       corruptDeltaPreservesVerified: true,
       fullRebuildFallback: true,
+      baseRevisionRaceFallback: true,
       explicitWipe: true,
       localNetworkRequests: localOperationRequests.length,
       deltaCalls: result.deltaCalls,
