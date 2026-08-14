@@ -7,6 +7,7 @@ const vm = require('vm');
 
 const root = path.join(__dirname, '..');
 const privacyRuntimeSource = fs.readFileSync(path.join(root, 'PrivacyPresentationService.js'), 'utf8');
+const routeBootstrapSource = fs.readFileSync(path.join(root, 'R2RouteBootstrapService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 const legacySource = fs.readFileSync(path.join(root, 'DashboardWebDataService.js'), 'utf8');
 const files = {
@@ -18,6 +19,7 @@ const files = {
 const financialSectionsSource = files.FinancialSectionsWebApp;
 const contract = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'ui', 'canonical_r2_web_app.v1.json'), 'utf8'));
 new vm.Script(privacyRuntimeSource, { filename:'PrivacyPresentationService.js' });
+new vm.Script(routeBootstrapSource, { filename:'R2RouteBootstrapService.js' });
 new vm.Script(routerSource, { filename:'CanonicalR2WebAppService.js' });
 
 function output(content) {
@@ -47,6 +49,7 @@ const context = vm.createContext({
   prhRenderWebDashboard_(data){ return output('<html><body data-legacy="1">'+JSON.stringify(data)+'</body></html>'); }
 });
 vm.runInContext(privacyRuntimeSource, context, { filename:'PrivacyPresentationService.js' });
+vm.runInContext(routeBootstrapSource, context, { filename:'R2RouteBootstrapService.js' });
 vm.runInContext(routerSource, context, { filename:'CanonicalR2WebAppService.js' });
 
 assert.strictEqual(contract.schema, 'PRH_CANONICAL_R2_WEB_APP_V1');
@@ -72,6 +75,8 @@ assert.match(financialSectionsSource, /history\.pushState\(\{prhFin:true,section
 assert.doesNotMatch(financialSectionsSource, /history\.pushState\([^\n;]*url\.pathname/, 'canonical script.google.com path must never be passed into iframe pushState');
 assert.match(financialSectionsSource, /inflight\[section\]\.waiters\.push\(waiter\)/, 'active click during prefetch must join the in-flight request instead of being dropped');
 assert.match(financialSectionsSource, /function fallbackNavigate\(href\)/, 'History API failure must retain truthful canonical navigation fallback');
+assert.match(routeBootstrapSource, /function prhR2InjectFinancialRouteBootstrap_\(html, params\)/, 'FIN filters must have a bounded route bootstrap into HtmlService iframe');
+assert.match(routeBootstrapSource, /history\.replaceState\(history\.state\|\|null,"","\?"\+q\.toString\(\)\)/, 'FIN route bootstrap must rehydrate iframe location.search with same-origin History API');
 
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.VERSION, '1.3.0');
 assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home','transactions','expenses','income','cash-flow','data-quality']);
@@ -119,9 +124,20 @@ for (const route of ['expenses','income','cash-flow']) {
   assert(html.includes('data-financial-authority="CANONICAL_FIN_TRUTH"'));
   assert(html.includes('prhR2FetchFinancialSectionsPayload'));
   assert(html.includes('name="window_days"'));
+  assert(html.includes('id="prh-r2-financial-route-bootstrap"'));
+  assert(html.indexOf('id="prh-r2-financial-route-bootstrap"') < html.indexOf("var TITLES={expenses:"), 'FIN route bootstrap must execute before client query() reads iframe location.search');
   assert(!html.includes(`data-r2-unbound-surface="${route}"`));
   assert(!/SYN-TX-|PUBLIC_SYNTHETIC/.test(html));
 }
+
+const filteredExpenses = context.doGet({parameter:{
+  surface:'expenses',privacy:'NORMAL',window_days:'30',account_id:'ACC-1',category_id:'CAT-1',member_id:'MEM-1'
+}}).getContent();
+for (const marker of ['"surface":"expenses"','"privacy":"NORMAL"','"window_days":"30"','"account_id":"ACC-1"','"category_id":"CAT-1"','"member_id":"MEM-1"']) {
+  assert(filteredExpenses.includes(marker), `filtered FIN iframe bootstrap missing ${marker}`);
+}
+const invalidBootstrap = context.prhR2FinancialRouteBootstrapParams_({surface:'expenses',privacy:'???',window_days:'31',account_id:'A'.repeat(161)});
+assert.strictEqual(JSON.stringify(invalidBootstrap), JSON.stringify({surface:'expenses',privacy:'MASKED'}));
 
 const dq = context.doGet({parameter:{surface:'data-quality'}}).getContent();
 assert(dq.includes('data-active-surface="data-quality"'));
@@ -147,6 +163,7 @@ assert(legacy.includes('data-legacy="1"'));
 assert.strictEqual(context.prhCanonicalR2WebAppSmokeToken(), 'PRH_WEBAPP_SMOKE_V5|R2|OK');
 assert.strictEqual(homeRuntimeCalls, 1, 'technical render smoke must not read private financial rows');
 assert.doesNotMatch(routerSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
+assert.doesNotMatch(routeBootstrapSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
 assert.doesNotMatch(legacySource, /function\s+doGet\s*\(/);
 
 console.log('canonical_r2_web_app_contract_test: OK', {
@@ -156,6 +173,7 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   financialSectionsAsync:true,
   warmNavigationIframeSafe:true,
   inflightPrefetchRaceSafe:true,
+  financialFilterRouteBootstrap:true,
   privacyModeContinuity:'PRESERVE_EXPLICIT_MODE',
   financialWrite:false,
   smoke:'PRH_WEBAPP_SMOKE_V5|R2|OK'
