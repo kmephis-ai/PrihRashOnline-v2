@@ -8,7 +8,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
 
-- `ARCH-LF-001` — **IN_PROGRESS**, Issue #245, branch `agent/ARCH-LF-001-local-first-rebaseline`; единственный current writer. Цель — зафиксировать architecture contract, Local Read Model, IndexedDB/Worker/sync boundaries, SLO и исполняемый LF Roadmap.
+- `ARCH-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #245, PR #248, merge `329e5c5c3b5be8286f0c9a397de96f04ca902963`.
+- `SPA-LF-001` — **IN_PROGRESS / current writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. LF1 строит один SPA document с History API, zero-network warm route и bounded preview `surface=local-first`; canonical R2 пока остаётся default/rollback.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -24,8 +25,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 
 - `FIN-010` — **DONE**, Issue #85 Main Verification PASS.
 - `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
-- `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
-- `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
+- `ARCH-010` — **DONE**, Main Verification PASS, Issue #89.
+- `ARCH-011` — **DONE**, Main Verification PASS, Issue #91.
 - `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
@@ -63,7 +64,7 @@ Target Product SLO — будущие acceptance targets, не текущие и
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе ARCH-LF Google authoritative store не меняется и live YDB resource не создаётся.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе SPA-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 
