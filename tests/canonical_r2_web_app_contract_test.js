@@ -71,12 +71,17 @@ for (const id of ['expenses','income','cash-flow']) {
 }
 
 assert.match(financialSectionsSource, /function shellSurface\(\)/, 'FIN client must resolve initial section from canonical shell inside Apps Script iframe');
-assert.match(financialSectionsSource, /history\.pushState\(\{prhFin:true,section:next\},''\)/, 'warm navigation must use same-origin History state only');
+assert.match(financialSectionsSource, /history\.pushState\(\{prhFin:true,section:next\},'','\?'\+q\.toString\(\)\)/, 'warm navigation must preserve shared filter state using same-origin relative History query');
+assert.doesNotMatch(financialSectionsSource, /history\.pushState\([^\n;]*https?:\/\//, 'FIN iframe History state must never receive an absolute external URL');
 assert.doesNotMatch(financialSectionsSource, /history\.pushState\([^\n;]*url\.pathname/, 'canonical script.google.com path must never be passed into iframe pushState');
-assert.match(financialSectionsSource, /inflight\[section\]\.waiters\.push\(waiter\)/, 'active click during prefetch must join the in-flight request instead of being dropped');
+assert.match(financialSectionsSource, /existing&&existing\.generation===generation/, 'in-flight reuse must be generation-bound after filter state changes');
+assert.match(financialSectionsSource, /existing\.waiters\.push\(waiter\)/, 'active click during same-generation prefetch must join the in-flight request instead of being dropped');
+assert.match(financialSectionsSource, /entry\.generation!==generation/, 'late pre-filter RPC responses must be ignored');
+assert.match(financialSectionsSource, /function filterStateFromForm\(\)/, 'owner-visible filters must come from one in-page form state');
+assert.match(financialSectionsSource, /data-filter-navigation="IN_PAGE_RPC_STATE"/, 'FIN filter navigation must use in-page RPC state rather than top-level GET split state');
 assert.match(financialSectionsSource, /function fallbackNavigate\(href\)/, 'History API failure must retain truthful canonical navigation fallback');
-assert.match(routeBootstrapSource, /function prhR2InjectFinancialRouteBootstrap_\(html, params\)/, 'FIN filters must have a bounded route bootstrap into HtmlService iframe');
-assert.match(routeBootstrapSource, /history\.replaceState\(history\.state\|\|null,"","\?"\+q\.toString\(\)\)/, 'FIN route bootstrap must rehydrate iframe location.search with same-origin History API');
+assert.match(routeBootstrapSource, /function prhR2InjectFinancialRouteBootstrap_\(html, params\)/, 'FIN deep links must retain bounded initial route bootstrap into HtmlService iframe');
+assert.match(routeBootstrapSource, /history\.replaceState\(history\.state\|\|null,"","\?"\+q\.toString\(\)\)/, 'FIN route bootstrap must rehydrate initial iframe location.search with same-origin History API');
 
 assert.strictEqual(context.PRH_CANONICAL_R2_WEB.VERSION, '1.3.0');
 assert.deepStrictEqual(Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (item) => item[0]), ['home','transactions','expenses','income','cash-flow','data-quality']);
@@ -125,7 +130,7 @@ for (const route of ['expenses','income','cash-flow']) {
   assert(html.includes('prhR2FetchFinancialSectionsPayload'));
   assert(html.includes('name="window_days"'));
   assert(html.includes('id="prh-r2-financial-route-bootstrap"'));
-  assert(html.indexOf('id="prh-r2-financial-route-bootstrap"') < html.indexOf("var TITLES={expenses:"), 'FIN route bootstrap must execute before client query() reads iframe location.search');
+  assert(html.indexOf('id="prh-r2-financial-route-bootstrap"') < html.indexOf("var TITLES={expenses:"), 'FIN route bootstrap must execute before client query() reads initial iframe location.search');
   assert(!html.includes(`data-r2-unbound-surface="${route}"`));
   assert(!/SYN-TX-|PUBLIC_SYNTHETIC/.test(html));
 }
@@ -172,8 +177,9 @@ console.log('canonical_r2_web_app_contract_test: OK', {
   hiddenUnboundRoutes:2,
   financialSectionsAsync:true,
   warmNavigationIframeSafe:true,
-  inflightPrefetchRaceSafe:true,
-  financialFilterRouteBootstrap:true,
+  sharedFilterState:true,
+  generationBoundInflight:true,
+  financialFilterInitialRouteBootstrap:true,
   privacyModeContinuity:'PRESERVE_EXPLICIT_MODE',
   financialWrite:false,
   smoke:'PRH_WEBAPP_SMOKE_V5|R2|OK'
