@@ -62,13 +62,15 @@ Real or real-derived household finance data stays private. Public repo соде�
 - `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` — **DONE**, Main Verification PASS, Issue #89.
 - `ARCH-011` — **DONE**, Main Verification PASS, Issue #91.
-- `MIG-010` — **DONE**, Main Verification PASS, Issue #96.
+- `MIG-010` — **DONE**, Main Verification PASS, Issue #96; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
 
 FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
 Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется и при Local-first rebaseline.
+
+MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не может переиспользовать historical authorization. Любая новая irreversible financial mutation требует fresh exact-bound owner authorization.
 
 ## Reusable engineering foundation
 
