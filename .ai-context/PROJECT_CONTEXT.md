@@ -19,7 +19,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 ## Текущая инженерная задача
 
-`ARCH-LF-001` — **current writer / текущий writer**, Issue #245, branch `agent/ARCH-LF-001-local-first-rebaseline`. Это единственный active writer.
+`ARCH-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #245, PR #248, merge `329e5c5c3b5be8286f0c9a397de96f04ca902963`.
+
+`SPA-LF-001` — **current writer / текущий writer**, Issue #249, branch `agent/SPA-LF-001-local-first-spa-shell`. Это единственный active writer. Цель LF1: один постоянно живущий SPA document, client-side History API routing, zero mandatory network warm navigation, responsive shell и bounded rollback на canonical R2. IndexedDB/Worker/sync intentionally не заявляются готовыми в этом item.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -80,41 +82,10 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На ARCH-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На SPA-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
 `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> FUTURE_SEPARATE_WRITE_CUTOVER`.
 
 Big-bang cutover запрещён. `paidOverageAllowed=false`; unknown billing state = BLOCKED. YDB не является prerequisite для Local-first Product Ready.
-
-## Delivery and autonomy
-
-Required trusted chain остаётся неизменной:
-
-`PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> CI-003 autonomous squash merge -> Main Verification`.
-
-Для `work_class=user_facing` перед merge дополнительно требуется exact-SHA `PRODUCT_READY_E2E`. Manual merge для обхода Product Ready запрещён.
-
-One-writer rule: one Roadmap ID = one GitHub Issue = one active writer; branch `agent/<ROADMAP-ID>-<slug>`. Active issue lifecycle и exact candidate должны совпадать с machine evidence.
-
-## FinOps / safety
-
-`FINOPS-001` остаётся обязательной cost boundary: required checks не требуют платного provider/API. Unknown/unproven cost fail-closed. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable; любой новый irreversible financial write требует fresh owner authorization.
-
-## Read-only multi-AI review
-
-Read-only multi-AI review имеет `writer_authority=false` и является supplementary evidence. Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Review не голосует за merge и не может отменить PR Validation, Trusted Runtime Health, Product Ready или Main Verification.
-
-## TEST-010 boundary
-
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first architecture contract должен входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT.
-
-## Source precedence
-
-1. security/privacy/cost/irreversible boundaries;
-2. `docs/ROADMAP.md` v2.4 + `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues;
-3. exact-SHA code/tests/workflows/machine evidence;
-4. versioned contracts;
-5. architecture/ADR/operations docs;
-6. README/user docs.
