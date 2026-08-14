@@ -26,7 +26,7 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 - `ARCH-010` — **DONE**, Issue #89 Main Verification PASS.
 - `ARCH-011` — **DONE**, Issue #91 Main Verification PASS.
-- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; owner-private reconciliation ранее PASS.
+- `MIG-010` — **DONE**, Issue #96 Main Verification PASS; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
 
@@ -73,7 +73,13 @@ Big-bang YDB cutover запрещён. `paidOverageAllowed=false`; unknown billi
 
 ## MIG-010 historical safety boundary
 
-MIG-010 owner-private evidence ранее подтвердил `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound и **не может повторно использоваться**. Current financial write authority = false; любое будущее irreversible изменение требует нового exact-bound owner authorization и fresh recovery evidence.
+MIG-010 owner-private evidence remains `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
+
+Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`. **Current write authority = false**. Owner-verified private full-history reconciliation remains completed correctness proof.
+
+Execution policy remains `MIG010_EXECUTION_POLICY_V1@1.0.0`; `FINALIZED_PENDING_RECONCILIATION` was not completion until separate post-write reconciliation PASS.
+
+Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub Actions cannot create it; AI/CI cannot reuse it for later mutations. Any future irreversible financial write requires fresh exact-bound owner authorization.
 
 ## Executable AI engineering baseline
 
@@ -99,7 +105,7 @@ Engineering item закрывается как `DONE_ENGINEERING`. User-facing i
 
 ## Source precedence
 
-1. security/privacy/cost/irreversible-action boundaries;
+1. security/privacy/cost/irreversible boundaries;
 2. `docs/ROADMAP.md` v2.4 + approved `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues;
 3. exact-SHA code/tests/workflows/machine evidence;
 4. versioned contracts;
