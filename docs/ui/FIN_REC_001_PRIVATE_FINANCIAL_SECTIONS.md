@@ -1,51 +1,34 @@
-# FIN-REC-001 — private Расходы / Доходы / Денежный поток
+# FIN-REC-001 — private Expenses / Income / Cash Flow
 
 ## Назначение
 
-`FIN-REC-001` подключает три пользовательских финансовых раздела canonical R2 Web App к реальным private read-only данным. Финансовая истина остаётся в canonical `FIN-TRUTH-v1`: денежные меры проходят через `PRH_ANALYTICS_CONTRACT_V1` → KPI Dictionary → Financial Reconciliation. Web App не получает права записи и не вводит собственные финансовые формулы.
+`Расходы`, `Доходы` и `Денежный поток` — private read-only поверхности canonical R2 Web App. Финансовые формулы остаются в FIN-TRUTH / Analytics Contract; UI не получает права на запись и не вводит собственные KPI-формулы.
 
-## Общий runtime
+## Данные и производительность
 
-Каждый запрос раздела использует один immutable canonical snapshot и exact source revision. Клиент передаёт активный `section`, период и bounded account/category/member filters. `MASKED` не выполняет финансовую аналитику; `DEMO` / `ZEN` для private FIN routes fail closed.
+Runtime читает лёгкую историческую проекцию `ID + Дата и время`, определяет актуальное окно и канонизирует полный набор столбцов только для текущего и равного сравнительного периода. Для видимого раздела выполняются две canonical analytics query. Это устранило многократные полные проходы по многолетней таблице.
 
-## Owner performance evidence
+История owner UAT показала последовательное улучшение холодной загрузки: ранние кандидаты давали 8–17 секунд, v208 — около 6–7 секунд. Warm navigation затем была доведена до наблюдаемых 0,3–0,5 секунды, но несколько следующих кандидатов выявили функциональные регрессии навигации и фильтров. Эти результаты не считаются Product Ready.
 
-Exact deployed candidate `2a28bdb70e27a91b0728ec2384dd102c55bd8bce`, Apps Script version `206`, прошёл technical runtime health, но свежий owner UAT дал:
+## Filter state v5.4
 
-- `Расходы` — около **8 секунд** до появления графиков;
-- `Доходы` — около **11 секунд**;
-- `Денежный поток` — около **15 секунд**.
+Version 213 подтвердила, что одного переноса query из top-level Web App в Apps Script iframe недостаточно. Owner UAT: все фильтры ведут себя некорректно. Статический разбор выявил split-brain состояния: форма применяла canonical top-level GET, runtime-request читал iframe query, а warm navigation/cache были оптимизированы только для default `90 дней / без dimension filters`. При активных фильтрах переход по FIN routes мог выпадать в обычные shell-links, которые сохраняют privacy, но не общий period/filter state.
 
-Это **Product UAT performance FAIL**. Candidate `2a28bdb70e27a91b0728ec2384dd102c55bd8bce` не получает Product Ready и не может быть merged как пользовательски готовый.
+v5.4 переводит FIN-фильтры на единый in-page state:
 
-## Performance rework v3 — canonical analytics fast path
+- `Период / Счёт / Категория / Член семьи` считываются непосредственно из формы;
+- state сначала фиксируется в iframe History API, затем из него строится точный `google.script.run` request;
+- после изменения фильтра cache/inflight/revision state инвалидируется одним generation boundary, поэтому поздний ответ старого запроса не может перерисовать экран;
+- server response `filters.selected` является источником истины для выбранных значений после ответа;
+- переходы `Расходы ↔ Доходы ↔ Денежный поток` всегда сохраняют текущий period/filter query, а не только default state;
+- Back/Forward при смене history state сбрасывает stale cache и повторно получает exact filtered payload;
+- при возврате к `90 дней / Все` разрешается прежний page-memory prefetch;
+- persistent browser storage и financial write отсутствуют.
 
-Предыдущие rework уже устранили расчёт сразу трёх разделов и ограничили вход двумя нужными периодами, но specialized EXP/INC/CF builders всё ещё строили дневной trend через повторный проход по одному и тому же набору операций для каждого дня. Это оставляло алгоритмический паттерн порядка `days × transactions`.
+## Контрактные проверки
 
-Runtime v3 убирает этот паттерн без переноса финансовых формул в UI:
+Browser regression gate должен доказывать не только наличие query/form fields, но и фактическую семантику: после submit runtime получает выбранные `window_days/account/category/member`, видимый financial result меняется, выбранные значения остаются на форме, reset возвращает пустые dimension filters. Runtime contract отдельно проверяет эффект каждого owner-visible dimension filter и period 30/90 на canonical analytics result.
 
-1. Источник по-прежнему читается один раз через approved single-scan snapshot.
-2. Для выбранного раздела выполняются ровно **две** bounded canonical analytics queries через `source.cycle.analytics(...)`.
-3. Первая query группирует текущий период по `DAY` за один проход canonical Analytics Contract.
-4. Вторая query строит текущий/previous-period comparison; для `Расходов` и `Доходов` — по canonical `category_id`, для `Денежного потока` — scalar FIN measures.
-5. Runtime только собирает уже рассчитанные canonical measures в пользовательский view и проверяет parity/invariants. Собственных денежных формул и write authority не появляется.
-6. Specialized `EXP-020` / `INC-020` / `CF-020` modules остаются regression/parity reference: contract test сравнивает числовой результат fast path с прежними canonical builders.
+## Product gate
 
-Таким образом дневной график больше не требует полного повторного сканирования входа для каждой точки. Количество canonical analytics queries на один раздел фиксировано и не растёт вместе с количеством дней.
-
-## Observability
-
-Runtime telemetry содержит только privacy-safe технические метрики: `snapshot_elapsed_ms`, `analytics_elapsed_ms`, `total_elapsed_ms`, `analytics_input_record_count`, `analytics_scope_days`, `analytics_query_count`, `analytics_runtime_authority`. Денежные значения, private labels и identifiers в telemetry отсутствуют.
-
-## Product truth
-
-Product Ready, merge и Main Verification остаются заблокированы. Для rework v3 требуется полный PR Validation нового exact SHA, затем trusted exact-SHA deployment + authenticated runtime health и только после этого новый owner UAT на компьютере и телефоне. UAT предыдущих SHA на новый candidate не переносится.
-
-## Ограничения
-
-- read-only: canonical financial writes отсутствуют;
-- `NORMAL` показывает private данные только владельцу;
-- `MASKED` не выполняет analytics queries;
-- `DEMO` / `ZEN` для private FIN routes fail closed;
-- FREE_ONLY; внешний платный provider не требуется;
-- stale source revision блокирует routed drill вместо смешивания разных snapshots.
+Технический PASS не равен Product Ready. После PR Validation → Trusted DEV Deploy → authenticated Runtime Health требуется fresh owner UAT на exact deployed SHA. Нужно подтвердить корректность каждого фильтра во всех трёх FIN routes, сохранение фильтров между маршрутами и Back/Forward, затем выполнить полный desktop/mobile UAT. До этого merge запрещён.
