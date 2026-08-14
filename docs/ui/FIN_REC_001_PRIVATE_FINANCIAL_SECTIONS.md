@@ -27,7 +27,7 @@ v5.4 переводит FIN-фильтры на единый in-page state:
 
 ## Контрактные проверки
 
-Browser regression gate должен доказывать не только наличие query/form fields, но и фактическую семантику: после submit runtime получает выбранные `window_days/account/category/member`, видимый financial result меняется, выбранные значения остаются на форме, reset возвращает пустые dimension filters. Runtime contract отдельно проверяет эффект каждого owner-visible dimension filter и period 30/90 на canonical analytics result.
+Browser regression gate доказывает не только наличие query/form fields, но и фактическую семантику: после submit runtime получает выбранные `window_days/account/category/member`, видимый financial result меняется, выбранные значения остаются на форме, тот же state сохраняется при `Расходы → Доходы` и browser Back, reset возвращает пустые dimension filters. Runtime contract отдельно проверяет эффект каждого owner-visible dimension filter и period 30/90 на canonical analytics result.
 
 ## Product gate
 
