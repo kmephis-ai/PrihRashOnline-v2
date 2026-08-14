@@ -5,6 +5,8 @@
  * only proven read-only private destinations. Unbound financial routes remain
  * directly addressable for fail-closed diagnostics but are never advertised as
  * working household navigation. Studio and the legacy view are secondary tools.
+ * SPA-LF-001 adds a bounded non-primary Local-first preview surface without
+ * changing canonical product navigation or financial authority.
  */
 var PRH_CANONICAL_R2_WEB = Object.freeze({
   SCHEMA: 'PRH_CANONICAL_R2_WEB_APP_V1',
@@ -45,6 +47,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   STUDIO_SURFACE: 'studio',
   COMPOSER_SURFACE: 'composer',
   LEGACY_SURFACE: 'legacy',
+  LOCAL_FIRST_SURFACE: 'local-first',
   FINANCIAL_WRITE: false,
   CANONICAL_MUTATION: false,
   PRIVATE_EXPOSURE: 'MYSELF',
@@ -68,6 +71,7 @@ function prhR2ResolveSurface_(requested) {
   var surface = String(requested || '').trim().toLowerCase();
   if (!surface) return PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE;
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return surface;
+  if (surface === PRH_CANONICAL_R2_WEB.LOCAL_FIRST_SURFACE) return surface;
   if (Object.prototype.hasOwnProperty.call(PRH_CANONICAL_R2_WEB.LIVE_SURFACES, surface)) return surface;
   if (Object.prototype.hasOwnProperty.call(PRH_CANONICAL_R2_WEB.SAFE_UNBOUND_SURFACES, surface)) return surface;
   return PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE;
@@ -240,6 +244,7 @@ function prhR2RenderHomeWithPrivacy_(params) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   var surface = prhR2ResolveSurface_(params[PRH_CANONICAL_R2_WEB.ROUTE_PARAMETER]);
+  if (surface === PRH_CANONICAL_R2_WEB.LOCAL_FIRST_SURFACE) return prhLocalFirstSpaRender_(params);
   if (surface === PRH_CANONICAL_R2_WEB.LEGACY_SURFACE) return prhR2RenderLegacy_(params);
   if (surface === PRH_CANONICAL_R2_WEB.DEFAULT_SURFACE) return prhR2RenderHomeWithPrivacy_(params);
   if (surface === 'transactions' || surface === 'data-quality') return prhR2RenderFile_(surface, null, params);
