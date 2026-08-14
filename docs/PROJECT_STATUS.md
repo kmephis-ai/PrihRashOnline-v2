@@ -12,7 +12,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `SPA-LF-001` — **DONE / Main Verification PASS**, Issue #249, PR #250, merge `3c69cb508153b0fc5b953376a614f0031fadc38c`; owner UAT v221 PASS, warm route p95 `29 ms`, `10` переходов, сеть `0`.
 - `STORE-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #251, PR #252, merge `865cd076c4a066ec7f8b789f1030e8c129d91144`; private IndexedDB Local Read Model, immutable generations, atomic active switch, rebuild/wipe и zero-network local operations доказаны real Chromium test.
 - `WORKER-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #253, PR #254, merge `e206a129acb0136f8c3173ae6e55853c4c4401be`; real Web Worker использует тот же canonical `evaluateAnalytics()`, exact generation/revision binding, cancellation/stale discard и zero network/storage/write authority доказаны real Chromium test.
-- `SYNC-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #255, branch `agent/SYNC-LF-001-background-full-sync`. LF2 реализует background full bootstrap из canonical Google snapshot в IndexedDB: same-revision NOOP, exact revision/generation binding, STAGING + atomic verified switch и сохранение последней verified generation при network/source/partial failure.
+- `SYNC-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #255, PR #256, candidate `05f161074a78428a6a96e2df66fde4ef7e0bd70e`, merge `587dc6bd8b7e48d915cc7aef3d31c35802650cd7`; Apps Script version 224, full bootstrap/NOOP/degraded preservation/atomic generation switch и zero-network local reads PASS.
+- `DELTA-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #257, branch `agent/DELTA-LF-001-revision-bound-delta`. LF2 реализует idempotent exact-base-revision delta protocol, SHA-256 inventory, target repository-revision verification и automatic full bootstrap fallback при любой недоказанной base/target chain.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -59,7 +60,9 @@ SPA state
 
 Google Sheets + Apps Script работают как canonical source и trusted background sync/reconciliation adapter. Local Read Model read-only, exact-revision bound и не получает canonical write authority. Partial generation не должна становиться visible current state; delta с недоказанной base revision должен переходить в full rebuild.
 
-`PRH_LOCAL_FIRST_SYNC_V1@1.0.0` использует existing `prhR2DataCreateSnapshot_()` и canonical repository revision. Same revision возвращает `NOOP`; новая revision сначала строится как невидимая STAGING generation и становится текущей только после STORE-LF count verification и atomic finalize. Network/source/protocol/chunk failure не заменяет предыдущую `ACTIVE + VERIFIED` generation. DELTA semantics остаются отдельной задачей `DELTA-LF-001`.
+`PRH_LOCAL_FIRST_SYNC_V1@1.0.0` использует existing `prhR2DataCreateSnapshot_()` и canonical repository revision. Same revision возвращает `NOOP`; новая revision сначала строится как невидимая STAGING generation и становится текущей только после STORE-LF count verification и atomic finalize. Network/source/protocol/chunk failure не заменяет предыдущую `ACTIVE + VERIFIED` generation.
+
+`PRH_LOCAL_FIRST_DELTA_V1@1.0.0` строит owner-private inventory только из `ACTIVE + VERIFIED` generation. Server delta exact-bound к `base_revision` и текущему canonical `target_revision`; browser материализует target в новую STAGING generation и пересчитывает canonical repository revision до finalize. Base mismatch, invalid/corrupt/excessive delta или target mismatch fail-closed переходят в уже проверенный SYNC-LF-001 full bootstrap. Active generation in-place не мутируется.
 
 Worker исполняет тот же canonical analytics evaluator, а не собственный набор финансовых формул. Он не получает network/storage/canonical-write authority; результат старой generation/revision должен быть discarded до UI commit.
 
@@ -71,7 +74,7 @@ Target Product SLO — будущие acceptance targets, не текущие и
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе SYNC-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе DELTA-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 

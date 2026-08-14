@@ -27,7 +27,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `WORKER-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #253, PR #254, merge `e206a129acb0136f8c3173ae6e55853c4c4401be`; `PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0`, real Chromium Worker canonical evaluator parity/cancel/stale/zero-network PASS.
 
-`SYNC-LF-001` — **current writer / текущий writer**, Issue #255, branch `agent/SYNC-LF-001-background-full-sync`. Это единственный active writer. Цель LF2: background full bootstrap из canonical Google snapshot в IndexedDB, exact revision/generation binding, same-revision NOOP, atomic verified switch и сохранение последней verified generation при network/source/partial failure.
+`SYNC-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #255, PR #256, candidate `05f161074a78428a6a96e2df66fde4ef7e0bd70e`, merge `587dc6bd8b7e48d915cc7aef3d31c35802650cd7`; Apps Script version 224, full bootstrap/NOOP/degraded preservation/atomic switch и real Chromium zero-network local read PASS.
+
+`DELTA-LF-001` — **current writer / текущий writer**, Issue #257, branch `agent/DELTA-LF-001-revision-bound-delta`. Это единственный active writer. Цель LF2: idempotent exact-base-revision delta protocol, target revision recomputation и automatic full bootstrap fallback при любой недоказанной base/target chain.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -52,7 +54,9 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 `PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0` не создаёт вторую финансовую истину: browser worker bundle детерминированно включает tracked canonical evaluator и его dependency graph. Узкий browser crypto shim поддерживает только SHA-256 через tracked `lib/crypto/sha256.js`; любой другой external/builtin require fail-closed. Каждая analytics query exact-bound к generation/revision и epoch; binding проверяется до и после evaluate. Cancellation или revision switch инвалидируют queued work, а stale completion не содержит analytics payload.
 
-`PRH_LOCAL_FIRST_SYNC_V1@1.0.0` добавляет только remote-read/background update boundary. Apps Script adapter переиспользует existing `prhR2DataCreateSnapshot_()` и canonical repository revision; отдельной mapping/FIN authority нет. Same revision -> `NOOP`; новая revision -> STAGING full bootstrap -> STORE-LF count verification -> atomic finalize. Network/source/chunk error до finalize не заменяет предыдущую `ACTIVE + VERIFIED` generation. `readLocal()` не вызывает transport; DELTA semantics остаются отдельной задачей `DELTA-LF-001`.
+`PRH_LOCAL_FIRST_SYNC_V1@1.0.0` добавляет только remote-read/background update boundary. Apps Script adapter переиспользует existing `prhR2DataCreateSnapshot_()` и canonical repository revision; отдельной mapping/FIN authority нет. Same revision -> `NOOP`; новая revision -> STAGING full bootstrap -> STORE-LF count verification -> atomic finalize. Network/source/chunk error до finalize не заменяет предыдущую `ACTIVE + VERIFIED` generation. `readLocal()` не вызывает transport.
+
+`PRH_LOCAL_FIRST_DELTA_V1@1.0.0` развивает sync только как network optimization: request inventory строится из `ACTIVE + VERIFIED` generation и exact-bound к `base_revision`; server сравнивает SHA-256 record etags с текущим canonical snapshot. Delta никогда не мутирует active generation in-place — target материализуется как новая STAGING generation. До finalize browser пересчитывает canonical `PRH_TRANSACTION_REPOSITORY_V1` revision по target transactions и требует exact equality `target_revision`. Base mismatch, invalid/corrupt delta, excessive delta или target mismatch переходят в уже проверенный SYNC-LF-001 full bootstrap fallback.
 
 Target Product SLO являются будущими acceptance targets, не текущей telemetry: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Server technical health latency и cold bootstrap timing не подменяют эти метрики.
 
@@ -94,7 +98,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На SYNC-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На DELTA-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
@@ -122,7 +126,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker и Sync adapter contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync и Delta adapter contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 
