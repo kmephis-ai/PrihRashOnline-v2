@@ -1,0 +1,78 @@
+{
+  "schema": "PRH_LOCAL_FIRST_SYNC_V1",
+  "version": "1.0.0",
+  "roadmap_id": "SYNC-LF-001",
+  "phase": "LF2",
+  "work_class": "engineering",
+  "source_authority": "GOOGLE_CANONICAL_READ_ONLY",
+  "local_store_contract": "PRH_LOCAL_READ_MODEL_V1@1.0.0",
+  "canonical_transaction_contract": "PRH_CANONICAL_TRANSACTION_V1@1",
+  "financial_truth_policy": "FIN-TRUTH-v1",
+  "transport": {
+    "mode": "BACKGROUND_EXPLICIT",
+    "warm_path_required": false,
+    "google_script_function": "prhLocalFirstSyncBootstrap",
+    "request_fields": ["local_revision"],
+    "response_schema": "PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1",
+    "states": ["NOOP", "FULL_BOOTSTRAP"]
+  },
+  "revision_binding": {
+    "algorithm": "CANONICAL_REPOSITORY_REVISION_SHA256",
+    "format": "HEX64_LOWER",
+    "full_bootstrap_generation_id": "EQUALS_CANONICAL_REVISION",
+    "same_revision": "NOOP",
+    "stale_or_malformed": "FAIL_CLOSED"
+  },
+  "full_bootstrap": {
+    "stores": ["transactions", "dimensions", "aggregates", "sync_journal"],
+    "write_state": "STAGING",
+    "visibility_before_finalize": "FORBIDDEN",
+    "active_switch": "STORE_LF_ATOMIC_FINALIZE",
+    "partial_failure": "ABORT_STAGING_PRESERVE_ACTIVE",
+    "max_transactions": 50000,
+    "max_serialized_chars": 25000000
+  },
+  "client_semantics": {
+    "local_read_before_sync": true,
+    "network_failure_with_verified_local": "DEGRADED_PRESERVE_LOCAL",
+    "network_failure_without_verified_local": "FAILED_NO_ACTIVE_SNAPSHOT",
+    "concurrent_sync": "ONE_IN_FLIGHT",
+    "retry": "SAFE_FULL_BOOTSTRAP",
+    "delta_support": false,
+    "delta_roadmap_id": "DELTA-LF-001"
+  },
+  "authorities": {
+    "canonical_read": true,
+    "canonical_financial_write": false,
+    "local_derived_write": true,
+    "financial_formula": false,
+    "network_on_warm_interaction": false,
+    "worker_authority": false,
+    "paid_dependency_required": false
+  },
+  "privacy": {
+    "runtime_payload": "OWNER_PRIVATE",
+    "public_test_data": "SYNTHETIC_ONLY",
+    "public_evidence_fields": [
+      "schema",
+      "version",
+      "status",
+      "reason",
+      "revision_hash_prefix",
+      "generation_hash_prefix",
+      "count",
+      "duration_ms"
+    ],
+    "public_financial_payload": false
+  },
+  "invariants": [
+    "ACTIVE_PLUS_VERIFIED_ONLY_VISIBLE",
+    "SAME_REVISION_NO_NEW_GENERATION",
+    "NEW_REVISION_EXACT_BOUND",
+    "PARTIAL_OR_ERROR_CANNOT_REPLACE_ACTIVE",
+    "VERIFIED_LOCAL_READABLE_DURING_NETWORK_FAILURE",
+    "REMOTE_SYNC_NOT_REQUIRED_FOR_WARM_SPA",
+    "NO_CANONICAL_FINANCIAL_WRITE",
+    "FREE_ONLY"
+  ]
+}
