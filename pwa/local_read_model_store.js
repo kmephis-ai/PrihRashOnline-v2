@@ -47,6 +47,12 @@
     });
   }
 
+  async function abortTransaction(transaction, done, error) {
+    try { transaction.abort(); } catch (abortError) { void abortError; }
+    try { await done; } catch (transactionError) { void transactionError; }
+    throw error;
+  }
+
   function deleteDatabasePromise(indexedDB, name) {
     return new Promise(function (resolve, reject) {
       var request = indexedDB.deleteDatabase(name);
@@ -75,8 +81,7 @@
   }
 
   function createSchema(db) {
-    var meta = db.createObjectStore(META, { keyPath: 'key' });
-    void meta;
+    db.createObjectStore(META, { keyPath: 'key' });
     DATA_STORES.forEach(function (name) {
       var definition = STORE_DEFS[name];
       var store = db.createObjectStore(name, { keyPath: definition.keyPath });
@@ -93,9 +98,9 @@
         reject(error);
         return;
       }
-      request.onupgradeneeded = function () {
+      request.onupgradeneeded = function (event) {
         var db = request.result;
-        if (request.oldVersion !== 0) {
+        if (event.oldVersion !== 0) {
           request.transaction.abort();
           return;
         }
@@ -113,11 +118,15 @@
     if (JSON.stringify(existing) !== JSON.stringify(expected)) throw fail('LOCAL_SCHEMA_INCOMPATIBLE');
     var tx = db.transaction(ALL_STORES, 'readonly');
     var done = transactionPromise(tx);
-    ALL_STORES.forEach(function (name) {
-      var store = tx.objectStore(name);
-      if (!sameKeyPath(store.keyPath, STORE_DEFS[name].keyPath)) throw fail('LOCAL_SCHEMA_INCOMPATIBLE');
-      if (name !== META && !store.indexNames.contains('generation_id')) throw fail('LOCAL_SCHEMA_INCOMPATIBLE');
-    });
+    try {
+      ALL_STORES.forEach(function (name) {
+        var store = tx.objectStore(name);
+        if (!sameKeyPath(store.keyPath, STORE_DEFS[name].keyPath)) throw fail('LOCAL_SCHEMA_INCOMPATIBLE');
+        if (name !== META && !store.indexNames.contains('generation_id')) throw fail('LOCAL_SCHEMA_INCOMPATIBLE');
+      });
+    } catch (error) {
+      return abortTransaction(tx, done, error);
+    }
     await done;
   }
 
@@ -129,8 +138,7 @@
     if (!existing) {
       store.put({ key: SCHEMA_KEY, schema: SCHEMA, version: VERSION, db_version: DB_VERSION });
     } else if (existing.schema !== SCHEMA || existing.version !== VERSION || existing.db_version !== DB_VERSION) {
-      tx.abort();
-      throw fail('LOCAL_SCHEMA_INCOMPATIBLE');
+      return abortTransaction(tx, done, fail('LOCAL_SCHEMA_INCOMPATIBLE'));
     }
     await done;
   }
@@ -149,8 +157,9 @@
 
     async function open() {
       if (state.db && !state.rebuildRequired) return { status: 'OPEN', schema: SCHEMA, version: VERSION };
+      var db = null;
       try {
-        var db = await openDatabase(indexedDB, databaseName);
+        db = await openDatabase(indexedDB, databaseName);
         db.onversionchange = function () { db.close(); if (state.db === db) state.db = null; };
         await validateSchema(db);
         await ensureSchemaMeta(db);
@@ -159,6 +168,7 @@
         state.rebuildReason = null;
         return { status: 'OPEN', schema: SCHEMA, version: VERSION };
       } catch (error) {
+        if (db) db.close();
         if (state.db) state.db.close();
         state.db = null;
         state.rebuildRequired = true;
@@ -186,8 +196,7 @@
       var meta = tx.objectStore(META);
       var existing = await requestPromise(meta.get(manifestKey(generationId)));
       if (existing && existing.status === 'VERIFIED') {
-        tx.abort();
-        throw fail('GENERATION_ALREADY_VERIFIED');
+        return abortTransaction(tx, done, fail('GENERATION_ALREADY_VERIFIED'));
       }
       meta.put({
         key: manifestKey(generationId),
@@ -216,16 +225,19 @@
       var meta = tx.objectStore(META);
       var manifest = await requestPromise(meta.get(manifestKey(generationId)));
       if (!manifest || manifest.status !== 'STAGING' || manifest.revision !== revision) {
-        tx.abort();
-        throw fail('STAGING_GENERATION_MISMATCH');
+        return abortTransaction(tx, done, fail('STAGING_GENERATION_MISMATCH'));
       }
-      DATA_STORES.forEach(function (storeName) {
-        records[storeName].forEach(function (record) {
-          validateRecordKey(storeName, record);
-          var stored = Object.assign({}, record, { generation_id: generationId });
-          tx.objectStore(storeName).put(stored);
+      try {
+        DATA_STORES.forEach(function (storeName) {
+          records[storeName].forEach(function (record) {
+            validateRecordKey(storeName, record);
+            var stored = Object.assign({}, record, { generation_id: generationId });
+            tx.objectStore(storeName).put(stored);
+          });
         });
-      });
+      } catch (error) {
+        return abortTransaction(tx, done, error);
+      }
       manifest.staged_chunks = Number(manifest.staged_chunks || 0) + 1;
       meta.put(manifest);
       await done;
@@ -265,16 +277,14 @@
       var meta = tx.objectStore(META);
       var manifest = await requestPromise(meta.get(manifestKey(generationId)));
       if (!manifest || manifest.status !== 'STAGING' || manifest.revision !== revision) {
-        tx.abort();
-        throw fail('STAGING_GENERATION_MISMATCH');
+        return abortTransaction(tx, done, fail('STAGING_GENERATION_MISMATCH'));
       }
       var actualCounts = {};
       for (var i = 0; i < DATA_STORES.length; i += 1) {
         var storeName = DATA_STORES[i];
         actualCounts[storeName] = await countGeneration(tx, storeName, generationId);
         if (actualCounts[storeName] !== expectedCounts[storeName]) {
-          tx.abort();
-          throw fail('GENERATION_COUNT_MISMATCH', storeName);
+          return abortTransaction(tx, done, fail('GENERATION_COUNT_MISMATCH', storeName));
         }
       }
       manifest.status = 'VERIFIED';
@@ -311,8 +321,7 @@
       var meta = tx.objectStore(META);
       var active = await requestPromise(meta.get(ACTIVE_KEY));
       if (active && active.generation_id === generationId) {
-        tx.abort();
-        throw fail('ACTIVE_GENERATION_ABORT_FORBIDDEN');
+        return abortTransaction(tx, done, fail('ACTIVE_GENERATION_ABORT_FORBIDDEN'));
       }
       for (var i = 0; i < DATA_STORES.length; i += 1) {
         await deleteGenerationRecords(tx, DATA_STORES[i], generationId);
