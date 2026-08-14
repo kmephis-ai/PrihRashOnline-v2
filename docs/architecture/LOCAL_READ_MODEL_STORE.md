@@ -39,6 +39,8 @@ IndexedDB database: `prihrash-local-read-model`, version `1`.
 
 ## Read contract
 
+Нормативный инвариант: consumer может читать только состояние **ACTIVE + VERIFIED**. `STAGING`, partial bootstrap и любые неподтверждённые поколения невидимы для product read path.
+
 Read API выдаёт payload только когда одновременно доказаны:
 
 - существует `active_generation`;
