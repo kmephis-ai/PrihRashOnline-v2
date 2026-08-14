@@ -90,7 +90,7 @@ assert.strictEqual(typeof storeModule.createStore, 'function');
 for (const token of [
   'indexedDB.open',
   "status: 'STAGING'",
-  "status: 'VERIFIED'",
+  "manifest.status = 'VERIFIED'",
   "key: ACTIVE_KEY",
   'GENERATION_COUNT_MISMATCH',
   'ACTIVE_GENERATION_ABORT_FORBIDDEN',
