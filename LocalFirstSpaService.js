@@ -1,10 +1,11 @@
 /**
- * SPA-LF-001 bounded Local-first preview renderer.
+ * Local-first SPA renderer.
  *
- * This surface intentionally carries no household financial payload. It proves
- * the single-document/client-routing lifecycle before STORE/WORKER/SYNC are
- * connected. Canonical R2 remains the rollback/default surface until the
- * Local-first Product Gate passes.
+ * The server-rendered document carries no household financial payload. Starting
+ * with FIN-LF-001, the trusted candidate packager may embed the tracked browser
+ * Local-first runtime. That runtime can use google.script.run only for explicit
+ * cold/background sync; warm route/filter interaction remains local-only.
+ * Canonical R2 remains the bounded rollback surface until MASTER-LF-PRODUCT.
  */
 var PRH_LOCAL_FIRST_SPA_PREVIEW = Object.freeze({
   SCHEMA: 'PRH_LOCAL_FIRST_SPA_PREVIEW_V1',
@@ -90,7 +91,7 @@ function prhLocalFirstSpaRender_(params) {
   html = html.replace(appScriptMarker, prhLocalFirstSpaBootstrap_(params) + '\n' + appScriptMarker);
 
   var output = HtmlService.createHtmlOutput(html);
-  output.setTitle('PrihRashOnline — Local-first preview');
+  output.setTitle('PrihRashOnline — Local-first');
   output.addMetaTag('viewport', 'width=device-width, initial-scale=1');
   return output;
 }
@@ -108,11 +109,18 @@ function prhLocalFirstSpaSmokeToken() {
       html.indexOf('window.__PRH_LF_SPA_RUNTIME__') < 0) {
     throw new Error('LF_SPA_RENDER_SMOKE_FAILED');
   }
-  if (/google\.script\.run|\bfetch\s*\(|XMLHttpRequest\s*\(/.test(html)) {
-    throw new Error('LF_SPA_WARM_NETWORK_PRIMITIVE_PRESENT');
+
+  var hasInjectedRuntime = html.indexOf('data-prh-local-first-runtime="1.0.0"') >= 0 &&
+    html.indexOf('PRH_LOCAL_FINANCE_RUNTIME_V1') >= 0 &&
+    html.indexOf('PRH_LOCAL_ANALYTICS_WORKER_V1') >= 0;
+  if (/\bfetch\s*\(|XMLHttpRequest\s*\(/.test(html)) {
+    throw new Error('LF_SPA_UNBOUNDED_NETWORK_PRIMITIVE_PRESENT');
   }
-  if (/value_minor|amount_minor|balance_minor|PUBLIC_SYNTHETIC|SYN-TX-/.test(html)) {
-    throw new Error('LF_SPA_FINANCIAL_PAYLOAD_OR_FIXTURE_PRESENT');
+  if (/google\.script\.run/.test(html) && !hasInjectedRuntime) {
+    throw new Error('LF_SPA_UNTRUSTED_GOOGLE_SCRIPT_RUN_PRESENT');
+  }
+  if (/PUBLIC_SYNTHETIC|SYN-TX-/.test(html)) {
+    throw new Error('LF_SPA_FIXTURE_PRESENT');
   }
   return 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|OK';
 }
