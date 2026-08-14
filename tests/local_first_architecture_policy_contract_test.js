@@ -5,15 +5,14 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const contractPath = path.join(root, 'lib/local_first/local_first_runtime.v1.json');
-const architecturePath = path.join(root, 'docs/architecture/LOCAL_FIRST_RUNTIME.md');
-const roadmapPath = path.join(root, 'docs/ROADMAP_LOCAL_FIRST_RECOVERY.md');
-const adrPath = path.join(root, 'docs/adr/ADR-ARCH-LF-001-LOCAL-FIRST-RUNTIME.md');
+const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
+const readJson = (rel) => JSON.parse(read(rel));
 
-const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-const architecture = fs.readFileSync(architecturePath, 'utf8');
-const roadmap = fs.readFileSync(roadmapPath, 'utf8');
-const adr = fs.readFileSync(adrPath, 'utf8');
+const contract = readJson('lib/local_first/local_first_runtime.v1.json');
+const roadmapContract = readJson('lib/local_first/local_first_roadmap.v1.json');
+const architecture = read('docs/architecture/LOCAL_FIRST_RUNTIME.md');
+const roadmap = read('docs/ROADMAP_LOCAL_FIRST_RECOVERY.md');
+const adr = read('docs/adr/ADR-ARCH-LF-001-LOCAL-FIRST-RUNTIME.md');
 
 assert.strictEqual(contract.schema, 'PRH_LOCAL_FIRST_RUNTIME_V1');
 assert.strictEqual(contract.version, '1.0.0');
@@ -87,6 +86,47 @@ assert.deepStrictEqual(contract.ydb_ladder.stages, [
   'FUTURE_SEPARATE_WRITE_CUTOVER'
 ]);
 
+assert.strictEqual(roadmapContract.schema, 'PRH_LOCAL_FIRST_ROADMAP_V1');
+assert.strictEqual(roadmapContract.version, '1.0.0');
+assert.strictEqual(roadmapContract.freeze_until_gate, 'MASTER-LF-PRODUCT');
+assert.strictEqual(roadmapContract.feature_expansion_frozen, true);
+assert.strictEqual(roadmapContract.protocol.task_schema, 'PRH_ROADMAP_TASK_V2');
+assert.strictEqual(roadmapContract.protocol.local_first_protocol_wave, 'R2R');
+assert.strictEqual(roadmapContract.protocol.future_ydb_protocol_wave, 'R4');
+assert.strictEqual(roadmapContract.protocol.one_active_writer, true);
+assert.strictEqual(roadmapContract.protocol.paid_dependency_required, false);
+
+const expectedIds = [
+  'ARCH-LF-001', 'SPA-LF-001', 'STORE-LF-001', 'WORKER-LF-001',
+  'SYNC-LF-001', 'DELTA-LF-001', 'FIN-LF-001', 'DATA-LF-001',
+  'PERF-LF-001', 'E2E-LF-001', 'YDB-LF-001', 'YDB-LF-002'
+];
+assert.deepStrictEqual(roadmapContract.items.map((item) => item.id), expectedIds);
+assert.deepStrictEqual(roadmapContract.items.map((item) => item.order),
+  expectedIds.map((_, index) => index + 1));
+assert.strictEqual(new Set(expectedIds).size, expectedIds.length);
+
+const itemIndex = new Map(roadmapContract.items.map((item) => [item.id, item]));
+const externalDoneDependencies = new Set(['GOV-REC-001', 'DATA-REC-001', 'YC-040']);
+for (const item of roadmapContract.items) {
+  assert(['R2R', 'R4'].includes(item.protocol_wave), `unsupported protocol wave: ${item.id}`);
+  assert(['P0', 'P1'].includes(item.priority), `unsupported priority: ${item.id}`);
+  assert(['engineering', 'user_facing'].includes(item.work_class), `bad work class: ${item.id}`);
+  for (const dependency of item.depends_on) {
+    if (externalDoneDependencies.has(dependency)) continue;
+    assert(itemIndex.has(dependency), `unknown Local-first dependency ${dependency}`);
+    assert(itemIndex.get(dependency).order < item.order,
+      `dependency must precede consumer: ${dependency} -> ${item.id}`);
+  }
+}
+
+assert(roadmapContract.items
+  .filter((item) => item.phase !== 'FUTURE')
+  .every((item) => item.protocol_wave === 'R2R' && item.priority === 'P0'));
+assert(roadmapContract.items
+  .filter((item) => item.phase === 'FUTURE')
+  .every((item) => item.protocol_wave === 'R4' && item.priority === 'P1'));
+
 assert(adr.includes('Статус: **APPROVED**'));
 assert(adr.includes('PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0'));
 assert(adr.includes('Local-first SPA + IndexedDB Local Read Model + Web Worker analytics'));
@@ -100,15 +140,18 @@ for (const required of [
     `missing normative Local-first concept: ${required}`);
 }
 
-for (const id of [
-  'ARCH-LF-001', 'SPA-LF-001', 'STORE-LF-001', 'WORKER-LF-001',
-  'SYNC-LF-001', 'DELTA-LF-001', 'FIN-LF-001', 'DATA-LF-001',
-  'PERF-LF-001', 'E2E-LF-001', 'YDB-LF-001', 'YDB-LF-002'
-]) {
+for (const id of expectedIds) {
   assert(roadmap.includes(id), `Local-first Roadmap missing ${id}`);
 }
-
 assert(roadmap.includes('| ARCH-LF-001 | LF0 | R2R | P0 |'));
 assert(roadmap.includes('| YDB-LF-001 | FUTURE | R4 | P1 |'));
 
-console.log('Local-first architecture policy contract: PASS');
+console.log('Local-first architecture policy contract: PASS', {
+  contract: 'PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0',
+  roadmap: 'PRH_LOCAL_FIRST_ROADMAP_V1@1.0.0',
+  items: expectedIds.length,
+  warmRequiredNetwork: false,
+  warmGoogleSheetsReads: 0,
+  futureYdbBigBang: false,
+  freeOnly: true
+});
