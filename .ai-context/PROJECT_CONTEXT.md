@@ -89,3 +89,34 @@ Migration ladder:
 `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> FUTURE_SEPARATE_WRITE_CUTOVER`.
 
 Big-bang cutover запрещён. `paidOverageAllowed=false`; unknown billing state = BLOCKED. YDB не является prerequisite для Local-first Product Ready.
+
+## Delivery and autonomy
+
+Required trusted chain остаётся неизменной:
+
+`PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> CI-003 autonomous squash merge -> Main Verification`.
+
+Для `work_class=user_facing` перед merge дополнительно требуется exact-SHA `PRODUCT_READY_E2E`. Manual merge для обхода Product Ready запрещён.
+
+One-writer rule: one Roadmap ID = one GitHub Issue = one active writer; branch `agent/<ROADMAP-ID>-<slug>`. Active issue lifecycle и exact candidate должны совпадать с machine evidence.
+
+## FinOps / safety
+
+`FINOPS-001` остаётся обязательной cost boundary: required checks не требуют платного provider/API. Unknown/unproven cost fail-closed. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable; любой новый irreversible financial write требует fresh owner authorization.
+
+## Read-only multi-AI review
+
+Read-only multi-AI review имеет `writer_authority=false` и является supplementary evidence. Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Review не голосует за merge и не может отменить PR Validation, Trusted Runtime Health, Product Ready или Main Verification.
+
+## TEST-010 boundary
+
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA runtime/visual contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT.
+
+## Source precedence
+
+1. security/privacy/cost/irreversible boundaries;
+2. `docs/ROADMAP.md` v2.4 + `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues;
+3. exact-SHA code/tests/workflows/machine evidence;
+4. versioned contracts;
+5. architecture/ADR/operations docs;
+6. README/user docs.
