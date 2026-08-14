@@ -23,7 +23,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `SPA-LF-001` — **DONE / Main Verification PASS**, Issue #249, PR #250, merge `3c69cb508153b0fc5b953376a614f0031fadc38c`; owner UAT v221 PASS, warm route p95 `29 ms`, `10` переходов, сеть `0`.
 
-`STORE-LF-001` — **current writer / текущий writer**, Issue #251, branch `agent/STORE-LF-001-indexeddb-read-model`. Это единственный active writer. Цель LF1: private IndexedDB Local Read Model, exact canonical revision provenance, immutable generation staging, atomic active pointer switch, fail-closed rebuild и explicit local wipe. Remote sync, Worker analytics и реальные financial routes не входят в этот item.
+`STORE-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #251, PR #252, merge `865cd076c4a066ec7f8b789f1030e8c129d91144`; `PRH_LOCAL_READ_MODEL_V1@1.0.0`, real Chromium IndexedDB generation/recovery/wipe and zero-network local operations PASS.
+
+`WORKER-LF-001` — **current writer / текущий writer**, Issue #253, branch `agent/WORKER-LF-001-local-analytics-worker`. Это единственный active writer. Цель LF2: real Web Worker analytics bridge, который переиспользует canonical `lib/analytics/analytics_engine.js#evaluateAnalytics`, привязан к exact generation/revision, discard stale/cancelled results и не получает network/storage/canonical-write authority.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -45,6 +47,8 @@ Warm route/filter/chart обязан работать без mandatory network r
 `PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0` не является financial truth. Local Read Model read-only, привязан к exact canonical revision и immutable generation. Partial bootstrap не становится visible current state. Delta apply требует exact base revision и idempotency; если chain недоказана, выполняется full rebuild. Worker не получает network/storage/financial-write authority; stale generation/revision result отбрасывается до UI commit.
 
 `PRH_LOCAL_READ_MODEL_V1@1.0.0` материализует storage boundary: `meta`, `transactions`, `dimensions`, `aggregates`, `sync_journal`; data records generation-scoped. Только `ACTIVE + VERIFIED` manifest может быть выдан consumer. Partial/failed generation не заменяет текущую verified generation; incompatible/corrupt state возвращает `REBUILD_REQUIRED`. Derived local database допускает explicit wipe/rebuild без canonical mutation.
+
+`PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0` не создаёт вторую финансовую истину: browser worker bundle детерминированно включает tracked canonical evaluator и его dependency graph. Узкий browser crypto shim поддерживает только SHA-256 через tracked `lib/crypto/sha256.js`; любой другой external/builtin require fail-closed. Каждая analytics query exact-bound к generation/revision и epoch; binding проверяется до и после evaluate. Cancellation или revision switch инвалидируют queued work, а stale completion не содержит analytics payload.
 
 Target Product SLO являются будущими acceptance targets, не текущей telemetry: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Server technical health latency и cold bootstrap timing не подменяют эти метрики.
 
@@ -86,7 +90,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На STORE-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На WORKER-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
@@ -114,7 +118,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA и IndexedDB adapter contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB и Worker adapter contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 
