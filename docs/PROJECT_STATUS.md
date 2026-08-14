@@ -13,7 +13,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `STORE-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #251, PR #252, merge `865cd076c4a066ec7f8b789f1030e8c129d91144`; private IndexedDB Local Read Model, immutable generations, atomic active switch, rebuild/wipe и zero-network local operations доказаны real Chromium test.
 - `WORKER-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #253, PR #254, merge `e206a129acb0136f8c3173ae6e55853c4c4401be`; real Web Worker использует тот же canonical `evaluateAnalytics()`, exact generation/revision binding, cancellation/stale discard и zero network/storage/write authority доказаны real Chromium test.
 - `SYNC-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #255, PR #256, candidate `05f161074a78428a6a96e2df66fde4ef7e0bd70e`, merge `587dc6bd8b7e48d915cc7aef3d31c35802650cd7`; Apps Script version 224, full bootstrap/NOOP/degraded preservation/atomic generation switch и zero-network local reads PASS.
-- `DELTA-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #257, branch `agent/DELTA-LF-001-revision-bound-delta`. LF2 реализует idempotent exact-base-revision delta protocol, SHA-256 inventory, target repository-revision verification и automatic full bootstrap fallback при любой недоказанной base/target chain.
+- `DELTA-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #257, PR #258, candidate `5ed78c45eb77dbb008014f16a01288fa2e1cde91`, merge `0756252b5c0619bf53e9e1b24f235fb4fa28b2f6`; Apps Script version 225, exact-base delta, idempotent replay, target-revision recomputation, adversarial base-race full rebuild fallback и zero-network local reads PASS.
+- `FIN-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #259, branch `agent/FIN-LF-001-local-finance-routes`. LF3 подключает Home/Expenses/Income/Cash Flow к одному `ACTIVE + VERIFIED` IndexedDB snapshot, общему session FilterContext и canonical analytics Web Worker; trusted candidate теперь обязан физически включать browser Local-first runtime, а финальный DONE требует exact-candidate owner Product UAT.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -64,6 +65,8 @@ Google Sheets + Apps Script работают как canonical source и trusted 
 
 `PRH_LOCAL_FIRST_DELTA_V1@1.0.0` строит owner-private inventory только из `ACTIVE + VERIFIED` generation. Server delta exact-bound к `base_revision` и текущему canonical `target_revision`; browser материализует target в новую STAGING generation и пересчитывает canonical repository revision до finalize. Base mismatch, invalid/corrupt/excessive delta или target mismatch fail-closed переходят в уже проверенный SYNC-LF-001 full bootstrap. Active generation in-place не мутируется.
 
+`PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0` подключает четыре financial route к одной verified generation и общему `PRH_LOCAL_FINANCE_FILTER_CONTEXT_V1`. Main UI не считает financial measures: он формирует canonical queries и принимает только `PRH_ANALYTICS_RESULT_V1` из того же Web Worker/evaluateAnalytics, с `FIN-TRUTH-v1` и exact `provenance.input_revision`. Stale route/filter/generation result не commit-ится. Candidate packager встраивает tracked STORE/SYNC/DELTA/FIN browser modules + generated Worker в deployable `LocalFirstSpaWebApp.html`, устраняя прежний разрыв «код есть в pwa, но его нет в Apps Script deployment».
+
 Worker исполняет тот же canonical analytics evaluator, а не собственный набор финансовых формул. Он не получает network/storage/canonical-write authority; результат старой generation/revision должен быть discarded до UI commit.
 
 Target Product SLO — будущие acceptance targets, не текущие измерения: warm route p95 <=100 ms, filter/KPI <=200 ms, normal chart desktop <=300 ms, representative mobile <=500 ms, Back/Forward <=100 ms, cached first meaningful paint <=800 ms. Server technical health latency не считается этим Product SLA.
@@ -74,7 +77,7 @@ Target Product SLO — будущие acceptance targets, не текущие и
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе DELTA-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе FIN-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 
@@ -112,7 +115,7 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно.
+Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для FIN-LF-001 owner Product UAT обязателен и не может быть заменён CI/self-attestation.
 
 ## Source precedence
 
