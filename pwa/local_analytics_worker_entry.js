@@ -8,6 +8,7 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/;
 const MAX_TRANSACTIONS = 20000;
 const MAX_PENDING = 32;
+const SCHEDULE_DELAY_MS = 4;
 const SAFE_REASONS = new Set([
   'WORKER_NOT_READY',
   'WORKER_MESSAGE_INVALID',
@@ -169,7 +170,7 @@ function handleAnalyticsQuery(message) {
     } finally {
       state.pending = Math.max(0, state.pending - 1);
     }
-  }, 0);
+  }, SCHEDULE_DELAY_MS);
 }
 
 self.onmessage = function onMessage(event) {
