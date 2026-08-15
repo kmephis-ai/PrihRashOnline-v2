@@ -22,6 +22,17 @@ var PRH_LOCAL_FIRST_SYNC = Object.freeze({
   FREE_ONLY: true
 });
 
+var PRH_LOCAL_FIRST_SYNC_CANONICAL_KEYS = Object.freeze([
+  'schema', 'schema_version', 'transaction_id', 'occurred_at', 'type', 'status',
+  'amount_minor', 'currency', 'account_id', 'destination_account_id', 'category_id',
+  'member_id', 'project_id', 'tags', 'counterparty', 'description',
+  'reverses_transaction_id', 'adjustment_semantics', 'provenance'
+]);
+var PRH_LOCAL_FIRST_SYNC_PROVENANCE_KEYS = Object.freeze([
+  'source_system', 'source_container', 'source_record_id', 'source_fingerprint',
+  'identity_strategy', 'transform_version', 'source_position'
+]);
+
 function prhLocalFirstSyncFail_(reason) {
   var error = new Error(reason);
   error.code = reason;
@@ -106,6 +117,32 @@ function prhLocalFirstSyncProjectTransaction_(tx) {
   });
 }
 
+function prhLocalFirstSyncAssertExactKeys_(value, expected, reason) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) prhLocalFirstSyncFail_(reason);
+  var actual = Object.keys(value).sort();
+  var canonical = expected.slice().sort();
+  if (actual.length !== canonical.length) prhLocalFirstSyncFail_(reason);
+  for (var i = 0; i < canonical.length; i += 1) {
+    if (actual[i] !== canonical[i]) prhLocalFirstSyncFail_(reason);
+  }
+  return value;
+}
+
+function prhLocalFirstSyncAssertWireRoundTrip_(projected) {
+  var roundTrip;
+  try {
+    roundTrip = JSON.parse(JSON.stringify(projected));
+  } catch (error) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_WIRE_SERIALIZATION_INVALID');
+  }
+  prhLocalFirstSyncAssertExactKeys_(roundTrip, PRH_LOCAL_FIRST_SYNC_CANONICAL_KEYS, 'LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID');
+  prhLocalFirstSyncAssertExactKeys_(roundTrip.provenance, PRH_LOCAL_FIRST_SYNC_PROVENANCE_KEYS, 'LOCAL_FIRST_SYNC_WIRE_PROVENANCE_SHAPE_INVALID');
+  if (!Object.prototype.hasOwnProperty.call(roundTrip, 'destination_account_id')) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_WIRE_DESTINATION_ACCOUNT_ID_MISSING');
+  }
+  return roundTrip;
+}
+
 function prhLocalFirstSyncDimensionRecords_(snapshot) {
   if (!snapshot || !snapshot.dimensions || typeof snapshot.dimensions.displayLabel !== 'function') {
     prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_DIMENSION_RESOLVER_INVALID');
@@ -159,6 +196,20 @@ function prhLocalFirstSyncAssertSnapshot_(snapshot) {
   return snapshot;
 }
 
+/**
+ * Authenticated privacy-safe owner-data proof for trusted runtime health.
+ * It intentionally returns only a fixed scalar token. Household rows, counts,
+ * revisions, dimensions and values never leave the Apps Script execution.
+ */
+function prhLocalFirstSyncHealthToken() {
+  var snapshot = prhLocalFirstSyncAssertSnapshot_(prhR2DataCreateSnapshot_());
+  snapshot.transactions.forEach(function(tx) {
+    prhLocalFirstSyncAssertWireRoundTrip_(prhLocalFirstSyncProjectTransaction_(tx));
+  });
+  prhLocalFirstSyncDimensionRecords_(snapshot);
+  return 'PRH_LOCAL_FIRST_SYNC_HEALTH_V1|EXACT_WIRE|DIMENSIONS|OK';
+}
+
 function prhLocalFirstSyncBootstrap(request) {
   var started = Date.now();
   var normalized = prhLocalFirstSyncNormalizeRequest_(request);
@@ -185,7 +236,11 @@ function prhLocalFirstSyncBootstrap(request) {
   }
 
   var dimensions = prhLocalFirstSyncDimensionRecords_(snapshot);
-  var transactions = snapshot.transactions.map(prhLocalFirstSyncProjectTransaction_);
+  var transactions = snapshot.transactions.map(function(tx) {
+    var projected = prhLocalFirstSyncProjectTransaction_(tx);
+    prhLocalFirstSyncAssertWireRoundTrip_(projected);
+    return projected;
+  });
   var aggregates = [];
   var journal = [Object.freeze({
     sequence: 1,
