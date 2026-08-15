@@ -150,6 +150,8 @@ jobs:
         run: node tests/apps_script_version_retention_contract_test.js
       - name: AI contract
         run: node tools/ai-contract-scan.js
+      - name: ADWF Local Git Mirror vendor lock
+        run: node tools/verify-adwf-local-git-mirror.js
       - name: Roadmap task protocol
         run: node tests/roadmap_task_protocol_contract_test.js
       - name: Multi-AI review protocol
