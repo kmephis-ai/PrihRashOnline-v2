@@ -402,10 +402,12 @@
       return renderCurrent();
     }
 
-    async function refreshAfterSync() {
+    async function refreshAfterSync(forceRender) {
       var oldRevision = state.snapshot && state.snapshot.revision;
+      var previousView = state.last_view;
       var next = await loadVerifiedSnapshot();
-      if (next && next.revision !== oldRevision) {
+      var recoveredFromError = previousView && previousView.status === 'ERROR';
+      if (next && (forceRender === true || next.revision !== oldRevision || recoveredFromError)) {
         state.render_epoch += 1;
         return renderCurrent();
       }
@@ -421,7 +423,7 @@
         var cold = await fullSync.sync();
         if (cold && (cold.status === 'UPDATED' || cold.status === 'NOOP')) {
           state.sync_status = 'READY';
-          await refreshAfterSync();
+          await refreshAfterSync(cold.status === 'UPDATED');
           return cold;
         }
         state.sync_status = cold && cold.status === 'DEGRADED' ? 'DEGRADED' : 'FAILED';
@@ -436,7 +438,7 @@
       var result = await deltaSync.sync();
       if (result && ['UPDATED_DELTA', 'FULL_REBUILT', 'ALREADY_APPLIED', 'NOOP'].indexOf(result.status) >= 0) {
         state.sync_status = 'READY';
-        await refreshAfterSync();
+        await refreshAfterSync(result.status === 'FULL_REBUILT' || result.status === 'UPDATED_DELTA');
       } else if (result && result.status === 'DEGRADED') {
         state.sync_status = 'DEGRADED';
         state.degraded_reason = result.reason || 'LOCAL_FINANCE_SYNC_DEGRADED';
