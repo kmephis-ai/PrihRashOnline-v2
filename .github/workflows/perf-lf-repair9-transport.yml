@@ -1,0 +1,60 @@
+name: PERF-LF Repair 9 transport
+
+on:
+  push:
+    branches:
+      - agent/perf-lf-001-repair9-transport-20260815-2336
+    paths:
+      - .github/workflows/perf-lf-repair9-transport.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout disposable transport branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Verify exact local patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'c2b3cf232bd9d3b7f01b054259118bde6d9965c51b0eea1ba6f0f2f121793fc7  transport/repair9.patch' | sha256sum -c -
+
+      - name: Checkout exact provider candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: f0d88168b8867e1e99ae8e56522b1afa3740e512
+          path: candidate
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Apply patch and publish disposable exact tree
+        shell: bash
+        env:
+          SOURCE_SHA: f0d88168b8867e1e99ae8e56522b1afa3740e512
+          EXPECTED_TREE: 64941ca11b4c3f9ac7b0eb0666d3dcee804e57ff
+          RESULT_BRANCH: agent/perf-lf-001-repair9-result-20260815-2336
+        run: |
+          set -euo pipefail
+          cd candidate
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git apply --check "$GITHUB_WORKSPACE/transport/repair9.patch"
+          git apply --index --whitespace=error-all "$GITHUB_WORKSPACE/transport/repair9.patch"
+          git diff --cached --check
+          TREE="$(git write-tree)"
+          if [[ "$TREE" != "$EXPECTED_TREE" ]]; then
+            echo "::error::Repair 9 tree mismatch: expected $EXPECTED_TREE, got $TREE"
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'PERF-LF-001: привязать history 2RAF к meaningful DOM commit'
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$EXPECTED_TREE"
+          git push origin "HEAD:refs/heads/$RESULT_BRANCH"
+          echo "repair9-transport: PASS tree=$EXPECTED_TREE commit=$(git rev-parse HEAD)"
