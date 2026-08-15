@@ -40,12 +40,12 @@ const context = vm.createContext({
   prhR2BuildFinancialHomeRuntime_(){throw new Error('technical render smoke must not read private financial runtime');},
   prhR2FinancialHomeReadSmokeToken(){homeReadSmokeCalls+=1;return 'PRH_R2_HOME_READ_V3|CANONICAL_LIB|DIMENSION_HASH|OK|7';},
   prhR2DataRuntimeSmokeToken(){dataRuntimeSmokeCalls+=1;return 'PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK';},
-  prhLocalFirstSyncBootstrap(request){
+  prhLocalFirstSyncBootstrapWire(request){
     localFirstBootstrapCalls+=1;
     assert(request && typeof request === 'object');
     assert.strictEqual(Object.keys(request).length,1);
     assert.strictEqual(request.local_revision,'');
-    return {
+    return JSON.stringify({
       schema:'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1',
       version:'1.0.0',
       state:'FULL_BOOTSTRAP',
@@ -54,13 +54,13 @@ const context = vm.createContext({
       source_authority:'GOOGLE_CANONICAL_READ_ONLY',
       local_store_contract:'PRH_LOCAL_READ_MODEL_V1@1.0.0',
       canonical_transaction_contract:'PRH_CANONICAL_TRANSACTION_V1@1',
-      transactions:[],dimensions:[],aggregates:[],sync_journal:[],
-      expected_counts:{transactions:0,dimensions:0,aggregates:0,sync_journal:0},
+      transactions:[{destination_account_id:null}],dimensions:[],aggregates:[],sync_journal:[],
+      expected_counts:{transactions:1,dimensions:0,aggregates:0,sync_journal:0},
       financial_write_authorized:false,
       canonical_mutation_performed:false,
       telemetry:{financial_payload_in_telemetry:false},
       serialized_chars:256
-    };
+    });
   },
   PR_BUILD_INFO:{schemaVersion:1,candidateSha:'a'.repeat(40),sourceTreeHash:'b'.repeat(64)},
   PR_CONFIG:{SHEETS:{OPERATIONS:'OPS',SETTINGS:'SETTINGS',CONTROL:'CONTROL'}},
@@ -90,7 +90,7 @@ const healthToken=vm.runInContext("prhReleaseHealthCheckToken({candidateSha:'"+'
 assert.match(healthToken,/^PRH_HEALTH_V1\|OK\|a{40}\|b{64}\|1\|V8\|3\|1\|[0-9]+$/);
 assert.strictEqual(homeReadSmokeCalls,1,'trusted health must prove private Home read path exactly once');
 assert.strictEqual(dataRuntimeSmokeCalls,1,'trusted health must prove DATA canonical modules exactly once');
-assert.strictEqual(localFirstBootstrapCalls,1,'trusted health must prove Local-first FULL_BOOTSTRAP path exactly once');
+assert.strictEqual(localFirstBootstrapCalls,1,'trusted health must prove Local-first scalar JSON FULL_BOOTSTRAP wire exactly once');
 
 assert.doesNotMatch(dashboardSource,/function\s+doGet\s*\(/);
 assert.match(routerSource,/function\s+doGet\s*\(/);
@@ -100,13 +100,14 @@ assert.match(runtimeSource,/PRH_R2_HOME_READ_V3\|CANONICAL_LIB\|DIMENSION_HASH\|
 assert.match(runtimeSource,/PRH_R2_DATA_RUNTIME_V1\|READ_ONLY\|OK/);
 assert.match(runtimeSource,/prhR2DataRuntimeSmokeToken\(\)/);
 assert.match(runtimeSource,/RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED/);
-assert.match(runtimeSource,/prhLocalFirstSyncBootstrap\(\{ local_revision: '' \}\)/);
+assert.match(runtimeSource,/prhLocalFirstSyncBootstrapWire\(\{ local_revision: '' \}\)/);
 assert.match(runtimeSource,/RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID/);
+assert.match(runtimeSource,/destination_account_id/);
 assert.match(runtimeSource,/Stable scalar transport contract/);
 
 console.log('dashboard-web-runtime-smoke: PASS',{
   syntax:'V8',canonicalDefault:'R2_HOME',primaryDataRoutes:['transactions','data-quality'],legacyRollback:true,
   renderSmokeVersion:5,privateHomeReadSmokeVersion:3,dataRuntimeSmokeVersion:1,localFirstBootstrapProofVersion:1,
   technicalRenderReadsFinancialRows:false,trustedPrivateHomeReadProof:true,trustedDataModuleProof:true,
-  trustedLocalFirstBootstrapProof:true,healthTokenShapePreserved:true
+  trustedLocalFirstScalarJsonWireProof:true,nullableDestinationWireKey:true,healthTokenShapePreserved:true
 });
