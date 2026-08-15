@@ -16,7 +16,14 @@
       "min_samples": 10,
       "boundary": "NAVIGATE_START_TO_STABLE_MEANINGFUL_FRAME",
       "warmup_required": true,
-      "routes": ["home", "transactions", "expenses", "income", "cash-flow", "data-quality"]
+      "routes": [
+        "home",
+        "transactions",
+        "expenses",
+        "income",
+        "cash-flow",
+        "data-quality"
+      ]
     },
     "filter_kpi_update_p95": {
       "threshold_ms": 200,
@@ -40,7 +47,8 @@
       "threshold_ms": 100,
       "min_samples": 10,
       "boundary": "HISTORY_ACTION_TO_STABLE_MEANINGFUL_FRAME",
-      "document_reload_allowed": false
+      "document_reload_allowed": false,
+      "phase_evidence": "ACTION_POPSTATE_MEANINGFUL_READY_STABLE_FRAME"
     },
     "cached_first_meaningful_paint_p95": {
       "threshold_ms": 800,
@@ -100,7 +108,13 @@
       "response_to_ready_ms",
       "cold_bootstrap_included",
       "route_warmup_count",
-      "financial_payload_in_report"
+      "financial_payload_in_report",
+      "back_forward_phases",
+      "warm_runtime_ready_wait_ms",
+      "action_to_popstate_p95_ms",
+      "popstate_to_meaningful_ready_p95_ms",
+      "meaningful_ready_to_stable_frame_p95_ms",
+      "action_to_stable_frame_p95_ms"
     ]
   }
 }

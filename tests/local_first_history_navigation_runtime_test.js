@@ -20,6 +20,12 @@ function count(text, token) {
 }
 
 assert.strictEqual(typeof context.prhLocalFirstSpaRepairHistoryRestore_, 'function', 'server renderer must expose the bounded history repair');
+
+assert.ok(source.includes('financeWarmReady:false'), 'SPA runtime must distinguish cached paint from fully hydrated warm runtime');
+assert.ok(
+  source.includes('await finance.start(routeFromUrl());render(routeFromUrl(),false);await lastFinanceRender;runtime.financeWarmReady=true'),
+  'warm runtime latch must open only after full finance start and final route render complete'
+);
 assert.ok(
   source.includes("if(!opts.fromPopstate&&opts.history!==false)history.pushState"),
   'navigate() must keep popstate/history:false transitions from creating a new history entry'

@@ -62,9 +62,10 @@ const harness = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><met
   const content=document.getElementById('lf-finance-content');
   const toolbar=document.getElementById('lf-finance-toolbar');
   const grid=document.getElementById('lf-preview-grid');
-  window.__PRH_LF_SPA_RUNTIME__={schema:'PRH_LOCAL_FIRST_SPA_RUNTIME_V1',bootCount:1,mandatoryNetworkCalls:0,googleSheetsReads:0,backgroundSyncCalls:0,financeRevisionPrefix:'${revisionPrefix}'};
+  window.__PRH_LF_SPA_RUNTIME__={schema:'PRH_LOCAL_FIRST_SPA_RUNTIME_V1',bootCount:1,mandatoryNetworkCalls:0,googleSheetsReads:0,backgroundSyncCalls:0,financeRevisionPrefix:'${revisionPrefix}',financeWarmReady:true};
   window.__PRH_LF_DATA_RUNTIME__={schema:'PRH_LOCAL_FIRST_DATA_RUNTIME_V1',networkCalls:0,googleSheetsReads:0,canonicalWrites:0};
   window.__PRH_LF_DATA_EXTENSION__={schema:'PRH_LOCAL_FIRST_DATA_EXTENSION_V1',getState:function(){return {networkCalls:0,googleSheetsReads:0,canonicalWrites:0}}};
+  window.__PRH_LF_FINANCE_RUNTIME__={getState:function(){return {snapshot_status:'READY',view:{status:'READY'}}}};
   function safeRoute(){const value=String(new URL(location.href).searchParams.get('lf_route')||'home');return ['home','transactions','expenses','income','cash-flow','data-quality'].includes(value)?value:'home'}
   function financeFrame(route){return '<div class="kpi-grid"><div class="kpi">KPI '+route+'</div></div><div class="panel"><div class="series"><div class="series-bar"></div></div><div class="bars"><div class="bar-row"></div></div></div>'}
   function render(route){
@@ -147,6 +148,10 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
         assert.strictEqual(report.runtime_state, 'READY');
         assert.strictEqual(report.cold_bootstrap_included, false);
         assert.strictEqual(report.financial_payload_in_report, false);
+        assert(report.back_forward_phases && report.back_forward_phases.sample_count === 10, 'history phase evidence must cover all Back/Forward samples');
+        assert(report.back_forward_phases.action_to_stable_frame_p95_ms !== null, 'history total phase p95 must be available');
+        assert(report.back_forward_phases.action_to_popstate_p95_ms !== null, 'history popstate phase p95 must be available');
+        assert(Number.isFinite(report.warm_runtime_ready_wait_ms), 'warm runtime readiness wait must be privacy-safe numeric telemetry');
         assert.strictEqual(report.provenance.runtime_sha256_prefix, runtimeSha.slice(0,12));
         assert.strictEqual(report.provenance.revision_hash_prefix, revisionPrefix);
         assert.strictEqual(report.provenance.candidate_sha_prefix, null);

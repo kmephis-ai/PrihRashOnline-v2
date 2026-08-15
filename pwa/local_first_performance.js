@@ -35,6 +35,8 @@
   var running = false;
   var moduleStartMs = now();
   var domCacheInstalled = false;
+  var pendingHistoryPhase = null;
+  var historyPhaseSamples = [];
 
   function fail(code) {
     var error = new Error(code);
@@ -101,6 +103,49 @@
       }
     }
     return fmpPhaseBreakdown(responseStart, responseEnd, moduleStartMs, readyMs);
+  }
+
+
+  function historyPhaseBreakdown(actionStart, popstateAt, meaningfulReadyAt, stableFrameAt) {
+    var start = finiteDuration(actionStart);
+    var popstate = finiteDuration(popstateAt);
+    var ready = finiteDuration(meaningfulReadyAt);
+    var stable = finiteDuration(stableFrameAt);
+    function span(from, to) {
+      if (from === null || to === null || to < from) return null;
+      return roundedDuration(to - from);
+    }
+    return Object.freeze({
+      action_to_popstate_ms: span(start, popstate),
+      popstate_to_meaningful_ready_ms: span(popstate, ready),
+      meaningful_ready_to_stable_frame_ms: span(ready, stable),
+      action_to_stable_frame_ms: span(start, stable)
+    });
+  }
+
+  function historyPhaseP95(samples) {
+    var list = Array.isArray(samples) ? samples : [];
+    function p95(field) {
+      var values = list.map(function (entry) { return entry && entry[field]; }).filter(function (value) { return value !== null && value !== undefined; });
+      var value = percentile95(values);
+      return value === null ? null : roundedDuration(value);
+    }
+    return Object.freeze({
+      sample_count: list.length,
+      action_to_popstate_p95_ms: p95('action_to_popstate_ms'),
+      popstate_to_meaningful_ready_p95_ms: p95('popstate_to_meaningful_ready_ms'),
+      meaningful_ready_to_stable_frame_p95_ms: p95('meaningful_ready_to_stable_frame_ms'),
+      action_to_stable_frame_p95_ms: p95('action_to_stable_frame_ms')
+    });
+  }
+
+  function installHistoryPhaseProbe() {
+    if (!root || typeof root.addEventListener !== 'function') return false;
+    root.addEventListener('popstate', function () {
+      if (!pendingHistoryPhase || pendingHistoryPhase.popstate_at !== null) return;
+      pendingHistoryPhase.popstate_at = now();
+    });
+    return true;
   }
 
   function blockedMetric(metricId, reason, deviceClass) {
@@ -191,6 +236,24 @@
   async function waitRouteReady(route) {
     await waitUntil(function () { return routeMeaningfulReady(route); }, 6000, 'PERF_LF_ROUTE_NOT_READY');
     await afterFrames(2);
+  }
+
+  async function waitWarmRuntimeReady() {
+    var started = now();
+    await waitUntil(function () {
+      var spa = root.__PRH_LF_SPA_RUNTIME__ || {};
+      var finance = root.__PRH_LF_FINANCE_RUNTIME__;
+      var state = finance && typeof finance.getState === 'function' ? finance.getState() : null;
+      return spa.financeWarmReady === true && state && state.snapshot_status === 'READY' && state.view && state.view.status === 'READY';
+    }, 10000, 'PERF_LF_WARM_RUNTIME_NOT_READY');
+    await afterFrames(2);
+    var spa = root.__PRH_LF_SPA_RUNTIME__ || {};
+    var finance = root.__PRH_LF_FINANCE_RUNTIME__;
+    var state = finance && typeof finance.getState === 'function' ? finance.getState() : null;
+    if (spa.financeWarmReady !== true || !state || state.snapshot_status !== 'READY' || !state.view || state.view.status !== 'READY') {
+      throw fail('PERF_LF_WARM_RUNTIME_NOT_READY');
+    }
+    return roundedDuration(now() - started);
   }
 
   function spaApi() {
@@ -379,6 +442,7 @@
   }
 
   installFinanceDomRestoreCache();
+  installHistoryPhaseProbe();
   var cachedStartupProbe = root && root.document ? probePriorVerifiedSnapshot() : Promise.resolve(Object.freeze({ cached: false, reason: 'PERF_LF_BROWSER_REQUIRED', p95_ms: null, phases: null }));
 
   async function measureWarmRoutes() {
@@ -430,22 +494,34 @@
     return Object.freeze({ kpi: Object.freeze(kpiSamples), chart: Object.freeze(chartSamples) });
   }
 
+  async function measureHistoryAction(route, action) {
+    var started = now();
+    pendingHistoryPhase = { action_started: started, popstate_at: null };
+    try {
+      action();
+      await waitUntil(function () { return routeMeaningfulReady(route); }, 6000, 'PERF_LF_ROUTE_NOT_READY');
+      var meaningfulReadyAt = now();
+      await afterFrames(2);
+      var stableFrameAt = now();
+      var phase = historyPhaseBreakdown(started, pendingHistoryPhase && pendingHistoryPhase.popstate_at, meaningfulReadyAt, stableFrameAt);
+      historyPhaseSamples.push(phase);
+      return stableFrameAt - started;
+    } finally {
+      pendingHistoryPhase = null;
+    }
+  }
+
   async function measureHistory() {
     var origin = activeRoute();
     await navigateReady('home', false);
     await navigateReady('expenses', false);
     var samples = [];
+    historyPhaseSamples = [];
     for (var i = 0; i < 5; i += 1) {
       await navigateReady('home', true);
       await navigateReady('expenses', true);
-      var backStarted = now();
-      root.history.back();
-      await waitRouteReady('home');
-      samples.push(now() - backStarted);
-      var forwardStarted = now();
-      root.history.forward();
-      await waitRouteReady('expenses');
-      samples.push(now() - forwardStarted);
+      samples.push(await measureHistoryAction('home', function () { root.history.back(); }));
+      samples.push(await measureHistoryAction('expenses', function () { root.history.forward(); }));
     }
     await navigateReady(origin, false);
     return samples;
@@ -475,6 +551,7 @@
       spaApi();
       await waitRouteReady(originalRoute);
       var startup = await cachedStartupProbe;
+      var warmRuntimeReadyWaitMs = await waitWarmRuntimeReady();
       var routeSamples = await measureWarmRoutes();
       var filterChart = await measureFilterAndChart();
       var historySamples = await measureHistory();
@@ -519,6 +596,8 @@
         runtime_state: runtimeState(),
         provenance: provenance(),
         cached_fmp_phases: startup.phases || null,
+        back_forward_phases: historyPhaseP95(historyPhaseSamples),
+        warm_runtime_ready_wait_ms: warmRuntimeReadyWaitMs,
         cold_bootstrap_included: false,
         route_warmup_count: ROUTES.length,
         financial_payload_in_report: false
@@ -549,15 +628,18 @@
     });
   }
 
-  function phaseText(phases) {
-    if (!phases) return 'FMP phases: недоступно';
+  function phaseText(fmp, history, warmReadyWaitMs) {
     function ms(value) { return value == null ? '—' : Number(value).toFixed(1) + ' мс'; }
-    return 'FMP phases · responseStart ' + ms(phases.response_start_ms) +
-      ' · responseEnd ' + ms(phases.response_end_ms) +
-      ' · module ' + ms(phases.module_start_ms) +
-      ' · READY ' + ms(phases.ready_ms) +
-      ' · response→module ' + ms(phases.response_to_module_ms) +
-      ' · module→READY ' + ms(phases.module_to_ready_ms);
+    var fmpText = fmp ? ('FMP · responseStart ' + ms(fmp.response_start_ms) +
+      ' · responseEnd ' + ms(fmp.response_end_ms) +
+      ' · module ' + ms(fmp.module_start_ms) +
+      ' · READY ' + ms(fmp.ready_ms) +
+      ' · response→module ' + ms(fmp.response_to_module_ms) +
+      ' · module→READY ' + ms(fmp.module_to_ready_ms)) : 'FMP phases: недоступно';
+    var historyText = history ? ('Back/Forward phases · action→popstate ' + ms(history.action_to_popstate_p95_ms) +
+      ' · popstate→READY ' + ms(history.popstate_to_meaningful_ready_p95_ms) +
+      ' · READY→2RAF ' + ms(history.meaningful_ready_to_stable_frame_p95_ms)) : 'Back/Forward phases: недоступно';
+    return fmpText + ' · warm-ready wait ' + ms(warmReadyWaitMs) + ' | ' + historyText;
   }
 
   function renderReport(report) {
@@ -578,7 +660,7 @@
     output.textContent = report.status + ' · сеть: ' + report.mandatory_network_requests +
       ' · Sheets: ' + report.google_sheets_reads + ' · resources: ' + report.observed_resource_requests +
       ' · ' + report.device_class + (report.reason ? ' · ' + report.reason : '');
-    if (phases) phases.textContent = phaseText(report.cached_fmp_phases);
+    if (phases) phases.textContent = phaseText(report.cached_fmp_phases, report.back_forward_phases, report.warm_runtime_ready_wait_ms);
   }
 
   function installUi() {
@@ -642,6 +724,7 @@
     evaluateMetric: evaluateMetric,
     blockedMetric: blockedMetric,
     fmpPhaseBreakdown: fmpPhaseBreakdown,
+    historyPhaseBreakdown: historyPhaseBreakdown,
     run: run,
     getLastReport: function () { return lastReport; },
     autoInstall: autoInstall
