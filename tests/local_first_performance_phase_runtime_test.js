@@ -32,16 +32,14 @@ assert.strictEqual(invalidHistoryOrder.action_to_popstate_ms, null, 'history pha
 assert.strictEqual(invalidHistoryOrder.popstate_to_meaningful_ready_ms, 50);
 
 const warmSpa = { financeWarmReady:true };
-const warmBase = { snapshot_status:'READY', view:{ status:'READY' }, sync_status:'READY' };
-assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, warmBase), true, 'warm READY runtime must be eligible');
-assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'DEGRADED' })), true, 'local warm runtime may remain eligible after background sync degrades');
-assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'FAILED' })), true, 'verified local snapshot may remain warm-eligible after a settled sync failure');
-assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'SYNCING' })), false, 'background sync must not contaminate warm interaction samples');
-assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'LOCAL_OPENING' })), false, 'startup hydration must not contaminate warm interaction samples');
-assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'UNKNOWN' })), false, 'unknown sync state must fail closed');
+const warmBase = { snapshot_status:'READY', view:{ status:'READY' } };
+assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, warmBase), true, 'warm READY runtime must be eligible without requiring background sync state');
+assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'SYNCING' })), true, 'background sync is a separate domain and must not make verified local interaction non-warm');
+assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, Object.assign({}, warmBase, { sync_status:'UNKNOWN' })), true, 'unknown background sync state is not local interaction readiness authority');
 assert.strictEqual(performanceRuntime.warmRuntimeReadyState({ financeWarmReady:false }, warmBase), false, 'finance bootstrap must complete before warm interaction samples');
+assert.strictEqual(performanceRuntime.warmRuntimeReadyState(warmSpa, { snapshot_status:'READY', view:{ status:'LOADING' } }), false, 'meaningful READY view remains required');
 assert.strictEqual(contract.measurement_domains.background_sync, 'SEPARATE_NOT_WARM_SLO');
-assert.strictEqual(contract.measurement_domains.warm_interaction_precondition, 'ACTIVE_VERIFIED_LOCAL_READ_MODEL_AND_BACKGROUND_SYNC_QUIESCENT');
+assert.strictEqual(contract.measurement_domains.warm_interaction_precondition, 'FINANCE_RUNTIME_READY_ON_ACTIVE_VERIFIED_LOCAL_READ_MODEL');
 
 const invalidOrder = performanceRuntime.fmpPhaseBreakdown(100, 200, 150, 260);
 assert.strictEqual(invalidOrder.response_to_module_ms, null, 'phase span must fail closed when module appears before response end');

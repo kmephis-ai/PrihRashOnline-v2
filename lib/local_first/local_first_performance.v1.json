@@ -9,7 +9,7 @@
     "cold_bootstrap": "SEPARATE_NOT_WARM_SLO",
     "background_sync": "SEPARATE_NOT_WARM_SLO",
     "warm_interaction": "ACTIVE_VERIFIED_LOCAL_READ_MODEL_ONLY",
-    "warm_interaction_precondition": "ACTIVE_VERIFIED_LOCAL_READ_MODEL_AND_BACKGROUND_SYNC_QUIESCENT"
+    "warm_interaction_precondition": "FINANCE_RUNTIME_READY_ON_ACTIVE_VERIFIED_LOCAL_READ_MODEL"
   },
   "metrics": {
     "warm_route_switch_p95": {

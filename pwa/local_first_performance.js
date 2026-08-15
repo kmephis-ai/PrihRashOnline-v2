@@ -239,10 +239,8 @@
   }
 
   function warmRuntimeReadyState(spa, state) {
-    var syncStatus = String(state && state.sync_status || '').toUpperCase();
-    var syncSettled = ['READY', 'DEGRADED', 'FAILED'].indexOf(syncStatus) >= 0;
     return !!(spa && spa.financeWarmReady === true && state && state.snapshot_status === 'READY' &&
-      state.view && state.view.status === 'READY' && syncSettled);
+      state.view && state.view.status === 'READY');
   }
 
   async function waitWarmRuntimeReady() {
