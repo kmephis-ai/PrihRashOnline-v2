@@ -17,7 +17,8 @@ const ALLOWED_BROWSER_MODULES = Object.freeze([
   'pwa/local_read_model_store.js',
   'pwa/local_first_sync.js',
   'pwa/local_first_delta.js',
-  'pwa/local_finance_runtime.js'
+  'pwa/local_finance_runtime.js',
+  'pwa/local_first_performance.js'
 ]);
 const ALLOWED_INERT_HTTP_URIS = Object.freeze([
   'https://github.com/kmephis-ai/PrihRashOnline-v2/lib/domain/canonical_transaction.v1.schema.json',
