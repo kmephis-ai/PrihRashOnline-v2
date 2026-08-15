@@ -20,9 +20,9 @@ var PRH_LOCAL_FIRST_SPA_PREVIEW = Object.freeze({
 
 var PRH_LOCAL_FIRST_CACHE_NAMESPACE = Object.freeze({
   SCHEMA: 'PRH_LOCAL_FIRST_CACHE_NAMESPACE_V1',
-  VERSION: '2',
+  VERSION: '3',
   LEGACY_BOOT_TOKEN: "name:'prihrash-local-first-v1'",
-  ACTIVE_BOOT_TOKEN: "name:'prihrash-local-first-v2'"
+  ACTIVE_BOOT_TOKEN: "name:'prihrash-local-first-v3'"
 });
 
 function prhLocalFirstSpaSelfUrl_() {
@@ -95,13 +95,10 @@ function prhLocalFirstSpaResponsiveGuard_() {
 
 /**
  * IndexedDB contains only a derived Local Read Model, never canonical financial
- * write authority. FIN-LF-001 tightened the canonical transaction wire shape
- * (nullable fields must physically survive JSON/IndexedDB transport), while the
- * financial revision can legitimately remain unchanged. Reusing a pre-contract
- * cache would therefore make an old structurally-incompatible generation look
- * current. A cache namespace bump is the bounded migration mechanism: the old
- * database is left untouched, the new namespace cold-bootstraps from canonical
- * source, and no owner data is fabricated or mutated.
+ * write authority. Cache namespaces are bumped when the browser wire/storage
+ * contract changes even if the financial revision itself remains identical.
+ * This leaves the previous cache untouched and forces a clean canonical cold
+ * bootstrap into the new namespace without fabricating or mutating owner data.
  */
 function prhLocalFirstSpaMigrateCacheNamespace_(html) {
   var source = String(html || '');
