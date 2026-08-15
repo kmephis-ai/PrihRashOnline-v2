@@ -89,7 +89,7 @@
 
   function valuesVisible(){return privacyMode()==='NORMAL'}
   function money(valueMinor,currency){if(!valuesVisible())return '••••••';if(!Number.isSafeInteger(valueMinor))return '—';return new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency||'RUB',maximumFractionDigits:2}).format(valueMinor/100)}
-  function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]})}
+  function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]})}
   function rowMeasure(result,measure){const row=result&&result.rows&&result.rows[0];return row&&row.measures?row.measures[measure]:null}
   function kpi(label,value,currency){return '<article class="kpi"><div class="label">'+esc(label)+'</div><div class="money'+(valuesVisible()?'':' masked')+'">'+esc(money(value,currency))+'</div></article>'}
   function provenance(view){return '<div class="provenance"><div>Источник расчёта: <strong>canonical Web Worker</strong></div><div>FIN-TRUTH: <strong>'+esc(view.provenance.financial_truth_policy)+'</strong></div><div>Ревизия: <code>'+esc(view.revision.slice(0,12))+'…</code></div><div>UI financial formulas: <strong>0</strong></div></div>'}
