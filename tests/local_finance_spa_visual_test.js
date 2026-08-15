@@ -95,11 +95,11 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
         success:null, failure:null,
         withSuccessHandler(fn){ this.success=fn; return this; },
         withFailureHandler(fn){ this.failure=fn; return this; },
-        prhLocalFirstSyncBootstrap(request){
+        prhLocalFirstSyncBootstrapWire(request){
           const response = request && request.local_revision === revision
             ? { schema:'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1',version:'1.0.0',state:'NOOP',revision,generation_id:revision,financial_write_authorized:false,canonical_mutation_performed:false }
             : fullEnvelope;
-          queueMicrotask(() => this.success(response));
+          queueMicrotask(() => this.success(JSON.stringify(response)));
         },
         prhLocalFirstDelta(request){
           const response = { schema:'PRH_LOCAL_FIRST_DELTA_RESPONSE_V1',version:'1.0.0',state:'NOOP',base_revision:request.base_revision,target_revision:request.base_revision,target_generation_id:request.base_revision,base_inventory_digest:request.inventory.digest,financial_write_authorized:false,canonical_mutation_performed:false };
@@ -187,9 +187,6 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
     assert.strictEqual(afterBack.revision,revision,'Back-rendered Home must remain bound to the same verified revision');
     assert.strictEqual(afterBack.view.provenance.input_revision,revision,'Back-rendered DOM must be produced from the same canonical Worker revision');
 
-    // The Product diagnostic is only valid when every sample waits for the
-    // canonical Worker READY view and two animation frames. This proves the
-    // metric cannot regress to shell/title-only timing.
     const diagnostic=await page.evaluate(()=>window.__PRH_LF_SPA_TEST__.runDiagnostic());
     assert.strictEqual(diagnostic.schema,'PRH_LF_ROUTE_TO_PAINT_DIAGNOSTIC_V1');
     assert.strictEqual(diagnostic.sampleCount,10);
@@ -236,7 +233,7 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
   try {
     const desktop=await scenario({width:1440,height:1000},'NORMAL');
     const mobile=await scenario({width:390,height:844},'MASKED');
-    console.log('local_finance_spa_visual_test: PASS',{desktop,mobile,exactCandidateRuntime:true,financeReadyDiagnostic:true});
+    console.log('local_finance_spa_visual_test: PASS',{desktop,mobile,exactCandidateRuntime:true,financeReadyDiagnostic:true,scalarJsonBootstrap:true});
   } finally {
     await browser.close().catch(()=>{});
     await closeServer(server);
