@@ -47,6 +47,27 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED');
   }
 
+  // FIN-LF-001 owner-data proof. This executes the same canonical snapshot and
+  // Local-first transport projection used by browser cold bootstrap, but emits
+  // only a fixed scalar token. No amounts, categories, IDs, descriptions,
+  // counts or revisions are returned to CI.
+  if (typeof prhLocalFirstSyncHealthToken !== 'function') {
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_MISSING');
+  }
+  var localFirstSyncSmoke;
+  try {
+    localFirstSyncSmoke = prhLocalFirstSyncHealthToken();
+  } catch (error) {
+    var localFirstCode = String(error && error.code || '').trim();
+    if (/^[A-Z][A-Z0-9_]{0,80}$/.test(localFirstCode)) {
+      throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_' + localFirstCode);
+    }
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_UNCLASSIFIED_FAILURE');
+  }
+  if (localFirstSyncSmoke !== 'PRH_LOCAL_FIRST_SYNC_HEALTH_V1|EXACT_WIRE|DIMENSIONS|OK') {
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_FAILED');
+  }
+
   return {
     ok:true,
     status:'OK',
@@ -57,6 +78,7 @@ function prhReleaseHealthCheck(expectedBuild) {
     requiredSheetCount:requiredSheets.length,
     readCheck:true,
     dataRuntimeCheck:true,
+    localFirstSyncCheck:true,
     latencyMs:Math.max(0,Date.now()-startedAt)
   };
 }
@@ -67,8 +89,8 @@ function prhRuntimeTransportPing() {
 
 /**
  * Stable scalar transport contract. Keep its field count backward compatible;
- * DATA runtime proof is enforced inside prhReleaseHealthCheck before this token
- * can be returned rather than adding a new serialized field.
+ * DATA and Local-first runtime proofs are enforced inside prhReleaseHealthCheck
+ * before this token can be returned rather than adding serialized fields.
  */
 function prhReleaseHealthCheckToken(expectedBuild) {
   var result = prhReleaseHealthCheck(expectedBuild);
