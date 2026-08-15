@@ -1,0 +1,33 @@
+diff --git a/tests/local_first_product_ready_visual_test.js b/tests/local_first_product_ready_visual_test.js
+index 238eb22..df534b3 100644
+--- a/tests/local_first_product_ready_visual_test.js
++++ b/tests/local_first_product_ready_visual_test.js
+@@ -16,6 +16,8 @@ const ROOT = path.resolve(__dirname, '..');
+ const PRODUCT_CONTRACT = JSON.parse(fs.readFileSync(path.join(ROOT, 'lib/local_first/local_first_product_ready.v1.json'), 'utf8'));
+ const CANDIDATE_SHA = execFileSync('git', ['rev-parse', 'HEAD'], { cwd:ROOT, encoding:'utf8' }).trim();
+ const SOURCE_TREE_SHA = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd:ROOT, encoding:'utf8' }).trim();
++const DEGRADED_OWNER_COPY = 'Обновление временно недоступно. Можно продолжать работу с последними проверенными данными.';
++const EMPTY_OWNER_COPY = 'Финансовые данные ещё загружаются. Подождите немного и повторите попытку.';
+ assert(/^[0-9a-f]{40}$/.test(CANDIDATE_SHA));
+ assert(/^[0-9a-f]{40}$/.test(SOURCE_TREE_SHA));
+ 
+@@ -323,7 +325,8 @@ function evidenceRecord(fields) {
+         spa:window.__PRH_LF_SPA_TEST__.getState()
+       }));
+       assert.strictEqual(degraded.chip,'DEGRADED');
+-      assert(/последняя проверенная локальная ревизия/i.test(degraded.banner));
++      assert.strictEqual(degraded.banner.trim(),DEGRADED_OWNER_COPY,'degraded state must use canonical owner-facing copy');
++      assert(!/verified|revision|sync degraded|web worker|local-first/i.test(degraded.banner),'degraded owner copy must not leak implementation vocabulary');
+       assert.strictEqual(degraded.state.snapshot_status,'READY');
+       assert.strictEqual(degraded.state.revision,revision);
+       assert.strictEqual(degraded.state.view.status,'READY');
+@@ -441,7 +444,8 @@ function evidenceRecord(fields) {
+       assert.strictEqual(failed.state.view.status,'EMPTY');
+       assert.strictEqual(failed.money,0,'no verified snapshot must not fabricate financial values');
+       assert.strictEqual(failed.chip,'FAILED');
+-      assert(/verified snapshot|проверенная локальная ревизия/i.test(failed.text) || failed.text.trim()==='', 'fail-closed UI must not claim successful finance data');
++      assert.strictEqual(failed.text.trim(),EMPTY_OWNER_COPY,'no-snapshot failure must use canonical owner-facing empty copy');
++      assert(!/verified|snapshot|revision|web worker|local-first/i.test(failed.text),'empty owner copy must not leak implementation vocabulary');
+       assert.deepStrictEqual(errors,[],'remote bootstrap failure must be represented as UI state, not fatal page error');
+       publicEvidence.push(evidenceRecord({
+         action_id:'NO_ACTIVE_SNAPSHOT_FAILS_CLOSED', device_class:'DESKTOP', route_id:'home',
