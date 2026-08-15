@@ -30,6 +30,7 @@ assert.ok(serviceSource.includes('financial_write_authorized: false'));
 assert.ok(serviceSource.includes('canonical_mutation_performed: false'));
 assert.ok(serviceSource.includes('prhLocalFirstSyncHealthToken'));
 assert.ok(serviceSource.includes('prhLocalFirstSyncAssertWireRoundTrip_'));
+assert.ok(serviceSource.includes('prhLocalFirstSyncBootstrapWire'), 'browser RPC must cross Apps Script as scalar JSON wire');
 
 const CANONICAL_KEYS = [
   'schema', 'schema_version', 'transaction_id', 'occurred_at', 'type', 'status',
@@ -159,12 +160,20 @@ for (const tx of full.transactions) {
 assert.strictEqual(full.transactions[0].destination_account_id, null);
 assert.strictEqual(full.transactions[1].destination_account_id, null);
 
-const healthToken = context.prhLocalFirstSyncHealthToken();
+const fullWire = context.prhLocalFirstSyncBootstrapWire({});
 assert.strictEqual(snapshotCalls, 2);
+assert.strictEqual(typeof fullWire, 'string');
+assert.ok(fullWire.includes('"destination_account_id":null'), 'nullable key must exist in scalar JSON wire bytes');
+const fullFromWire = JSON.parse(fullWire);
+assert.deepStrictEqual(Object.keys(fullFromWire.transactions[0]).sort(), CANONICAL_KEYS);
+assert.strictEqual(fullFromWire.transactions[0].destination_account_id, null);
+
+const healthToken = context.prhLocalFirstSyncHealthToken();
+assert.strictEqual(snapshotCalls, 3);
 assert.strictEqual(healthToken, 'PRH_LOCAL_FIRST_SYNC_HEALTH_V1|EXACT_WIRE|DIMENSIONS|OK');
 
 const noop = context.prhLocalFirstSyncBootstrap({ local_revision: REV_A });
-assert.strictEqual(snapshotCalls, 3);
+assert.strictEqual(snapshotCalls, 4);
 assert.strictEqual(noop.state, 'NOOP');
 assert.strictEqual(noop.revision, REV_A);
 assert.strictEqual(noop.generation_id, REV_A);
@@ -183,7 +192,9 @@ assert.throws(
 
 assert.strictEqual(syncClient.schema, 'PRH_LOCAL_FIRST_SYNC_V1');
 assert.strictEqual(syncClient.version, '1.0.0');
-const validated = syncClient.validateRemoteEnvelope(JSON.parse(JSON.stringify(full)), null);
+const parsedWire = syncClient.parseWireEnvelope(fullWire);
+assert.strictEqual(parsedWire.transactions[0].destination_account_id, null);
+const validated = syncClient.validateRemoteEnvelope(parsedWire, null);
 assert.strictEqual(validated.state, 'FULL_BOOTSTRAP');
 assert.strictEqual(validated.generation_id, REV_A);
 const validatedNoop = syncClient.validateRemoteEnvelope(JSON.parse(JSON.stringify(noop)), REV_A);
@@ -196,6 +207,16 @@ assert.throws(
   () => syncClient.validateRemoteEnvelope(Object.assign({}, JSON.parse(JSON.stringify(full)), { generation_id: 'b'.repeat(64) }), null),
   /LOCAL_FIRST_SYNC_GENERATION_REVISION_MISMATCH/
 );
+const malformedFull = JSON.parse(JSON.stringify(full));
+delete malformedFull.transactions[0].destination_account_id;
+assert.throws(
+  () => syncClient.validateRemoteEnvelope(malformedFull, null),
+  /LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID/
+);
+assert.throws(
+  () => syncClient.parseWireEnvelope('{not-json'),
+  /LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID/
+);
 
 function runnerForFailure(error) {
   return {
@@ -203,7 +224,7 @@ function runnerForFailure(error) {
     failure: null,
     withSuccessHandler(fn) { this.success = fn; return this; },
     withFailureHandler(fn) { this.failure = fn; return this; },
-    prhLocalFirstSyncBootstrap() { this.failure(error); }
+    prhLocalFirstSyncBootstrapWire() { this.failure(error); }
   };
 }
 
@@ -213,7 +234,7 @@ const mockRunner = {
   failure: null,
   withSuccessHandler(fn) { this.success = fn; return this; },
   withFailureHandler(fn) { this.failure = fn; return this; },
-  prhLocalFirstSyncBootstrap(request) { transportRequest = request; this.success({ ok: true }); }
+  prhLocalFirstSyncBootstrapWire(request) { transportRequest = request; this.success(JSON.stringify({ ok: true })); }
 };
 
 (async () => {
@@ -221,6 +242,19 @@ const mockRunner = {
   const result = await transport.fetchBootstrap({ local_revision: REV_A });
   assert.deepStrictEqual(result, { ok: true });
   assert.deepStrictEqual(transportRequest, { local_revision: REV_A });
+
+  const malformedWireRunner = {
+    success: null,
+    failure: null,
+    withSuccessHandler(fn) { this.success = fn; return this; },
+    withFailureHandler(fn) { this.failure = fn; return this; },
+    prhLocalFirstSyncBootstrapWire() { this.success('{malformed'); }
+  };
+  const malformedWireTransport = syncClient.createGoogleScriptTransport({ googleScriptRun: malformedWireRunner });
+  await assert.rejects(
+    () => malformedWireTransport.fetchBootstrap({ local_revision: '' }),
+    (error) => error && error.code === 'LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID'
+  );
 
   const safeFailureTransport = syncClient.createGoogleScriptTransport({
     googleScriptRun: runnerForFailure(new Error('Exception: LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID'))
@@ -240,7 +274,9 @@ const mockRunner = {
 
   console.log('local_first_sync_service_adapter_test: PASS', {
     exactWireShape: true,
+    scalarJsonRpcBoundary: true,
     nullableDestinationKeyPreserved: true,
+    malformedWireFailsClosed: true,
     ownerHealthTokenScalarOnly: true,
     safeRemoteReasonPropagation: true
   });
