@@ -21,7 +21,7 @@ jobs:
           ref: ${{ env.TARGET_SHA }}
           persist-credentials: false
 
-      - uses: actions/setup-node@1e60f620b9541dca151540609f017c214e2bb0c4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24.7.0'
           cache: npm
@@ -30,7 +30,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx --no-install playwright install --with-deps chromium
 
       - name: Add privacy-safe metric diagnostics at runtime
         shell: bash
