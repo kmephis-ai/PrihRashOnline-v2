@@ -33,19 +33,67 @@ const REV_A = 'a'.repeat(64);
 let snapshotCalls = 0;
 const transactions = Object.freeze([
   Object.freeze({
-    schema: 'PRH_CANONICAL_TRANSACTION_V1', schema_version: 1, transaction_id: 'tx-1',
-    account_id: 'account:1', destination_account_id: null, category_id: 'category:1',
-    member_id: 'member:1', project_id: 'project:1'
+    schema: 'PRH_CANONICAL_TRANSACTION_V1',
+    schema_version: 1,
+    transaction_id: 'tx-1',
+    occurred_at: '2026-01-10T10:00:00Z',
+    type: 'expense',
+    status: 'posted',
+    amount_minor: 12345,
+    currency: 'RUB',
+    account_id: 'account:1',
+    destination_account_id: null,
+    category_id: 'category:1',
+    member_id: 'member:1',
+    project_id: 'project:1',
+    tags: Object.freeze(['home']),
+    counterparty: null,
+    description: 'Synthetic sync expense',
+    reverses_transaction_id: null,
+    adjustment_semantics: null,
+    provenance: Object.freeze({
+      source_system: 'SYNTHETIC',
+      source_container: 'fixture:local_first_sync',
+      source_record_id: 'sync-fixture-1',
+      source_fingerprint: '1'.repeat(64),
+      identity_strategy: 'EXTERNAL_ID',
+      transform_version: 'SYNTHETIC-v1',
+      source_position: null
+    })
   }),
   Object.freeze({
-    schema: 'PRH_CANONICAL_TRANSACTION_V1', schema_version: 1, transaction_id: 'tx-2',
-    account_id: 'account:1', destination_account_id: 'account:2', category_id: 'category:2',
-    member_id: null, project_id: null
+    schema: 'PRH_CANONICAL_TRANSACTION_V1',
+    schema_version: 1,
+    transaction_id: 'tx-2',
+    occurred_at: '2026-01-11T10:00:00Z',
+    type: 'income',
+    status: 'posted',
+    amount_minor: 50000,
+    currency: 'RUB',
+    account_id: 'account:2',
+    destination_account_id: null,
+    category_id: 'category:2',
+    member_id: null,
+    project_id: null,
+    tags: Object.freeze([]),
+    counterparty: null,
+    description: 'Synthetic sync income',
+    reverses_transaction_id: null,
+    adjustment_semantics: null,
+    provenance: Object.freeze({
+      source_system: 'SYNTHETIC',
+      source_container: 'fixture:local_first_sync',
+      source_record_id: 'sync-fixture-2',
+      source_fingerprint: '2'.repeat(64),
+      identity_strategy: 'EXTERNAL_ID',
+      transform_version: 'SYNTHETIC-v1',
+      source_position: null
+    })
   })
 ]);
 const labels = {
   'account|account:1': 'Основной счёт',
-  'account|account:2': 'Переводной счёт',
+  'account|account:2': 'Второй счёт',
   'category|category:1': 'Продукты',
   'category|category:2': 'Доход',
   'member|member:1': 'Член семьи',
