@@ -1,0 +1,92 @@
+{
+  "schema": "PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PERF-LF-001",
+  "cost_class": "FREE_ONLY",
+  "clock": "PERFORMANCE_NOW_MONOTONIC",
+  "aggregation": "NEAREST_RANK_P95",
+  "measurement_domains": {
+    "cold_bootstrap": "SEPARATE_NOT_WARM_SLO",
+    "background_sync": "SEPARATE_NOT_WARM_SLO",
+    "warm_interaction": "ACTIVE_VERIFIED_LOCAL_READ_MODEL_ONLY"
+  },
+  "metrics": {
+    "warm_route_switch_p95": {
+      "threshold_ms": 100,
+      "min_samples": 10,
+      "boundary": "NAVIGATE_START_TO_STABLE_MEANINGFUL_FRAME",
+      "warmup_required": true,
+      "routes": ["home", "transactions", "expenses", "income", "cash-flow", "data-quality"]
+    },
+    "filter_kpi_update_p95": {
+      "threshold_ms": 200,
+      "min_samples": 10,
+      "boundary": "FILTER_APPLY_TO_READY_KPI_FRAME",
+      "warmup_required": true
+    },
+    "chart_repaint_desktop_p95": {
+      "threshold_ms": 300,
+      "min_samples": 10,
+      "boundary": "FILTER_APPLY_TO_STABLE_CHART_FRAME",
+      "device_class": "DESKTOP"
+    },
+    "chart_repaint_mobile_p95": {
+      "threshold_ms": 500,
+      "min_samples": 10,
+      "boundary": "FILTER_APPLY_TO_STABLE_CHART_FRAME",
+      "device_class": "REPRESENTATIVE_MOBILE"
+    },
+    "back_forward_p95": {
+      "threshold_ms": 100,
+      "min_samples": 10,
+      "boundary": "HISTORY_ACTION_TO_STABLE_MEANINGFUL_FRAME",
+      "document_reload_allowed": false
+    },
+    "cached_first_meaningful_paint_p95": {
+      "threshold_ms": 800,
+      "min_samples": 1,
+      "boundary": "NAVIGATION_TIME_ORIGIN_TO_FIRST_READY_MEANINGFUL_FRAME",
+      "requires_prior_active_verified_snapshot": true,
+      "cold_bootstrap_sample_allowed": false
+    }
+  },
+  "warm_invariants": {
+    "mandatory_network_requests": 0,
+    "google_sheets_reads": 0,
+    "server_document_reload": 0,
+    "financial_write_authority": false,
+    "canonical_mutation": false
+  },
+  "status": {
+    "pass": "PASS",
+    "fail": "FAIL",
+    "blocked": "BLOCKED",
+    "insufficient_samples": "BLOCKED"
+  },
+  "privacy": {
+    "financial_payload_allowed": false,
+    "private_labels_allowed": false,
+    "private_ids_allowed": false,
+    "allowed_report_fields": [
+      "schema",
+      "version",
+      "status",
+      "reason",
+      "metric_id",
+      "sample_count",
+      "p95_ms",
+      "threshold_ms",
+      "mandatory_network_requests",
+      "google_sheets_reads",
+      "observed_resource_requests",
+      "background_sync_calls",
+      "document_loads",
+      "device_class",
+      "runtime_state",
+      "candidate_sha_prefix",
+      "source_tree_hash_prefix",
+      "runtime_sha256_prefix",
+      "revision_hash_prefix"
+    ]
+  }
+}
