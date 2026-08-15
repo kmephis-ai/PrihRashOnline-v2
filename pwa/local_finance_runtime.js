@@ -327,6 +327,16 @@
       onState(publicState());
     }
 
+    function invalidateStaleSnapshotAfterFailedSync(reason) {
+      state.render_epoch += 1;
+      state.snapshot = null;
+      state.last_view = Object.freeze({
+        status: 'EMPTY',
+        route: state.route,
+        reason: reason || 'VERIFIED_LOCAL_SNAPSHOT_LOST_AFTER_SYNC_FAILURE'
+      });
+    }
+
     async function loadVerifiedSnapshot() {
       var snapshot = await store.getActiveSnapshot({ includeJournal: false });
       if (snapshot && snapshot.status === 'READY') {
@@ -446,6 +456,7 @@
       } else if (result) {
         state.sync_status = 'FAILED';
         state.degraded_reason = result.reason || 'LOCAL_FINANCE_SYNC_FAILED';
+        if (!result.active) invalidateStaleSnapshotAfterFailedSync(state.degraded_reason);
         emit();
       }
       return result;
