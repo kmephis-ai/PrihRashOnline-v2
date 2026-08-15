@@ -145,7 +145,7 @@ function installSyncStub(page){
     assert.strictEqual(state.rows,20,'page 1 must contain exactly 20 operations');
     assert(state.overflow<=2,`${name} transactions overflow ${state.overflow}`);
     if(invalidPrivacy){assert.strictEqual(state.privacy,'MASKED');assert(state.amounts.length>0&&state.amounts.every((v)=>v==='••••••'),'invalid privacy must fail closed to masked values');}
-    else {assert.strictEqual(state.privacy,'NORMAL');assert(state.amounts.some((v)=>/₽|руб|RUB/i.test(v)),'NORMAL must show formatted synthetic money');}
+    else {assert.strictEqual(state.privacy,null,'canonical NORMAL privacy is intentionally omitted from history URL');assert(state.amounts.some((v)=>/₽|руб|RUB/i.test(v)),'NORMAL must show formatted synthetic money');}
 
     await page.click('#lf-tx-next');
     await page.waitForFunction(()=>window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.page===2);
