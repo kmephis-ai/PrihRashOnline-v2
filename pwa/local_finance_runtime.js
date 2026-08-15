@@ -527,6 +527,9 @@
     };
     var readyViewCache = new Map();
     var cacheRevision = null;
+    var startupPersistedKeys = new Set();
+    var startupPersistInFlight = new Map();
+    var startupPersistTail = Promise.resolve();
 
     function clearReadyViewCache() {
       readyViewCache.clear();
@@ -568,6 +571,33 @@
       return view;
     }
 
+    function startupPersistKey(view) {
+      if (!view || view.status !== 'READY' || !startupFilterEligible(view.filter_context)) return null;
+      var revision = String(view.revision || '');
+      var route = String(view.route || '');
+      if (!HEX64.test(revision) || ROUTES.indexOf(route) < 0) return null;
+      return revision + '\u001e' + route;
+    }
+
+    function markStartupViewPersisted(view) {
+      var key = startupPersistKey(view);
+      if (key) startupPersistedKeys.add(key);
+    }
+
+    function scheduleStartupViewPersist(view) {
+      if (!startupViewCache || typeof startupViewCache.put !== 'function') return;
+      var key = startupPersistKey(view);
+      if (!key || startupPersistedKeys.has(key) || startupPersistInFlight.has(key)) return;
+      var task = startupPersistTail.then(function () { return startupViewCache.put(view); }).then(function (stored) {
+        if (stored === true) startupPersistedKeys.add(key);
+        return stored === true;
+      }).catch(function () { return false; }).finally(function () {
+        startupPersistInFlight.delete(key);
+      });
+      startupPersistInFlight.set(key, task);
+      startupPersistTail = task.then(function () {}, function () {});
+    }
+
     function rememberReadyView(view) {
       if (!view || view.status !== 'READY' || !state.snapshot || view.revision !== state.snapshot.revision) return;
       var key = readyViewCacheKey(view.route, view.filter_context);
@@ -579,9 +609,7 @@
         if (oldest.done) break;
         readyViewCache.delete(oldest.value);
       }
-      if (startupFilterEligible(view.filter_context) && startupViewCache && typeof startupViewCache.put === 'function') {
-        Promise.resolve(startupViewCache.put(view)).catch(function () {});
-      }
+      scheduleStartupViewPersist(view);
     }
 
     function activeIdentity() {
@@ -666,6 +694,7 @@
         state.last_view = view;
         state.sync_status = 'READY';
         state.degraded_reason = null;
+        markStartupViewPersisted(view);
         emit();
         return view;
       } catch (error) {

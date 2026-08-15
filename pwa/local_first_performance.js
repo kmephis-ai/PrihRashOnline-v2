@@ -238,21 +238,26 @@
     await afterFrames(2);
   }
 
+  function warmRuntimeReadyState(spa, state) {
+    var syncStatus = String(state && state.sync_status || '').toUpperCase();
+    var syncSettled = ['READY', 'DEGRADED', 'FAILED'].indexOf(syncStatus) >= 0;
+    return !!(spa && spa.financeWarmReady === true && state && state.snapshot_status === 'READY' &&
+      state.view && state.view.status === 'READY' && syncSettled);
+  }
+
   async function waitWarmRuntimeReady() {
     var started = now();
     await waitUntil(function () {
       var spa = root.__PRH_LF_SPA_RUNTIME__ || {};
       var finance = root.__PRH_LF_FINANCE_RUNTIME__;
       var state = finance && typeof finance.getState === 'function' ? finance.getState() : null;
-      return spa.financeWarmReady === true && state && state.snapshot_status === 'READY' && state.view && state.view.status === 'READY';
-    }, 10000, 'PERF_LF_WARM_RUNTIME_NOT_READY');
+      return warmRuntimeReadyState(spa, state);
+    }, 15000, 'PERF_LF_WARM_RUNTIME_NOT_READY');
     await afterFrames(2);
     var spa = root.__PRH_LF_SPA_RUNTIME__ || {};
     var finance = root.__PRH_LF_FINANCE_RUNTIME__;
     var state = finance && typeof finance.getState === 'function' ? finance.getState() : null;
-    if (spa.financeWarmReady !== true || !state || state.snapshot_status !== 'READY' || !state.view || state.view.status !== 'READY') {
-      throw fail('PERF_LF_WARM_RUNTIME_NOT_READY');
-    }
+    if (!warmRuntimeReadyState(spa, state)) throw fail('PERF_LF_WARM_RUNTIME_NOT_READY');
     return roundedDuration(now() - started);
   }
 
@@ -725,6 +730,7 @@
     blockedMetric: blockedMetric,
     fmpPhaseBreakdown: fmpPhaseBreakdown,
     historyPhaseBreakdown: historyPhaseBreakdown,
+    warmRuntimeReadyState: warmRuntimeReadyState,
     run: run,
     getLastReport: function () { return lastReport; },
     autoInstall: autoInstall

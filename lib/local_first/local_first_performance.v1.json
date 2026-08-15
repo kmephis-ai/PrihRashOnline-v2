@@ -8,7 +8,8 @@
   "measurement_domains": {
     "cold_bootstrap": "SEPARATE_NOT_WARM_SLO",
     "background_sync": "SEPARATE_NOT_WARM_SLO",
-    "warm_interaction": "ACTIVE_VERIFIED_LOCAL_READ_MODEL_ONLY"
+    "warm_interaction": "ACTIVE_VERIFIED_LOCAL_READ_MODEL_ONLY",
+    "warm_interaction_precondition": "ACTIVE_VERIFIED_LOCAL_READ_MODEL_AND_BACKGROUND_SYNC_QUIESCENT"
   },
   "metrics": {
     "warm_route_switch_p95": {
