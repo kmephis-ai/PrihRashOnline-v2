@@ -25,6 +25,7 @@ assert.strictEqual(contract.measurement_domains.cold_bootstrap, 'SEPARATE_NOT_WA
 assert.strictEqual(contract.warm_invariants.mandatory_network_requests, 0);
 assert.strictEqual(contract.warm_invariants.google_sheets_reads, 0);
 assert.strictEqual(contract.warm_invariants.server_document_reload, 0);
+assert.strictEqual(performanceNode.storeName, 'prihrash-local-first-v1', 'performance probe must use the canonical owner Local Read Model DB');
 
 for (const [metricId, spec] of Object.entries(contract.metrics)) {
   assert.strictEqual(runtimeContract.product_slo_targets_ms[metricId], spec.threshold_ms, `${metricId} threshold drift`);
@@ -109,7 +110,7 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
     await seed.waitForFunction(() => !!window.PrhLocalReadModelStore && !!window.PrhLocalFirstPerformance);
     await seed.waitForTimeout(80);
     const seedStatus = await seed.evaluate(async (revision) => {
-      const store=PrhLocalReadModelStore.createStore({indexedDB,IDBKeyRange,name:'prihrash-local-first-v3'});
+      const store=PrhLocalReadModelStore.createStore({indexedDB,IDBKeyRange,name:'prihrash-local-first-v1'});
       await store.wipe();
       await store.beginGeneration({generationId:revision,revision});
       await store.writeGenerationChunk({generationId:revision,revision,transactions:[],dimensions:[],aggregates:[],sync_journal:[]});
