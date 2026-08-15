@@ -64,11 +64,16 @@ function prhLocalFirstSpaNormalizePrivacy_(value) {
   return ['NORMAL', 'MASKED', 'DEMO', 'ZEN'].indexOf(privacy) >= 0 ? privacy : 'MASKED';
 }
 
+function prhLocalFirstSpaDiagnosticRequested_(params) {
+  params = params || {};
+  return String(params.lf_diag == null ? '' : params.lf_diag).trim() === '1';
+}
+
 function prhLocalFirstSpaBootstrap_(params) {
   params = params || {};
   var route = prhLocalFirstSpaNormalizeRoute_(params.lf_route);
   var privacy = prhLocalFirstSpaNormalizePrivacy_(params.privacy);
-  var diagnostic = String(params.lf_diag == null ? '' : params.lf_diag).trim() === '1';
+  var diagnostic = prhLocalFirstSpaDiagnosticRequested_(params);
   var query = '?surface=local-first&lf_route=' + encodeURIComponent(route);
   if (privacy) query += '&privacy=' + encodeURIComponent(privacy);
   if (diagnostic) query += '&lf_diag=1';
@@ -79,6 +84,55 @@ function prhLocalFirstSpaBootstrap_(params) {
     'try{history.replaceState({prhLfRoute:boot.route},"",location.pathname+' + JSON.stringify(query) + '+location.hash);}' +
     'catch(error){window.__PRH_LF_SERVER_BOOT_ERROR__="HISTORY_REPLACE_FAILED";}' +
     '})();</script>';
+}
+
+/**
+ * Household mode intentionally hides implementation vocabulary. Technical
+ * provenance and machine-readable reason codes remain available only when the
+ * owner explicitly opts into lf_diag=1. This is presentation-only: no finance,
+ * storage, sync or Worker authority changes here.
+ */
+function prhLocalFirstSpaApplyHouseholdCopy_(html, params) {
+  var source = String(html || '');
+  if (prhLocalFirstSpaDiagnosticRequested_(params)) return source;
+
+  var replacements = [
+    ['<title>PrihRashOnline — Local-first</title>', '<title>PrihRashOnline — Семейные финансы</title>'],
+    ['<span class="status-chip" id="lf-revision-chip">rev —</span>', '<span class="status-chip" id="lf-revision-chip" hidden>rev —</span>'],
+    ['>Вернуться к R2</a>', '>Предыдущий интерфейс</a>'],
+    ['aria-label="Разделы Local-first"', 'aria-label="Разделы"'],
+    ['<div class="eyebrow">Local-first finance</div>', '<div class="eyebrow">Семейные финансы</div>'],
+    ['Один живущий интерфейс, одна проверенная локальная ревизия и расчёты в Web Worker.', 'Ваши основные финансовые показатели в одном быстром и удобном интерфейсе.'],
+    ['<span class="pill">Одна страница</span><span class="pill">Warm path без сети</span><span class="pill" id="lf-fin-truth-pill">FIN-TRUTH</span>', '<span class="pill">Быстрый режим</span><span class="pill" id="lf-fin-truth-pill">Проверенные данные</span>'],
+    ['Local-first browser runtime будет встроен только в trusted Apps Script candidate.', 'Подготавливаем финансовые данные…'],
+    ['title="Явное фоновое обновление"', 'title="Обновить данные"'],
+    ['<article class="card"><h2>Навигация</h2><p>Переход между разделами выполняется внутри уже открытого приложения — без новой загрузки серверной страницы.</p><div class="state">Готово для проверки</div></article>', '<article class="card"><h2>Быстрые переходы</h2><p>Разделы открываются без повторной загрузки страницы.</p><div class="state">Работает</div></article>'],
+    ['<article class="card"><h2>Локальные данные</h2><p id="lf-data-state">IndexedDB runtime подключается в trusted candidate. Source preview намеренно не показывает финансовые значения.</p><div class="state">Exact candidate only</div></article>', '<article class="card"><h2>Данные</h2><p id="lf-data-state">Защищённая локальная копия помогает открывать финансовые разделы быстрее.</p><div class="state">Локальная копия</div></article>'],
+    ['<article class="card"><h2>Расчёты</h2><p>Financial values разрешены только из canonical analytics Web Worker, связанного с exact generation/revision.</p><div class="state">FIN-LF-001</div></article>', '<article class="card"><h2>Расчёты</h2><p>Показатели формируются только по вашим проверенным операциям.</p><div class="state">Проверенные данные</div></article>'],
+    ['<div class="truth"><strong>Граница истины:</strong> никаких демонстрационных сумм вместо ваших финансов. При отсутствии verified Local Read Model показывается состояние загрузки/ошибки, а не выдуманные данные.</div>', '<div class="truth"><strong>Важно:</strong> приложение не подменяет ваши данные демонстрационными суммами. Если данные ещё не готовы, будет показано состояние загрузки или понятное сообщение об ошибке.</div>'],
+    ["home:Object.freeze({title:'Главная',summary:'Ключевые показатели и динамика из одной проверенной локальной ревизии.'})", "home:Object.freeze({title:'Главная',summary:'Ключевые показатели и динамика семейных финансов.'})"],
+    ["transactions:Object.freeze({title:'Операции',summary:'Local-first список операций подключается следующим этапом DATA-LF-001.'})", "transactions:Object.freeze({title:'Операции',summary:'Список операций будет доступен на следующем этапе развития.'})"],
+    ["expenses:Object.freeze({title:'Расходы',summary:'Расходы и структура по категориям считаются canonical Web Worker на общем FilterContext.'})", "expenses:Object.freeze({title:'Расходы',summary:'Расходы и их структура по категориям за выбранный период.'})"],
+    ["income:Object.freeze({title:'Доходы',summary:'Доходы и структура по категориям считаются canonical Web Worker на той же локальной ревизии.'})", "income:Object.freeze({title:'Доходы',summary:'Доходы и их структура по категориям за выбранный период.'})"],
+    ["'cash-flow':Object.freeze({title:'Денежный поток',summary:'Доходы, расходы и денежный поток по периодам — без server request на каждый переход.'})", "'cash-flow':Object.freeze({title:'Денежный поток',summary:'Доходы, расходы и итоговый денежный поток по периодам.'})"],
+    ["'data-quality':Object.freeze({title:'Качество данных',summary:'Local-first Data Quality подключается следующим этапом DATA-LF-001.'})", "'data-quality':Object.freeze({title:'Качество данных',summary:'Проверка полноты и качества данных будет доступна на следующем этапе развития.'})"],
+    ["function provenance(view){return '<div class=\"provenance\"><div>Источник расчёта: <strong>canonical Web Worker</strong></div><div>FIN-TRUTH: <strong>'+esc(view.provenance.financial_truth_policy)+'</strong></div><div>Ревизия: <code>'+esc(view.revision.slice(0,12))+'…</code></div><div>UI financial formulas: <strong>0</strong></div></div>'}", "function provenance(view){return '<div class=\"provenance\"><div>Источник: <strong>ваши проверенные операции</strong></div><div>Состояние: <strong>данные проверены</strong></div></div>'}"],
+    ['Canonical Worker · общий фильтр', 'По выбранным фильтрам'],
+    ["syncChip.textContent=state.sync_status==='READY'?'Local-first готов':state.sync_status==='DEGRADED'?'Локально · sync degraded':state.sync_status==='SYNCING'?'Фоновое обновление…':state.sync_status==='FAILED'?'Sync недоступен':'Local-first'", "syncChip.textContent=state.sync_status==='READY'?'Данные готовы':state.sync_status==='DEGRADED'?'Данные доступны · обновление отложено':state.sync_status==='SYNCING'?'Обновляем…':state.sync_status==='FAILED'?'Обновление недоступно':'Подготовка данных'"],
+    ["syncBanner.textContent=state.sync_status==='DEGRADED'?'Сеть/синхронизация временно недоступна. Показывается последняя проверенная локальная ревизия.':state.snapshot_status==='READY'?'Финансовые разделы работают из локальной verified revision; сеть используется только отдельным background sync.':'Проверенная локальная ревизия ещё не загружена.'", "syncBanner.textContent=state.sync_status==='DEGRADED'?'Обновление временно недоступно. Можно продолжать работу с последними проверенными данными.':state.snapshot_status==='READY'?'Финансовые данные готовы. Обновление выполняется в фоне и не мешает работе.':'Финансовые данные ещё загружаются.'"],
+    ["financeContent.innerHTML='<div class=\"loading\">Считаем локально в Web Worker…</div>'", "financeContent.innerHTML='<div class=\"loading\">Обновляем показатели…</div>'"],
+    ["financeContent.innerHTML='<div class=\"empty\">Первый verified snapshot ещё не готов. Выполняется безопасный cold bootstrap; выдуманные суммы не показываются.</div>'", "financeContent.innerHTML='<div class=\"empty\">Финансовые данные ещё загружаются. Подождите немного и повторите попытку.</div>'"],
+    ["financeContent.innerHTML='<div class=\"error\">Локальный расчёт не выполнен: '+esc(view.reason)+'</div>'", "financeContent.innerHTML='<div class=\"error\">Не удалось обновить показатели. Попробуйте обновить данные.</div>'"],
+    ["syncBanner.textContent='Source preview: browser runtime отсутствует до trusted candidate packaging.'", "syncBanner.textContent='Подготовка финансовых данных временно недоступна.'"],
+    ["syncChip.textContent='Local-first недоступен'", "syncChip.textContent='Данные недоступны'"],
+    ["syncBanner.textContent='Local-first runtime не запущен: '+String(error&&error.code||'RUNTIME_BOOT_FAILED')", "syncBanner.textContent='Не удалось подготовить финансовые данные. Попробуйте обновить страницу.'"]
+  ];
+
+  replacements.forEach(function (pair) {
+    if (source.indexOf(pair[0]) < 0) throw new Error('LF_SPA_HOUSEHOLD_COPY_MARKER_MISSING');
+    source = source.split(pair[0]).join(pair[1]);
+  });
+  return source;
 }
 
 /**
@@ -110,8 +164,10 @@ function prhLocalFirstSpaMigrateCacheNamespace_(html) {
 }
 
 function prhLocalFirstSpaRender_(params) {
+  params = params || {};
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
   var html = prhLocalFirstSpaMigrateCacheNamespace_(source.getContent());
+  html = prhLocalFirstSpaApplyHouseholdCopy_(html, params);
   var selfUrl = prhLocalFirstSpaSelfUrl_();
   if (selfUrl) {
     var rollbackHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=home');
@@ -129,7 +185,7 @@ function prhLocalFirstSpaRender_(params) {
   );
 
   var output = HtmlService.createHtmlOutput(html);
-  output.setTitle('PrihRashOnline — Local-first');
+  output.setTitle(prhLocalFirstSpaDiagnosticRequested_(params) ? 'PrihRashOnline — Local-first' : 'PrihRashOnline — Семейные финансы');
   output.addMetaTag('viewport', 'width=device-width, initial-scale=1');
   return output;
 }
