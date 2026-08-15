@@ -13,6 +13,8 @@ const PLACEHOLDER = '<!-- PRH_LOCAL_FIRST_BROWSER_RUNTIME -->';
 const RUNTIME_SCHEMA = 'PRH_LOCAL_FIRST_BROWSER_RUNTIME_BUNDLE_V1';
 const RUNTIME_VERSION = '1.0.0';
 const WORKER_ENTRY = 'pwa/local_analytics_worker_entry.js';
+const HISTORY_RESTORE_LEGACY = "window.addEventListener('popstate',function(){render(routeFromUrl(),true)});";
+const HISTORY_RESTORE_REPAIRED = "window.addEventListener('popstate',function(){navigate(routeFromUrl(),{fromPopstate:true,history:false,focusMain:false})});";
 const ALLOWED_BROWSER_MODULES = Object.freeze([
   'pwa/local_read_model_store.js',
   'pwa/local_first_sync.js',
@@ -190,8 +192,19 @@ function buildLocalFirstRuntimeInjection(options = {}) {
   });
 }
 
-function injectIntoHtml(htmlInput, runtime) {
+function applyHistoryRestoreRepair(htmlInput) {
   const html = String(htmlInput || '');
+  const legacyCount = html.split(HISTORY_RESTORE_LEGACY).length - 1;
+  const repairedCount = html.split(HISTORY_RESTORE_REPAIRED).length - 1;
+  if (legacyCount === 1 && repairedCount === 0) {
+    return html.replace(HISTORY_RESTORE_LEGACY, HISTORY_RESTORE_REPAIRED);
+  }
+  if (legacyCount === 0 && repairedCount === 1) return html;
+  fail('LOCAL_FIRST_HISTORY_RESTORE_HANDLER_INVALID');
+}
+
+function injectIntoHtml(htmlInput, runtime) {
+  const html = applyHistoryRestoreRepair(htmlInput);
   const count = html.split(PLACEHOLDER).length - 1;
   if (count !== 1) fail('LOCAL_FIRST_RUNTIME_PLACEHOLDER_COUNT_INVALID');
   if (!runtime || runtime.schema !== RUNTIME_SCHEMA || runtime.version !== RUNTIME_VERSION || !runtime.html) {
@@ -211,11 +224,14 @@ module.exports = Object.freeze({
   RUNTIME_SCHEMA,
   RUNTIME_VERSION,
   WORKER_ENTRY,
+  HISTORY_RESTORE_LEGACY,
+  HISTORY_RESTORE_REPAIRED,
   ALLOWED_BROWSER_MODULES,
   ALLOWED_INERT_HTTP_URIS,
   localFirstBrowserRuntimeConfig,
   normalizeMarker,
   buildLocalFirstRuntimeInjection,
   assertNoExternalRuntimeLoaders,
+  applyHistoryRestoreRepair,
   injectIntoHtml
 });
