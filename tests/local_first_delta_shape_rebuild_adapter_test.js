@@ -1,9 +1,22 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const delta = require('../pwa/local_first_delta');
 
 const REVISION = 'a'.repeat(64);
+const CANONICAL_KEYS = [
+  'schema','schema_version','transaction_id','occurred_at','type','status',
+  'amount_minor','currency','account_id','destination_account_id','category_id',
+  'member_id','project_id','tags','counterparty','description',
+  'reverses_transaction_id','adjustment_semantics','provenance'
+].sort();
+const PROVENANCE_KEYS = [
+  'source_system','source_container','source_record_id','source_fingerprint',
+  'identity_strategy','transform_version','source_position'
+].sort();
 
 function canonicalTransaction() {
   return {
@@ -50,6 +63,18 @@ function snapshot(transaction) {
   };
 }
 
+function loadServerTransportProjection() {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'LocalFirstSyncService.js'), 'utf8');
+  const deltaSource = fs.readFileSync(path.join(__dirname, '..', 'LocalFirstDeltaService.js'), 'utf8');
+  const context = vm.createContext({
+    console, Object, Array, String, Number, Math, Date, RegExp, Error, JSON
+  });
+  vm.runInContext(source, context, { filename: 'LocalFirstSyncService.js' });
+  assert.strictEqual(typeof context.prhLocalFirstSyncProjectTransaction_, 'function');
+  assert(deltaSource.includes('txDelta.upserts.map(prhLocalFirstSyncProjectTransaction_)'), 'delta upserts must use the same exact transport projection');
+  return context.prhLocalFirstSyncProjectTransaction_;
+}
+
 (async () => {
   const exact = canonicalTransaction();
   assert.doesNotThrow(() => delta.revisionRow(exact));
@@ -73,6 +98,37 @@ function snapshot(transaction) {
   assert.throws(
     () => delta.revisionRow(missingProvenanceKey),
     (error) => error && error.code === 'LOCAL_FIRST_DELTA_PROVENANCE_SHAPE_INVALID'
+  );
+
+  const projectTransport = loadServerTransportProjection();
+  const serverObject = canonicalTransaction();
+  delete serverObject.description;
+  delete serverObject.destination_account_id;
+  delete serverObject.provenance.source_container;
+  delete serverObject.provenance.source_position;
+  serverObject.generation_id = REVISION;
+  serverObject.server_internal_marker = 'must-not-cross-wire';
+  serverObject.provenance.server_internal_marker = 'must-not-cross-wire';
+
+  const projected = projectTransport(serverObject);
+  const roundTripped = JSON.parse(JSON.stringify(projected));
+  assert.deepStrictEqual(Object.keys(roundTripped).sort(), CANONICAL_KEYS, 'wire transaction must preserve exact canonical keys');
+  assert.deepStrictEqual(Object.keys(roundTripped.provenance).sort(), PROVENANCE_KEYS, 'wire provenance must preserve exact canonical keys');
+  assert.strictEqual(roundTripped.description, null, 'undefined nullable transaction fields must materialize as null');
+  assert.strictEqual(roundTripped.destination_account_id, null);
+  assert.strictEqual(roundTripped.provenance.source_container, null, 'undefined nullable provenance fields must materialize as null');
+  assert.strictEqual(roundTripped.provenance.source_position, null);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(roundTripped, 'generation_id'), false, 'storage metadata must not cross canonical wire boundary');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(roundTripped, 'server_internal_marker'), false, 'server-only fields must be stripped');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(roundTripped.provenance, 'server_internal_marker'), false, 'server-only provenance fields must be stripped');
+  assert.doesNotThrow(() => delta.revisionRow(roundTripped), 'JSON transport round-trip must remain exact canonical shape');
+
+  const requiredFieldMissing = canonicalTransaction();
+  delete requiredFieldMissing.amount_minor;
+  assert.throws(
+    () => projectTransport(requiredFieldMissing),
+    (error) => error && error.code === 'LOCAL_FIRST_SYNC_CANONICAL_TRANSACTION_TRANSPORT_INVALID',
+    'required canonical values must fail closed rather than be invented'
   );
 
   let active = snapshot(missingOptionalKey);
@@ -147,6 +203,10 @@ function snapshot(transaction) {
 
   console.log('local_first_delta_shape_rebuild_adapter_test: PASS', {
     exactCanonicalShapeRequired: true,
+    transportProjectionExactAfterJsonRoundTrip: true,
+    undefinedNullableMaterializedAsNull: true,
+    serverOnlyKeysStripped: true,
+    requiredValuesFailClosed: true,
     driftedCacheWiped: true,
     canonicalFullRebuild: true,
     deltaNoopBypassed: true,
