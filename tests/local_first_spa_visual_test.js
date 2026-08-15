@@ -80,27 +80,31 @@ function p95(values) {
         assert.strictEqual(loadCount, 1, `${viewport.name} Forward must not reload document`);
         assert.deepStrictEqual(warmRequests, [], `${viewport.name} Back/Forward emitted requests`);
 
+        // Source preview intentionally has no injected finance runtime/Worker. It
+        // must never manufacture a Product P95 from shell-only navigation.
         await page.click('#lf-diag-run');
-        await page.waitForFunction(() => document.getElementById('lf-diag-result')?.dataset.status === 'PASS', null, { timeout:15000 });
-        const embeddedDiagnostic = await page.evaluate(() => {
+        await page.waitForFunction(() => document.getElementById('lf-diag-result')?.dataset.status === 'FAIL', null, { timeout:5000 });
+        const previewDiagnostic = await page.evaluate(() => {
           const state=window.__PRH_LF_SPA_TEST__.getState();
           const output=document.getElementById('lf-diag-result');
           return {
-            p95Ms:Number(output.dataset.p95Ms),
+            status:output.dataset.status,
+            p95Ms:output.dataset.p95Ms || null,
             text:output.textContent.trim(),
-            lastDiagnostic:state.lastDiagnostic,
+            lastDiagnostic:state.lastDiagnostic || null,
             activeRoute:state.activeRoute
           };
         });
-        assert(Number.isFinite(embeddedDiagnostic.p95Ms) && embeddedDiagnostic.p95Ms >= 0, `${viewport.name} embedded diagnostic p95 invalid`);
-        assert(embeddedDiagnostic.text.startsWith('P95:'), `${viewport.name} embedded diagnostic result must be human-readable`);
-        assert.strictEqual(embeddedDiagnostic.lastDiagnostic.sampleCount, 10);
-        assert.strictEqual(embeddedDiagnostic.lastDiagnostic.mandatoryNetworkCalls, 0);
-        assert.strictEqual(embeddedDiagnostic.lastDiagnostic.googleSheetsReads, 0);
-        assert.strictEqual(embeddedDiagnostic.activeRoute, 'data-quality', `${viewport.name} diagnostic must return to original route`);
-        assert.strictEqual(loadCount, 1, `${viewport.name} embedded diagnostic must stay in one document`);
-        assert.deepStrictEqual(warmRequests, [], `${viewport.name} embedded diagnostic emitted requests`);
+        assert.strictEqual(previewDiagnostic.status,'FAIL');
+        assert.strictEqual(previewDiagnostic.p95Ms,null,`${viewport.name} source preview must not publish finance P95`);
+        assert.strictEqual(previewDiagnostic.lastDiagnostic,null,`${viewport.name} source preview must not publish finance diagnostic evidence`);
+        assert.strictEqual(previewDiagnostic.text,'Измерение не выполнено');
+        assert.strictEqual(previewDiagnostic.activeRoute,'data-quality',`${viewport.name} rejected diagnostic must preserve route`);
+        assert.strictEqual(loadCount,1,`${viewport.name} rejected diagnostic must stay in one document`);
+        assert.deepStrictEqual(warmRequests,[],`${viewport.name} rejected diagnostic emitted requests`);
 
+        // Shell timing remains a separate SPA engineering metric and is never
+        // presented as finance-ready Product latency.
         const durations = await page.evaluate((routeList) => {
           const out=[];
           for(let i=0;i<60;i+=1){
@@ -112,9 +116,9 @@ function p95(values) {
           return out;
         }, routes);
         const routeP95 = p95(durations);
-        assert(routeP95 <= 100, `${viewport.name} synthetic warm route p95 ${routeP95.toFixed(2)}ms > 100ms`);
-        assert.strictEqual(loadCount, 1, `${viewport.name} measured route loop must stay in one document`);
-        assert.deepStrictEqual(warmRequests, [], `${viewport.name} measured route loop emitted requests`);
+        assert(routeP95 <= 100, `${viewport.name} synthetic shell warm route p95 ${routeP95.toFixed(2)}ms > 100ms`);
+        assert.strictEqual(loadCount, 1, `${viewport.name} measured shell route loop must stay in one document`);
+        assert.deepStrictEqual(warmRequests, [], `${viewport.name} measured shell route loop emitted requests`);
 
         const layout = await page.evaluate(() => ({
           bodyOverflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-innerWidth,
@@ -142,10 +146,10 @@ function p95(values) {
           height:viewport.height,
           singleDocumentLoadCount:loadCount,
           warmNetworkRequestCount:warmRequests.length,
-          warmRouteSampleCount:durations.length,
-          warmRouteP95Ms:Number(routeP95.toFixed(3)),
-          embeddedDiagnosticSampleCount:embeddedDiagnostic.lastDiagnostic.sampleCount,
-          embeddedDiagnosticP95Ms:Number(embeddedDiagnostic.p95Ms.toFixed(3)),
+          shellWarmRouteSampleCount:durations.length,
+          shellWarmRouteP95Ms:Number(routeP95.toFixed(3)),
+          financeDiagnosticInSourcePreview:'BLOCKED_NO_RUNTIME',
+          financeDiagnosticP95Published:false,
           bootCount:layout.runtime.bootCount,
           routeRenderCount:layout.runtime.routeRenderCount,
           privacyMode:'MASKED',
@@ -163,7 +167,8 @@ function p95(values) {
       candidate_scope:'SYNTHETIC_SHELL_ONLY_NOT_PRODUCT_UAT',
       zeroMandatoryWarmNetwork:true,
       singleDocument:true,
-      embeddedOwnerDiagnosticPresent:true,
+      financeDiagnosticRequiresInjectedRuntime:true,
+      sourcePreviewFinanceP95Blocked:true,
       evidence
     }, null, 2));
     console.log('local_first_spa_visual_test: OK', {
@@ -171,8 +176,8 @@ function p95(values) {
       routes:routes.length,
       zeroWarmNetwork:true,
       singleDocument:true,
-      embeddedOwnerDiagnostic:true,
-      maxSyntheticWarmRouteP95Ms:Math.max(...evidence.map((item)=>item.warmRouteP95Ms))
+      sourcePreviewFinanceP95Blocked:true,
+      maxSyntheticShellWarmRouteP95Ms:Math.max(...evidence.map((item)=>item.shellWarmRouteP95Ms))
     });
   } finally {
     await browser.close().catch(()=>{});
