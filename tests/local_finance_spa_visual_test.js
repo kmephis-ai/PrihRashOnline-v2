@@ -109,10 +109,11 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
       Object.defineProperty(window,'google',{value:{script:{run:runner}},configurable:true});
     }, { fullEnvelope, revision });
 
-    const url = `http://127.0.0.1:${address.port}/?surface=local-first&lf_route=home&privacy=${privacy}`;
+    const url = `http://127.0.0.1:${address.port}/?surface=local-first&lf_route=home&privacy=${privacy}&lf_diag=1`;
     await page.goto(url, { waitUntil:'load', timeout:15000 });
     await page.waitForFunction(() => window.__PRH_LF_FINANCE_RUNTIME__ && window.__PRH_LF_FINANCE_RUNTIME__.getState().view && window.__PRH_LF_FINANCE_RUNTIME__.getState().view.status === 'READY', null, { timeout:20000 });
     await page.waitForSelector('#lf-finance-content .kpi');
+    assert.strictEqual(await page.isVisible('#lf-diagnostic'),true,'exact candidate diagnostic must be visible in diagnostic mode');
     measureWarm = true;
 
     const home = await page.evaluate(() => ({
@@ -186,6 +187,21 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
     assert.strictEqual(afterBack.revision,revision,'Back-rendered Home must remain bound to the same verified revision');
     assert.strictEqual(afterBack.view.provenance.input_revision,revision,'Back-rendered DOM must be produced from the same canonical Worker revision');
 
+    // The Product diagnostic is only valid when every sample waits for the
+    // canonical Worker READY view and two animation frames. This proves the
+    // metric cannot regress to shell/title-only timing.
+    const diagnostic=await page.evaluate(()=>window.__PRH_LF_SPA_TEST__.runDiagnostic());
+    assert.strictEqual(diagnostic.schema,'PRH_LF_ROUTE_TO_PAINT_DIAGNOSTIC_V1');
+    assert.strictEqual(diagnostic.sampleCount,10);
+    assert.strictEqual(diagnostic.financeReadyFrames,10);
+    assert.strictEqual(diagnostic.mandatoryNetworkCalls,0);
+    assert.strictEqual(diagnostic.googleSheetsReads,0);
+    assert(Number.isFinite(diagnostic.p95Ms) && diagnostic.p95Ms>=0,'finance-ready diagnostic p95 must be finite');
+    await page.waitForFunction(()=>{
+      const state=window.__PRH_LF_FINANCE_RUNTIME__.getState();
+      return document.body.dataset.activeLfRoute==='home' && state.view && state.view.status==='READY' && state.view.route==='home';
+    });
+
     const finalLayout=await page.evaluate(()=>({
       scroll:document.documentElement.scrollWidth,
       client:document.documentElement.clientWidth,
@@ -196,22 +212,31 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
     }));
     assert(finalLayout.scroll <= finalLayout.client + 2, `final overflow at ${viewport.width}px`);
     assert.notStrictEqual(finalLayout.toolbar,'none');
-    assert(finalLayout.kpiCount>=4,'Back-rendered Home must contain the four canonical KPI cards');
+    assert(finalLayout.kpiCount>=4,'Diagnostic-restored Home must contain the four canonical KPI cards');
     assert.strictEqual(finalLayout.active,'home');
     assert.strictEqual(finalLayout.financeRoute,'home');
-    assert.deepStrictEqual(requests,[],`warm route/filter navigation emitted HTTP requests: ${requests.join(' | ')}`);
+    assert.deepStrictEqual(requests,[],`warm route/filter/diagnostic navigation emitted HTTP requests: ${requests.join(' | ')}`);
     const spaCounters=await page.evaluate(()=>window.__PRH_LF_SPA_TEST__.getState());
     assert.strictEqual(spaCounters.mandatoryNetworkCalls,0);
     assert.strictEqual(spaCounters.googleSheetsReads,0);
+    assert.strictEqual(spaCounters.lastDiagnostic.financeReadyFrames,10);
 
     await context.close();
-    return { viewport, privacy, warmRequests:requests.length, revisionPrefix:revision.slice(0,12) };
+    return {
+      viewport,
+      privacy,
+      warmRequests:requests.length,
+      revisionPrefix:revision.slice(0,12),
+      diagnosticSamples:diagnostic.sampleCount,
+      diagnosticFinanceReadyFrames:diagnostic.financeReadyFrames,
+      diagnosticP95Ms:Number(diagnostic.p95Ms.toFixed(3))
+    };
   }
 
   try {
     const desktop=await scenario({width:1440,height:1000},'NORMAL');
     const mobile=await scenario({width:390,height:844},'MASKED');
-    console.log('local_finance_spa_visual_test: PASS',{desktop,mobile,exactCandidateRuntime:true});
+    console.log('local_finance_spa_visual_test: PASS',{desktop,mobile,exactCandidateRuntime:true,financeReadyDiagnostic:true});
   } finally {
     await browser.close().catch(()=>{});
     await closeServer(server);
