@@ -16,7 +16,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `DELTA-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #257, PR #258, candidate `5ed78c45eb77dbb008014f16a01288fa2e1cde91`, merge `0756252b5c0619bf53e9e1b24f235fb4fa28b2f6`; Apps Script version 225, exact-base delta, idempotent replay, target-revision recomputation, adversarial base-race full rebuild fallback и zero-network local reads PASS.
 - `FIN-LF-001` — **DONE / Main Verification PASS**, Issue #259, PR #260, candidate `0c58714df70e6065d6ec409cdc3bae991a85df36`, merge `c20258cd659f0e4a82c050b91eb04cc33c8e996b`; exact-candidate Owner Product UAT PASS, warm p95 `32 ms`, `10` переходов, сеть `0`.
 - `DATA-LF-001` — **DONE / Main Verification PASS**, Issue #263, PR #264, merge `326ddad4d5c41d684b1cec9e4a8a97bc680c5ed7`; exact-candidate Owner Product UAT PASS, warm p95 `43.40 ms`, `10` переходов, прогрев `4`, сеть `0`, Back/Forward PASS, loading/error PASS.
-- `PERF-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #265, PR #266, branch `agent/PERF-LF-001-local-first-performance-truth`. Цель: ввести единый privacy-safe real-browser Performance Report и доказать `MASTER-LF-PERF` по шести Local-first SLO, не смешивая cold bootstrap/background sync с warm path и сохраняя zero mandatory network / zero Google Sheets reads.
+- `PERF-LF-001` — **DONE / Main Verification PASS**, Issue #265, PR #266, candidate `7a41884cb1a812796bc2d473aaf0b86991dfcf65`, Apps Script v252, merge `bd181178c241418d0c22973d0d59ce2fdefb6195`; Owner UAT #10 PASS: route p95 `43.10 ms`, filter/KPI p95 `28.60 ms`, desktop chart p95 `43.80 ms`, Back/Forward p95 `54.30 ms`, cached FMP `473.70 ms`, zero mandatory network / Google Sheets reads.
+- `E2E-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #273, branch `agent/E2E-LF-001-product-ready-local-first`. Цель: доказать authenticated exact-candidate `MASTER-LF-PRODUCT` через полный Local-first Product Ready journey desktop + mobile, сохранив FIN-TRUTH, performance SLO, zero mandatory network / zero Google Sheets reads и fail-closed recovery semantics.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -81,7 +82,7 @@ Worker исполняет тот же canonical analytics evaluator, а не с�
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе PERF-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе E2E-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 
@@ -119,7 +120,7 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для PERF-LF-001 owner Product UAT обязателен и не может быть заменён CI/self-attestation.
+Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для E2E-LF-001 полный owner `GENERIC_V1` Product UAT desktop + mobile обязателен и не может быть заменён CI/self-attestation; machine representative-mobile evidence его только дополняет.
 
 ## Source precedence
 
