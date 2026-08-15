@@ -1,0 +1,56 @@
+{
+  "schema": "PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DATA-LF-001",
+  "routes": ["transactions", "data-quality"],
+  "local_read_model": {
+    "schema": "PRH_LOCAL_READ_MODEL_V1",
+    "storage_namespace": "prihrash-local-first-v3",
+    "required_state": "ACTIVE_VERIFIED",
+    "same_snapshot_as_finance": true
+  },
+  "transactions": {
+    "read_only": true,
+    "page_size": 20,
+    "sort": ["occurred_at_desc", "transaction_id_desc"],
+    "filters": ["start", "end_exclusive", "category_id", "account_id", "member_id"],
+    "detail": "local_exact_transaction_id",
+    "history_query_keys": ["tx_page", "tx_start", "tx_end", "tx_category", "tx_account", "tx_member", "tx_detail"],
+    "history_financial_payload_forbidden": true
+  },
+  "data_quality": {
+    "read_only": true,
+    "canonical_write": false,
+    "autofix": false,
+    "checks": [
+      "MISSING_CATEGORY",
+      "TRANSFER_DESTINATION_MISSING",
+      "TRANSFER_SAME_ACCOUNT",
+      "DUPLICATE_SOURCE_IDENTITY"
+    ]
+  },
+  "privacy": {
+    "normal_owner_values": true,
+    "masked_values": true,
+    "zen_values": true,
+    "demo_uses_synthetic_owner_values": false,
+    "invalid_mode_failsafe": "MASKED"
+  },
+  "navigation": {
+    "single_document": true,
+    "back_forward": true,
+    "stale_generation_commit": false
+  },
+  "network": {
+    "warm_route_requests": 0,
+    "warm_filter_requests": 0,
+    "warm_page_requests": 0,
+    "warm_detail_requests": 0,
+    "google_sheets_reads": 0
+  },
+  "authority": {
+    "canonical_financial_write": false,
+    "data_quality_repair": false,
+    "free_only": true
+  }
+}
