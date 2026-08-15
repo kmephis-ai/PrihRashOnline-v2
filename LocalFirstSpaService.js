@@ -12,6 +12,7 @@ var PRH_LOCAL_FIRST_SPA_PREVIEW = Object.freeze({
   VERSION: '1.0.0',
   SURFACE: 'local-first',
   FILE: 'LocalFirstSpaWebApp',
+  DATA_EXTENSION_FILE: 'LocalFirstDataSpaExtension',
   FINANCIAL_WRITE: false,
   CANONICAL_MUTATION: false,
   PRIVATE_PAYLOAD: false,
@@ -111,11 +112,11 @@ function prhLocalFirstSpaApplyHouseholdCopy_(html, params) {
     ['<article class="card"><h2>Расчёты</h2><p>Financial values разрешены только из canonical analytics Web Worker, связанного с exact generation/revision.</p><div class="state">FIN-LF-001</div></article>', '<article class="card"><h2>Расчёты</h2><p>Показатели формируются только по вашим проверенным операциям.</p><div class="state">Проверенные данные</div></article>'],
     ['<div class="truth"><strong>Граница истины:</strong> никаких демонстрационных сумм вместо ваших финансов. При отсутствии verified Local Read Model показывается состояние загрузки/ошибки, а не выдуманные данные.</div>', '<div class="truth"><strong>Важно:</strong> приложение не подменяет ваши данные демонстрационными суммами. Если данные ещё не готовы, будет показано состояние загрузки или понятное сообщение об ошибке.</div>'],
     ["home:Object.freeze({title:'Главная',summary:'Ключевые показатели и динамика из одной проверенной локальной ревизии.'})", "home:Object.freeze({title:'Главная',summary:'Ключевые показатели и динамика семейных финансов.'})"],
-    ["transactions:Object.freeze({title:'Операции',summary:'Local-first список операций подключается следующим этапом DATA-LF-001.'})", "transactions:Object.freeze({title:'Операции',summary:'Список операций будет доступен на следующем этапе развития.'})"],
+    ["transactions:Object.freeze({title:'Операции',summary:'Local-first список операций подключается следующим этапом DATA-LF-001.'})", "transactions:Object.freeze({title:'Операции',summary:'Список операций из вашей проверенной локальной копии с быстрыми фильтрами и просмотром деталей.'})"],
     ["expenses:Object.freeze({title:'Расходы',summary:'Расходы и структура по категориям считаются canonical Web Worker на общем FilterContext.'})", "expenses:Object.freeze({title:'Расходы',summary:'Расходы и их структура по категориям за выбранный период.'})"],
     ["income:Object.freeze({title:'Доходы',summary:'Доходы и структура по категориям считаются canonical Web Worker на той же локальной ревизии.'})", "income:Object.freeze({title:'Доходы',summary:'Доходы и их структура по категориям за выбранный период.'})"],
     ["'cash-flow':Object.freeze({title:'Денежный поток',summary:'Доходы, расходы и денежный поток по периодам — без server request на каждый переход.'})", "'cash-flow':Object.freeze({title:'Денежный поток',summary:'Доходы, расходы и итоговый денежный поток по периодам.'})"],
-    ["'data-quality':Object.freeze({title:'Качество данных',summary:'Local-first Data Quality подключается следующим этапом DATA-LF-001.'})", "'data-quality':Object.freeze({title:'Качество данных',summary:'Проверка полноты и качества данных будет доступна на следующем этапе развития.'})"],
+    ["'data-quality':Object.freeze({title:'Качество данных',summary:'Local-first Data Quality подключается следующим этапом DATA-LF-001.'})", "'data-quality':Object.freeze({title:'Качество данных',summary:'Проверка полноты и согласованности текущей локальной копии без автоматического изменения данных.'})"],
     ["function provenance(view){return '<div class=\"provenance\"><div>Источник расчёта: <strong>canonical Web Worker</strong></div><div>FIN-TRUTH: <strong>'+esc(view.provenance.financial_truth_policy)+'</strong></div><div>Ревизия: <code>'+esc(view.revision.slice(0,12))+'…</code></div><div>UI financial formulas: <strong>0</strong></div></div>'}", "function provenance(view){return '<div class=\"provenance\"><div>Источник: <strong>ваши проверенные операции</strong></div><div>Состояние: <strong>данные проверены</strong></div></div>'}"],
     ['Canonical Worker · общий фильтр', 'По выбранным фильтрам'],
     ["syncChip.textContent=state.sync_status==='READY'?'Local-first готов':state.sync_status==='DEGRADED'?'Локально · sync degraded':state.sync_status==='SYNCING'?'Фоновое обновление…':state.sync_status==='FAILED'?'Sync недоступен':'Local-first'", "syncChip.textContent=state.sync_status==='READY'?'Данные готовы':state.sync_status==='DEGRADED'?'Данные доступны · обновление отложено':state.sync_status==='SYNCING'?'Обновляем…':state.sync_status==='FAILED'?'Обновление недоступно':'Подготовка данных'"],
@@ -163,11 +164,23 @@ function prhLocalFirstSpaMigrateCacheNamespace_(html) {
   return source.replace(legacy, active);
 }
 
+function prhLocalFirstSpaInjectDataExtension_(html) {
+  var source = String(html || '');
+  var marker = '</body>';
+  if (source.split(marker).length - 1 !== 1) throw new Error('LF_SPA_DATA_EXTENSION_BODY_MARKER_INVALID');
+  var extension = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.DATA_EXTENSION_FILE).getContent();
+  if (!extension || extension.indexOf('data-prh-local-first-data-extension="1.0.0"') < 0) {
+    throw new Error('LF_SPA_DATA_EXTENSION_INVALID');
+  }
+  return source.replace(marker, extension + '\n' + marker);
+}
+
 function prhLocalFirstSpaRender_(params) {
   params = params || {};
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
   var html = prhLocalFirstSpaMigrateCacheNamespace_(source.getContent());
   html = prhLocalFirstSpaApplyHouseholdCopy_(html, params);
+  html = prhLocalFirstSpaInjectDataExtension_(html);
   var selfUrl = prhLocalFirstSpaSelfUrl_();
   if (selfUrl) {
     var rollbackHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=home');
@@ -195,6 +208,7 @@ function prhLocalFirstSpaSmokeToken() {
   var html = output && typeof output.getContent === 'function' ? output.getContent() : '';
   if (!html ||
       html.indexOf('data-prh-local-first-spa="1"') < 0 ||
+      html.indexOf('data-prh-local-first-data-extension="1.0.0"') < 0 ||
       html.indexOf('data-lf-server-responsive-guard="1"') < 0 ||
       html.indexOf('data-lf-server-bootstrap="1"') < 0 ||
       html.indexOf('history.replaceState') < 0 ||
@@ -219,5 +233,5 @@ function prhLocalFirstSpaSmokeToken() {
   if (/PUBLIC_SYNTHETIC|SYN-TX-/.test(html)) {
     throw new Error('LF_SPA_FIXTURE_PRESENT');
   }
-  return 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|OK';
+  return 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|DATA_LOCAL_READ_ONLY|OK';
 }
