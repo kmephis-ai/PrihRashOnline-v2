@@ -12,6 +12,7 @@
   var HEX64 = /^[0-9a-f]{64}$/;
   var DEFAULT_CHUNK_SIZE = 250;
   var DATA_STORES = ['transactions', 'dimensions', 'aggregates', 'sync_journal'];
+  var REMOTE_TECHNICAL_REASON_RE = /\b(?:LOCAL_FIRST|CANONICAL|RUNTIME_HEALTH|R2|WORKER)_[A-Z0-9_]{2,96}\b/;
 
   function fail(code, detail) {
     var error = new Error(detail ? code + ':' + detail : code);
@@ -24,6 +25,19 @@
     var colon = value.indexOf(':');
     if (colon >= 0) value = value.slice(0, colon);
     return /^[A-Z][A-Z0-9_]{2,79}$/.test(value) ? value : (fallback || 'LOCAL_FIRST_SYNC_FAILED');
+  }
+
+  function remoteTechnicalReason(error) {
+    var candidates = [
+      error && error.code,
+      error && error.message,
+      error == null ? '' : String(error)
+    ];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var match = String(candidates[i] || '').match(REMOTE_TECHNICAL_REASON_RE);
+      if (match) return match[0];
+    }
+    return 'LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED';
   }
 
   function validateHex64(value, code) {
@@ -100,11 +114,11 @@
           var chain;
           try {
             chain = runner.withSuccessHandler(resolve).withFailureHandler(function (error) {
-              reject(fail('LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED', boundedReason(error, 'REMOTE_CALL_FAILED')));
+              reject(fail(remoteTechnicalReason(error)));
             });
             chain.prhLocalFirstSyncBootstrap(request || {});
           } catch (error) {
-            reject(fail('LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED', boundedReason(error, 'REMOTE_CALL_FAILED')));
+            reject(fail(remoteTechnicalReason(error)));
           }
         });
       }
