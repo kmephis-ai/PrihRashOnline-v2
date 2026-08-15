@@ -47,25 +47,31 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED');
   }
 
-  // FIN-LF-001 owner-data proof. This executes the same canonical snapshot and
-  // Local-first transport projection used by browser cold bootstrap, but emits
-  // only a fixed scalar token. No amounts, categories, IDs, descriptions,
-  // counts or revisions are returned to CI.
-  if (typeof prhLocalFirstSyncHealthToken !== 'function') {
+  // FIN-LF-001 owner-data proof. Execute the exact FULL_BOOTSTRAP server path
+  // that the browser calls after an empty/wiped IndexedDB. The generated owner
+  // payload remains local to Apps Script execution and is never returned to CI.
+  // This proves canonical projection, exact nullable keys, dimension resolution,
+  // serialization and the configured payload-size bound on real owner data.
+  if (typeof prhLocalFirstSyncBootstrap !== 'function') {
     throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_MISSING');
   }
-  var localFirstSyncSmoke;
+  var localFirstBootstrap;
   try {
-    localFirstSyncSmoke = prhLocalFirstSyncHealthToken();
+    localFirstBootstrap = prhLocalFirstSyncBootstrap({ local_revision: '' });
   } catch (error) {
-    var localFirstCode = String(error && error.code || '').trim();
-    if (/^[A-Z][A-Z0-9_]{0,80}$/.test(localFirstCode)) {
-      throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_' + localFirstCode);
+    var localFirstRaw = String(error && (error.code || error.message) || '').trim();
+    var localFirstMatch = localFirstRaw.match(/\b(?:LOCAL_FIRST|CANONICAL|R2|WORKER)_[A-Z0-9_]{2,96}\b/);
+    if (localFirstMatch) {
+      throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_' + localFirstMatch[0]);
     }
     throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_UNCLASSIFIED_FAILURE');
   }
-  if (localFirstSyncSmoke !== 'PRH_LOCAL_FIRST_SYNC_HEALTH_V1|EXACT_WIRE|DIMENSIONS|OK') {
-    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_FAILED');
+  if (!localFirstBootstrap || localFirstBootstrap.state !== 'FULL_BOOTSTRAP' ||
+      localFirstBootstrap.schema !== 'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1' ||
+      localFirstBootstrap.financial_write_authorized !== false ||
+      localFirstBootstrap.canonical_mutation_performed !== false ||
+      !Number.isInteger(localFirstBootstrap.serialized_chars) || localFirstBootstrap.serialized_chars < 1) {
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID');
   }
 
   return {
