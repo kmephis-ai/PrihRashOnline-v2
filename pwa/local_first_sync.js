@@ -12,6 +12,16 @@
   var HEX64 = /^[0-9a-f]{64}$/;
   var DEFAULT_CHUNK_SIZE = 250;
   var DATA_STORES = ['transactions', 'dimensions', 'aggregates', 'sync_journal'];
+  var CANONICAL_TRANSACTION_KEYS = Object.freeze([
+    'schema', 'schema_version', 'transaction_id', 'occurred_at', 'type', 'status',
+    'amount_minor', 'currency', 'account_id', 'destination_account_id', 'category_id',
+    'member_id', 'project_id', 'tags', 'counterparty', 'description',
+    'reverses_transaction_id', 'adjustment_semantics', 'provenance'
+  ]);
+  var CANONICAL_PROVENANCE_KEYS = Object.freeze([
+    'source_system', 'source_container', 'source_record_id', 'source_fingerprint',
+    'identity_strategy', 'transform_version', 'source_position'
+  ]);
   var REMOTE_TECHNICAL_REASON_RE = /\b(?:LOCAL_FIRST|CANONICAL|RUNTIME_HEALTH|R2|WORKER)_[A-Z0-9_]{2,96}\b/;
 
   function fail(code, detail) {
@@ -44,6 +54,40 @@
     var normalized = String(value || '').trim().toLowerCase();
     if (!HEX64.test(normalized)) throw fail(code || 'LOCAL_FIRST_SYNC_REVISION_INVALID');
     return normalized;
+  }
+
+  function assertExactKeys(value, expected, code) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw fail(code);
+    var actual = Object.keys(value).sort();
+    var wanted = expected.slice().sort();
+    if (actual.length !== wanted.length) throw fail(code);
+    for (var i = 0; i < wanted.length; i += 1) {
+      if (actual[i] !== wanted[i]) throw fail(code);
+    }
+    return value;
+  }
+
+  function assertCanonicalTransactionShape(tx) {
+    assertExactKeys(tx, CANONICAL_TRANSACTION_KEYS, 'LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID');
+    assertExactKeys(tx.provenance, CANONICAL_PROVENANCE_KEYS, 'LOCAL_FIRST_SYNC_WIRE_PROVENANCE_SHAPE_INVALID');
+    if (!Object.prototype.hasOwnProperty.call(tx, 'destination_account_id')) {
+      throw fail('LOCAL_FIRST_SYNC_WIRE_DESTINATION_ACCOUNT_ID_MISSING');
+    }
+    return tx;
+  }
+
+  function parseWireEnvelope(value) {
+    if (typeof value !== 'string' || !value) throw fail('LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID');
+    var parsed;
+    try {
+      parsed = JSON.parse(value);
+    } catch (error) {
+      throw fail('LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID');
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw fail('LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID');
+    }
+    return parsed;
   }
 
   function normalizeCounts(value) {
@@ -86,6 +130,7 @@
       if (!Array.isArray(envelope[name])) throw fail('LOCAL_FIRST_SYNC_PAYLOAD_INVALID', name);
       payload[name] = envelope[name].slice();
     });
+    payload.transactions.forEach(assertCanonicalTransactionShape);
     var expectedCounts = normalizeCounts(envelope.expected_counts);
     DATA_STORES.forEach(function (name) {
       if (payload[name].length !== expectedCounts[name]) {
@@ -113,10 +158,16 @@
         return new Promise(function (resolve, reject) {
           var chain;
           try {
-            chain = runner.withSuccessHandler(resolve).withFailureHandler(function (error) {
+            chain = runner.withSuccessHandler(function (wire) {
+              try {
+                resolve(parseWireEnvelope(wire));
+              } catch (error) {
+                reject(error);
+              }
+            }).withFailureHandler(function (error) {
               reject(fail(remoteTechnicalReason(error)));
             });
-            chain.prhLocalFirstSyncBootstrap(request || {});
+            chain.prhLocalFirstSyncBootstrapWire(request || {});
           } catch (error) {
             reject(fail(remoteTechnicalReason(error)));
           }
@@ -296,6 +347,7 @@
     version: VERSION,
     responseSchema: RESPONSE_SCHEMA,
     defaultChunkSize: DEFAULT_CHUNK_SIZE,
+    parseWireEnvelope: parseWireEnvelope,
     validateRemoteEnvelope: validateRemoteEnvelope,
     createGoogleScriptTransport: createGoogleScriptTransport,
     createSyncCoordinator: createSyncCoordinator
