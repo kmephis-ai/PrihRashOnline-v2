@@ -42,7 +42,9 @@ const context = vm.createContext({
   prhR2DataRuntimeSmokeToken(){dataRuntimeSmokeCalls+=1;return 'PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK';},
   prhLocalFirstSyncBootstrap(request){
     localFirstBootstrapCalls+=1;
-    assert.deepStrictEqual(request,{local_revision:''});
+    assert(request && typeof request === 'object');
+    assert.strictEqual(Object.keys(request).length,1);
+    assert.strictEqual(request.local_revision,'');
     return {
       schema:'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1',
       version:'1.0.0',
