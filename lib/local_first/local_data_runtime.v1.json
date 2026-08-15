@@ -7,6 +7,7 @@
     "schema": "PRH_LOCAL_READ_MODEL_V1",
     "storage_namespace": "prihrash-local-first-v3",
     "required_state": "ACTIVE_VERIFIED",
+    "browser_snapshot_status": "READY",
     "same_snapshot_as_finance": true
   },
   "transactions": {
@@ -14,7 +15,7 @@
     "page_size": 20,
     "sort": ["occurred_at_desc", "transaction_id_desc"],
     "filters": ["start", "end_exclusive", "category_id", "account_id", "member_id"],
-    "detail": "local_exact_transaction_id",
+    "detail": "local_exact_transaction_id_within_current_filter",
     "history_query_keys": ["tx_page", "tx_start", "tx_end", "tx_category", "tx_account", "tx_member", "tx_detail"],
     "history_financial_payload_forbidden": true
   },
@@ -22,11 +23,12 @@
     "read_only": true,
     "canonical_write": false,
     "autofix": false,
+    "semantics": "LOCAL_PROJECTION_AND_REFERENTIAL_SIGNALS_ONLY",
     "checks": [
-      "MISSING_CATEGORY",
-      "TRANSFER_DESTINATION_MISSING",
-      "TRANSFER_SAME_ACCOUNT",
-      "DUPLICATE_SOURCE_IDENTITY"
+      "CATEGORY_DIMENSION_MISSING",
+      "ACCOUNT_DIMENSION_MISSING",
+      "MEMBER_DIMENSION_MISSING",
+      "DUPLICATE_SOURCE_FINGERPRINT"
     ]
   },
   "privacy": {
