@@ -18,6 +18,13 @@ var PRH_LOCAL_FIRST_SPA_PREVIEW = Object.freeze({
   FREE_ONLY: true
 });
 
+var PRH_LOCAL_FIRST_CACHE_NAMESPACE = Object.freeze({
+  SCHEMA: 'PRH_LOCAL_FIRST_CACHE_NAMESPACE_V1',
+  VERSION: '2',
+  LEGACY_BOOT_TOKEN: "name:'prihrash-local-first-v1'",
+  ACTIVE_BOOT_TOKEN: "name:'prihrash-local-first-v2'"
+});
+
 function prhLocalFirstSpaSelfUrl_() {
   try {
     if (typeof ScriptApp !== 'undefined' && ScriptApp && typeof ScriptApp.getService === 'function') {
@@ -86,9 +93,28 @@ function prhLocalFirstSpaResponsiveGuard_() {
     '</style>';
 }
 
+/**
+ * IndexedDB contains only a derived Local Read Model, never canonical financial
+ * write authority. FIN-LF-001 tightened the canonical transaction wire shape
+ * (nullable fields must physically survive JSON/IndexedDB transport), while the
+ * financial revision can legitimately remain unchanged. Reusing a pre-contract
+ * cache would therefore make an old structurally-incompatible generation look
+ * current. A cache namespace bump is the bounded migration mechanism: the old
+ * database is left untouched, the new namespace cold-bootstraps from canonical
+ * source, and no owner data is fabricated or mutated.
+ */
+function prhLocalFirstSpaMigrateCacheNamespace_(html) {
+  var source = String(html || '');
+  var legacy = PRH_LOCAL_FIRST_CACHE_NAMESPACE.LEGACY_BOOT_TOKEN;
+  var active = PRH_LOCAL_FIRST_CACHE_NAMESPACE.ACTIVE_BOOT_TOKEN;
+  if (source.indexOf(active) >= 0) return source;
+  if (source.indexOf(legacy) < 0) throw new Error('LF_SPA_CACHE_NAMESPACE_MARKER_MISSING');
+  return source.replace(legacy, active);
+}
+
 function prhLocalFirstSpaRender_(params) {
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
-  var html = source.getContent();
+  var html = prhLocalFirstSpaMigrateCacheNamespace_(source.getContent());
   var selfUrl = prhLocalFirstSpaSelfUrl_();
   if (selfUrl) {
     var rollbackHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=home');
@@ -122,7 +148,9 @@ function prhLocalFirstSpaSmokeToken() {
       html.indexOf('history.pushState') < 0 ||
       html.indexOf('popstate') < 0 ||
       html.indexOf('data-lf-rollback="canonical-r2"') < 0 ||
-      html.indexOf('window.__PRH_LF_SPA_RUNTIME__') < 0) {
+      html.indexOf('window.__PRH_LF_SPA_RUNTIME__') < 0 ||
+      html.indexOf(PRH_LOCAL_FIRST_CACHE_NAMESPACE.ACTIVE_BOOT_TOKEN) < 0 ||
+      html.indexOf(PRH_LOCAL_FIRST_CACHE_NAMESPACE.LEGACY_BOOT_TOKEN) >= 0) {
     throw new Error('LF_SPA_RENDER_SMOKE_FAILED');
   }
 
