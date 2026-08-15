@@ -150,7 +150,11 @@ assert.doesNotMatch(html, /google\.script\.run|\bfetch\s*\(|XMLHttpRequest\s*\(/
 assert.doesNotMatch(dataExtensionHtml, /google\.script\.run|\bfetch\s*\(|XMLHttpRequest\s*\(/);
 assert.doesNotMatch(serviceSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
 assert.doesNotMatch(routerSource, /LOCAL_FIRST_SURFACE[\s\S]{0,300}(setValue|setValues|appendRow)\s*\(/);
-assert.doesNotMatch(previewHtml, /value_minor|amount_minor|balance_minor|SYN-TX-|PUBLIC_SYNTHETIC/);
+// Data extension source legitimately contains canonical field identifiers such
+// as amount_minor. The server privacy boundary is about embedded owner payload,
+// not code symbols, so only concrete synthetic/private payload markers are
+// forbidden in a source-only preview.
+assert.doesNotMatch(previewHtml, /SYN-TX-|PUBLIC_SYNTHETIC|Synthetic DATA-LF operation|Synthetic counterparty/);
 
 console.log('local_first_spa_runtime_contract_test: OK', {
   routes:contract.routes.length,
