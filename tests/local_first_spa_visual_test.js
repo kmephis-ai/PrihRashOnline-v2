@@ -4,11 +4,34 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const vm = require('vm');
 const { pathToFileURL } = require('url');
 const { chromium } = require('playwright');
 
 const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
+const sourceHtml = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
+const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
+function htmlOutput(content) {
+  return {
+    title:'', meta:[],
+    setTitle(value){ this.title=String(value); return this; },
+    addMetaTag(name,value){ this.meta.push([name,value]); return this; },
+    getContent(){ return String(content); }
+  };
+}
+const serviceContext = vm.createContext({
+  console, Object, Array, String, Number, Math, Date, RegExp, Error, JSON, encodeURIComponent,
+  HtmlService:{
+    createHtmlOutputFromFile(name){
+      assert.strictEqual(name,'LocalFirstSpaWebApp');
+      return htmlOutput(sourceHtml);
+    },
+    createHtmlOutput(content){ return htmlOutput(content); }
+  }
+});
+vm.runInContext(serviceSource, serviceContext, { filename:'LocalFirstSpaService.js' });
+const html = serviceContext.prhLocalFirstSpaRender_({ lf_route:'home', privacy:'MASKED', lf_diag:'1' }).getContent();
+assert(html.includes('data-lf-server-responsive-guard="1"'),'server-rendered responsive guard missing');
 const artifactDir = path.join(root, 'artifacts');
 fs.mkdirSync(artifactDir, { recursive:true });
 const tempFile = path.join(os.tmpdir(), `prh-local-first-spa-${process.pid}.html`);
@@ -80,9 +103,9 @@ function p95(values) {
         assert.strictEqual(loadCount, 1, `${viewport.name} Forward must not reload document`);
         assert.deepStrictEqual(warmRequests, [], `${viewport.name} Back/Forward emitted requests`);
 
-        // Source preview intentionally has no injected finance runtime/Worker. It
-        // must never manufacture a Product P95 from shell-only navigation, and
-        // the owner-facing control must expose the exact fail-closed reason.
+        // Server-rendered source preview intentionally has no injected finance
+        // runtime/Worker. It must never manufacture a Product P95, and a long
+        // machine-readable fail-closed reason must remain responsive on mobile.
         await page.click('#lf-diag-run');
         await page.waitForFunction(() => document.getElementById('lf-diag-result')?.dataset.status === 'FAIL', null, { timeout:5000 });
         const previewDiagnostic = await page.evaluate(() => {
@@ -157,6 +180,7 @@ function p95(values) {
           financeDiagnosticReason:previewDiagnostic.reason,
           financeDiagnosticP95Published:false,
           diagnosticButtonReusableAfterFailure:true,
+          serverResponsiveGuard:true,
           bootCount:layout.runtime.bootCount,
           routeRenderCount:layout.runtime.routeRenderCount,
           privacyMode:'MASKED',
@@ -177,6 +201,7 @@ function p95(values) {
       financeDiagnosticRequiresInjectedRuntime:true,
       sourcePreviewFinanceP95Blocked:true,
       diagnosticFailureReasonVisible:true,
+      serverResponsiveGuard:true,
       evidence
     }, null, 2));
     console.log('local_first_spa_visual_test: OK', {
@@ -186,6 +211,7 @@ function p95(values) {
       singleDocument:true,
       sourcePreviewFinanceP95Blocked:true,
       diagnosticFailureReasonVisible:true,
+      serverResponsiveGuard:true,
       maxSyntheticShellWarmRouteP95Ms:Math.max(...evidence.map((item)=>item.shellWarmRouteP95Ms))
     });
   } finally {
