@@ -288,3 +288,36 @@ function prhLocalFirstSyncBootstrap(request) {
   response.serialized_chars = serializedChars;
   return Object.freeze(response);
 }
+
+/**
+ * google.script.run is deliberately crossed with a scalar JSON string rather
+ * than a nested Apps Script object. This makes nullable canonical fields part of
+ * the actual wire bytes (for example `"destination_account_id":null`) instead
+ * of relying on bridge-specific object normalization. Browser code parses the
+ * string and validates the exact canonical transaction shape before IndexedDB.
+ */
+function prhLocalFirstSyncBootstrapWire(request) {
+  var envelope = prhLocalFirstSyncBootstrap(request);
+  var wire;
+  var decoded;
+  try {
+    wire = JSON.stringify(envelope);
+    decoded = JSON.parse(wire);
+  } catch (error) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_WIRE_SERIALIZATION_INVALID');
+  }
+  if (!wire || !decoded || typeof decoded !== 'object' || Array.isArray(decoded)) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_WIRE_SERIALIZATION_INVALID');
+  }
+  if (decoded.state === 'FULL_BOOTSTRAP') {
+    if (!Array.isArray(decoded.transactions)) prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_WIRE_TRANSACTIONS_INVALID');
+    decoded.transactions.forEach(function(tx) {
+      prhLocalFirstSyncAssertExactKeys_(tx, PRH_LOCAL_FIRST_SYNC_CANONICAL_KEYS, 'LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID');
+      prhLocalFirstSyncAssertExactKeys_(tx.provenance, PRH_LOCAL_FIRST_SYNC_PROVENANCE_KEYS, 'LOCAL_FIRST_SYNC_WIRE_PROVENANCE_SHAPE_INVALID');
+      if (!Object.prototype.hasOwnProperty.call(tx, 'destination_account_id')) {
+        prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_WIRE_DESTINATION_ACCOUNT_ID_MISSING');
+      }
+    });
+  }
+  return wire;
+}
