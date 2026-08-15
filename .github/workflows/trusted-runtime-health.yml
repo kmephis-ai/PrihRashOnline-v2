@@ -34,17 +34,6 @@ jobs:
           path: trusted
           persist-credentials: false
 
-      - name: Set up trusted Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: trusted/package-lock.json
-
-      - name: Install trusted locked tooling
-        working-directory: trusted
-        run: npm ci --ignore-scripts --no-audit --no-fund
-
       - name: Resolve immutable deployed candidate evidence
         id: candidate
         env:
@@ -61,12 +50,49 @@ jobs:
           gh run download "${DEPLOY_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --dir "${RUNNER_TEMP}/deploy-evidence"
           EVIDENCE_FILE="$(find "${RUNNER_TEMP}/deploy-evidence" -type f -name evidence.json -print -quit)"
           [[ -n "${EVIDENCE_FILE}" ]] || { echo '::error::Trusted deploy evidence.json not found.'; exit 1; }
-          CANDIDATE_SHA="$(jq -r '.candidateSha' "${EVIDENCE_FILE}")"
-          SOURCE_RUN_ID="$(jq -r '.sourceRunId' "${EVIDENCE_FILE}")"
-          DEPLOY_ARTIFACT_HASH="$(jq -r '.artifactHash' "${EVIDENCE_FILE}")"
+
+          CANDIDATE_SHA="$(jq -r '.candidateSha // empty' "${EVIDENCE_FILE}")"
+          SOURCE_RUN_ID="$(jq -r '.sourceRunId // empty' "${EVIDENCE_FILE}")"
+          DEPLOYMENT_MODE="$(jq -r '.deploymentMode // empty' "${EVIDENCE_FILE}")"
+          EVIDENCE_STATUS="$(jq -r '.status // empty' "${EVIDENCE_FILE}")"
+          REASON_CODE="$(jq -r '.reasonCode // empty' "${EVIDENCE_FILE}")"
           [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::Invalid candidate SHA in trusted deploy evidence.'; exit 1; }
-          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
           [[ "${SOURCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo '::error::Invalid source validation run ID.'; exit 1; }
+
+          if [[ -z "${DEPLOYMENT_MODE}" ]]; then
+            if [[ "${EVIDENCE_STATUS}" == 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' ]]; then
+              DEPLOYMENT_MODE='ROADMAP_EXACT_CANDIDATE'
+            else
+              echo '::error::Trusted deploy evidence has no recognized deployment mode.'
+              exit 1
+            fi
+          fi
+
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "source_run_id=${SOURCE_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "deployment_mode=${DEPLOYMENT_MODE}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            [[ "${EVIDENCE_STATUS}" == 'NOT_APPLICABLE_NON_ROADMAP' && "${REASON_CODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]] || {
+              echo '::error::Non-Roadmap deploy evidence is inconsistent.'
+              exit 1
+            }
+            echo 'deployment_reason=NOT_APPLICABLE_NON_ROADMAP' >> "$GITHUB_OUTPUT"
+            echo 'source_tree_hash=' >> "$GITHUB_OUTPUT"
+            echo 'artifact_hash=' >> "$GITHUB_OUTPUT"
+            echo 'Trusted Runtime Health: N/A because trusted deploy made no runtime mutation.'
+            exit 0
+          fi
+
+          [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' ]] || {
+            echo '::error::Unknown trusted deployment mode.'
+            exit 1
+          }
+          [[ "${EVIDENCE_STATUS}" == 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' ]] || {
+            echo '::error::Roadmap deploy evidence status is invalid.'
+            exit 1
+          }
+          DEPLOY_ARTIFACT_HASH="$(jq -r '.artifactHash // empty' "${EVIDENCE_FILE}")"
           [[ "${DEPLOY_ARTIFACT_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid artifact hash in trusted deploy evidence.'; exit 1; }
           gh run download "${SOURCE_RUN_ID}" \
             --repo "${GITHUB_REPOSITORY}" \
@@ -78,11 +104,25 @@ jobs:
           ARTIFACT_HASH="$(jq -r '.artifactHash' "${MANIFEST}")"
           [[ "${SOURCE_TREE_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid source tree hash.'; exit 1; }
           [[ "${ARTIFACT_HASH}" == "${DEPLOY_ARTIFACT_HASH}" ]] || { echo '::error::Deploy evidence artifact hash differs from validated candidate.'; exit 1; }
-          echo "source_run_id=${SOURCE_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo 'deployment_reason=OK' >> "$GITHUB_OUTPUT"
           echo "source_tree_hash=${SOURCE_TREE_HASH}" >> "$GITHUB_OUTPUT"
           echo "artifact_hash=${ARTIFACT_HASH}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up trusted Node.js
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: trusted/package-lock.json
+
+      - name: Install trusted locked tooling
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
+        working-directory: trusted
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Configure authenticated Apps Script execution
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
           APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
@@ -97,6 +137,7 @@ jobs:
 
       - name: Run authenticated exact-build health
         id: probe
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
         env:
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
           SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
@@ -170,6 +211,7 @@ jobs:
       - name: Record privacy-safe runtime evidence
         if: always()
         env:
+          DEPLOYMENT_MODE: ${{ steps.candidate.outputs.deployment_mode }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
           SOURCE_RUN_ID: ${{ steps.candidate.outputs.source_run_id }}
           SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
@@ -181,19 +223,35 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p trusted-runtime-health-evidence
-          STATUS='FAILED'
-          [[ "${PROBE_RESULT}" == 'PASS' ]] && STATUS='DEV_VERIFIED'
-          jq -n \
-            --arg candidateSha "${CANDIDATE_SHA}" \
-            --arg sourceTreeHash "${SOURCE_TREE_HASH}" \
-            --arg artifactHash "${ARTIFACT_HASH}" \
-            --arg sourceRunId "${SOURCE_RUN_ID}" \
-            --arg deployRunId "${DEPLOY_RUN_ID}" \
-            --arg status "${STATUS}" \
-            --arg reasonCode "${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}" \
-            --argjson latencyMs "${LATENCY_MS:-0}" \
-            '{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash,artifactHash:$artifactHash,sourceRunId:$sourceRunId,deployRunId:$deployRunId,status:$status,reasonCode:$reasonCode,latencyMs:$latencyMs,notProductE2e:true}' \
-            > trusted-runtime-health-evidence/evidence.json
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            jq -n \
+              --arg candidateSha "${CANDIDATE_SHA}" \
+              --arg sourceRunId "${SOURCE_RUN_ID}" \
+              --arg deployRunId "${DEPLOY_RUN_ID}" \
+              --arg deploymentMode 'NOT_APPLICABLE_NON_ROADMAP' \
+              --arg status 'NOT_APPLICABLE_NON_ROADMAP' \
+              --arg reasonCode 'NOT_APPLICABLE_NON_ROADMAP' \
+              '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,deployRunId:$deployRunId,deploymentMode:$deploymentMode,status:$status,reasonCode:$reasonCode,latencyMs:0,notProductE2e:true}' \
+              > trusted-runtime-health-evidence/evidence.json
+          elif [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            STATUS='FAILED'
+            [[ "${PROBE_RESULT}" == 'PASS' ]] && STATUS='DEV_VERIFIED'
+            jq -n \
+              --arg candidateSha "${CANDIDATE_SHA}" \
+              --arg sourceTreeHash "${SOURCE_TREE_HASH}" \
+              --arg artifactHash "${ARTIFACT_HASH}" \
+              --arg sourceRunId "${SOURCE_RUN_ID}" \
+              --arg deployRunId "${DEPLOY_RUN_ID}" \
+              --arg deploymentMode 'ROADMAP_EXACT_CANDIDATE' \
+              --arg status "${STATUS}" \
+              --arg reasonCode "${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}" \
+              --argjson latencyMs "${LATENCY_MS:-0}" \
+              '{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash,artifactHash:$artifactHash,sourceRunId:$sourceRunId,deployRunId:$deployRunId,deploymentMode:$deploymentMode,status:$status,reasonCode:$reasonCode,latencyMs:$latencyMs,notProductE2e:true}' \
+              > trusted-runtime-health-evidence/evidence.json
+          else
+            echo '::error::Cannot record runtime evidence for unknown deployment mode.'
+            exit 1
+          fi
 
       - name: Upload trusted runtime health evidence
         if: always()
@@ -209,6 +267,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          DEPLOYMENT_MODE: ${{ steps.candidate.outputs.deployment_mode }}
           PROBE_RESULT: ${{ steps.probe.outputs.result }}
           REASON_CODE: ${{ steps.probe.outputs.reason }}
         shell: bash
@@ -217,10 +276,17 @@ jobs:
           STATE='failure'
           REASON="${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
           DESCRIPTION="CI-002 ${REASON}"
-          if [[ "${PROBE_RESULT}" == 'PASS' ]]; then
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            STATE='success'
+            REASON='NOT_APPLICABLE_NON_ROADMAP'
+            DESCRIPTION='CI-002 NOT_APPLICABLE_NON_ROADMAP'
+          elif [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' && "${PROBE_RESULT}" == 'PASS' ]]; then
             STATE='success'
             REASON='OK'
             DESCRIPTION='CI-002 DEV_VERIFIED'
+          elif [[ "${DEPLOYMENT_MODE}" != 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            REASON='DEPLOYMENT_MODE_INVALID'
+            DESCRIPTION='CI-002 DEPLOYMENT_MODE_INVALID'
           fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
             -f state="${STATE}" \
@@ -233,7 +299,7 @@ jobs:
 
       - name: Resolve autonomous roadmap merge eligibility
         id: autonomy
-        if: steps.probe.outputs.result == 'PASS'
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE' && steps.probe.outputs.result == 'PASS'
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
@@ -473,6 +539,7 @@ jobs:
       - name: Enforce authenticated runtime health and autonomous merge
         if: always()
         env:
+          DEPLOYMENT_MODE: ${{ steps.candidate.outputs.deployment_mode }}
           PROBE_RESULT: ${{ steps.probe.outputs.result }}
           REASON_CODE: ${{ steps.probe.outputs.reason }}
           AUTONOMY_ELIGIBLE: ${{ steps.autonomy.outputs.eligible }}
@@ -485,6 +552,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            echo 'trusted-runtime-health: PASS (NOT_APPLICABLE_NON_ROADMAP; no runtime mutation/probe)'
+            echo 'CI-003 autonomous merge: SKIP non-roadmap PR'
+            exit 0
+          fi
+          if [[ "${DEPLOYMENT_MODE}" != 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            echo '::error::trusted-runtime-health failed closed: DEPLOYMENT_MODE_INVALID'
+            exit 1
+          fi
           if [[ "${PROBE_RESULT}" != 'PASS' ]]; then
             echo "::error::trusted-runtime-health failed closed: ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
             exit 1
