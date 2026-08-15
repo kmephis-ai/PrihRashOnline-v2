@@ -253,6 +253,12 @@
       }
       if (!current || current.generation_id !== generationId || current.revision !== revision) {
         worker.postMessage({ type: 'SET_REVISION', generation_id: generationId, revision: revision });
+        worker.postMessage({
+          type: 'BIND_DATASET',
+          generation_id: generationId,
+          revision: revision,
+          transactions: snapshot.transactions
+        });
         current = Object.freeze({ generation_id: generationId, revision: revision });
       }
       return current;
@@ -270,7 +276,6 @@
           request_id: requestId,
           generation_id: snapshot.generation_id,
           revision: snapshot.revision,
-          transactions: snapshot.transactions,
           query: querySpec
         });
       });
