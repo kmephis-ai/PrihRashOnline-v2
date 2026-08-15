@@ -81,7 +81,8 @@ function p95(values) {
         assert.deepStrictEqual(warmRequests, [], `${viewport.name} Back/Forward emitted requests`);
 
         // Source preview intentionally has no injected finance runtime/Worker. It
-        // must never manufacture a Product P95 from shell-only navigation.
+        // must never manufacture a Product P95 from shell-only navigation, and
+        // the owner-facing control must expose the exact fail-closed reason.
         await page.click('#lf-diag-run');
         await page.waitForFunction(() => document.getElementById('lf-diag-result')?.dataset.status === 'FAIL', null, { timeout:5000 });
         const previewDiagnostic = await page.evaluate(() => {
@@ -89,16 +90,20 @@ function p95(values) {
           const output=document.getElementById('lf-diag-result');
           return {
             status:output.dataset.status,
+            reason:output.dataset.reason || null,
             p95Ms:output.dataset.p95Ms || null,
             text:output.textContent.trim(),
+            disabled:document.getElementById('lf-diag-run').disabled,
             lastDiagnostic:state.lastDiagnostic || null,
             activeRoute:state.activeRoute
           };
         });
         assert.strictEqual(previewDiagnostic.status,'FAIL');
+        assert.strictEqual(previewDiagnostic.reason,'LOCAL_FINANCE_DIAGNOSTIC_RUNTIME_NOT_READY');
         assert.strictEqual(previewDiagnostic.p95Ms,null,`${viewport.name} source preview must not publish finance P95`);
         assert.strictEqual(previewDiagnostic.lastDiagnostic,null,`${viewport.name} source preview must not publish finance diagnostic evidence`);
-        assert.strictEqual(previewDiagnostic.text,'Измерение не выполнено');
+        assert.strictEqual(previewDiagnostic.text,'Измерение недоступно: LOCAL_FINANCE_DIAGNOSTIC_RUNTIME_NOT_READY');
+        assert.strictEqual(previewDiagnostic.disabled,false,`${viewport.name} diagnostic button must be reusable after fail-closed result`);
         assert.strictEqual(previewDiagnostic.activeRoute,'data-quality',`${viewport.name} rejected diagnostic must preserve route`);
         assert.strictEqual(loadCount,1,`${viewport.name} rejected diagnostic must stay in one document`);
         assert.deepStrictEqual(warmRequests,[],`${viewport.name} rejected diagnostic emitted requests`);
@@ -149,7 +154,9 @@ function p95(values) {
           shellWarmRouteSampleCount:durations.length,
           shellWarmRouteP95Ms:Number(routeP95.toFixed(3)),
           financeDiagnosticInSourcePreview:'BLOCKED_NO_RUNTIME',
+          financeDiagnosticReason:previewDiagnostic.reason,
           financeDiagnosticP95Published:false,
+          diagnosticButtonReusableAfterFailure:true,
           bootCount:layout.runtime.bootCount,
           routeRenderCount:layout.runtime.routeRenderCount,
           privacyMode:'MASKED',
@@ -169,6 +176,7 @@ function p95(values) {
       singleDocument:true,
       financeDiagnosticRequiresInjectedRuntime:true,
       sourcePreviewFinanceP95Blocked:true,
+      diagnosticFailureReasonVisible:true,
       evidence
     }, null, 2));
     console.log('local_first_spa_visual_test: OK', {
@@ -177,6 +185,7 @@ function p95(values) {
       zeroWarmNetwork:true,
       singleDocument:true,
       sourcePreviewFinanceP95Blocked:true,
+      diagnosticFailureReasonVisible:true,
       maxSyntheticShellWarmRouteP95Ms:Math.max(...evidence.map((item)=>item.shellWarmRouteP95Ms))
     });
   } finally {
