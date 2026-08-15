@@ -271,16 +271,6 @@
     var cacheDatabaseName = String(options.cacheDatabaseName || STARTUP_VIEW_CACHE_DB);
     var cacheDbPromise = null;
 
-    async function canonicalDatabaseExists() {
-      if (!indexedDB || typeof indexedDB.databases !== 'function') return false;
-      try {
-        var databases = await indexedDB.databases();
-        return databases.some(function (entry) { return entry && entry.name === canonicalDatabaseName; });
-      } catch (error) {
-        return false;
-      }
-    }
-
     function openExistingCanonicalDatabase() {
       return new Promise(function (resolve, reject) {
         var request = indexedDB.open(canonicalDatabaseName);
@@ -299,8 +289,13 @@
     }
 
     async function readActiveMetadata() {
-      if (!indexedDB || !(await canonicalDatabaseExists())) return null;
-      var db = await openExistingCanonicalDatabase();
+      if (!indexedDB) return null;
+      var db;
+      try {
+        db = await openExistingCanonicalDatabase();
+      } catch (error) {
+        return null;
+      }
       try {
         if (!db.objectStoreNames.contains(LOCAL_META_STORE)) return null;
         var tx = db.transaction([LOCAL_META_STORE], 'readonly');
