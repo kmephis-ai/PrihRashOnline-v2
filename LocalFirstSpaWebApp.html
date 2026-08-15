@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>PrihRashOnline — Local-first</title>
+  <script data-lf-history-scroll-restoration="manual">
+  (function(){
+    'use strict';
+    if('scrollRestoration' in history)history.scrollRestoration='manual';
+  })();
+  </script>
   <style>
     :root{--bg:#f3f6fb;--surface:#fff;--surface-2:#f8fafc;--text:#142238;--muted:#62738a;--line:#dce5ef;--brand:#0b6570;--brand2:#148995;--ok:#13795b;--warn:#9a6700;--bad:#b42318;--shadow:0 16px 40px rgba(20,34,56,.08);--radius:18px;color-scheme:light}
     @media(prefers-color-scheme:dark){:root{--bg:#0c1422;--surface:#111d2f;--surface-2:#17253a;--text:#f3f7fc;--muted:#a8b8cc;--line:#31435a;--brand:#3fc4c3;--brand2:#62d6d4;--ok:#70d5b4;--warn:#f7c75f;--bad:#ff8a80;--shadow:none;color-scheme:dark}}
@@ -62,7 +68,7 @@
   });
   const FINANCE_ROUTES=Object.freeze(['home','expenses','income','cash-flow']);
   const ALLOWED_PRIVACY=Object.freeze(['NORMAL','MASKED','DEMO','ZEN']);
-  const runtime=window.__PRH_LF_SPA_RUNTIME__||(window.__PRH_LF_SPA_RUNTIME__={schema:'PRH_LOCAL_FIRST_SPA_RUNTIME_V1',version:'1.0.0',bootCount:0,routeRenderCount:0,rendererLifecycle:'APP_SINGLETON',documentLifecycle:'SINGLE',mandatoryNetworkCalls:0,googleSheetsReads:0,backgroundSyncCalls:0});
+  const runtime=window.__PRH_LF_SPA_RUNTIME__||(window.__PRH_LF_SPA_RUNTIME__={schema:'PRH_LOCAL_FIRST_SPA_RUNTIME_V1',version:'1.0.0',bootCount:0,routeRenderCount:0,rendererLifecycle:'APP_SINGLETON',documentLifecycle:'SINGLE',mandatoryNetworkCalls:0,googleSheetsReads:0,backgroundSyncCalls:0,financeWarmReady:false});
   runtime.bootCount+=1;
   if(runtime.bootCount!==1)throw new Error('LF_SPA_RUNTIME_DUPLICATE_BOOT');
 
@@ -102,7 +108,7 @@
   filterApply.addEventListener('click',function(){if(!finance)return;finance.setFilterContext({currency:currencyInput.value,start:startInput.value,end:endInput.value,account_id:null,category_id:categoryInput.value||null,member_id:null,project_id:null}).catch(function(){})});
   syncRefresh.addEventListener('click',function(){if(!finance)return;runtime.backgroundSyncCalls+=1;finance.backgroundSync().catch(function(){})});
 
-  async function bootFinance(){const ready=window.PrhLocalReadModelStore&&window.PrhLocalFirstSync&&window.PrhLocalFirstDelta&&window.PrhLocalFinanceRuntime&&window.__PRH_LF_WORKER_BUNDLE_SOURCE__;if(!ready){syncBanner.textContent='Source preview: browser runtime отсутствует до trusted candidate packaging.';return}try{const store=PrhLocalReadModelStore.createStore({indexedDB:indexedDB,IDBKeyRange:IDBKeyRange,name:'prihrash-local-first-v1'});let fullSync=null,deltaSync=null;try{const fullTransport=PrhLocalFirstSync.createGoogleScriptTransport();fullSync=PrhLocalFirstSync.createSyncCoordinator({store:store,transport:fullTransport});const deltaTransport=PrhLocalFirstDelta.createGoogleScriptDeltaTransport();deltaSync=PrhLocalFirstDelta.createDeltaCoordinator({store:store,transport:deltaTransport,fullSyncCoordinator:fullSync})}catch(error){runtime.transportUnavailableReason=String(error&&error.code||'BACKGROUND_TRANSPORT_UNAVAILABLE')}const workerClient=PrhLocalFinanceRuntime.createWorkerClient({bundleSource:window.__PRH_LF_WORKER_BUNDLE_SOURCE__});finance=PrhLocalFinanceRuntime.createRuntime({store:store,workerClient:workerClient,fullSyncCoordinator:fullSync,deltaCoordinator:deltaSync,onState:renderFinanceState});window.__PRH_LF_FINANCE_RUNTIME__=finance;toolbar.hidden=FINANCE_ROUTES.indexOf(routeFromUrl())<0;financeContent.hidden=toolbar.hidden;previewGrid.hidden=!toolbar.hidden;await finance.start(routeFromUrl());render(routeFromUrl(),false)}catch(error){syncChip.dataset.state='FAILED';syncChip.textContent='Local-first недоступен';syncBanner.dataset.state='FAILED';syncBanner.textContent='Local-first runtime не запущен: '+String(error&&error.code||'RUNTIME_BOOT_FAILED')}}
+  async function bootFinance(){const ready=window.PrhLocalReadModelStore&&window.PrhLocalFirstSync&&window.PrhLocalFirstDelta&&window.PrhLocalFinanceRuntime&&window.__PRH_LF_WORKER_BUNDLE_SOURCE__;if(!ready){syncBanner.textContent='Source preview: browser runtime отсутствует до trusted candidate packaging.';return}try{const store=PrhLocalReadModelStore.createStore({indexedDB:indexedDB,IDBKeyRange:IDBKeyRange,name:'prihrash-local-first-v1'});let fullSync=null,deltaSync=null;try{const fullTransport=PrhLocalFirstSync.createGoogleScriptTransport();fullSync=PrhLocalFirstSync.createSyncCoordinator({store:store,transport:fullTransport});const deltaTransport=PrhLocalFirstDelta.createGoogleScriptDeltaTransport();deltaSync=PrhLocalFirstDelta.createDeltaCoordinator({store:store,transport:deltaTransport,fullSyncCoordinator:fullSync})}catch(error){runtime.transportUnavailableReason=String(error&&error.code||'BACKGROUND_TRANSPORT_UNAVAILABLE')}const workerClient=PrhLocalFinanceRuntime.createWorkerClient({bundleSource:window.__PRH_LF_WORKER_BUNDLE_SOURCE__});finance=PrhLocalFinanceRuntime.createRuntime({store:store,workerClient:workerClient,fullSyncCoordinator:fullSync,deltaCoordinator:deltaSync,onState:renderFinanceState});window.__PRH_LF_FINANCE_RUNTIME__=finance;toolbar.hidden=FINANCE_ROUTES.indexOf(routeFromUrl())<0;financeContent.hidden=toolbar.hidden;previewGrid.hidden=!toolbar.hidden;await finance.start(routeFromUrl());render(routeFromUrl(),false);await lastFinanceRender;runtime.financeWarmReady=true}catch(error){syncChip.dataset.state='FAILED';syncChip.textContent='Local-first недоступен';syncBanner.dataset.state='FAILED';syncBanner.textContent='Local-first runtime не запущен: '+String(error&&error.code||'RUNTIME_BOOT_FAILED')}}
 
   const boot=window.__PRH_LF_SERVER_BOOT__;const initial=boot&&Object.prototype.hasOwnProperty.call(ROUTES,boot.route)?boot.route:routeFromUrl();render(initial,false);window.__PRH_LF_SPA_TEST__=Object.freeze({navigate:navigate,render:render,getState:function(){return Object.freeze(Object.assign({},runtime))},runDiagnostic:runRouteDiagnostic});Promise.resolve().then(bootFinance);
 })();

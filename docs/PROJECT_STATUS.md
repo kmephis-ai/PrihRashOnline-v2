@@ -15,7 +15,8 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `SYNC-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #255, PR #256, candidate `05f161074a78428a6a96e2df66fde4ef7e0bd70e`, merge `587dc6bd8b7e48d915cc7aef3d31c35802650cd7`; Apps Script version 224, full bootstrap/NOOP/degraded preservation/atomic generation switch и zero-network local reads PASS.
 - `DELTA-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #257, PR #258, candidate `5ed78c45eb77dbb008014f16a01288fa2e1cde91`, merge `0756252b5c0619bf53e9e1b24f235fb4fa28b2f6`; Apps Script version 225, exact-base delta, idempotent replay, target-revision recomputation, adversarial base-race full rebuild fallback и zero-network local reads PASS.
 - `FIN-LF-001` — **DONE / Main Verification PASS**, Issue #259, PR #260, candidate `0c58714df70e6065d6ec409cdc3bae991a85df36`, merge `c20258cd659f0e4a82c050b91eb04cc33c8e996b`; exact-candidate Owner Product UAT PASS, warm p95 `32 ms`, `10` переходов, сеть `0`.
-- `DATA-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #263, PR #264, branch `agent/DATA-LF-001-local-transactions-data-quality`. Цель: подключить `Операции` и `Качество данных` к тому же verified Local Read Model, обеспечить local filters/pagination/detail/Back-Forward, read-only полезные DQ checks, privacy continuity, stale-generation discard и zero-network warm interactions. Финальный DONE требует exact-candidate Owner Product UAT.
+- `DATA-LF-001` — **DONE / Main Verification PASS**, Issue #263, PR #264, merge `326ddad4d5c41d684b1cec9e4a8a97bc680c5ed7`; exact-candidate Owner Product UAT PASS, warm p95 `43.40 ms`, `10` переходов, прогрев `4`, сеть `0`, Back/Forward PASS, loading/error PASS.
+- `PERF-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #265, PR #266, branch `agent/PERF-LF-001-local-first-performance-truth`. Цель: ввести единый privacy-safe real-browser Performance Report и доказать `MASTER-LF-PERF` по шести Local-first SLO, не смешивая cold bootstrap/background sync с warm path и сохраняя zero mandatory network / zero Google Sheets reads.
 
 До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
 
@@ -66,13 +67,13 @@ Google Sheets + Apps Script работают как canonical source и trusted 
 
 `PRH_LOCAL_FIRST_DELTA_V1@1.0.0` строит owner-private inventory только из `ACTIVE + VERIFIED` generation. Server delta exact-bound к `base_revision` и текущему canonical `target_revision`; browser материализует target в новую STAGING generation и пересчитывает canonical repository revision до finalize. Base mismatch, invalid/corrupt/excessive delta или target mismatch fail-closed переходят в уже проверенный SYNC-LF-001 full bootstrap. Active generation in-place не мутируется.
 
-`PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0` подключает четыре financial route к одной verified generation и общему `PRH_LOCAL_FINANCE_FILTER_CONTEXT_V1`. Main UI не считает financial measures: он формирует canonical queries и принимает только `PRH_ANALYTICS_RESULT_V1` из того же Web Worker/evaluateAnalytics, с `FIN-TRUTH-v1` и exact `provenance.input_revision`. Stale route/filter/generation result не commit-ится. Candidate packager встраивает tracked STORE/SYNC/DELTA/FIN browser modules + generated Worker в deployable `LocalFirstSpaWebApp.html`, устраняя прежний разрыв «код есть в pwa, но его нет в Apps Script deployment».
+`PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0` подключает четыре financial route к одной verified generation и общему `PRH_LOCAL_FINANCE_FILTER_CONTEXT_V1`. Main UI не считает financial measures: он формирует canonical queries и принимает только `PRH_ANALYTICS_RESULT_V1` из того же Web Worker/evaluateAnalytics, с `FIN-TRUTH-v1` и exact `provenance.input_revision`. Stale route/filter/generation result не commit-ится. Candidate packager встраивает tracked STORE/SYNC/DELTA/FIN/PERF browser modules + generated Worker в deployable `LocalFirstSpaWebApp.html`, устраняя прежний разрыв «код есть в pwa, но его нет в Apps Script deployment».
 
 `PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0` подключает `Операции` и `Качество данных` к той же browser-local verified generation. Browser API `getActiveSnapshot()` выдаёт логически `ACTIVE + VERIFIED` generation как `status=READY`; DATA runtime не создаёт отдельный snapshot и не получает canonical write authority. Filters/page/detail/history работают локально. Data Quality не повторяет недостижимые canonical invariants: он read-only проверяет связность transaction -> dimensions и сигналы совпадающих source fingerprints. Autofix и запись в canonical source запрещены.
 
 Worker исполняет тот же canonical analytics evaluator, а не собственный набор финансовых формул. Он не получает network/storage/canonical-write authority; результат старой generation/revision должен быть discarded до UI commit.
 
-Target Product SLO — будущие acceptance targets, не текущие измерения: warm route p95 <=100 ms, filter/KPI <=200 ms, normal chart desktop <=300 ms, representative mobile <=500 ms, Back/Forward <=100 ms, cached first meaningful paint <=800 ms. Server technical health latency не считается этим Product SLA.
+`PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0` задаёт real-browser performance truth: warm route p95 <=100 ms, filter/KPI <=200 ms, normal chart desktop <=300 ms, representative mobile <=500 ms, Back/Forward <=100 ms, cached first meaningful paint <=800 ms. Замеры используют monotonic `performance.now()` и nearest-rank p95; cold bootstrap/background sync не засчитываются как warm performance. Server technical health latency не считается Product SLA.
 
 ## R3 / R7 / R8 — reusable engineering foundation
 
@@ -80,7 +81,7 @@ Target Product SLO — будущие acceptance targets, не текущие и
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе DATA-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе PERF-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Future ladder после Local-first Product Ready:
 
@@ -118,7 +119,7 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для DATA-LF-001 owner Product UAT обязателен и не может быть заменён CI/self-attestation.
+Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для PERF-LF-001 owner Product UAT обязателен и не может быть заменён CI/self-attestation.
 
 ## Source precedence
 

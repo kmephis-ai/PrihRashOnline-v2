@@ -13,7 +13,16 @@
   var WORKER_VERSION = '1.0.0';
   var ANALYTICS_QUERY_SCHEMA = 'PRH_ANALYTICS_QUERY_V1';
   var ANALYTICS_VERSION = '1.0.0';
+  var STARTUP_VIEW_CACHE_SCHEMA = 'PRH_LOCAL_FINANCE_STARTUP_VIEW_CACHE_V1';
+  var STARTUP_VIEW_CACHE_VERSION = '1.0.0';
+  var STARTUP_VIEW_CACHE_DB = 'prihrash-local-finance-startup-view-v1';
+  var STARTUP_VIEW_CACHE_STORE = 'ready_views';
+  var CANONICAL_LOCAL_DB = 'prihrash-local-first-v1';
+  var LOCAL_META_STORE = 'meta';
+  var LOCAL_ACTIVE_KEY = 'active_generation';
+  var LOCAL_MANIFEST_PREFIX = 'generation:';
   var ROUTES = Object.freeze(['home', 'expenses', 'income', 'cash-flow']);
+  var VIEW_CACHE_LIMIT = 24;
   var HEX64 = /^[0-9a-f]{64}$/;
   var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
   var REQUEST_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/;
@@ -188,6 +197,206 @@
     return result;
   }
 
+  function idbRequest(request) {
+    return new Promise(function (resolve, reject) {
+      request.onsuccess = function () { resolve(request.result); };
+      request.onerror = function () { reject(request.error || fail('LOCAL_FINANCE_STARTUP_CACHE_IDB_REQUEST_FAILED')); };
+    });
+  }
+
+  function idbTransaction(transaction) {
+    return new Promise(function (resolve, reject) {
+      transaction.oncomplete = function () { resolve(); };
+      transaction.onerror = function () { reject(transaction.error || fail('LOCAL_FINANCE_STARTUP_CACHE_IDB_TX_FAILED')); };
+      transaction.onabort = function () { reject(transaction.error || fail('LOCAL_FINANCE_STARTUP_CACHE_IDB_TX_ABORTED')); };
+    });
+  }
+
+  function startupFilterEligible(contextInput) {
+    var context;
+    try { context = normalizeFilterContext(contextInput); } catch (error) { return false; }
+    if (!context.currency || context.start || context.end) return false;
+    return FILTER_FIELDS.every(function (field) { return context[field] == null; });
+  }
+
+  function expectedResultKeys(route) {
+    if (route === 'home') return ['totals', 'trend'];
+    if (route === 'expenses' || route === 'income') return ['breakdown', 'total'];
+    if (route === 'cash-flow') return ['series', 'total'];
+    return [];
+  }
+
+  function validateStartupView(view, meta, route) {
+    if (!view || typeof view !== 'object' || Array.isArray(view) || view.status !== 'READY') throw fail('LOCAL_FINANCE_STARTUP_VIEW_INVALID');
+    if (String(view.route || '') !== route) throw fail('LOCAL_FINANCE_STARTUP_VIEW_ROUTE_MISMATCH');
+    if (String(view.generation_id || '') !== meta.generation_id || String(view.revision || '') !== meta.revision) {
+      throw fail('LOCAL_FINANCE_STARTUP_VIEW_REVISION_MISMATCH');
+    }
+    var context = normalizeFilterContext(view.filter_context || {});
+    if (!startupFilterEligible(context)) throw fail('LOCAL_FINANCE_STARTUP_VIEW_FILTER_INVALID');
+    if (!view.provenance || view.provenance.financial_truth_policy !== 'FIN-TRUTH-v1' ||
+        view.provenance.canonical_worker_only !== true || view.provenance.ui_financial_formula_used !== false ||
+        String(view.provenance.input_revision || '') !== meta.revision) {
+      throw fail('LOCAL_FINANCE_STARTUP_VIEW_PROVENANCE_INVALID');
+    }
+    if (!view.labels || typeof view.labels !== 'object' || Array.isArray(view.labels) ||
+        !view.results || typeof view.results !== 'object' || Array.isArray(view.results)) {
+      throw fail('LOCAL_FINANCE_STARTUP_VIEW_PAYLOAD_INVALID');
+    }
+    var actualKeys = Object.keys(view.results).sort();
+    var wantedKeys = expectedResultKeys(route).sort();
+    if (JSON.stringify(actualKeys) !== JSON.stringify(wantedKeys)) throw fail('LOCAL_FINANCE_STARTUP_VIEW_RESULT_KEYS_INVALID');
+    actualKeys.forEach(function (key) { assertAnalyticsResult(view.results[key], meta); });
+    return Object.freeze({
+      status: 'READY',
+      route: route,
+      generation_id: meta.generation_id,
+      revision: meta.revision,
+      filter_context: context,
+      labels: Object.freeze(view.labels),
+      results: Object.freeze(view.results),
+      provenance: Object.freeze({
+        financial_truth_policy: 'FIN-TRUTH-v1',
+        canonical_worker_only: true,
+        ui_financial_formula_used: false,
+        input_revision: meta.revision
+      })
+    });
+  }
+
+  function createStartupViewCache(options) {
+    options = options || {};
+    var indexedDB = options.indexedDB || (root && root.indexedDB);
+    var canonicalDatabaseName = String(options.canonicalDatabaseName || CANONICAL_LOCAL_DB);
+    var cacheDatabaseName = String(options.cacheDatabaseName || STARTUP_VIEW_CACHE_DB);
+    var cacheDbPromise = null;
+
+    function openExistingCanonicalDatabase() {
+      return new Promise(function (resolve, reject) {
+        var request = indexedDB.open(canonicalDatabaseName);
+        var upgraded = false;
+        request.onupgradeneeded = function () {
+          upgraded = true;
+          try { request.transaction.abort(); } catch (error) { void error; }
+        };
+        request.onsuccess = function () {
+          if (upgraded) { try { request.result.close(); } catch (error) { void error; } reject(fail('LOCAL_FINANCE_CANONICAL_DB_NOT_READY')); return; }
+          resolve(request.result);
+        };
+        request.onerror = function () { reject(request.error || fail('LOCAL_FINANCE_CANONICAL_DB_OPEN_FAILED')); };
+        request.onblocked = function () { reject(fail('LOCAL_FINANCE_CANONICAL_DB_BLOCKED')); };
+      });
+    }
+
+    async function readActiveMetadata() {
+      if (!indexedDB) return null;
+      var db;
+      try {
+        db = await openExistingCanonicalDatabase();
+      } catch (error) {
+        return null;
+      }
+      try {
+        if (!db.objectStoreNames.contains(LOCAL_META_STORE)) return null;
+        var tx = db.transaction([LOCAL_META_STORE], 'readonly');
+        var done = idbTransaction(tx);
+        var metaStore = tx.objectStore(LOCAL_META_STORE);
+        var active = await idbRequest(metaStore.get(LOCAL_ACTIVE_KEY));
+        if (!active || active.status !== 'ACTIVE') { await done; return null; }
+        var generationId = hex64(active.generation_id, 'LOCAL_FINANCE_ACTIVE_GENERATION_INVALID');
+        var revision = hex64(active.revision, 'LOCAL_FINANCE_ACTIVE_REVISION_INVALID');
+        if (generationId !== revision) { await done; return null; }
+        var manifest = await idbRequest(metaStore.get(LOCAL_MANIFEST_PREFIX + generationId));
+        await done;
+        if (!manifest || manifest.status !== 'VERIFIED' || manifest.revision !== revision || !manifest.counts) return null;
+        return Object.freeze({
+          status: 'READY',
+          generation_id: generationId,
+          revision: revision,
+          counts: Object.freeze(Object.assign({}, manifest.counts))
+        });
+      } finally {
+        try { db.close(); } catch (error) { void error; }
+      }
+    }
+
+    function openCacheDatabase() {
+      if (!indexedDB) return Promise.reject(fail('LOCAL_FINANCE_STARTUP_CACHE_IDB_UNAVAILABLE'));
+      if (cacheDbPromise) return cacheDbPromise;
+      cacheDbPromise = new Promise(function (resolve, reject) {
+        var request = indexedDB.open(cacheDatabaseName, 1);
+        request.onupgradeneeded = function () {
+          var db = request.result;
+          if (!db.objectStoreNames.contains(STARTUP_VIEW_CACHE_STORE)) db.createObjectStore(STARTUP_VIEW_CACHE_STORE, { keyPath: 'key' });
+        };
+        request.onsuccess = function () { resolve(request.result); };
+        request.onerror = function () { cacheDbPromise = null; reject(request.error || fail('LOCAL_FINANCE_STARTUP_CACHE_OPEN_FAILED')); };
+        request.onblocked = function () { cacheDbPromise = null; reject(fail('LOCAL_FINANCE_STARTUP_CACHE_BLOCKED')); };
+      });
+      return cacheDbPromise;
+    }
+
+    function recordKey(revision, route) { return revision + '\u001e' + route; }
+
+    async function get(meta, route) {
+      if (!meta || meta.status !== 'READY' || ROUTES.indexOf(route) < 0) return null;
+      try {
+        var db = await openCacheDatabase();
+        var tx = db.transaction([STARTUP_VIEW_CACHE_STORE], 'readonly');
+        var done = idbTransaction(tx);
+        var record = await idbRequest(tx.objectStore(STARTUP_VIEW_CACHE_STORE).get(recordKey(meta.revision, route)));
+        await done;
+        if (!record || record.schema !== STARTUP_VIEW_CACHE_SCHEMA || record.version !== STARTUP_VIEW_CACHE_VERSION ||
+            record.revision !== meta.revision || record.generation_id !== meta.generation_id || record.route !== route) return null;
+        return validateStartupView(record.view, meta, route);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function put(view) {
+      if (!view || view.status !== 'READY' || ROUTES.indexOf(view.route) < 0 || !startupFilterEligible(view.filter_context)) return false;
+      var meta = Object.freeze({ status: 'READY', generation_id: hex64(view.generation_id), revision: hex64(view.revision) });
+      if (meta.generation_id !== meta.revision) return false;
+      var validated = validateStartupView(view, meta, view.route);
+      try {
+        var db = await openCacheDatabase();
+        var tx = db.transaction([STARTUP_VIEW_CACHE_STORE], 'readwrite');
+        var done = idbTransaction(tx);
+        var store = tx.objectStore(STARTUP_VIEW_CACHE_STORE);
+        var cursorRequest = store.openCursor();
+        cursorRequest.onsuccess = function () {
+          var cursor = cursorRequest.result;
+          if (!cursor) return;
+          var existing = cursor.value;
+          if (!existing || existing.revision !== meta.revision) cursor.delete();
+          cursor.continue();
+        };
+        store.put({
+          key: recordKey(meta.revision, validated.route),
+          schema: STARTUP_VIEW_CACHE_SCHEMA,
+          version: STARTUP_VIEW_CACHE_VERSION,
+          generation_id: meta.generation_id,
+          revision: meta.revision,
+          route: validated.route,
+          view: validated
+        });
+        await done;
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    return Object.freeze({
+      schema: STARTUP_VIEW_CACHE_SCHEMA,
+      version: STARTUP_VIEW_CACHE_VERSION,
+      readActiveMetadata: readActiveMetadata,
+      get: get,
+      put: put
+    });
+  }
+
   function createWorkerClient(options) {
     options = options || {};
     var WorkerCtor = options.Worker || (root && root.Worker);
@@ -298,11 +507,17 @@
     var fullSync = options.fullSyncCoordinator || null;
     var deltaSync = options.deltaCoordinator || null;
     var onState = typeof options.onState === 'function' ? options.onState : function () {};
+    var startupViewCache = options.startupViewCache || createStartupViewCache({
+      indexedDB: options.indexedDB || (root && root.indexedDB),
+      canonicalDatabaseName: options.localDatabaseName || CANONICAL_LOCAL_DB,
+      cacheDatabaseName: options.startupCacheDatabaseName || STARTUP_VIEW_CACHE_DB
+    });
     if (!store || typeof store.getActiveSnapshot !== 'function' || typeof store.status !== 'function') throw fail('LOCAL_FINANCE_STORE_INVALID');
     if (!workerClient || typeof workerClient.query !== 'function' || typeof workerClient.bind !== 'function') throw fail('LOCAL_FINANCE_WORKER_CLIENT_INVALID');
 
     var state = {
       snapshot: null,
+      active_meta: null,
       route: 'home',
       filter_context: emptyFilterContext(),
       render_epoch: 0,
@@ -310,18 +525,111 @@
       degraded_reason: null,
       last_view: null
     };
+    var readyViewCache = new Map();
+    var cacheRevision = null;
+    var startupPersistedKeys = new Set();
+    var startupPersistInFlight = new Map();
+    var startupPersistTail = Promise.resolve();
+
+    function clearReadyViewCache() {
+      readyViewCache.clear();
+      cacheRevision = state.snapshot ? String(state.snapshot.revision || '') : null;
+    }
+
+    function syncReadyViewCacheRevision() {
+      var revision = state.snapshot ? String(state.snapshot.revision || '') : null;
+      if (revision !== cacheRevision) {
+        readyViewCache.clear();
+        cacheRevision = revision;
+      }
+    }
+
+    function filterContextCacheKey(context) {
+      context = context || {};
+      return [context.currency, context.start, context.end]
+        .concat(FILTER_FIELDS.map(function (field) { return context[field]; }))
+        .map(function (value) { return value == null ? '' : String(value); })
+        .join('\u001f');
+    }
+
+    function readyViewCacheKey(route, context) {
+      syncReadyViewCacheRevision();
+      if (!state.snapshot || !cacheRevision) return null;
+      return cacheRevision + '\u001e' + String(route || '') + '\u001e' + filterContextCacheKey(context);
+    }
+
+    function getCachedReadyView(route, context) {
+      var key = readyViewCacheKey(route, context);
+      if (!key || !readyViewCache.has(key)) return null;
+      var view = readyViewCache.get(key);
+      if (!view || view.status !== 'READY' || view.route !== route || view.revision !== cacheRevision) {
+        readyViewCache.delete(key);
+        return null;
+      }
+      readyViewCache.delete(key);
+      readyViewCache.set(key, view);
+      return view;
+    }
+
+    function startupPersistKey(view) {
+      if (!view || view.status !== 'READY' || !startupFilterEligible(view.filter_context)) return null;
+      var revision = String(view.revision || '');
+      var route = String(view.route || '');
+      if (!HEX64.test(revision) || ROUTES.indexOf(route) < 0) return null;
+      return revision + '\u001e' + route;
+    }
+
+    function markStartupViewPersisted(view) {
+      var key = startupPersistKey(view);
+      if (key) startupPersistedKeys.add(key);
+    }
+
+    function scheduleStartupViewPersist(view) {
+      if (!startupViewCache || typeof startupViewCache.put !== 'function') return;
+      var key = startupPersistKey(view);
+      if (!key || startupPersistedKeys.has(key) || startupPersistInFlight.has(key)) return;
+      var task = startupPersistTail.then(function () { return startupViewCache.put(view); }).then(function (stored) {
+        if (stored === true) startupPersistedKeys.add(key);
+        return stored === true;
+      }).catch(function () { return false; }).finally(function () {
+        startupPersistInFlight.delete(key);
+      });
+      startupPersistInFlight.set(key, task);
+      startupPersistTail = task.then(function () {}, function () {});
+    }
+
+    function rememberReadyView(view) {
+      if (!view || view.status !== 'READY' || !state.snapshot || view.revision !== state.snapshot.revision) return;
+      var key = readyViewCacheKey(view.route, view.filter_context);
+      if (!key) return;
+      if (readyViewCache.has(key)) readyViewCache.delete(key);
+      readyViewCache.set(key, view);
+      while (readyViewCache.size > VIEW_CACHE_LIMIT) {
+        var oldest = readyViewCache.keys().next();
+        if (oldest.done) break;
+        readyViewCache.delete(oldest.value);
+      }
+      scheduleStartupViewPersist(view);
+    }
+
+    function activeIdentity() {
+      return state.snapshot || state.active_meta;
+    }
 
     function publicState() {
+      var identity = activeIdentity();
+      var currencies = state.snapshot ? availableCurrencies(state.snapshot) :
+        (identity && state.filter_context.currency ? Object.freeze([state.filter_context.currency]) : Object.freeze([]));
       return Object.freeze({
         schema: SCHEMA,
         version: VERSION,
         route: state.route,
         filter_context: state.filter_context,
-        snapshot_status: state.snapshot ? 'READY' : 'EMPTY',
-        generation_id: state.snapshot ? state.snapshot.generation_id : null,
-        revision: state.snapshot ? state.snapshot.revision : null,
-        revision_prefix: state.snapshot ? state.snapshot.revision.slice(0, 12) : null,
-        currencies: state.snapshot ? availableCurrencies(state.snapshot) : Object.freeze([]),
+        snapshot_status: identity ? 'READY' : 'EMPTY',
+        generation_id: identity ? identity.generation_id : null,
+        revision: identity ? identity.revision : null,
+        revision_prefix: identity ? identity.revision.slice(0, 12) : null,
+        currencies: currencies,
         sync_status: state.sync_status,
         degraded_reason: state.degraded_reason,
         view: state.last_view
@@ -335,10 +643,21 @@
     function invalidateStaleSnapshotAfterFailedSync(reason) {
       state.render_epoch += 1;
       state.snapshot = null;
+      state.active_meta = null;
+      clearReadyViewCache();
       state.last_view = Object.freeze({
         status: 'EMPTY',
         route: state.route,
         reason: reason || 'VERIFIED_LOCAL_SNAPSHOT_LOST_AFTER_SYNC_FAILURE'
+      });
+    }
+
+    function snapshotMetadata(snapshot) {
+      return Object.freeze({
+        status: 'READY',
+        generation_id: snapshot.generation_id,
+        revision: snapshot.revision,
+        counts: Object.freeze(Object.assign({}, snapshot.counts || {}))
       });
     }
 
@@ -349,6 +668,8 @@
         hex64(snapshot.generation_id, 'LOCAL_FINANCE_SNAPSHOT_GENERATION_INVALID');
         if (snapshot.revision !== snapshot.generation_id) throw fail('LOCAL_FINANCE_SNAPSHOT_BINDING_INVALID');
         state.snapshot = snapshot;
+        state.active_meta = snapshotMetadata(snapshot);
+        syncReadyViewCacheRevision();
         if (!state.filter_context.currency) {
           state.filter_context = normalizeFilterContext(Object.assign({}, state.filter_context, { currency: defaultCurrency(snapshot) }));
         }
@@ -356,49 +677,87 @@
         return snapshot;
       }
       state.snapshot = null;
+      state.active_meta = null;
+      clearReadyViewCache();
       return null;
+    }
+
+    async function restoreStartupView() {
+      if (!startupViewCache || typeof startupViewCache.readActiveMetadata !== 'function' || typeof startupViewCache.get !== 'function') return null;
+      try {
+        var meta = await startupViewCache.readActiveMetadata();
+        if (!meta || meta.status !== 'READY') return null;
+        var view = await startupViewCache.get(meta, state.route);
+        if (!view) return null;
+        state.active_meta = meta;
+        state.filter_context = view.filter_context;
+        state.last_view = view;
+        state.sync_status = 'READY';
+        state.degraded_reason = null;
+        markStartupViewPersisted(view);
+        emit();
+        return view;
+      } catch (error) {
+        return null;
+      }
     }
 
     async function renderCurrent() {
       var epoch = ++state.render_epoch;
       if (!state.snapshot) {
-        state.last_view = Object.freeze({ status: 'EMPTY', route: state.route, reason: 'VERIFIED_LOCAL_SNAPSHOT_REQUIRED' });
+        state.last_view = Object.freeze({
+          status: state.active_meta ? 'LOADING' : 'EMPTY',
+          route: state.route,
+          reason: state.active_meta ? null : 'VERIFIED_LOCAL_SNAPSHOT_REQUIRED'
+        });
         emit();
         return state.last_view;
       }
-      state.last_view = Object.freeze({ status: 'LOADING', route: state.route });
+      var renderRoute = state.route;
+      var renderSnapshot = state.snapshot;
+      var renderFilterContext = state.filter_context;
+      var cached = getCachedReadyView(renderRoute, renderFilterContext);
+      if (cached) {
+        state.last_view = cached;
+        emit();
+        return cached;
+      }
+      state.last_view = Object.freeze({ status: 'LOADING', route: renderRoute });
       emit();
-      var specs = routeQueries(state.route, state.snapshot, state.filter_context);
+      var specs = routeQueries(renderRoute, renderSnapshot, renderFilterContext);
       try {
         var results = await Promise.all(specs.map(async function (spec) {
-          var envelope = await workerClient.query(state.snapshot, spec.query);
-          return Object.freeze({ key: spec.key, result: assertAnalyticsResult(envelope.result, state.snapshot) });
+          var envelope = await workerClient.query(renderSnapshot, spec.query);
+          return Object.freeze({ key: spec.key, result: assertAnalyticsResult(envelope.result, renderSnapshot) });
         }));
-        if (epoch !== state.render_epoch) return Object.freeze({ status: 'STALE_DISCARDED', route: state.route });
+        if (epoch !== state.render_epoch || state.snapshot !== renderSnapshot || state.route !== renderRoute || state.filter_context !== renderFilterContext) {
+          return Object.freeze({ status: 'STALE_DISCARDED', route: renderRoute });
+        }
         var byKey = {};
         results.forEach(function (entry) { byKey[entry.key] = entry.result; });
         state.last_view = Object.freeze({
           status: 'READY',
-          route: state.route,
-          generation_id: state.snapshot.generation_id,
-          revision: state.snapshot.revision,
-          filter_context: state.filter_context,
-          labels: Object.freeze(dimensionLabels(state.snapshot)),
+          route: renderRoute,
+          generation_id: renderSnapshot.generation_id,
+          revision: renderSnapshot.revision,
+          filter_context: renderFilterContext,
+          labels: Object.freeze(dimensionLabels(renderSnapshot)),
           results: Object.freeze(byKey),
           provenance: Object.freeze({
             financial_truth_policy: 'FIN-TRUTH-v1',
             canonical_worker_only: true,
             ui_financial_formula_used: false,
-            input_revision: state.snapshot.revision
+            input_revision: renderSnapshot.revision
           })
         });
+        rememberReadyView(state.last_view);
         emit();
         return state.last_view;
       } catch (error) {
         if (epoch !== state.render_epoch || safeReason(error) === 'LOCAL_FINANCE_WORKER_STALE_DISCARDED') {
-          return Object.freeze({ status: 'STALE_DISCARDED', route: state.route });
+          return Object.freeze({ status: 'STALE_DISCARDED', route: renderRoute });
         }
-        state.last_view = Object.freeze({ status: 'ERROR', route: state.route, reason: safeReason(error, 'LOCAL_FINANCE_RENDER_FAILED') });
+        state.last_view = Object.freeze({ status: 'ERROR', route: renderRoute, reason: safeReason(error, 'LOCAL_FINANCE_RENDER_FAILED') });
         emit();
         return state.last_view;
       }
@@ -408,6 +767,15 @@
       var normalized = String(route || '').trim().toLowerCase();
       if (ROUTES.indexOf(normalized) < 0) throw fail('LOCAL_FINANCE_ROUTE_INVALID');
       state.route = normalized;
+      if (!state.snapshot && state.active_meta && startupViewCache && typeof startupViewCache.get === 'function') {
+        var restored = await startupViewCache.get(state.active_meta, normalized);
+        if (restored) {
+          state.filter_context = restored.filter_context;
+          state.last_view = restored;
+          emit();
+          return restored;
+        }
+      }
       return renderCurrent();
     }
 
@@ -423,6 +791,7 @@
       var next = await loadVerifiedSnapshot();
       var recoveredFromError = previousView && previousView.status === 'ERROR';
       if (next && (forceRender === true || next.revision !== oldRevision || recoveredFromError)) {
+        if (forceRender === true || recoveredFromError) clearReadyViewCache();
         state.render_epoch += 1;
         return renderCurrent();
       }
@@ -471,8 +840,23 @@
       if (route && ROUTES.indexOf(route) >= 0) state.route = route;
       state.sync_status = 'LOCAL_OPENING';
       emit();
-      await loadVerifiedSnapshot();
+      var restored = await restoreStartupView();
+      try {
+        await loadVerifiedSnapshot();
+      } catch (error) {
+        state.snapshot = null;
+        state.active_meta = null;
+        clearReadyViewCache();
+        state.sync_status = 'FAILED';
+        state.degraded_reason = safeReason(error, 'LOCAL_FINANCE_LOCAL_HYDRATION_FAILED');
+        state.last_view = Object.freeze({ status: 'ERROR', route: state.route, reason: state.degraded_reason });
+        emit();
+        throw error;
+      }
       state.sync_status = state.snapshot ? 'READY' : 'EMPTY';
+      if (restored && state.snapshot && restored.revision === state.snapshot.revision && restored.generation_id === state.snapshot.generation_id) {
+        rememberReadyView(restored);
+      }
       await renderCurrent();
       Promise.resolve().then(backgroundSync).catch(function (error) {
         state.sync_status = state.snapshot ? 'DEGRADED' : 'FAILED';
@@ -497,6 +881,8 @@
     schema: SCHEMA,
     version: VERSION,
     filterSchema: FILTER_SCHEMA,
+    startupViewCacheSchema: STARTUP_VIEW_CACHE_SCHEMA,
+    startupViewCacheVersion: STARTUP_VIEW_CACHE_VERSION,
     routes: ROUTES,
     emptyFilterContext: emptyFilterContext,
     normalizeFilterContext: normalizeFilterContext,
@@ -504,6 +890,7 @@
     fullDataTimeRange: fullDataTimeRange,
     analyticsQuery: analyticsQuery,
     routeQueries: routeQueries,
+    createStartupViewCache: createStartupViewCache,
     createWorkerClient: createWorkerClient,
     createRuntime: createRuntime
   });
