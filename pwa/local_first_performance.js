@@ -28,6 +28,7 @@
   ]);
   var lastReport = null;
   var running = false;
+  var moduleStartMs = now();
 
   function fail(code) {
     var error = new Error(code);
@@ -46,6 +47,11 @@
     return Number.isFinite(number) && number >= 0 && number <= 60000 ? number : null;
   }
 
+  function roundedDuration(value) {
+    var valid = finiteDuration(value);
+    return valid === null ? null : Number(valid.toFixed(3));
+  }
+
   function validSamples(values) {
     return (Array.isArray(values) ? values : []).map(finiteDuration).filter(function (value) { return value !== null; });
   }
@@ -55,6 +61,40 @@
     if (!samples.length) return null;
     samples.sort(function (a, b) { return a - b; });
     return samples[Math.max(0, Math.ceil(samples.length * 0.95) - 1)];
+  }
+
+  function fmpPhaseBreakdown(responseStart, responseEnd, moduleStart, ready) {
+    var rs = finiteDuration(responseStart);
+    var re = finiteDuration(responseEnd);
+    var ms = finiteDuration(moduleStart);
+    var rd = finiteDuration(ready);
+    function span(start, end) {
+      if (start === null || end === null || end < start) return null;
+      return roundedDuration(end - start);
+    }
+    return Object.freeze({
+      response_start_ms: roundedDuration(rs),
+      response_end_ms: roundedDuration(re),
+      module_start_ms: roundedDuration(ms),
+      ready_ms: roundedDuration(rd),
+      response_to_module_ms: span(re, ms),
+      module_to_ready_ms: span(ms, rd),
+      response_to_ready_ms: span(re, rd)
+    });
+  }
+
+  function navigationPhaseBreakdown(readyMs) {
+    var responseStart = null;
+    var responseEnd = null;
+    if (root && root.performance && typeof root.performance.getEntriesByType === 'function') {
+      var entries = root.performance.getEntriesByType('navigation');
+      var navigation = entries && entries.length ? entries[0] : null;
+      if (navigation) {
+        responseStart = navigation.responseStart;
+        responseEnd = navigation.responseEnd;
+      }
+    }
+    return fmpPhaseBreakdown(responseStart, responseEnd, moduleStartMs, readyMs);
   }
 
   function blockedMetric(metricId, reason, deviceClass) {
@@ -215,26 +255,27 @@
 
   async function probePriorVerifiedSnapshot() {
     if (!root || !root.indexedDB || !root.IDBKeyRange || !root.PrhLocalReadModelStore) {
-      return Object.freeze({ cached: false, reason: 'PERF_LF_LOCAL_STORE_NOT_READY', p95_ms: null });
+      return Object.freeze({ cached: false, reason: 'PERF_LF_LOCAL_STORE_NOT_READY', p95_ms: null, phases: null });
     }
     var store;
     try {
       store = root.PrhLocalReadModelStore.createStore({ indexedDB: root.indexedDB, IDBKeyRange: root.IDBKeyRange, name: STORE_NAME });
       var status = await store.status();
       if (!status || status.status !== 'READY') {
-        return Object.freeze({ cached: false, reason: 'PERF_LF_COLD_BOOTSTRAP_EXCLUDED', p95_ms: null });
+        return Object.freeze({ cached: false, reason: 'PERF_LF_COLD_BOOTSTRAP_EXCLUDED', p95_ms: null, phases: null });
       }
       await waitUntil(function () { return !!root.__PRH_LF_SPA_TEST__; }, 6000, 'PERF_LF_SPA_RUNTIME_NOT_READY');
       await waitRouteReady(activeRoute());
-      return Object.freeze({ cached: true, reason: null, p95_ms: Number(now().toFixed(3)) });
+      var readyMs = Number(now().toFixed(3));
+      return Object.freeze({ cached: true, reason: null, p95_ms: readyMs, phases: navigationPhaseBreakdown(readyMs) });
     } catch (error) {
-      return Object.freeze({ cached: false, reason: String(error && (error.code || error.message) || 'PERF_LF_CACHED_FMP_FAILED'), p95_ms: null });
+      return Object.freeze({ cached: false, reason: String(error && (error.code || error.message) || 'PERF_LF_CACHED_FMP_FAILED'), p95_ms: null, phases: null });
     } finally {
       if (store && typeof store.close === 'function') store.close();
     }
   }
 
-  var cachedStartupProbe = root && root.document ? probePriorVerifiedSnapshot() : Promise.resolve(Object.freeze({ cached: false, reason: 'PERF_LF_BROWSER_REQUIRED', p95_ms: null }));
+  var cachedStartupProbe = root && root.document ? probePriorVerifiedSnapshot() : Promise.resolve(Object.freeze({ cached: false, reason: 'PERF_LF_BROWSER_REQUIRED', p95_ms: null, phases: null }));
 
   async function measureWarmRoutes() {
     var origin = activeRoute();
@@ -373,6 +414,7 @@
         device_class: device,
         runtime_state: runtimeState(),
         provenance: provenance(),
+        cached_fmp_phases: startup.phases || null,
         cold_bootstrap_included: false,
         route_warmup_count: ROUTES.length,
         financial_payload_in_report: false
@@ -403,9 +445,21 @@
     });
   }
 
+  function phaseText(phases) {
+    if (!phases) return 'FMP phases: недоступно';
+    function ms(value) { return value == null ? '—' : Number(value).toFixed(1) + ' мс'; }
+    return 'FMP phases · responseStart ' + ms(phases.response_start_ms) +
+      ' · responseEnd ' + ms(phases.response_end_ms) +
+      ' · module ' + ms(phases.module_start_ms) +
+      ' · READY ' + ms(phases.ready_ms) +
+      ' · response→module ' + ms(phases.response_to_module_ms) +
+      ' · module→READY ' + ms(phases.module_to_ready_ms);
+  }
+
   function renderReport(report) {
     var output = root.document.getElementById('lf-perf-result');
     var body = root.document.getElementById('lf-perf-body');
+    var phases = root.document.getElementById('lf-perf-phases');
     if (!output || !body) return;
     body.innerHTML = report.metrics.map(function (metric) {
       var value = metric.p95_ms == null ? '—' : metric.p95_ms.toFixed(2) + ' мс';
@@ -420,6 +474,7 @@
     output.textContent = report.status + ' · сеть: ' + report.mandatory_network_requests +
       ' · Sheets: ' + report.google_sheets_reads + ' · resources: ' + report.observed_resource_requests +
       ' · ' + report.device_class + (report.reason ? ' · ' + report.reason : '');
+    if (phases) phases.textContent = phaseText(report.cached_fmp_phases);
   }
 
   function installUi() {
@@ -430,7 +485,7 @@
     if (!main) return false;
     var style = root.document.createElement('style');
     style.setAttribute('data-prh-local-first-performance-style', VERSION);
-    style.textContent = '.lf-perf-table-wrap{overflow:auto;max-width:100%}.lf-perf-table{width:100%;border-collapse:collapse;margin-top:12px;min-width:680px}.lf-perf-table th,.lf-perf-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.lf-perf-table th{font-size:12px;color:var(--muted)}.lf-perf-table tr[data-status="PASS"] strong{color:var(--ok)}.lf-perf-table tr[data-status="FAIL"] strong{color:var(--bad)}.lf-perf-table tr[data-status="BLOCKED"] strong{color:var(--warn)}.lf-perf-reason{font-size:11px;color:var(--muted);overflow-wrap:anywhere}#lf-perf-result{overflow-wrap:anywhere}';
+    style.textContent = '.lf-perf-table-wrap{overflow:auto;max-width:100%}.lf-perf-table{width:100%;border-collapse:collapse;margin-top:12px;min-width:680px}.lf-perf-table th,.lf-perf-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.lf-perf-table th{font-size:12px;color:var(--muted)}.lf-perf-table tr[data-status="PASS"] strong{color:var(--ok)}.lf-perf-table tr[data-status="FAIL"] strong{color:var(--bad)}.lf-perf-table tr[data-status="BLOCKED"] strong{color:var(--warn)}.lf-perf-reason{font-size:11px;color:var(--muted);overflow-wrap:anywhere}#lf-perf-result{overflow-wrap:anywhere}#lf-perf-phases{margin-top:8px;font-size:11px;color:var(--muted);overflow-wrap:anywhere}';
     root.document.head.appendChild(style);
     var section = root.document.createElement('section');
     section.className = 'diagnostic';
@@ -438,6 +493,7 @@
     section.setAttribute('data-lf-diagnostic', 'performance-truth');
     section.innerHTML = '<h2>Performance Report</h2><p>Проверяет тёплые переходы, фильтр/KPI, перерисовку графиков, Back/Forward и cached first meaningful paint отдельно от cold bootstrap. Финансовые значения в отчёт не попадают.</p>' +
       '<div class="diagnostic-actions"><button class="button secondary" type="button" id="lf-perf-run">Проверить Local-first SLO</button><output id="lf-perf-result" aria-live="polite">Готово к проверке</output></div>' +
+      '<div id="lf-perf-phases">FMP phases появятся после измерения</div>' +
       '<div class="lf-perf-table-wrap"><table class="lf-perf-table"><thead><tr><th>SLO</th><th>Замеры</th><th>P95</th><th>Порог</th><th>Статус</th></tr></thead><tbody id="lf-perf-body"></tbody></table></div>';
     main.appendChild(section);
     var button = root.document.getElementById('lf-perf-run');
@@ -479,6 +535,7 @@
     percentile95: percentile95,
     evaluateMetric: evaluateMetric,
     blockedMetric: blockedMetric,
+    fmpPhaseBreakdown: fmpPhaseBreakdown,
     run: run,
     getLastReport: function () { return lastReport; },
     autoInstall: autoInstall
