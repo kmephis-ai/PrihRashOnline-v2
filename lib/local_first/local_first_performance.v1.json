@@ -72,6 +72,7 @@
       "version",
       "status",
       "reason",
+      "metrics",
       "metric_id",
       "sample_count",
       "p95_ms",
@@ -83,10 +84,14 @@
       "document_loads",
       "device_class",
       "runtime_state",
+      "provenance",
       "candidate_sha_prefix",
       "source_tree_hash_prefix",
       "runtime_sha256_prefix",
-      "revision_hash_prefix"
+      "revision_hash_prefix",
+      "cold_bootstrap_included",
+      "route_warmup_count",
+      "financial_payload_in_report"
     ]
   }
 }
