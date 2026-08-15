@@ -13,6 +13,7 @@ const PLACEHOLDER = '<!-- PRH_LOCAL_FIRST_BROWSER_RUNTIME -->';
 const RUNTIME_SCHEMA = 'PRH_LOCAL_FIRST_BROWSER_RUNTIME_BUNDLE_V1';
 const RUNTIME_VERSION = '1.0.0';
 const WORKER_ENTRY = 'pwa/local_analytics_worker_entry.js';
+const HISTORY_RESTORE_APP_MARKER = 'data-prh-local-first-spa="1"';
 const HISTORY_RESTORE_LEGACY = "window.addEventListener('popstate',function(){render(routeFromUrl(),true)});";
 const HISTORY_RESTORE_REPAIRED = "window.addEventListener('popstate',function(){navigate(routeFromUrl(),{fromPopstate:true,history:false,focusMain:false})});";
 const ALLOWED_BROWSER_MODULES = Object.freeze([
@@ -194,6 +195,7 @@ function buildLocalFirstRuntimeInjection(options = {}) {
 
 function applyHistoryRestoreRepair(htmlInput) {
   const html = String(htmlInput || '');
+  if (!html.includes(HISTORY_RESTORE_APP_MARKER)) return html;
   const legacyCount = html.split(HISTORY_RESTORE_LEGACY).length - 1;
   const repairedCount = html.split(HISTORY_RESTORE_REPAIRED).length - 1;
   if (legacyCount === 1 && repairedCount === 0) {
@@ -224,6 +226,7 @@ module.exports = Object.freeze({
   RUNTIME_SCHEMA,
   RUNTIME_VERSION,
   WORKER_ENTRY,
+  HISTORY_RESTORE_APP_MARKER,
   HISTORY_RESTORE_LEGACY,
   HISTORY_RESTORE_REPAIRED,
   ALLOWED_BROWSER_MODULES,
