@@ -74,6 +74,18 @@ function prhLocalFirstSpaBootstrap_(params) {
     '})();</script>';
 }
 
+/**
+ * Diagnostic reason codes are deliberately machine-readable and therefore can
+ * be long unbroken tokens. Keep them visible to the owner without allowing a
+ * fail-closed message to widen the SPA on phone-sized viewports.
+ */
+function prhLocalFirstSpaResponsiveGuard_() {
+  return '<style data-lf-server-responsive-guard="1">' +
+    '.diagnostic,.diagnostic-actions{min-width:0;max-width:100%}' +
+    '#lf-diag-result{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}' +
+    '</style>';
+}
+
 function prhLocalFirstSpaRender_(params) {
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
   var html = source.getContent();
@@ -88,7 +100,10 @@ function prhLocalFirstSpaRender_(params) {
 
   var appScriptMarker = '<script>\n(function(){';
   if (html.indexOf(appScriptMarker) < 0) throw new Error('LF_SPA_APP_SCRIPT_MARKER_MISSING');
-  html = html.replace(appScriptMarker, prhLocalFirstSpaBootstrap_(params) + '\n' + appScriptMarker);
+  html = html.replace(
+    appScriptMarker,
+    prhLocalFirstSpaResponsiveGuard_() + '\n' + prhLocalFirstSpaBootstrap_(params) + '\n' + appScriptMarker
+  );
 
   var output = HtmlService.createHtmlOutput(html);
   output.setTitle('PrihRashOnline — Local-first');
@@ -101,6 +116,7 @@ function prhLocalFirstSpaSmokeToken() {
   var html = output && typeof output.getContent === 'function' ? output.getContent() : '';
   if (!html ||
       html.indexOf('data-prh-local-first-spa="1"') < 0 ||
+      html.indexOf('data-lf-server-responsive-guard="1"') < 0 ||
       html.indexOf('data-lf-server-bootstrap="1"') < 0 ||
       html.indexOf('history.replaceState') < 0 ||
       html.indexOf('history.pushState') < 0 ||
