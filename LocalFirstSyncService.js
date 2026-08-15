@@ -43,6 +43,69 @@ function prhLocalFirstSyncNormalizeRequest_(request) {
   return Object.freeze({ local_revision: localRevision });
 }
 
+/**
+ * Apps Script transport does not preserve object properties whose value is
+ * undefined. Canonical transactions, however, deliberately use an exact-key
+ * contract in the browser/Worker boundary. Project the server object onto the
+ * exact wire shape and materialize every nullable property as null so a
+ * JSON/structured transport round-trip cannot silently change that shape.
+ *
+ * This is a transport projection only: it never changes canonical source
+ * authority or the revision calculated from the source transaction.
+ */
+function prhLocalFirstSyncTransportRequired_(value) {
+  if (value === undefined) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_CANONICAL_TRANSACTION_TRANSPORT_INVALID');
+  }
+  return value;
+}
+
+function prhLocalFirstSyncTransportNullable_(value) {
+  return value === undefined ? null : value;
+}
+
+function prhLocalFirstSyncProjectProvenance_(provenance) {
+  if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_CANONICAL_TRANSACTION_TRANSPORT_INVALID');
+  }
+  return Object.freeze({
+    source_system: prhLocalFirstSyncTransportRequired_(provenance.source_system),
+    source_container: prhLocalFirstSyncTransportNullable_(provenance.source_container),
+    source_record_id: prhLocalFirstSyncTransportRequired_(provenance.source_record_id),
+    source_fingerprint: prhLocalFirstSyncTransportRequired_(provenance.source_fingerprint),
+    identity_strategy: prhLocalFirstSyncTransportRequired_(provenance.identity_strategy),
+    transform_version: prhLocalFirstSyncTransportRequired_(provenance.transform_version),
+    source_position: prhLocalFirstSyncTransportNullable_(provenance.source_position)
+  });
+}
+
+function prhLocalFirstSyncProjectTransaction_(tx) {
+  if (!tx || typeof tx !== 'object' || Array.isArray(tx) || !Array.isArray(tx.tags)) {
+    prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_CANONICAL_TRANSACTION_TRANSPORT_INVALID');
+  }
+  return Object.freeze({
+    schema: prhLocalFirstSyncTransportRequired_(tx.schema),
+    schema_version: prhLocalFirstSyncTransportRequired_(tx.schema_version),
+    transaction_id: prhLocalFirstSyncTransportRequired_(tx.transaction_id),
+    occurred_at: prhLocalFirstSyncTransportRequired_(tx.occurred_at),
+    type: prhLocalFirstSyncTransportRequired_(tx.type),
+    status: prhLocalFirstSyncTransportRequired_(tx.status),
+    amount_minor: prhLocalFirstSyncTransportRequired_(tx.amount_minor),
+    currency: prhLocalFirstSyncTransportRequired_(tx.currency),
+    account_id: prhLocalFirstSyncTransportRequired_(tx.account_id),
+    destination_account_id: prhLocalFirstSyncTransportNullable_(tx.destination_account_id),
+    category_id: prhLocalFirstSyncTransportRequired_(tx.category_id),
+    member_id: prhLocalFirstSyncTransportNullable_(tx.member_id),
+    project_id: prhLocalFirstSyncTransportNullable_(tx.project_id),
+    tags: Object.freeze(tx.tags.slice()),
+    counterparty: prhLocalFirstSyncTransportNullable_(tx.counterparty),
+    description: prhLocalFirstSyncTransportNullable_(tx.description),
+    reverses_transaction_id: prhLocalFirstSyncTransportNullable_(tx.reverses_transaction_id),
+    adjustment_semantics: prhLocalFirstSyncTransportNullable_(tx.adjustment_semantics),
+    provenance: prhLocalFirstSyncProjectProvenance_(tx.provenance)
+  });
+}
+
 function prhLocalFirstSyncDimensionRecords_(snapshot) {
   if (!snapshot || !snapshot.dimensions || typeof snapshot.dimensions.displayLabel !== 'function') {
     prhLocalFirstSyncFail_('LOCAL_FIRST_SYNC_DIMENSION_RESOLVER_INVALID');
@@ -122,7 +185,7 @@ function prhLocalFirstSyncBootstrap(request) {
   }
 
   var dimensions = prhLocalFirstSyncDimensionRecords_(snapshot);
-  var transactions = snapshot.transactions.slice();
+  var transactions = snapshot.transactions.map(prhLocalFirstSyncProjectTransaction_);
   var aggregates = [];
   var journal = [Object.freeze({
     sequence: 1,
