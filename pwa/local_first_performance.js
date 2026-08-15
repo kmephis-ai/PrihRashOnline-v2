@@ -11,7 +11,12 @@
 
   var SCHEMA = 'PRH_LOCAL_FIRST_PERFORMANCE_V1';
   var VERSION = '1.0.0';
-  var STORE_NAME = 'prihrash-local-first-v3';
+  var STORE_NAME = 'prihrash-local-first-v1';
+  var META_STORE = 'meta';
+  var ACTIVE_KEY = 'active_generation';
+  var MANIFEST_PREFIX = 'generation:';
+  var HEX64 = /^[0-9a-f]{64}$/;
+  var DOM_CACHE_LIMIT = 8;
   var ROUTES = Object.freeze(['home', 'transactions', 'expenses', 'income', 'cash-flow', 'data-quality']);
   var FINANCE_ROUTES = Object.freeze(['home', 'expenses', 'income', 'cash-flow']);
   var TARGETS = Object.freeze({
@@ -29,6 +34,7 @@
   var lastReport = null;
   var running = false;
   var moduleStartMs = now();
+  var domCacheInstalled = false;
 
   function fail(code) {
     var error = new Error(code);
@@ -253,15 +259,114 @@
     });
   }
 
+  function idbRequest(request) {
+    return new Promise(function (resolve, reject) {
+      request.onsuccess = function () { resolve(request.result); };
+      request.onerror = function () { reject(request.error || fail('PERF_LF_LOCAL_STORE_READ_FAILED')); };
+    });
+  }
+
+  function idbTransactionDone(transaction) {
+    return new Promise(function (resolve, reject) {
+      transaction.oncomplete = function () { resolve(); };
+      transaction.onerror = function () { reject(transaction.error || fail('PERF_LF_LOCAL_STORE_READ_FAILED')); };
+      transaction.onabort = function () { reject(transaction.error || fail('PERF_LF_LOCAL_STORE_READ_FAILED')); };
+    });
+  }
+
+  function openExistingPerformanceStore() {
+    return new Promise(function (resolve, reject) {
+      var request;
+      try { request = root.indexedDB.open(STORE_NAME); }
+      catch (error) { reject(error); return; }
+      request.onupgradeneeded = function () {
+        try { request.transaction.abort(); } catch (error) { void error; }
+        reject(fail('PERF_LF_LOCAL_STORE_NOT_READY'));
+      };
+      request.onsuccess = function () { resolve(request.result); };
+      request.onerror = function () { reject(request.error || fail('PERF_LF_LOCAL_STORE_NOT_READY')); };
+      request.onblocked = function () { reject(fail('PERF_LF_LOCAL_STORE_NOT_READY')); };
+    });
+  }
+
+  async function probeActiveVerifiedMetadata() {
+    var db = await openExistingPerformanceStore();
+    try {
+      if (!db.objectStoreNames.contains(META_STORE)) throw fail('PERF_LF_LOCAL_STORE_NOT_READY');
+      var tx = db.transaction([META_STORE], 'readonly');
+      var done = idbTransactionDone(tx);
+      var meta = tx.objectStore(META_STORE);
+      var active = await idbRequest(meta.get(ACTIVE_KEY));
+      if (!active || active.status !== 'ACTIVE' || !HEX64.test(String(active.generation_id || '')) || !HEX64.test(String(active.revision || ''))) {
+        await done;
+        return null;
+      }
+      var manifest = await idbRequest(meta.get(MANIFEST_PREFIX + active.generation_id));
+      await done;
+      if (!manifest || manifest.status !== 'VERIFIED' || manifest.generation_id !== active.generation_id ||
+          manifest.revision !== active.revision || !manifest.counts || typeof manifest.counts !== 'object') return null;
+      return Object.freeze({ generation_id: active.generation_id, revision: active.revision, counts: Object.freeze(Object.assign({}, manifest.counts)) });
+    } finally {
+      db.close();
+    }
+  }
+
+  function installFinanceDomRestoreCache() {
+    if (domCacheInstalled || !root || !root.Element || !root.document) return false;
+    var descriptor = Object.getOwnPropertyDescriptor(root.Element.prototype, 'innerHTML');
+    if (!descriptor || typeof descriptor.get !== 'function' || typeof descriptor.set !== 'function' || descriptor.configurable === false) return false;
+    var parked = new Map();
+    var currentKey = new WeakMap();
+
+    function park(element, key) {
+      if (!key || !element.firstChild) return;
+      var fragment = root.document.createDocumentFragment();
+      while (element.firstChild) fragment.appendChild(element.firstChild);
+      parked.delete(key);
+      parked.set(key, fragment);
+      while (parked.size > DOM_CACHE_LIMIT) parked.delete(parked.keys().next().value);
+    }
+
+    Object.defineProperty(root.Element.prototype, 'innerHTML', {
+      configurable: descriptor.configurable,
+      enumerable: descriptor.enumerable,
+      get: descriptor.get,
+      set: function (value) {
+        if (!this || this.id !== 'lf-finance-content' || typeof value !== 'string') {
+          descriptor.set.call(this, value);
+          return;
+        }
+        var nextKey = String(value);
+        var previousKey = currentKey.get(this) || null;
+        if (previousKey === nextKey) {
+          descriptor.set.call(this, value);
+          currentKey.set(this, nextKey);
+          return;
+        }
+        if (previousKey) park(this, previousKey);
+        var cached = parked.get(nextKey);
+        if (cached) {
+          while (this.firstChild) this.removeChild(this.firstChild);
+          this.appendChild(cached);
+          parked.delete(nextKey);
+          currentKey.set(this, nextKey);
+          return;
+        }
+        descriptor.set.call(this, value);
+        currentKey.set(this, nextKey);
+      }
+    });
+    domCacheInstalled = true;
+    return true;
+  }
+
   async function probePriorVerifiedSnapshot() {
-    if (!root || !root.indexedDB || !root.IDBKeyRange || !root.PrhLocalReadModelStore) {
+    if (!root || !root.indexedDB || !root.IDBKeyRange) {
       return Object.freeze({ cached: false, reason: 'PERF_LF_LOCAL_STORE_NOT_READY', p95_ms: null, phases: null });
     }
-    var store;
     try {
-      store = root.PrhLocalReadModelStore.createStore({ indexedDB: root.indexedDB, IDBKeyRange: root.IDBKeyRange, name: STORE_NAME });
-      var status = await store.status();
-      if (!status || status.status !== 'READY') {
+      var metadata = await probeActiveVerifiedMetadata();
+      if (!metadata) {
         return Object.freeze({ cached: false, reason: 'PERF_LF_COLD_BOOTSTRAP_EXCLUDED', p95_ms: null, phases: null });
       }
       await waitUntil(function () { return !!root.__PRH_LF_SPA_TEST__; }, 6000, 'PERF_LF_SPA_RUNTIME_NOT_READY');
@@ -270,11 +375,10 @@
       return Object.freeze({ cached: true, reason: null, p95_ms: readyMs, phases: navigationPhaseBreakdown(readyMs) });
     } catch (error) {
       return Object.freeze({ cached: false, reason: String(error && (error.code || error.message) || 'PERF_LF_CACHED_FMP_FAILED'), p95_ms: null, phases: null });
-    } finally {
-      if (store && typeof store.close === 'function') store.close();
     }
   }
 
+  installFinanceDomRestoreCache();
   var cachedStartupProbe = root && root.document ? probePriorVerifiedSnapshot() : Promise.resolve(Object.freeze({ cached: false, reason: 'PERF_LF_BROWSER_REQUIRED', p95_ms: null, phases: null }));
 
   async function measureWarmRoutes() {
@@ -518,6 +622,7 @@
 
   function autoInstall() {
     if (!root || !root.document) return false;
+    installFinanceDomRestoreCache();
     if (root.document.readyState === 'loading') {
       root.document.addEventListener('DOMContentLoaded', installUi, { once: true });
       return true;
@@ -529,6 +634,7 @@
   return Object.freeze({
     schema: SCHEMA,
     version: VERSION,
+    storeName: STORE_NAME,
     targets: TARGETS,
     routes: ROUTES,
     validSamples: validSamples,
