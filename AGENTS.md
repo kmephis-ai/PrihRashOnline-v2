@@ -252,3 +252,14 @@ Start with:
 - relevant architecture/data/operations contracts.
 
 AIENG-001, AIENG-002 и AIENG-003 — historical DONE. Product Recovery rebaseline 2026-08-11 supersedes прежние product claims: `GOV-REC-001` / Issue #219 — единственный active writer; ANL-090 / Issue #217 `BLOCKED / PAUSED_REBASELINE`, PR #218 draft. FIN-TRUTH, private migration `OWNER_VERIFIED`, privacy, `FREE_ONLY` и write boundaries сохраняются.
+
+## 19. Local Git Mirror — ADWF
+
+Если execution environment не может использовать обычный `git clone` / `git fetch` из-за deterministic DNS/HTTPS egress failure, после одного bounded direct-Git probe маршрутизируйте работу через `skills/adwf-local-git-mirror/SKILL.md`.
+
+- Vendored Skill зафиксирован в `.ai-context/adwf-local-git-mirror.lock.json` на exact canonical ADWF upstream SHA; drift проверяется `node tools/verify-adwf-local-git-mirror.js`.
+- После успешной materialization настоящий локальный `.git` workspace является предпочтительным инструментом для repository analysis, editing, generators/tests, `git diff`, `merge-base`, `worktree` и local commits.
+- GitHub остаётся Source of Truth. Если direct remote Git/push недоступен, Connector допускается только для минимально необходимых provider-side bootstrap/mutation/readback/CI operations, а не как основной filesystem/code-editing transport.
+- Preferred bootstrap использует disposable branch, `contents: read`, exact source SHA, one-day artifact и fail-closed checksum/manifest/`git bundle verify`/exact HEAD/`git fsck` verification.
+- Persistent mirror workflow, credentials в repository/artifact/log и подмена exact SHA на `latest`/неявный HEAD запрещены.
+- Этот infra mechanism не создаёт второй Roadmap writer и не ослабляет exact-candidate CI, Product Ready, privacy, FIN-TRUTH или `FREE_ONLY`.
