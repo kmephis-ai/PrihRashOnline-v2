@@ -10,6 +10,7 @@ const { chromium } = require('playwright');
 
 const root = path.join(__dirname, '..');
 const sourceHtml = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
+const dataExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstDataSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 function htmlOutput(content) {
   return {
@@ -23,8 +24,9 @@ const serviceContext = vm.createContext({
   console, Object, Array, String, Number, Math, Date, RegExp, Error, JSON, encodeURIComponent,
   HtmlService:{
     createHtmlOutputFromFile(name){
-      assert.strictEqual(name,'LocalFirstSpaWebApp');
-      return htmlOutput(sourceHtml);
+      if (name === 'LocalFirstSpaWebApp') return htmlOutput(sourceHtml);
+      if (name === 'LocalFirstDataSpaExtension') return htmlOutput(dataExtensionHtml);
+      throw new Error(`unexpected HtmlService file: ${name}`);
     },
     createHtmlOutput(content){ return htmlOutput(content); }
   }
@@ -32,6 +34,7 @@ const serviceContext = vm.createContext({
 vm.runInContext(serviceSource, serviceContext, { filename:'LocalFirstSpaService.js' });
 const html = serviceContext.prhLocalFirstSpaRender_({ lf_route:'home', privacy:'MASKED', lf_diag:'1' }).getContent();
 assert(html.includes('data-lf-server-responsive-guard="1"'),'server-rendered responsive guard missing');
+assert(html.includes('data-prh-local-first-data-extension="1.0.0"'),'server-rendered Data extension missing');
 const artifactDir = path.join(root, 'artifacts');
 fs.mkdirSync(artifactDir, { recursive:true });
 const tempFile = path.join(os.tmpdir(), `prh-local-first-spa-${process.pid}.html`);
@@ -68,6 +71,7 @@ function p95(values) {
         assert.deepStrictEqual(errors, [], `${viewport.name} startup errors: ${errors.join(' | ')}`);
         assert.strictEqual(loadCount, 1, `${viewport.name} initial document must load once`);
         assert.strictEqual(await page.isVisible('#lf-diagnostic'), true, `${viewport.name} diagnostic mode must be visible`);
+        assert.strictEqual(await page.evaluate(() => window.__PRH_LF_DATA_EXTENSION__?.schema), 'PRH_LOCAL_FIRST_DATA_EXTENSION_V1');
         warmPhase = true;
 
         for (const route of routes.slice(1)) {
@@ -90,6 +94,13 @@ function p95(values) {
           assert.strictEqual(state.runtime.diagnosticMode, true);
           assert(new URL(state.url).searchParams.get('privacy') === 'MASKED');
           assert(new URL(state.url).searchParams.get('lf_diag') === '1');
+          if (route === 'transactions' || route === 'data-quality') {
+            await page.waitForFunction(() => window.__PRH_LF_DATA_RUNTIME__ && window.__PRH_LF_DATA_RUNTIME__.lastState);
+            const dataState = await page.evaluate(() => window.__PRH_LF_DATA_EXTENSION__.getState());
+            assert.strictEqual(dataState.networkCalls, 0);
+            assert.strictEqual(dataState.googleSheetsReads, 0);
+            assert.strictEqual(dataState.canonicalWrites, 0);
+          }
         }
 
         assert.strictEqual(loadCount, 1, `${viewport.name} warm route clicks must not reload document`);
@@ -156,7 +167,8 @@ function p95(values) {
           rollbackPrivacy:new URL(document.getElementById('lf-rollback').href).searchParams.get('privacy'),
           financialLookingText:/\b\d[\d\s]{3,}[₽$€]|руб(?:\.|лей)/i.test(document.body.innerText),
           visibleText:document.body.innerText.replace(/\s+/g,' ').trim(),
-          runtime:window.__PRH_LF_SPA_TEST__.getState()
+          runtime:window.__PRH_LF_SPA_TEST__.getState(),
+          dataRuntime:window.__PRH_LF_DATA_EXTENSION__.getState()
         }));
         assert(layout.bodyOverflow <= 1, `${viewport.name} body overflow ${layout.bodyOverflow}`);
         assert.deepStrictEqual(layout.routeLinks.map((item)=>item.route), routes);
@@ -165,6 +177,9 @@ function p95(values) {
         assert.strictEqual(layout.financialLookingText, false, `${viewport.name} must not show synthetic financial amounts`);
         assert(!/SYN-TX-|PUBLIC_SYNTHETIC|value_minor|amount_minor/.test(layout.visibleText));
         assert.strictEqual(layout.runtime.bootCount, 1);
+        assert.strictEqual(layout.dataRuntime.networkCalls, 0);
+        assert.strictEqual(layout.dataRuntime.googleSheetsReads, 0);
+        assert.strictEqual(layout.dataRuntime.canonicalWrites, 0);
 
         const screenshot = path.join(artifactDir, `local-first-spa-${viewport.name}.png`);
         await page.screenshot({ path:screenshot, fullPage:true });
@@ -181,6 +196,8 @@ function p95(values) {
           financeDiagnosticP95Published:false,
           diagnosticButtonReusableAfterFailure:true,
           serverResponsiveGuard:true,
+          dataExtensionInjected:true,
+          dataCanonicalWrites:layout.dataRuntime.canonicalWrites,
           bootCount:layout.runtime.bootCount,
           routeRenderCount:layout.runtime.routeRenderCount,
           privacyMode:'MASKED',
@@ -198,6 +215,8 @@ function p95(values) {
       candidate_scope:'SYNTHETIC_SHELL_ONLY_NOT_PRODUCT_UAT',
       zeroMandatoryWarmNetwork:true,
       singleDocument:true,
+      dataExtensionInjected:true,
+      dataCanonicalWrites:false,
       financeDiagnosticRequiresInjectedRuntime:true,
       sourcePreviewFinanceP95Blocked:true,
       diagnosticFailureReasonVisible:true,
@@ -209,6 +228,8 @@ function p95(values) {
       routes:routes.length,
       zeroWarmNetwork:true,
       singleDocument:true,
+      dataExtensionInjected:true,
+      dataCanonicalWrites:false,
       sourcePreviewFinanceP95Blocked:true,
       diagnosticFailureReasonVisible:true,
       serverResponsiveGuard:true,
