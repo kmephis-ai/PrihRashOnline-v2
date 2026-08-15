@@ -47,7 +47,8 @@
       "min_samples": 1,
       "boundary": "NAVIGATION_TIME_ORIGIN_TO_FIRST_READY_MEANINGFUL_FRAME",
       "requires_prior_active_verified_snapshot": true,
-      "cold_bootstrap_sample_allowed": false
+      "cold_bootstrap_sample_allowed": false,
+      "phase_evidence": "NAVIGATION_RESPONSE_START_END_MODULE_START_READY_ONLY"
     }
   },
   "warm_invariants": {
@@ -89,6 +90,14 @@
       "source_tree_hash_prefix",
       "runtime_sha256_prefix",
       "revision_hash_prefix",
+      "cached_fmp_phases",
+      "response_start_ms",
+      "response_end_ms",
+      "module_start_ms",
+      "ready_ms",
+      "response_to_module_ms",
+      "module_to_ready_ms",
+      "response_to_ready_ms",
       "cold_bootstrap_included",
       "route_warmup_count",
       "financial_payload_in_report"
