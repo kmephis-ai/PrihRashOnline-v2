@@ -1,0 +1,50 @@
+name: ADWF E2E-LF Performance Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/e2e-lf-perf-diagnostic-20260816-a1
+
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: 5b6c7e712e1b67b2009529a12add9cb5467a933e
+
+jobs:
+  diagnose-product-ready-performance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@1e60f620b9541dca151540609f017c214e2bb0c4
+        with:
+          node-version: '24.7.0'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Add privacy-safe metric diagnostics at runtime
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/local_first_product_ready_visual_test.js')
+          s=p.read_text()
+          needle="      const perf = await page.evaluate(() => PrhLocalFirstPerformance.run());\n      assert.strictEqual(perf.status,'PASS',`${device.name} Product Ready performance report failed: ${perf.reason}`);"
+          repl="      const perf = await page.evaluate(() => PrhLocalFirstPerformance.run());\n      console.error('PRODUCT_READY_PERF_DIAG',JSON.stringify({device:device.name,status:perf.status,reason:perf.reason,runtime_state:perf.runtime_state,warm_runtime_ready_wait_ms:perf.warm_runtime_ready_wait_ms,metrics:perf.metrics.map(({metric_id,status,reason,sample_count,p95_ms,threshold_ms,device_class})=>({metric_id,status,reason,sample_count,p95_ms,threshold_ms,device_class}))}));\n      assert.strictEqual(perf.status,'PASS',`${device.name} Product Ready performance report failed: ${perf.reason}`);"
+          if needle not in s:
+              raise SystemExit('diagnostic insertion marker missing')
+          p.write_text(s.replace(needle,repl,1))
+          PY
+
+      - name: Run exact Product Ready E2E with diagnostic-only logging
+        run: node tests/local_first_product_ready_visual_test.js
