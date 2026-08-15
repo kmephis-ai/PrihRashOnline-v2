@@ -14,6 +14,7 @@
   var ANALYTICS_QUERY_SCHEMA = 'PRH_ANALYTICS_QUERY_V1';
   var ANALYTICS_VERSION = '1.0.0';
   var ROUTES = Object.freeze(['home', 'expenses', 'income', 'cash-flow']);
+  var VIEW_CACHE_LIMIT = 24;
   var HEX64 = /^[0-9a-f]{64}$/;
   var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
   var REQUEST_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/;
@@ -310,6 +311,61 @@
       degraded_reason: null,
       last_view: null
     };
+    var readyViewCache = new Map();
+    var cacheRevision = null;
+
+    function clearReadyViewCache() {
+      readyViewCache.clear();
+      cacheRevision = state.snapshot ? String(state.snapshot.revision || '') : null;
+    }
+
+    function syncReadyViewCacheRevision() {
+      var revision = state.snapshot ? String(state.snapshot.revision || '') : null;
+      if (revision !== cacheRevision) {
+        readyViewCache.clear();
+        cacheRevision = revision;
+      }
+    }
+
+    function filterContextCacheKey(context) {
+      context = context || {};
+      return [context.currency, context.start, context.end]
+        .concat(FILTER_FIELDS.map(function (field) { return context[field]; }))
+        .map(function (value) { return value == null ? '' : String(value); })
+        .join('\u001f');
+    }
+
+    function readyViewCacheKey(route, context) {
+      syncReadyViewCacheRevision();
+      if (!state.snapshot || !cacheRevision) return null;
+      return cacheRevision + '\u001e' + String(route || '') + '\u001e' + filterContextCacheKey(context);
+    }
+
+    function getCachedReadyView(route, context) {
+      var key = readyViewCacheKey(route, context);
+      if (!key || !readyViewCache.has(key)) return null;
+      var view = readyViewCache.get(key);
+      if (!view || view.status !== 'READY' || view.route !== route || view.revision !== cacheRevision) {
+        readyViewCache.delete(key);
+        return null;
+      }
+      readyViewCache.delete(key);
+      readyViewCache.set(key, view);
+      return view;
+    }
+
+    function rememberReadyView(view) {
+      if (!view || view.status !== 'READY' || !state.snapshot || view.revision !== state.snapshot.revision) return;
+      var key = readyViewCacheKey(view.route, view.filter_context);
+      if (!key) return;
+      if (readyViewCache.has(key)) readyViewCache.delete(key);
+      readyViewCache.set(key, view);
+      while (readyViewCache.size > VIEW_CACHE_LIMIT) {
+        var oldest = readyViewCache.keys().next();
+        if (oldest.done) break;
+        readyViewCache.delete(oldest.value);
+      }
+    }
 
     function publicState() {
       return Object.freeze({
@@ -335,6 +391,7 @@
     function invalidateStaleSnapshotAfterFailedSync(reason) {
       state.render_epoch += 1;
       state.snapshot = null;
+      clearReadyViewCache();
       state.last_view = Object.freeze({
         status: 'EMPTY',
         route: state.route,
@@ -349,6 +406,7 @@
         hex64(snapshot.generation_id, 'LOCAL_FINANCE_SNAPSHOT_GENERATION_INVALID');
         if (snapshot.revision !== snapshot.generation_id) throw fail('LOCAL_FINANCE_SNAPSHOT_BINDING_INVALID');
         state.snapshot = snapshot;
+        syncReadyViewCacheRevision();
         if (!state.filter_context.currency) {
           state.filter_context = normalizeFilterContext(Object.assign({}, state.filter_context, { currency: defaultCurrency(snapshot) }));
         }
@@ -356,6 +414,7 @@
         return snapshot;
       }
       state.snapshot = null;
+      clearReadyViewCache();
       return null;
     }
 
@@ -366,39 +425,51 @@
         emit();
         return state.last_view;
       }
-      state.last_view = Object.freeze({ status: 'LOADING', route: state.route });
+      var renderRoute = state.route;
+      var renderSnapshot = state.snapshot;
+      var renderFilterContext = state.filter_context;
+      var cached = getCachedReadyView(renderRoute, renderFilterContext);
+      if (cached) {
+        state.last_view = cached;
+        emit();
+        return cached;
+      }
+      state.last_view = Object.freeze({ status: 'LOADING', route: renderRoute });
       emit();
-      var specs = routeQueries(state.route, state.snapshot, state.filter_context);
+      var specs = routeQueries(renderRoute, renderSnapshot, renderFilterContext);
       try {
         var results = await Promise.all(specs.map(async function (spec) {
-          var envelope = await workerClient.query(state.snapshot, spec.query);
-          return Object.freeze({ key: spec.key, result: assertAnalyticsResult(envelope.result, state.snapshot) });
+          var envelope = await workerClient.query(renderSnapshot, spec.query);
+          return Object.freeze({ key: spec.key, result: assertAnalyticsResult(envelope.result, renderSnapshot) });
         }));
-        if (epoch !== state.render_epoch) return Object.freeze({ status: 'STALE_DISCARDED', route: state.route });
+        if (epoch !== state.render_epoch || state.snapshot !== renderSnapshot || state.route !== renderRoute || state.filter_context !== renderFilterContext) {
+          return Object.freeze({ status: 'STALE_DISCARDED', route: renderRoute });
+        }
         var byKey = {};
         results.forEach(function (entry) { byKey[entry.key] = entry.result; });
         state.last_view = Object.freeze({
           status: 'READY',
-          route: state.route,
-          generation_id: state.snapshot.generation_id,
-          revision: state.snapshot.revision,
-          filter_context: state.filter_context,
-          labels: Object.freeze(dimensionLabels(state.snapshot)),
+          route: renderRoute,
+          generation_id: renderSnapshot.generation_id,
+          revision: renderSnapshot.revision,
+          filter_context: renderFilterContext,
+          labels: Object.freeze(dimensionLabels(renderSnapshot)),
           results: Object.freeze(byKey),
           provenance: Object.freeze({
             financial_truth_policy: 'FIN-TRUTH-v1',
             canonical_worker_only: true,
             ui_financial_formula_used: false,
-            input_revision: state.snapshot.revision
+            input_revision: renderSnapshot.revision
           })
         });
+        rememberReadyView(state.last_view);
         emit();
         return state.last_view;
       } catch (error) {
         if (epoch !== state.render_epoch || safeReason(error) === 'LOCAL_FINANCE_WORKER_STALE_DISCARDED') {
-          return Object.freeze({ status: 'STALE_DISCARDED', route: state.route });
+          return Object.freeze({ status: 'STALE_DISCARDED', route: renderRoute });
         }
-        state.last_view = Object.freeze({ status: 'ERROR', route: state.route, reason: safeReason(error, 'LOCAL_FINANCE_RENDER_FAILED') });
+        state.last_view = Object.freeze({ status: 'ERROR', route: renderRoute, reason: safeReason(error, 'LOCAL_FINANCE_RENDER_FAILED') });
         emit();
         return state.last_view;
       }
@@ -423,6 +494,7 @@
       var next = await loadVerifiedSnapshot();
       var recoveredFromError = previousView && previousView.status === 'ERROR';
       if (next && (forceRender === true || next.revision !== oldRevision || recoveredFromError)) {
+        if (forceRender === true || recoveredFromError) clearReadyViewCache();
         state.render_epoch += 1;
         return renderCurrent();
       }
