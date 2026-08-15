@@ -7,6 +7,7 @@ const vm = require('vm');
 
 const root = path.join(__dirname, '..');
 const htmlSource = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
+const dataExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstDataSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 
 function htmlOutput(content) {
@@ -23,8 +24,9 @@ const context = vm.createContext({
   console, JSON, Object, Array, String, Number, Math, Date, RegExp, Error, encodeURIComponent,
   HtmlService:{
     createHtmlOutputFromFile(name){
-      assert.strictEqual(name,'LocalFirstSpaWebApp');
-      return htmlOutput(htmlSource);
+      if (name === 'LocalFirstSpaWebApp') return htmlOutput(htmlSource);
+      if (name === 'LocalFirstDataSpaExtension') return htmlOutput(dataExtensionHtml);
+      throw new Error(`unexpected HtmlService file: ${name}`);
     },
     createHtmlOutput(content){ return htmlOutput(content); }
   }
@@ -55,11 +57,14 @@ for (const required of [
   'Проверенные данные',
   'Предыдущий интерфейс',
   'Показатели формируются только по вашим проверенным операциям.',
-  'приложение не подменяет ваши данные демонстрационными суммами'
+  'приложение не подменяет ваши данные демонстрационными суммами',
+  'Список операций из вашей проверенной локальной копии с быстрыми фильтрами и просмотром деталей.',
+  'Проверка полноты и согласованности текущей локальной копии без автоматического изменения данных.'
 ]) {
   assert(household.includes(required), `household copy missing: ${required}`);
 }
 
+assert(household.includes('data-prh-local-first-data-extension="1.0.0"'), 'Data extension must be part of server-rendered Local-first document');
 assert(household.includes('id="lf-revision-chip" hidden'), 'technical revision chip must be hidden outside diagnostic mode');
 assert(household.includes("function provenance(view){return '<div class=\"provenance\"><div>Источник: <strong>ваши проверенные операции</strong>"), 'normal provenance must be owner-facing');
 assert(household.includes("'Данные готовы'"), 'READY status must be owner-facing');
@@ -86,11 +91,16 @@ assert(diagnostic.includes('&lf_diag=1'), 'diagnostic bootstrap must preserve ex
 for (const forbiddenAuthority of ['setValues(', 'appendRow(', 'deleteRow(', 'insertRowAfter(', 'UrlFetchApp.']) {
   assert(!serviceSource.includes(forbiddenAuthority), `presentation cleanup gained forbidden authority: ${forbiddenAuthority}`);
 }
+for (const forbiddenNetwork of ['google.script.run', 'fetch(', 'XMLHttpRequest(']) {
+  assert(!dataExtensionHtml.includes(forbiddenNetwork), `Local-first Data warm path gained forbidden network primitive: ${forbiddenNetwork}`);
+}
 
 console.log('local_first_household_copy_runtime_test: PASS', {
   householdCopy:true,
+  dataRoutesOwnerFacing:true,
   diagnosticOptInPreserved:true,
   revisionHiddenInHousehold:true,
   financialAuthorityChanged:false,
+  dataWriteAuthority:false,
   financialWrite:false
 });

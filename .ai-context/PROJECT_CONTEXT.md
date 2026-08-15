@@ -31,7 +31,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `DELTA-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #257, PR #258, candidate `5ed78c45eb77dbb008014f16a01288fa2e1cde91`, merge `0756252b5c0619bf53e9e1b24f235fb4fa28b2f6`; Apps Script version 225, exact-base delta/replay/target-revision verification, adversarial base-race fallback и real Chromium zero-network local read PASS.
 
-`FIN-LF-001` — **current writer / текущий writer**, Issue #259, branch `agent/FIN-LF-001-local-finance-routes`. Это единственный active writer. Цель LF3: Home/Expenses/Income/Cash Flow внутри одного Local-first SPA, один `ACTIVE + VERIFIED` snapshot, общий FilterContext, canonical analytics Web Worker, zero-network warm route/filter и exact-candidate Product UAT перед DONE.
+`FIN-LF-001` — **DONE / Main Verification PASS**, Issue #259, PR #260, candidate `0c58714df70e6065d6ec409cdc3bae991a85df36`, merge `c20258cd659f0e4a82c050b91eb04cc33c8e996b`; exact-candidate Owner Product UAT PASS, warm p95 `32 ms`, `10` переходов, сеть `0`.
+
+`DATA-LF-001` — **current writer / текущий writer**, Issue #263, PR #264, branch `agent/DATA-LF-001-local-transactions-data-quality`. Это единственный active writer. Цель: `Операции` + `Качество данных` на том же verified IndexedDB Local Read Model, local filters/pagination/detail/Back-Forward, read-only полезные DQ signals, privacy continuity, stale-generation discard, zero-network warm interactions и exact-candidate Product UAT перед DONE.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -52,7 +54,7 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 `PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0` не является financial truth. Local Read Model read-only, привязан к exact canonical revision и immutable generation. Partial bootstrap не становится visible current state. Delta apply требует exact base revision и idempotency; если chain недоказана, выполняется full rebuild. Worker не получает network/storage/financial-write authority; stale generation/revision result отбрасывается до UI commit.
 
-`PRH_LOCAL_READ_MODEL_V1@1.0.0` материализует storage boundary: `meta`, `transactions`, `dimensions`, `aggregates`, `sync_journal`; data records generation-scoped. Только `ACTIVE + VERIFIED` manifest может быть выдан consumer. Partial/failed generation не заменяет текущую verified generation; incompatible/corrupt state возвращает `REBUILD_REQUIRED`. Derived local database допускает explicit wipe/rebuild без canonical mutation.
+`PRH_LOCAL_READ_MODEL_V1@1.0.0` материализует storage boundary: `meta`, `transactions`, `dimensions`, `aggregates`, `sync_journal`; data records generation-scoped. Только `ACTIVE + VERIFIED` manifest может быть выдан consumer. Browser API представляет его как `status=READY`. Partial/failed generation не заменяет текущую verified generation; incompatible/corrupt state возвращает `REBUILD_REQUIRED`. Derived local database допускает explicit wipe/rebuild без canonical mutation.
 
 `PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0` не создаёт вторую финансовую истину: browser worker bundle детерминированно включает tracked canonical evaluator и его dependency graph. Узкий browser crypto shim поддерживает только SHA-256 через tracked `lib/crypto/sha256.js`; любой другой external/builtin require fail-closed. Каждая analytics query exact-bound к generation/revision и epoch; binding проверяется до и после evaluate. Cancellation или revision switch инвалидируют queued work, а stale completion не содержит analytics payload.
 
@@ -62,13 +64,15 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 `PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0` не создаёт UI financial authority. Четыре financial routes используют один verified snapshot и session-shared `PRH_LOCAL_FINANCE_FILTER_CONTEXT_V1`. UI строит только canonical analytics queries, Worker исполняет тот же `evaluateAnalytics()`, а render принимает только `PRH_ANALYTICS_RESULT_V1` с `FIN-TRUTH-v1` и `provenance.input_revision == active revision`. Route/filter epoch и generation/revision binding запрещают stale UI commit. Trusted Apps Script candidate детерминированно встраивает tracked STORE/SYNC/DELTA/FIN browser modules и generated canonical Worker bundle в `LocalFirstSpaWebApp.html`; repository-only `pwa/` code без deploy linkage больше не считается product implementation.
 
+`PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0` использует тот же `PRH_LOCAL_READ_MODEL_V1` snapshot для `transactions` и `data-quality`. Transaction filters, 20-row pagination и detail выполняются локально; detail не может выйти за текущий filter set. History хранит только безопасные query keys/IDs, без amount/description/counterparty payload. Data Quality read-only проверяет referential consistency transaction -> category/account/member dimensions и группы совпадающих source fingerprints. Эти сигналы не заменяют canonical validation и не получают autofix/write authority. Async render epoch запрещает commit результата старой generation после нового route/revision render.
+
 Target Product SLO являются будущими acceptance targets, не текущей telemetry: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Server technical health latency и cold bootstrap timing не подменяют эти метрики.
 
 ## Product Recovery handoff
 
 `R2R` forensic/product recovery и `MASTER-GUX` остаются исходной причиной architectural rebaseline: большое число engineering DONE не доказало достаточную product responsiveness/integration. Local-first recovery теперь имеет приоритет над дальнейшим feature expansion. R9/R10 frozen; old PLAN/E2E/STUDIO recovery scopes re-depend после LF architecture/product gates.
 
-Product lifecycle неизменен: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` требует exact-candidate Product Ready evidence; architecture docs и synthetic tests не являются owner UAT. Для FIN-LF-001 автоматические Chromium tests могут доказать engineering/runtime correctness, но AI/CI не может самостоятельно выдать owner Product UAT.
+Product lifecycle неизменен: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` требует exact-candidate Product Ready evidence; architecture docs и synthetic tests не являются owner UAT. Для DATA-LF-001 автоматические Chromium tests могут доказать engineering/runtime correctness, но AI/CI не может самостоятельно выдать owner Product UAT.
 
 ## Current R0 truth
 
@@ -102,7 +106,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На FIN-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На DATA-LF-001 live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 
@@ -130,7 +134,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta и Finance runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance и Data runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 

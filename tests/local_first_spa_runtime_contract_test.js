@@ -9,6 +9,7 @@ const root = path.join(__dirname, '..');
 const contract = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'local_first', 'spa_shell.v1.json'), 'utf8'));
 const architecture = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'local_first', 'local_first_runtime.v1.json'), 'utf8'));
 const html = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
+const dataExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstDataSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 
@@ -71,9 +72,10 @@ const context = vm.createContext({
   console, Object, Array, String, Number, Math, Date, RegExp, Error, JSON, encodeURIComponent,
   HtmlService:{
     createHtmlOutputFromFile(name){
-      assert.strictEqual(name, 'LocalFirstSpaWebApp');
       localFileReads += 1;
-      return output(html);
+      if (name === 'LocalFirstSpaWebApp') return output(html);
+      if (name === 'LocalFirstDataSpaExtension') return output(dataExtensionHtml);
+      throw new Error(`unexpected HtmlService file: ${name}`);
     },
     createHtmlOutput(content){ return output(content); }
   }
@@ -82,27 +84,30 @@ vm.runInContext(serviceSource, context, { filename:'LocalFirstSpaService.js' });
 vm.runInContext(routerSource, context, { filename:'CanonicalR2WebAppService.js' });
 
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.SURFACE, 'local-first');
+assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.DATA_EXTENSION_FILE, 'LocalFirstDataSpaExtension');
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.PRIVATE_PAYLOAD, false);
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.FINANCIAL_WRITE, false);
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.CANONICAL_MUTATION, false);
-assert.strictEqual(context.prhLocalFirstSpaSmokeToken(), 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|OK');
+assert.strictEqual(context.prhLocalFirstSpaSmokeToken(), 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|DATA_LOCAL_READ_ONLY|OK');
 assert.strictEqual(context.prhR2ResolveSurface_('local-first'), 'local-first');
 
 const preview = context.doGet({ parameter:{ surface:'local-first', lf_route:'expenses', privacy:'MASKED', lf_diag:'1' } });
 const previewHtml = preview.getContent();
 assert.notStrictEqual(previewHtml, html, 'server render must inject iframe-safe bootstrap state');
 assert(previewHtml.includes('data-lf-server-bootstrap="1"'), 'server bootstrap marker missing');
+assert(previewHtml.includes('data-prh-local-first-data-extension="1.0.0"'), 'Local-first Data extension must be injected');
 assert(previewHtml.includes('history.replaceState'), 'server bootstrap must establish same-origin iframe history state');
 assert(previewHtml.includes('?surface=local-first&lf_route=expenses&privacy=MASKED&lf_diag=1'), 'server bootstrap must preserve route/privacy/diagnostic params');
 assert(previewHtml.indexOf('data-lf-server-bootstrap="1"') < previewHtml.indexOf('<script>\n(function(){'), 'server bootstrap must execute before SPA runtime');
 assert(preview.title.includes('Local-first'));
-assert.strictEqual(localFileReads, 2, 'smoke + route render only');
+assert.strictEqual(localFileReads, 4, 'smoke + route render must each read shell and data extension');
 assert(!Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (entry) => entry[0]).includes('local-first'), 'preview must not enter canonical primary navigation');
 
 const safePreview = context.doGet({ parameter:{ surface:'local-first', lf_route:'unknown', privacy:'unexpected', lf_diag:'0' } }).getContent();
 assert(safePreview.includes('?surface=local-first&lf_route=home&privacy=MASKED'), 'server bootstrap must fail closed to safe route/privacy state');
 assert(!safePreview.includes('&lf_diag=1'), 'diagnostic must remain opt-in');
-assert.strictEqual(localFileReads, 3, 'smoke + diagnostic route + safe route render');
+assert(safePreview.includes('data-prh-local-first-data-extension="1.0.0"'), 'safe route must keep Data extension available');
+assert.strictEqual(localFileReads, 6, 'smoke + diagnostic route + safe route render must read two HTML files per render');
 
 for (const marker of [
   'data-prh-local-first-spa="1"',
@@ -121,19 +126,35 @@ for (const marker of [
 ]) assert(html.includes(marker), `missing SPA marker ${marker}`);
 for (const route of contract.routes) assert(html.includes(`data-lf-route="${route}"`), `missing route ${route}`);
 
+for (const marker of [
+  'data-prh-local-first-data-extension="1.0.0"',
+  'window.__PRH_LF_DATA_EXTENSION__',
+  'PRH_LOCAL_FIRST_DATA_EXTENSION_V1',
+  "const DATA_ROUTES=Object.freeze(['transactions','data-quality'])",
+  'googleSheetsReads:0',
+  'canonicalWrites:0',
+  'autofixCalls:0'
+]) assert(dataExtensionHtml.includes(marker), `missing Data extension marker ${marker}`);
+
 for (const serverMarker of [
   'prhLocalFirstSpaNormalizeRoute_',
   'prhLocalFirstSpaNormalizePrivacy_',
   'prhLocalFirstSpaBootstrap_',
+  'prhLocalFirstSpaInjectDataExtension_',
   'data-lf-server-bootstrap="1"',
   'history.replaceState',
   'window.__PRH_LF_SERVER_BOOT__'
 ]) assert(serviceSource.includes(serverMarker), `missing server bootstrap marker ${serverMarker}`);
 
 assert.doesNotMatch(html, /google\.script\.run|\bfetch\s*\(|XMLHttpRequest\s*\(/);
+assert.doesNotMatch(dataExtensionHtml, /google\.script\.run|\bfetch\s*\(|XMLHttpRequest\s*\(/);
 assert.doesNotMatch(serviceSource, /setValue\s*\(|setValues\s*\(|appendRow\s*\(/);
 assert.doesNotMatch(routerSource, /LOCAL_FIRST_SURFACE[\s\S]{0,300}(setValue|setValues|appendRow)\s*\(/);
-assert.doesNotMatch(previewHtml, /value_minor|amount_minor|balance_minor|SYN-TX-|PUBLIC_SYNTHETIC/);
+// Data extension source legitimately contains canonical field identifiers such
+// as amount_minor. The server privacy boundary is about embedded owner payload,
+// not code symbols, so only concrete synthetic/private payload markers are
+// forbidden in a source-only preview.
+assert.doesNotMatch(previewHtml, /SYN-TX-|PUBLIC_SYNTHETIC|Synthetic DATA-LF operation|Synthetic counterparty/);
 
 console.log('local_first_spa_runtime_contract_test: OK', {
   routes:contract.routes.length,
@@ -141,6 +162,7 @@ console.log('local_first_spa_runtime_contract_test: OK', {
   historyApi:true,
   serverIframeBootstrap:true,
   serverDiagnosticParam:true,
+  dataExtensionInjected:true,
   zeroWarmNetwork:true,
   zeroGoogleReads:true,
   ownerRouteToPaintDiagnostic:true,
