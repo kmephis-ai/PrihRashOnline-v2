@@ -56,8 +56,9 @@ assert(workflow.includes('PERF_LF_V1 requires exact-head successful PR Validatio
 
 // Both profiles remain exact-candidate, deployed and healthy before Product Ready status can be published.
 assert(workflow.includes('Owner UAT candidate does not match exact open PR head.'));
-assert(workflow.includes("DEPLOY_STATE}" + " == 'success'"));
-assert(workflow.includes("HEALTH_STATE}" + " == 'success'"));
+assert(workflow.includes('DEPLOY_STATE="$(jq -r'));
+assert(workflow.includes('HEALTH_STATE="$(jq -r'));
+assert(workflow.includes('[[ "${DEPLOY_STATE}" == \'success\' && "${HEALTH_STATE}" == \'success\' ]]'));
 assert(workflow.includes("context='product-ready-e2e'"));
 
 // Documentation must make the scope boundary explicit: PERF does not impersonate full Local-first E2E Product Ready.
