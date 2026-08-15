@@ -170,19 +170,18 @@ function installSyncStub(page){
     const detailButton=page.locator('[data-lf-detail]').first();
     const detailId=await detailButton.getAttribute('data-lf-detail');
     await detailButton.click();
-    await page.waitForSelector('.lf-data-detail');
-    assert.strictEqual(new URL(await page.url()).searchParams.get('tx_detail'),detailId);
-    assert.strictEqual((await page.locator('.lf-data-detail').count()),1);
+    await page.waitForFunction((expected)=>new URL(location.href).searchParams.get('tx_detail')===expected&&!!document.querySelector('.lf-data-detail')&&window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.detail_open===true,detailId);
+    assert.strictEqual(await page.locator('.lf-data-detail').count(),1);
     await page.goBack();
-    await page.waitForFunction(()=>!new URL(location.href).searchParams.has('tx_detail'));
+    await page.waitForFunction(()=>!new URL(location.href).searchParams.has('tx_detail')&&!document.querySelector('.lf-data-detail')&&window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.detail_open===false);
     assert.strictEqual(await page.locator('.lf-data-detail').count(),0,'Back must close detail without document reload');
     await page.goForward();
-    await page.waitForFunction(()=>new URL(location.href).searchParams.has('tx_detail'));
+    await page.waitForFunction((expected)=>new URL(location.href).searchParams.get('tx_detail')===expected&&!!document.querySelector('.lf-data-detail')&&window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.detail_open===true,detailId);
     assert.strictEqual(await page.locator('.lf-data-detail').count(),1,'Forward must restore detail');
 
     await page.click('[data-lf-route="data-quality"]');
     await page.waitForFunction(()=>window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.route==='data-quality'&&window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.status==='READY');
-    const dq=await page.evaluate(()=>({state:window.__PRH_LF_DATA_EXTENSION__.getState(),counts:Array.from(document.querySelectorAll('.lf-dq-count')).map(n=>Number(n.textContent)),texts:Array.from(document.querySelectorAll('.lf-dq-finding strong')).map(n=>n.textContent.trim()),overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,calls:{...window.__DATA_LF_SYNC_CALLS__}}));
+    const dq=await page.evaluate(()=>({state:window.__PRH_LF_DATA_EXTENSION__.getState(),counts:Array.from(document.querySelectorAll('.lf-dq-count')).map(n=>Number(n.textContent)),overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,calls:{...window.__DATA_LF_SYNC_CALLS__}}));
     assert.strictEqual(dq.state.lastState.problem_count,4,'DQ must find four meaningful projection/referential signals');
     assert.deepStrictEqual(dq.counts,[1,1,1,1]);
     assert.strictEqual(dq.state.canonicalWrites,0);
@@ -195,7 +194,7 @@ function installSyncStub(page){
     assert(dq.overflow<=2,`${name} DQ overflow ${dq.overflow}`);
 
     const screenshot=path.join(artifactDir,`local-first-data-${name}.png`);await page.screenshot({path:screenshot,fullPage:true});
-    evidence.push({name,viewport,privacy:state.privacy,revisionPrefix:revision.slice(0,12),transactions:45,pageSize:20,filteredTotal:filtered.state.total,dqProblemCount:dq.state.lastState.problem_count,warmHttpRequests:requests.length,warmGoogleScriptRunDelta:(dq.calls.full+ dq.calls.delta)-(baselineCalls.full+baselineCalls.delta),canonicalWrites:dq.state.canonicalWrites,autofixCalls:dq.state.autofixCalls,responsiveOverflowPx:dq.overflow});
+    evidence.push({name,viewport,privacy:state.privacy,revisionPrefix:revision.slice(0,12),transactions:45,pageSize:20,filteredTotal:filtered.state.total,dqProblemCount:dq.state.lastState.problem_count,warmHttpRequests:requests.length,warmGoogleScriptRunDelta:(dq.calls.full+dq.calls.delta)-(baselineCalls.full+baselineCalls.delta),canonicalWrites:dq.state.canonicalWrites,autofixCalls:dq.state.autofixCalls,responsiveOverflowPx:dq.overflow});
     await context.close();
   }
 
