@@ -1,0 +1,77 @@
+name: ADWF Local Git Mirror Publish E2E-LF Binary
+
+on:
+  push:
+    branches:
+      - agent/local-mirror-e2e-lf-20260816-a1
+    paths:
+      - .github/workflows/adwf-local-mirror-publish-e2e-binary.yml
+
+permissions:
+  contents: write
+
+env:
+  TARGET_BRANCH: agent/E2E-LF-001-product-ready-local-first
+  EXPECTED_PARENT: b7eec6e26778dc653dc556097c8cc668d203ec5f
+  EXPECTED_COMMIT: f6270eace9d95b997811500d4e7e39f281448513
+  EXPECTED_TREE: 6d917ee927568c03390759f381304b2a9cd530ff
+  EXPECTED_BUNDLE_SHA256: f96db5c56a2c47f47a4e91010d080d084c9aeda5fbbc1edb7903c5daeb689999
+
+jobs:
+  publish-exact-local-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Verify binary chunks and rebuild exact bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-00)" = "484c055edf28d1da2f29ec53db14a0ec1d284d90"
+          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-01)" = "06a91248be1eec2d2cbc5caf5188416a73fee32a"
+          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-02)" = "ab04d5845826b44041ff5f7b7528419d15b7a045"
+          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-03)" = "4a583477d00f21314530d2061095e9528f4a1b00"
+          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-04)" = "a8e57e06c7b6d477ef816f9e91855c72322bad59"
+          cat .adwf-transport/e2e-lf-binary-chunks/part-{00,01,02,03,04} > /tmp/e2e-lf-update.bundle
+          test "$(wc -c < /tmp/e2e-lf-update.bundle | tr -d ' ')" = "7579"
+          echo "${EXPECTED_BUNDLE_SHA256}  /tmp/e2e-lf-update.bundle" | sha256sum --check --strict
+          git bundle verify /tmp/e2e-lf-update.bundle
+
+      - name: Verify exact local commit identity and diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch /tmp/e2e-lf-update.bundle HEAD:refs/heads/adwf-publish-e2e
+          test "$(git rev-parse refs/heads/adwf-publish-e2e)" = "${EXPECTED_COMMIT}"
+          test "$(git rev-parse refs/heads/adwf-publish-e2e^)" = "${EXPECTED_PARENT}"
+          test "$(git rev-parse refs/heads/adwf-publish-e2e^{tree})" = "${EXPECTED_TREE}"
+          test "$(git rev-list --parents -n 1 refs/heads/adwf-publish-e2e | awk '{print NF}')" -eq 2
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_PARENT}" "${EXPECTED_COMMIT}")
+          expected=(
+            .ai-context/PROJECT_CONTEXT.md
+            docs/PROJECT_STATUS.md
+            lib/local_first/local_first_product_ready.v1.json
+            llms.txt
+            tests/local_first_product_ready_runtime_test.js
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}" | sort) <(printf '%s\n' "${changed[@]}" | sort)
+
+      - name: Fail closed if provider writer head moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test -n "${remote_head}"
+          test "${remote_head}" = "${EXPECTED_PARENT}"
+
+      - name: Publish exact local commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "${EXPECTED_COMMIT}:refs/heads/${TARGET_BRANCH}"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_COMMIT}"
