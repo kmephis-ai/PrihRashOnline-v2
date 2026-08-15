@@ -63,7 +63,7 @@ function analyticsEnvelope(activeSnapshot) {
   };
 }
 
-(async () => {
+async function runSuccessfulSameRevisionRecovery() {
   const malformed = canonicalTransaction();
   delete malformed.description;
   const repaired = canonicalTransaction();
@@ -149,11 +149,110 @@ function analyticsEnvelope(activeSnapshot) {
   assert(queryCalls >= 4, 'Home must be evaluated once before repair and once again after repair');
   assert(states.some((state) => state.view && state.view.status === 'ERROR'));
   assert(states.some((state) => state.view && state.view.status === 'READY'));
+}
+
+async function runFailedDestructiveRecoveryClearsStaleSnapshot() {
+  const malformed = canonicalTransaction();
+  delete malformed.destination_account_id;
+  let active = snapshot(malformed);
+  let queryCalls = 0;
+  let releaseSync;
+  let markSyncStarted;
+  const syncGate = new Promise((resolve) => { releaseSync = resolve; });
+  const syncStarted = new Promise((resolve) => { markSyncStarted = resolve; });
+
+  const store = {
+    async status() {
+      return active ? {
+        status: 'READY',
+        generation_id: active.generation_id,
+        revision: active.revision
+      } : { status: 'EMPTY' };
+    },
+    async getActiveSnapshot() {
+      return active;
+    }
+  };
+
+  const workerClient = {
+    async bind() { return true; },
+    async query(activeSnapshot) {
+      queryCalls += 1;
+      if (!Object.prototype.hasOwnProperty.call(activeSnapshot.transactions[0], 'destination_account_id')) {
+        const error = new Error('WORKER_CANONICAL_FIELD_MISSING_DESTINATION_ACCOUNT_ID');
+        error.code = 'WORKER_CANONICAL_FIELD_MISSING_DESTINATION_ACCOUNT_ID';
+        throw error;
+      }
+      return analyticsEnvelope(activeSnapshot);
+    }
+  };
+
+  const deltaCoordinator = {
+    async sync() {
+      markSyncStarted();
+      await syncGate;
+      // Mirrors destructive repair: malformed IndexedDB generation is wiped,
+      // but remote full bootstrap cannot be completed in this attempt.
+      active = null;
+      return {
+        status: 'FAILED',
+        reason: 'LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED',
+        active: null
+      };
+    }
+  };
+
+  const states = [];
+  const runtime = finance.createRuntime({
+    store,
+    workerClient,
+    deltaCoordinator,
+    onState: (state) => states.push(state)
+  });
+
+  await runtime.start('home');
+  const initial = runtime.getState();
+  assert.strictEqual(initial.snapshot_status, 'READY');
+  assert.strictEqual(initial.view.status, 'ERROR');
+  assert.strictEqual(initial.view.reason, 'WORKER_CANONICAL_FIELD_MISSING_DESTINATION_ACCOUNT_ID');
+  const callsBeforeFailedRepair = queryCalls;
+
+  await syncStarted;
+  releaseSync();
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const current = runtime.getState();
+    if (current.sync_status === 'FAILED' && current.snapshot_status === 'EMPTY') break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+
+  const failed = runtime.getState();
+  assert.strictEqual(failed.sync_status, 'FAILED');
+  assert.strictEqual(failed.degraded_reason, 'LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED');
+  assert.strictEqual(failed.snapshot_status, 'EMPTY', 'failed destructive rebuild must invalidate stale in-memory snapshot');
+  assert.strictEqual(failed.revision, null);
+  assert.strictEqual(failed.generation_id, null);
+  assert.strictEqual(failed.view.status, 'EMPTY');
+  assert.strictEqual(failed.view.reason, 'LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED');
+
+  const afterRoute = await runtime.setRoute('expenses');
+  assert.strictEqual(afterRoute.status, 'EMPTY');
+  assert.strictEqual(runtime.getState().snapshot_status, 'EMPTY');
+  assert.strictEqual(queryCalls, callsBeforeFailedRepair,
+    'no financial Worker query may reuse the stale malformed snapshot after failed destructive rebuild');
+  assert(states.some((state) => state.sync_status === 'FAILED' && state.snapshot_status === 'EMPTY'));
+}
+
+(async () => {
+  await runSuccessfulSameRevisionRecovery();
+  await runFailedDestructiveRecoveryClearsStaleSnapshot();
 
   console.log('local_finance_same_revision_recovery_runtime_test: PASS', {
     initialCanonicalShapeFailure: true,
     fullRebuildSameRevision: true,
     forcedWorkerRerender: true,
+    failedDestructiveRebuildClearsStaleMemory: true,
+    noStaleWorkerReuseAfterFailure: true,
     recoveredWithoutManualCacheClear: true,
     financialWriteAuthority: false
   });
