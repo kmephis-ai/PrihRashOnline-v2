@@ -164,6 +164,24 @@ function prhLocalFirstSpaMigrateCacheNamespace_(html) {
   return source.replace(legacy, active);
 }
 
+/**
+ * Browser Back/Forward must reuse the same warm SPA renderer as explicit route
+ * navigation, but without creating a new history entry or stealing focus from
+ * the browser's native history restoration. The source template is kept stable;
+ * the canonical server renderer applies this bounded, fail-closed repair before
+ * any HTML is sent to the owner browser.
+ */
+function prhLocalFirstSpaRepairHistoryRestore_(html) {
+  var source = String(html || '');
+  var legacy = "window.addEventListener('popstate',function(){render(routeFromUrl(),true)});";
+  var repaired = "window.addEventListener('popstate',function(){navigate(routeFromUrl(),{fromPopstate:true,history:false,focusMain:false})});";
+  var legacyCount = source.split(legacy).length - 1;
+  var repairedCount = source.split(repaired).length - 1;
+  if (legacyCount === 1 && repairedCount === 0) return source.replace(legacy, repaired);
+  if (legacyCount === 0 && repairedCount === 1) return source;
+  throw new Error('LF_SPA_HISTORY_RESTORE_HANDLER_INVALID');
+}
+
 function prhLocalFirstSpaInjectDataExtension_(html) {
   var source = String(html || '');
   var marker = '</body>';
@@ -179,6 +197,7 @@ function prhLocalFirstSpaRender_(params) {
   params = params || {};
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
   var html = prhLocalFirstSpaMigrateCacheNamespace_(source.getContent());
+  html = prhLocalFirstSpaRepairHistoryRestore_(html);
   html = prhLocalFirstSpaApplyHouseholdCopy_(html, params);
   html = prhLocalFirstSpaInjectDataExtension_(html);
   var selfUrl = prhLocalFirstSpaSelfUrl_();
