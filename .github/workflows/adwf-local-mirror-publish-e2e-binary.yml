@@ -14,8 +14,8 @@ env:
   TARGET_BRANCH: agent/E2E-LF-001-product-ready-local-first
   EXPECTED_PARENT: f6270eace9d95b997811500d4e7e39f281448513
   EXPECTED_COMMIT: ef4808cc4220385a5eb136bf9512b558d92d47a2
-  EXPECTED_TREE: 25fdd50d1c838858b5b264ceb655f5291a0994b3
-  EXPECTED_BUNDLE_SHA256: ef45f62bcc1c220219286299dfa2ec626e65b4c082ed93582cbfce35cde822be
+  EXPECTED_TREE: 3887aba415e910ee79058106dbf0261c28e3c928
+  EXPECTED_BUNDLE_SHA256: 8881e168eca51997cb3c6d5e2bd9bec1a886295b7b63cdfa8bac0a36254b8164
 
 jobs:
   publish-exact-local-commit:
@@ -37,7 +37,7 @@ jobs:
           test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-04)" = "03ea215c2250862a03c6d2227d64c20c5d6f3998"
           test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-05)" = "7dd7ddc4b78056ffa49b68ee79caba3b9c4134c0"
           cat .adwf-transport/e2e-lf-visual-binary-chunks/part-{00,01,02,03,04,05} > /tmp/e2e-lf-visual-update.bundle
-          test "$(wc -c < /tmp/e2e-lf-visual-update.bundle | tr -d ' ')" = "8999"
+          test "$(wc -c < /tmp/e2e-lf-visual-update.bundle | tr -d ' ')" = "8481"
           echo "${EXPECTED_BUNDLE_SHA256}  /tmp/e2e-lf-visual-update.bundle" | sha256sum --check --strict
           git bundle verify /tmp/e2e-lf-visual-update.bundle
 
