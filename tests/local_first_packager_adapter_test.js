@@ -32,10 +32,29 @@ assert.strictEqual(contract.default_state, 'DISABLED_WHEN_ABSENT');
 assert.strictEqual(contract.trust_bootstrap.candidate_packager_self_attestation_allowed, false);
 assert.strictEqual(contract.trust_bootstrap.disabled_mode_must_preserve_legacy_artifact_shape, true);
 assert.strictEqual(contract.trust_bootstrap.marker_must_not_be_present_in_PACK_LF_001_root, true);
-assert.strictEqual(fs.existsSync(path.join(ROOT, MARKER_FILE)), false, 'PACK-LF-001 root must not activate the marker');
-assert.deepStrictEqual(localFirstBrowserRuntimeConfig(ROOT), { enabled:false, marker:null });
+
+// PACK-LF-001 proved the trusted capability in main with no root marker. FIN-LF-001 is
+// the next stage and intentionally activates that already-trusted capability, so the
+// current repository root must now validate as an enabled marker instead of being
+// mistaken for the historical PACK bootstrap root.
+const currentRootConfig = localFirstBrowserRuntimeConfig(ROOT);
+assert.strictEqual(currentRootConfig.enabled, true, 'FIN-LF-001 root must activate the trusted post-PACK marker');
+assert(currentRootConfig.marker, 'enabled FIN-LF root must expose a normalized marker');
+assert.strictEqual(currentRootConfig.marker.schema, MARKER_SCHEMA);
+assert.strictEqual(currentRootConfig.marker.version, MARKER_VERSION);
+assert.strictEqual(currentRootConfig.marker.target_html, TARGET_HTML);
+assert.strictEqual(currentRootConfig.marker.worker_entry, WORKER_ENTRY);
+assert.strictEqual(currentRootConfig.marker.runtime_network_required_for_warm_route, false);
+assert.strictEqual(currentRootConfig.marker.external_cdn_required, false);
+assert.strictEqual(currentRootConfig.marker.cost_class, 'FREE_ONLY');
+assert.strictEqual(currentRootConfig.marker.modules.includes('pwa/local_finance_runtime.js'), true, 'FIN-LF activation must include the finance browser runtime');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'prh-pack-lf-'));
+const packBootstrapRoot = path.join(temp, 'pack-bootstrap-root');
+fs.mkdirSync(packBootstrapRoot, { recursive:true });
+assert.strictEqual(fs.existsSync(path.join(packBootstrapRoot, MARKER_FILE)), false, 'PACK-LF bootstrap fixture must not activate the marker');
+assert.deepStrictEqual(localFirstBrowserRuntimeConfig(packBootstrapRoot), { enabled:false, marker:null });
+
 const source = path.join(temp, 'source');
 fs.mkdirSync(source, { recursive:true });
 fs.writeFileSync(path.join(source, 'appsscript.json'), '{"timeZone":"Etc/UTC"}\n');
@@ -120,7 +139,8 @@ try {
   assert.throws(() => buildCandidate({ sourceRoot:source, repositoryRoot:ROOT, outRoot:path.join(temp,'invalid-policy'), candidateSha:SHA }), /LOCAL_FIRST_RUNTIME_MARKER_POLICY_INVALID/);
 
   console.log('local_first_packager_bootstrap_contract_test: PASS', {
-    rootMarkerAbsent:true,
+    packBootstrapMarkerAbsent:true,
+    currentRootMarkerEnabled:true,
     disabledManifestLegacyCompatible:true,
     markerEnabledDeterministic:true,
     enabledModules:marker().modules.length,

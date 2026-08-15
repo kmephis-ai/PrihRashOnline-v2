@@ -12,6 +12,16 @@
   var HEX64 = /^[0-9a-f]{64}$/;
   var DEFAULT_CHUNK_SIZE = 250;
   var DATA_STORES = ['transactions', 'dimensions', 'aggregates', 'sync_journal'];
+  var CANONICAL_TRANSACTION_KEYS = Object.freeze([
+    'schema', 'schema_version', 'transaction_id', 'occurred_at', 'type', 'status',
+    'amount_minor', 'currency', 'account_id', 'destination_account_id', 'category_id',
+    'member_id', 'project_id', 'tags', 'counterparty', 'description',
+    'reverses_transaction_id', 'adjustment_semantics', 'provenance'
+  ]);
+  var CANONICAL_PROVENANCE_KEYS = Object.freeze([
+    'source_system', 'source_container', 'source_record_id', 'source_fingerprint',
+    'identity_strategy', 'transform_version', 'source_position'
+  ]);
 
   function fail(code, detail) {
     var error = new Error(detail ? code + ':' + detail : code);
@@ -32,8 +42,26 @@
     return text;
   }
 
+  function assertExactObjectKeys(value, expectedKeys, code) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw fail(code);
+    var actual = Object.keys(value).sort();
+    var expected = expectedKeys.slice().sort();
+    if (actual.length !== expected.length) throw fail(code);
+    for (var i = 0; i < expected.length; i += 1) {
+      if (actual[i] !== expected[i]) throw fail(code);
+    }
+    return value;
+  }
+
+  function assertCanonicalTransactionShape(tx) {
+    assertExactObjectKeys(tx, CANONICAL_TRANSACTION_KEYS, 'LOCAL_FIRST_DELTA_TRANSACTION_SHAPE_INVALID');
+    assertExactObjectKeys(tx.provenance, CANONICAL_PROVENANCE_KEYS, 'LOCAL_FIRST_DELTA_PROVENANCE_SHAPE_INVALID');
+    return tx;
+  }
+
   function revisionRow(tx) {
-    if (!tx || tx.schema !== 'PRH_CANONICAL_TRANSACTION_V1' || tx.schema_version !== 1 ||
+    assertCanonicalTransactionShape(tx);
+    if (tx.schema !== 'PRH_CANONICAL_TRANSACTION_V1' || tx.schema_version !== 1 ||
         !tx.transaction_id || !tx.provenance || !Array.isArray(tx.tags)) {
       throw fail('LOCAL_FIRST_DELTA_TRANSACTION_INVALID');
     }
@@ -276,6 +304,52 @@
       });
     }
 
+    async function rebuildInvalidLocalInventory(reason, started) {
+      if (typeof store.wipe !== 'function' || typeof store.open !== 'function') {
+        return Object.freeze({
+          status: 'FAILED',
+          reason: 'LOCAL_FIRST_DELTA_LOCAL_REBUILD_UNAVAILABLE',
+          trigger_reason: reason,
+          active: null,
+          duration_ms: Math.max(0, Date.now() - started)
+        });
+      }
+      try {
+        await store.wipe();
+        var opened = await store.open();
+        if (!opened || opened.status !== 'OPEN') throw fail('LOCAL_FIRST_DELTA_LOCAL_REBUILD_OPEN_FAILED');
+      } catch (error) {
+        return Object.freeze({
+          status: 'FAILED',
+          reason: boundedReason(error, 'LOCAL_FIRST_DELTA_LOCAL_REBUILD_FAILED'),
+          trigger_reason: reason,
+          active: null,
+          duration_ms: Math.max(0, Date.now() - started)
+        });
+      }
+
+      var rebuilt = await fallbackFull(reason, started);
+      if (rebuilt.status !== 'FULL_REBUILT') return rebuilt;
+
+      var verified = await store.getActiveSnapshot({ includeJournal: true });
+      try {
+        await buildInventory(verified);
+      } catch (error) {
+        try {
+          await store.wipe();
+          await store.open();
+        } catch (cleanupError) { void cleanupError; }
+        return Object.freeze({
+          status: 'FAILED',
+          reason: boundedReason(error, 'LOCAL_FIRST_DELTA_REBUILT_INVENTORY_INVALID'),
+          trigger_reason: reason,
+          active: null,
+          duration_ms: Math.max(0, Date.now() - started)
+        });
+      }
+      return rebuilt;
+    }
+
     function applyMap(baseRows, upserts, deletes, keyField) {
       var map = new Map();
       baseRows.forEach(function (row) { map.set(String(row[keyField]), row); });
@@ -395,7 +469,7 @@
       try {
         requestContext = await buildInventory(baseSnapshot);
       } catch (error) {
-        return fallbackFull(boundedReason(error, 'LOCAL_FIRST_DELTA_INVENTORY_FAILED'), started);
+        return rebuildInvalidLocalInventory(boundedReason(error, 'LOCAL_FIRST_DELTA_INVENTORY_FAILED'), started);
       }
       var rawRemote;
       try {

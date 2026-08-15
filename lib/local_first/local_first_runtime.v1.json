@@ -40,9 +40,12 @@
     "financial_write_authority": false,
     "revision_bound": true,
     "generation_bound": true,
+    "dataset_bound_once_per_revision": true,
+    "query_payload_contains_dataset": false,
+    "revision_scoped_query_cache": true,
     "stale_completion": "DISCARD",
-    "messages_in": ["INIT", "SET_REVISION", "ANALYTICS_QUERY", "CANCEL_GENERATION"],
-    "messages_out": ["READY", "ANALYTICS_RESULT", "STALE_DISCARDED", "ERROR"]
+    "messages_in": ["INIT", "SET_REVISION", "BIND_DATASET", "ANALYTICS_QUERY", "CANCEL_GENERATION"],
+    "messages_out": ["READY", "DATASET_BOUND", "ANALYTICS_RESULT", "STALE_DISCARDED", "ERROR"]
   },
   "sync": {
     "schema": "PRH_BACKGROUND_SYNC_V1",
@@ -77,6 +80,8 @@
   "measurement_rules": {
     "server_health_latency_is_product_sla": false,
     "cold_bootstrap_is_warm_interaction_sla": false,
+    "warm_route_slo_excludes_cold_query_cache": true,
+    "warm_route_diagnostic_requires_route_cache_warmup": true,
     "warm_interaction_must_prove_zero_required_network": true,
     "warm_interaction_must_prove_zero_google_sheet_reads": true
   },

@@ -1,224 +1,110 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-prh-local-first-spa="1" data-document-lifecycle="SINGLE">
 <head>
-  <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="prh-local-first-spa" content="1.0.0">
+  <title>PrihRashOnline — Local-first</title>
   <style>
-    :root,html[data-theme="light"]{
-      --canvas:#f3f6fa;--surface:#fff;--surface-soft:#f8fafc;--text:#13243a;--muted:#617086;
-      --line:#dbe3ec;--brand:#0b5d65;--brand-strong:#073b52;--accent:#eaf7f5;--ok:#17643b;
-      --warn:#795000;--warn-bg:#fff7e6;--shadow:0 8px 28px rgba(24,45,74,.08);color-scheme:light;
-    }
-    html[data-theme="dark"]{
-      --canvas:#0b1220;--surface:#111b2c;--surface-soft:#162338;--text:#f2f6fb;--muted:#a9b8cb;
-      --line:#32445d;--brand:#57c7c4;--brand-strong:#123f66;--accent:#143033;--ok:#a2e8bb;
-      --warn:#ffd88a;--warn-bg:#3b2b12;--shadow:0 8px 28px rgba(0,0,0,.2);color-scheme:dark;
-    }
-    @media(prefers-color-scheme:dark){html:not([data-theme]){
-      --canvas:#0b1220;--surface:#111b2c;--surface-soft:#162338;--text:#f2f6fb;--muted:#a9b8cb;
-      --line:#32445d;--brand:#57c7c4;--brand-strong:#123f66;--accent:#143033;--ok:#a2e8bb;
-      --warn:#ffd88a;--warn-bg:#3b2b12;--shadow:0 8px 28px rgba(0,0,0,.2);color-scheme:dark;
-    }}
-    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--canvas);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    a,button{font:inherit}.skip{position:absolute;left:-9999px;top:8px}.skip:focus{left:8px;z-index:10000;padding:9px 12px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px}
-    .top{position:sticky;top:0;z-index:50;background:#061d37;color:#fff;border-bottom:1px solid rgba(255,255,255,.16)}
-    .top-inner{max-width:1280px;min-width:0;margin:0 auto;padding:11px clamp(12px,3vw,28px);display:flex;align-items:center;gap:12px}
-    .brand{display:flex;align-items:center;gap:10px;min-width:0}.logo{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,#36a7a2,#0b5d65);font-weight:900}.brand-copy{min-width:0}.brand-name{font-weight:850}.brand-note{font-size:11px;color:#b8d2e7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .preview{margin-left:auto;padding:6px 10px;border-radius:999px;background:rgba(255,216,138,.13);border:1px solid rgba(255,216,138,.35);color:#ffe1a2;font-size:11px;font-weight:800;white-space:nowrap}
-    .layout{max-width:1280px;min-width:0;margin:0 auto;padding:20px clamp(12px,3vw,28px) 44px;display:grid;grid-template-columns:240px minmax(0,1fr);gap:18px}
-    .side{position:sticky;top:76px;align-self:start;min-width:0;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px;box-shadow:var(--shadow)}
-    .nav{display:grid;gap:5px;min-width:0;max-width:100%}.nav a{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:12px;color:var(--text);text-decoration:none;font-weight:720;border:1px solid transparent}.nav a:hover,.nav a:focus-visible{background:var(--surface-soft);outline:none;border-color:var(--line)}.nav a[aria-current="page"]{background:var(--accent);color:var(--brand);border-color:transparent}.dot{width:8px;height:8px;border-radius:999px;background:currentColor;opacity:.45}
-    .rollback{display:block;max-width:100%;margin-top:10px;padding:10px 11px;border-top:1px solid var(--line);color:var(--muted);text-decoration:none;font-size:12px;overflow-wrap:anywhere}.rollback:hover,.rollback:focus-visible{color:var(--text);outline:none;text-decoration:underline}
-    .main{min-width:0}.hero{padding:clamp(22px,4vw,42px);border-radius:22px;background:linear-gradient(118deg,#061d37 0%,#0b4f78 58%,#0b6570 100%);color:#fff;box-shadow:var(--shadow)}
-    .eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;color:#b8d2e7}.hero h1{margin:7px 0 10px;font-size:clamp(30px,4vw,48px);line-height:1.05}.hero p{max-width:760px;margin:0;color:#d7e7f2;font-size:15px}.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.pill{padding:6px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);font-size:11px;font-weight:800}
-    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.card{min-width:0;min-height:150px;padding:17px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow)}.card h2{margin:0 0 8px;font-size:17px}.card p{margin:0;color:var(--muted)}
-    .state{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:6px 9px;border-radius:999px;background:var(--warn-bg);color:var(--warn);font-size:11px;font-weight:800}.state::before{content:"";width:7px;height:7px;border-radius:999px;background:currentColor}
-    .truth{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft);color:var(--muted)}.truth strong{color:var(--text)}
-    .diagnostic{margin-top:16px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow)}.diagnostic h2{margin:0 0 7px;font-size:17px}.diagnostic p{margin:0;color:var(--muted)}.diagnostic-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}.diagnostic button{border:0;border-radius:12px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:800;cursor:pointer}.diagnostic button:disabled{opacity:.55;cursor:wait}.diagnostic output{font-variant-numeric:tabular-nums;font-weight:850;color:var(--ok)}
-    .focus-target:focus{outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:4px}
-    @media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.side{position:static;overflow:hidden}.nav{display:flex;width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:2px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}.nav a{flex:0 0 auto}.rollback{border-top:0;border-left:1px solid var(--line);margin:0 0 0 5px;display:inline-flex;align-items:center;white-space:normal}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:580px){.top-inner{align-items:flex-start}.preview{font-size:10px}.layout{padding-top:12px}.side{border-radius:14px}.grid{grid-template-columns:1fr}.hero{border-radius:18px}.brand-note{max-width:190px}.diagnostic-actions{align-items:stretch}.diagnostic button{width:100%}}
-    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+    :root{--bg:#f3f6fb;--surface:#fff;--surface-2:#f8fafc;--text:#142238;--muted:#62738a;--line:#dce5ef;--brand:#0b6570;--brand2:#148995;--ok:#13795b;--warn:#9a6700;--bad:#b42318;--shadow:0 16px 40px rgba(20,34,56,.08);--radius:18px;color-scheme:light}
+    @media(prefers-color-scheme:dark){:root{--bg:#0c1422;--surface:#111d2f;--surface-2:#17253a;--text:#f3f7fc;--muted:#a8b8cc;--line:#31435a;--brand:#3fc4c3;--brand2:#62d6d4;--ok:#70d5b4;--warn:#f7c75f;--bad:#ff8a80;--shadow:none;color-scheme:dark}}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:15px/1.48 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button,a{touch-action:manipulation}.app{min-height:100vh}.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}.top-inner{max-width:1440px;margin:auto;padding:12px clamp(14px,3vw,34px);display:flex;align-items:center;gap:14px}.brand{display:flex;align-items:center;gap:10px;font-weight:900;white-space:nowrap}.brand-mark{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.24)}.statusbar{margin-left:auto;display:flex;align-items:center;gap:8px;min-width:0}.status-chip{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px;white-space:nowrap}.status-chip[data-state="READY"]{color:var(--ok)}.status-chip[data-state="DEGRADED"],.status-chip[data-state="FAILED"]{color:var(--warn)}.rollback{color:var(--muted);font-size:13px;text-decoration:none}.rollback:hover{color:var(--text)}.layout{max-width:1440px;margin:auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;padding:22px clamp(14px,3vw,34px) 42px}.nav{position:sticky;top:78px;align-self:start;display:grid;gap:6px}.nav a{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;color:var(--muted);text-decoration:none;font-weight:750;border:1px solid transparent}.nav a:hover{background:var(--surface);color:var(--text)}.nav a[aria-current="page"]{background:var(--surface);color:var(--brand);border-color:var(--line);box-shadow:var(--shadow)}.main{min-width:0}.hero{border:1px solid var(--line);background:linear-gradient(135deg,var(--surface),color-mix(in srgb,var(--brand) 7%,var(--surface)));border-radius:22px;padding:24px clamp(18px,4vw,34px);box-shadow:var(--shadow)}.eyebrow{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.11em;color:var(--brand)}h1{margin:6px 0 6px;font-size:clamp(28px,4vw,42px);line-height:1.05}h2,h3{margin-top:0}.hero p{margin:0;color:var(--muted);max-width:860px}.hero-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.pill{border:1px solid var(--line);background:var(--surface);padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted)}.finance-toolbar{margin-top:16px;border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:14px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:end}.control{display:grid;gap:5px}.control label{font-size:12px;font-weight:800;color:var(--muted)}.control input,.control select{min-width:0;border:1px solid var(--line);background:var(--surface-2);color:var(--text);border-radius:10px;padding:9px 10px}.button{border:0;border-radius:11px;padding:10px 13px;font-weight:900;cursor:pointer;background:var(--brand);color:#fff}.button.secondary{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}.button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 35%,transparent);outline-offset:2px}.finance-content{margin-top:16px}.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.kpi{background:var(--surface);border:1px solid var(--line);border-radius:17px;padding:16px;box-shadow:var(--shadow)}.kpi .label{font-size:12px;font-weight:850;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.money{font-size:clamp(22px,3vw,32px);font-weight:950;margin-top:6px;overflow-wrap:anywhere}.money.masked{letter-spacing:.12em}.panel-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:14px;margin-top:14px}.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);min-width:0}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.panel-head p{margin:2px 0 0;color:var(--muted);font-size:13px}.bars{display:grid;gap:10px;margin-top:14px}.bar-row{display:grid;grid-template-columns:minmax(100px,1fr) 2.2fr auto;gap:10px;align-items:center}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}.bar-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:999px;min-width:2px}.bar-value{font-variant-numeric:tabular-nums;font-weight:800}.series{display:flex;align-items:flex-end;gap:5px;height:170px;margin-top:16px;padding-top:8px;border-bottom:1px solid var(--line)}.series-col{flex:1;min-width:4px;display:flex;align-items:flex-end;height:100%}.series-bar{width:100%;min-height:2px;background:linear-gradient(180deg,var(--brand2),var(--brand));border-radius:5px 5px 0 0}.series-empty{color:var(--muted);padding:40px 0;text-align:center}.provenance{display:grid;gap:8px;color:var(--muted);font-size:13px}.provenance code{color:var(--text);overflow-wrap:anywhere}.empty,.loading,.error{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px;color:var(--muted)}.error{border-color:color-mix(in srgb,var(--bad) 35%,var(--line));color:var(--bad)}.preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}.card p{color:var(--muted);margin-bottom:14px}.state{font-size:12px;font-weight:900;color:var(--brand)}.truth{margin-top:16px;border:1px dashed var(--line);border-radius:15px;padding:14px;color:var(--muted)}.truth strong{color:var(--text)}.diagnostic{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}.diagnostic p{color:var(--muted)}.diagnostic-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.diagnostic output{font-weight:850}.sync-banner{margin-top:10px;padding:9px 11px;border-radius:11px;background:var(--surface-2);color:var(--muted);font-size:13px}.sync-banner[data-state="DEGRADED"]{color:var(--warn)}.sync-banner[data-state="FAILED"]{color:var(--bad)}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}.nav{position:static;display:flex;overflow-x:auto;padding-bottom:4px}.nav a{white-space:nowrap}.finance-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-grid{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.preview-grid{grid-template-columns:1fr}.statusbar .status-chip:nth-child(2){display:none}}
+    @media(max-width:520px){.top-inner{padding:10px 12px}.brand span:last-child{display:none}.layout{padding:14px 10px 32px;gap:14px}.hero{padding:19px 16px;border-radius:18px}.finance-toolbar{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}.kpi{padding:13px}.money{font-size:20px}.bar-row{grid-template-columns:minmax(85px,1fr) 1.4fr}.bar-value{grid-column:2;text-align:right}.statusbar{gap:5px}.status-chip{padding:5px 7px}.rollback{font-size:12px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:1ms!important;animation-duration:1ms!important}}
   </style>
 </head>
-<body data-prh-local-first-spa="1" data-spa-version="1.0.0" data-document-lifecycle="SINGLE">
-<a class="skip" href="#lf-main">К содержанию</a>
-<header class="top">
-  <div class="top-inner">
-    <div class="brand"><div class="logo" aria-hidden="true">ПР</div><div class="brand-copy"><div class="brand-name">PrihRashOnline</div><div class="brand-note">быстрый локальный интерфейс</div></div></div>
-    <div class="preview">Предварительная версия</div>
-  </div>
-</header>
-<div class="layout">
-  <aside class="side" aria-label="Разделы локального интерфейса">
-    <nav class="nav" id="lf-nav">
-      <a href="?surface=local-first&lf_route=home" data-lf-route="home"><span class="dot"></span>Главная</a>
-      <a href="?surface=local-first&lf_route=transactions" data-lf-route="transactions"><span class="dot"></span>Операции</a>
-      <a href="?surface=local-first&lf_route=expenses" data-lf-route="expenses"><span class="dot"></span>Расходы</a>
-      <a href="?surface=local-first&lf_route=income" data-lf-route="income"><span class="dot"></span>Доходы</a>
-      <a href="?surface=local-first&lf_route=cash-flow" data-lf-route="cash-flow"><span class="dot"></span>Денежный поток</a>
-      <a href="?surface=local-first&lf_route=data-quality" data-lf-route="data-quality"><span class="dot"></span>Качество данных</a>
+<body data-active-lf-route="home">
+<div class="app">
+  <header class="top"><div class="top-inner"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>ПрихРасхOnline</span></div><div class="statusbar"><span class="status-chip" id="lf-sync-chip" data-state="PREVIEW">Local-first</span><span class="status-chip" id="lf-revision-chip">rev —</span><a class="rollback" id="lf-rollback" data-lf-rollback="canonical-r2" href="?surface=home">Вернуться к R2</a></div></div></header>
+  <div class="layout">
+    <nav class="nav" id="lf-nav" aria-label="Разделы Local-first">
+      <a href="?surface=local-first&lf_route=home" data-lf-route="home">Главная</a>
+      <a href="?surface=local-first&lf_route=transactions" data-lf-route="transactions">Операции</a>
+      <a href="?surface=local-first&lf_route=expenses" data-lf-route="expenses">Расходы</a>
+      <a href="?surface=local-first&lf_route=income" data-lf-route="income">Доходы</a>
+      <a href="?surface=local-first&lf_route=cash-flow" data-lf-route="cash-flow">Денежный поток</a>
+      <a href="?surface=local-first&lf_route=data-quality" data-lf-route="data-quality">Качество данных</a>
     </nav>
-    <a class="rollback" id="lf-rollback" data-lf-rollback="canonical-r2" href="?surface=home">Вернуться к текущему интерфейсу</a>
-  </aside>
-  <main class="main focus-target" id="lf-main" tabindex="-1" aria-live="polite">
-    <section class="hero">
-      <div class="eyebrow">LOCAL-FIRST PREVIEW</div>
-      <h1 id="lf-title">Главная</h1>
-      <p id="lf-summary">Проверяем единый быстрый интерфейс без перезагрузки страницы. Реальные финансовые данные будут подключены на следующих этапах Local-first.</p>
-      <div class="hero-meta"><span class="pill" id="lf-route-pill">Раздел: Главная</span><span class="pill">Одна страница</span><span class="pill">Переходы без сети</span></div>
-    </section>
-    <section class="grid" aria-label="Состояние раздела">
-      <article class="card"><h2>Навигация</h2><p>Переход между разделами выполняется внутри уже открытого приложения — без новой загрузки серверной страницы.</p><div class="state">Готово для проверки</div></article>
-      <article class="card"><h2>Локальные данные</h2><p id="lf-data-state">Хранилище IndexedDB подключается отдельным этапом. До этого финансовые значения намеренно не показываются.</p><div class="state">Подключается</div></article>
-      <article class="card"><h2>Расчёты и графики</h2><p>Web Worker и локальные графики будут подключены после локального хранилища. Серверные запросы на каждый клик больше не являются целевой схемой.</p><div class="state">Следующий этап</div></article>
-    </section>
-    <div class="truth"><strong>Что сейчас проверяем:</strong> один живущий документ, мгновенные переходы, Back/Forward, сохранение безопасного режима отображения и отсутствие выдуманных финансовых данных.</div>
-    <section class="diagnostic" id="lf-diagnostic" data-lf-diagnostic="route-to-paint" aria-label="Проверка скорости переходов" hidden>
-      <h2>Проверка скорости переходов</h2>
-      <p>Десять раз переключает локальные разделы тем же SPA-маршрутом, ждёт фактическую отрисовку кадра и считает консервативный p95. Сеть и Google Sheets в измерении не используются.</p>
-      <div class="diagnostic-actions"><button type="button" id="lf-diag-run">Измерить 10 переходов</button><output id="lf-diag-result" aria-live="polite">Готово к измерению</output></div>
-    </section>
-  </main>
+    <main class="main" id="lf-main" tabindex="-1">
+      <section class="hero"><div class="eyebrow">Local-first finance</div><h1 id="lf-title">Главная</h1><p id="lf-summary">Один живущий интерфейс, одна проверенная локальная ревизия и расчёты в Web Worker.</p><div class="hero-meta"><span class="pill" id="lf-route-pill">Раздел: Главная</span><span class="pill">Одна страница</span><span class="pill">Warm path без сети</span><span class="pill" id="lf-fin-truth-pill">FIN-TRUTH</span></div><div class="sync-banner" id="lf-sync-banner" data-state="PREVIEW">Local-first browser runtime будет встроен только в trusted Apps Script candidate.</div></section>
+
+      <section class="finance-toolbar" id="lf-finance-toolbar" aria-label="Общие фильтры финансов" hidden>
+        <div class="control"><label for="lf-filter-currency">Валюта</label><select id="lf-filter-currency"></select></div>
+        <div class="control"><label for="lf-filter-start">Начало периода</label><input id="lf-filter-start" type="date"></div>
+        <div class="control"><label for="lf-filter-end">До даты (не включая)</label><input id="lf-filter-end" type="date"></div>
+        <div class="control"><label for="lf-filter-category">Категория</label><select id="lf-filter-category"><option value="">Все категории</option></select></div>
+        <div style="display:flex;gap:8px"><button class="button" type="button" id="lf-filter-apply">Применить</button><button class="button secondary" type="button" id="lf-sync-refresh" title="Явное фоновое обновление">↻</button></div>
+      </section>
+
+      <section class="finance-content" id="lf-finance-content" hidden aria-live="polite"></section>
+      <section class="preview-grid" id="lf-preview-grid" aria-label="Состояние раздела">
+        <article class="card"><h2>Навигация</h2><p>Переход между разделами выполняется внутри уже открытого приложения — без новой загрузки серверной страницы.</p><div class="state">Готово для проверки</div></article>
+        <article class="card"><h2>Локальные данные</h2><p id="lf-data-state">IndexedDB runtime подключается в trusted candidate. Source preview намеренно не показывает финансовые значения.</p><div class="state">Exact candidate only</div></article>
+        <article class="card"><h2>Расчёты</h2><p>Financial values разрешены только из canonical analytics Web Worker, связанного с exact generation/revision.</p><div class="state">FIN-LF-001</div></article>
+      </section>
+      <div class="truth"><strong>Граница истины:</strong> никаких демонстрационных сумм вместо ваших финансов. При отсутствии verified Local Read Model показывается состояние загрузки/ошибки, а не выдуманные данные.</div>
+      <section class="diagnostic" id="lf-diagnostic" data-lf-diagnostic="route-to-paint" aria-label="Проверка скорости переходов" hidden><h2>Проверка скорости переходов</h2><p>Сначала без учёта времени прогревает четыре финансовых Local-first раздела на текущей verified revision. Затем десять раз переключает их, ждёт завершения canonical Web Worker и фактическую отрисовку готового финансового кадра и считает консервативный warm p95. Cold query-cache в результат не входит; сеть и Google Sheets в измерении не используются.</p><div class="diagnostic-actions"><button class="button secondary" type="button" id="lf-diag-run">Измерить 10 тёплых переходов</button><output id="lf-diag-result" aria-live="polite">Готово к измерению</output></div></section>
+    </main>
+  </div>
 </div>
+<!-- PRH_LOCAL_FIRST_BROWSER_RUNTIME -->
 <script>
 (function(){
   'use strict';
   const ROUTES=Object.freeze({
-    home:Object.freeze({title:'Главная',summary:'Проверяем единый быстрый интерфейс без перезагрузки страницы. Реальные финансовые данные будут подключены на следующих этапах Local-first.'}),
-    transactions:Object.freeze({title:'Операции',summary:'Маршрут операций уже живёт внутри единого приложения. Локальный список операций будет подключён через IndexedDB без запроса к Google Sheets на каждый переход.'}),
-    expenses:Object.freeze({title:'Расходы',summary:'Раздел расходов подготовлен для локального read-model. До подключения проверенных данных мы не показываем демонстрационные суммы вместо ваших финансов.'}),
-    income:Object.freeze({title:'Доходы',summary:'Раздел доходов подготовлен для локального read-model. Финансовые значения появятся только после проверки Local-first хранилища и синхронизации.'}),
-    'cash-flow':Object.freeze({title:'Денежный поток',summary:'Маршрут денежного потока готов к локальным расчётам. Web Worker будет считать аналитику вне основного UI-потока после подключения read-model.'}),
-    'data-quality':Object.freeze({title:'Качество данных',summary:'Раздел качества данных будет читать ту же проверенную локальную ревизию, что и финансовые разделы. Автоматические исправления здесь не включаются.'})
+    home:Object.freeze({title:'Главная',summary:'Ключевые показатели и динамика из одной проверенной локальной ревизии.'}),
+    transactions:Object.freeze({title:'Операции',summary:'Local-first список операций подключается следующим этапом DATA-LF-001.'}),
+    expenses:Object.freeze({title:'Расходы',summary:'Расходы и структура по категориям считаются canonical Web Worker на общем FilterContext.'}),
+    income:Object.freeze({title:'Доходы',summary:'Доходы и структура по категориям считаются canonical Web Worker на той же локальной ревизии.'}),
+    'cash-flow':Object.freeze({title:'Денежный поток',summary:'Доходы, расходы и денежный поток по периодам — без server request на каждый переход.'}),
+    'data-quality':Object.freeze({title:'Качество данных',summary:'Local-first Data Quality подключается следующим этапом DATA-LF-001.'})
   });
+  const FINANCE_ROUTES=Object.freeze(['home','expenses','income','cash-flow']);
   const ALLOWED_PRIVACY=Object.freeze(['NORMAL','MASKED','DEMO','ZEN']);
-  const runtime=window.__PRH_LF_SPA_RUNTIME__||(window.__PRH_LF_SPA_RUNTIME__={
-    schema:'PRH_LOCAL_FIRST_SPA_RUNTIME_V1',version:'1.0.0',bootCount:0,routeRenderCount:0,
-    rendererLifecycle:'APP_SINGLETON',documentLifecycle:'SINGLE',mandatoryNetworkCalls:0,googleSheetsReads:0
-  });
+  const runtime=window.__PRH_LF_SPA_RUNTIME__||(window.__PRH_LF_SPA_RUNTIME__={schema:'PRH_LOCAL_FIRST_SPA_RUNTIME_V1',version:'1.0.0',bootCount:0,routeRenderCount:0,rendererLifecycle:'APP_SINGLETON',documentLifecycle:'SINGLE',mandatoryNetworkCalls:0,googleSheetsReads:0,backgroundSyncCalls:0});
   runtime.bootCount+=1;
-  if(runtime.bootCount!==1) throw new Error('LF_SPA_RUNTIME_DUPLICATE_BOOT');
+  if(runtime.bootCount!==1)throw new Error('LF_SPA_RUNTIME_DUPLICATE_BOOT');
 
-  const nav=document.getElementById('lf-nav');
-  const main=document.getElementById('lf-main');
-  const title=document.getElementById('lf-title');
-  const summary=document.getElementById('lf-summary');
-  const routePill=document.getElementById('lf-route-pill');
-  const rollback=document.getElementById('lf-rollback');
-  const diagnostic=document.getElementById('lf-diagnostic');
-  const diagnosticButton=document.getElementById('lf-diag-run');
-  const diagnosticResult=document.getElementById('lf-diag-result');
+  const nav=document.getElementById('lf-nav'),main=document.getElementById('lf-main'),title=document.getElementById('lf-title'),summary=document.getElementById('lf-summary'),routePill=document.getElementById('lf-route-pill'),rollback=document.getElementById('lf-rollback'),diagnostic=document.getElementById('lf-diagnostic'),diagnosticButton=document.getElementById('lf-diag-run'),diagnosticResult=document.getElementById('lf-diag-result'),toolbar=document.getElementById('lf-finance-toolbar'),financeContent=document.getElementById('lf-finance-content'),previewGrid=document.getElementById('lf-preview-grid'),syncChip=document.getElementById('lf-sync-chip'),revisionChip=document.getElementById('lf-revision-chip'),syncBanner=document.getElementById('lf-sync-banner'),currencyInput=document.getElementById('lf-filter-currency'),startInput=document.getElementById('lf-filter-start'),endInput=document.getElementById('lf-filter-end'),categoryInput=document.getElementById('lf-filter-category'),filterApply=document.getElementById('lf-filter-apply'),syncRefresh=document.getElementById('lf-sync-refresh');
+  let finance=null,financeState=null,lastFinanceRender=Promise.resolve(null);
 
-  function privacyMode(){
-    const raw=String(new URL(location.href).searchParams.get('privacy')||'').trim().toUpperCase();
-    if(!raw)return '';
-    return ALLOWED_PRIVACY.indexOf(raw)>=0?raw:'MASKED';
-  }
-  function diagnosticMode(){
-    return String(new URL(location.href).searchParams.get('lf_diag')||'').trim()==='1';
-  }
-  function routeFromUrl(){
-    const route=String(new URL(location.href).searchParams.get('lf_route')||'home').trim().toLowerCase();
-    return Object.prototype.hasOwnProperty.call(ROUTES,route)?route:'home';
-  }
-  function safeUrl(route){
-    const url=new URL(location.href);
-    url.searchParams.set('surface','local-first');
-    url.searchParams.set('lf_route',route);
-    const privacy=privacyMode();
-    if(privacy)url.searchParams.set('privacy',privacy);else url.searchParams.delete('privacy');
-    return url.pathname+url.search+url.hash;
-  }
-  function refreshLinks(){
-    const privacy=privacyMode();
-    nav.querySelectorAll('[data-lf-route]').forEach(function(link){
-      const route=link.dataset.lfRoute;
-      link.setAttribute('href',safeUrl(route));
-    });
-    const target=new URL(rollback.getAttribute('href'),location.href);
-    if(privacy)target.searchParams.set('privacy',privacy);else target.searchParams.delete('privacy');
-    rollback.setAttribute('href',target.pathname+target.search+target.hash);
-  }
-  function render(route,focusMain){
-    const spec=ROUTES[route]||ROUTES.home;
-    runtime.routeRenderCount+=1;
-    runtime.activeRoute=route;
-    title.textContent=spec.title;
-    summary.textContent=spec.summary;
-    routePill.textContent='Раздел: '+spec.title;
-    document.title='PrihRashOnline — '+spec.title+' · Local-first';
-    nav.querySelectorAll('[data-lf-route]').forEach(function(link){
-      if(link.dataset.lfRoute===route)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
-    });
-    document.body.dataset.activeLfRoute=route;
-    refreshLinks();
-    if(focusMain)main.focus({preventScroll:true});
-  }
-  function navigate(route){
-    if(!Object.prototype.hasOwnProperty.call(ROUTES,route))route='home';
-    history.pushState({prhLfRoute:route},'',safeUrl(route));
-    render(route,true);
-  }
-  function nextPaint(){
-    return new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve);});});
-  }
-  function backToPreviousRoute(){
-    return new Promise(function(resolve){
-      window.addEventListener('popstate',function(){nextPaint().then(resolve);},{once:true});
-      history.back();
-    });
-  }
-  async function runRouteDiagnostic(){
-    if(!diagnosticMode())throw new Error('LF_SPA_DIAGNOSTIC_MODE_REQUIRED');
-    const original=routeFromUrl();
-    const targets=Object.keys(ROUTES).filter(function(route){return route!==original;});
-    const samples=[];
-    diagnosticButton.disabled=true;
-    diagnosticResult.dataset.status='RUNNING';
-    diagnosticResult.textContent='Измеряем…';
-    try{
-      for(let i=0;i<10;i+=1){
-        const target=targets[i%targets.length];
-        const started=performance.now();
-        navigate(target);
-        await nextPaint();
-        samples.push(performance.now()-started);
-        await backToPreviousRoute();
-      }
-      const sorted=samples.slice().sort(function(a,b){return a-b;});
-      const p95=sorted[Math.max(0,Math.ceil(sorted.length*0.95)-1)];
-      runtime.lastDiagnostic=Object.freeze({schema:'PRH_LF_ROUTE_TO_PAINT_DIAGNOSTIC_V1',sampleCount:samples.length,routeToPaintP95Ms:p95,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads});
-      diagnosticResult.dataset.status='PASS';
-      diagnosticResult.dataset.p95Ms=p95.toFixed(2);
-      diagnosticResult.textContent='P95: '+p95.toFixed(2)+' мс · 10 переходов · сеть: 0';
-      return Object.freeze({p95Ms:p95,samplesMs:samples.slice(),sampleCount:samples.length,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads});
-    }catch(error){
-      diagnosticResult.dataset.status='FAIL';
-      diagnosticResult.textContent='Измерение не завершено';
-      throw error;
-    }finally{
-      diagnosticButton.disabled=false;
-    }
-  }
-  nav.addEventListener('click',function(event){
-    const link=event.target.closest('[data-lf-route]');
-    if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
-    event.preventDefault();
-    navigate(link.dataset.lfRoute);
-  });
-  window.addEventListener('popstate',function(){render(routeFromUrl(),true);});
-  diagnostic.hidden=!diagnosticMode();
-  diagnosticButton.addEventListener('click',function(){runRouteDiagnostic().catch(function(){return null;});});
-  render(routeFromUrl(),false);
-  window.__PRH_LF_SPA_TEST__=Object.freeze({
-    getState:function(){return Object.freeze({activeRoute:runtime.activeRoute,bootCount:runtime.bootCount,routeRenderCount:runtime.routeRenderCount,mandatoryNetworkCalls:runtime.mandatoryNetworkCalls,googleSheetsReads:runtime.googleSheetsReads,privacyMode:privacyMode(),diagnosticMode:diagnosticMode(),lastDiagnostic:runtime.lastDiagnostic||null});},
-    navigate:navigate,
-    runDiagnostic:runRouteDiagnostic
-  });
+  function privacyMode(){const raw=String(new URL(location.href).searchParams.get('privacy')||'').trim().toUpperCase();if(!raw)return 'NORMAL';return ALLOWED_PRIVACY.indexOf(raw)>=0?raw:'MASKED'}
+  function diagnosticMode(){return String(new URL(location.href).searchParams.get('lf_diag')||'').trim()==='1'}
+  function routeFromUrl(){const route=String(new URL(location.href).searchParams.get('lf_route')||'home').trim().toLowerCase();return Object.prototype.hasOwnProperty.call(ROUTES,route)?route:'home'}
+  function safeUrl(route){const url=new URL(location.href);url.searchParams.set('surface','local-first');url.searchParams.set('lf_route',route);const privacy=privacyMode();if(privacy&&privacy!=='NORMAL')url.searchParams.set('privacy',privacy);else url.searchParams.delete('privacy');return url.pathname+url.search+url.hash}
+  function refreshLinks(){const privacy=privacyMode();nav.querySelectorAll('[data-lf-route]').forEach(function(link){link.setAttribute('href',safeUrl(link.dataset.lfRoute))});const target=new URL(rollback.getAttribute('href'),location.href);if(privacy&&privacy!=='NORMAL')target.searchParams.set('privacy',privacy);else target.searchParams.delete('privacy');rollback.setAttribute('href',target.pathname+target.search+target.hash)}
+  function render(route,focusMain){const spec=ROUTES[route]||ROUTES.home;runtime.routeRenderCount+=1;runtime.activeRoute=route;title.textContent=spec.title;summary.textContent=spec.summary;routePill.textContent='Раздел: '+spec.title;document.body.dataset.activeLfRoute=route;nav.querySelectorAll('[data-lf-route]').forEach(function(link){if(link.dataset.lfRoute===route)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});diagnostic.hidden=!diagnosticMode();runtime.diagnosticMode=diagnosticMode();if(finance){if(FINANCE_ROUTES.indexOf(route)>=0){toolbar.hidden=false;financeContent.hidden=false;previewGrid.hidden=true;lastFinanceRender=finance.setRoute(route).catch(function(error){return {status:'ERROR',reason:String(error&&error.code||'LOCAL_FINANCE_ROUTE_FAILED')}})}else{toolbar.hidden=true;financeContent.hidden=true;previewGrid.hidden=false;lastFinanceRender=Promise.resolve(null)}}else{toolbar.hidden=true;financeContent.hidden=true;previewGrid.hidden=false;lastFinanceRender=Promise.resolve(null)}if(focusMain)main.focus({preventScroll:true});refreshLinks()}
+  function navigate(route,options){if(!Object.prototype.hasOwnProperty.call(ROUTES,route))route='home';const opts=options||{};if(!opts.fromPopstate&&opts.history!==false)history.pushState({prhLfRoute:route},'',safeUrl(route));render(route,opts.focusMain!==false);return route}
+  nav.addEventListener('click',function(event){const link=event.target.closest('[data-lf-route]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();navigate(link.dataset.lfRoute,{focusMain:true})});
+  window.addEventListener('popstate',function(){render(routeFromUrl(),true)});
+
+  function afterPaint(){return new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve)})})}
+  function percentile95(values){const sorted=values.slice().sort(function(a,b){return a-b});return sorted[Math.max(0,Math.ceil(sorted.length*.95)-1)]}
+  function diagnosticReason(error){const raw=String(error&&(error.code||error.message)||'LOCAL_FINANCE_DIAGNOSTIC_FAILED'),match=raw.match(/[A-Z][A-Z0-9_]{2,80}/);return match?match[0]:'LOCAL_FINANCE_DIAGNOSTIC_FAILED'}
+  function diagnosticTimeout(promise,ms){return Promise.race([Promise.resolve(promise),new Promise(function(_,reject){setTimeout(function(){reject(new Error('LOCAL_FINANCE_DIAGNOSTIC_TIMEOUT'))},ms)})])}
+  async function waitDiagnosticRoute(route){const view=await diagnosticTimeout(lastFinanceRender,5000);if(view&&view.status==='ERROR'&&view.reason){const error=new Error(view.reason);error.code=view.reason;throw error}if(!view||view.status!=='READY'||view.route!==route)throw new Error('LOCAL_FINANCE_DIAGNOSTIC_ROUTE_NOT_READY');await afterPaint();return view}
+  async function runRouteDiagnostic(){if(!finance)throw new Error('LOCAL_FINANCE_DIAGNOSTIC_RUNTIME_NOT_READY');const origin=routeFromUrl(),warmup=FINANCE_ROUTES.slice(),sequence=['home','expenses','income','cash-flow','home','income','expenses','cash-flow','home','expenses'],samples=[],routeSamples={home:[],expenses:[],income:[],'cash-flow':[]};for(const route of warmup){navigate(route,{focusMain:false,history:false});await waitDiagnosticRoute(route)}for(const route of sequence){const started=performance.now();navigate(route,{focusMain:false,history:false});await waitDiagnosticRoute(route);const duration=performance.now()-started;samples.push(duration);routeSamples[route].push(duration)}navigate(origin,{focusMain:false,history:false});if(FINANCE_ROUTES.indexOf(origin)>=0)await waitDiagnosticRoute(origin);else await afterPaint();const p95=percentile95(samples),routeP95Ms={};FINANCE_ROUTES.forEach(function(route){routeP95Ms[route]=percentile95(routeSamples[route])});runtime.lastDiagnostic=Object.freeze({schema:'PRH_LF_ROUTE_TO_PAINT_DIAGNOSTIC_V1',sampleCount:samples.length,p95Ms:p95,warmupCount:warmup.length,coldStartExcluded:true,routeP95Ms:Object.freeze(routeP95Ms),mandatoryNetworkCalls:0,googleSheetsReads:0,financeReadyFrames:samples.length});return runtime.lastDiagnostic}
+  diagnosticButton.addEventListener('click',async function(){diagnosticButton.disabled=true;diagnosticResult.dataset.status='RUNNING';delete diagnosticResult.dataset.reason;diagnosticResult.textContent='Прогреваем и измеряем…';try{const result=await runRouteDiagnostic();diagnosticResult.dataset.status='PASS';diagnosticResult.dataset.p95Ms=String(result.p95Ms);diagnosticResult.textContent='Warm P95: '+result.p95Ms.toFixed(2)+' мс · '+result.sampleCount+' переходов · прогрев: '+result.warmupCount+' · сеть: 0'}catch(error){const reason=diagnosticReason(error);diagnosticResult.dataset.status='FAIL';diagnosticResult.dataset.reason=reason;diagnosticResult.textContent='Измерение недоступно: '+reason}finally{diagnosticButton.disabled=false}});
+
+  function valuesVisible(){return privacyMode()==='NORMAL'}
+  function money(valueMinor,currency){if(!valuesVisible())return '••••••';if(!Number.isSafeInteger(valueMinor))return '—';return new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency||'RUB',maximumFractionDigits:2}).format(valueMinor/100)}
+  function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]})}
+  function rowMeasure(result,measure){const row=result&&result.rows&&result.rows[0];return row&&row.measures?row.measures[measure]:null}
+  function kpi(label,value,currency){return '<article class="kpi"><div class="label">'+esc(label)+'</div><div class="money'+(valuesVisible()?'':' masked')+'">'+esc(money(value,currency))+'</div></article>'}
+  function provenance(view){return '<div class="provenance"><div>Источник расчёта: <strong>canonical Web Worker</strong></div><div>FIN-TRUTH: <strong>'+esc(view.provenance.financial_truth_policy)+'</strong></div><div>Ревизия: <code>'+esc(view.revision.slice(0,12))+'…</code></div><div>UI financial formulas: <strong>0</strong></div></div>'}
+  function maxMeasure(rows,measure){let max=0;(rows||[]).forEach(function(row){const value=row&&row.measures&&Number.isSafeInteger(row.measures[measure])?Math.abs(row.measures[measure]):0;if(value>max)max=value});return max||1}
+  function breakdown(rows,measure,currency,labels){const max=maxMeasure(rows,measure);if(!rows||!rows.length)return '<div class="series-empty">Нет данных для выбранного фильтра</div>';return '<div class="bars">'+rows.slice(0,12).map(function(row){const id=String(row.dimensions&&row.dimensions.category_id||'Без категории'),label=labels['category|'+id]||id,value=row.measures[measure],width=Math.max(1,Math.round(Math.abs(value)/max*100));return '<div class="bar-row"><div class="bar-label" title="'+esc(label)+'">'+esc(label)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+width+'%"></div></div><div class="bar-value">'+esc(money(value,currency))+'</div></div>'}).join('')+'</div>'}
+  function series(rows,measure){const max=maxMeasure(rows,measure);if(!rows||!rows.length)return '<div class="series-empty">Нет данных для выбранного периода</div>';return '<div class="series" aria-label="Динамика">'+rows.map(function(row){const value=row.measures[measure],height=Math.max(2,Math.round(Math.abs(value)/max*100)),bucket=String(row.dimensions&&row.dimensions.time_bucket||'');return '<div class="series-col" title="'+esc(bucket)+'"><div class="series-bar" style="height:'+height+'%"></div></div>'}).join('')+'</div>'}
+  function populateFilters(state){const current=state.filter_context||{};const currencies=state.currencies||[];const selected=current.currency||currencies[0]||'RUB';currencyInput.innerHTML=currencies.map(function(code){return '<option value="'+esc(code)+'"'+(code===selected?' selected':'')+'>'+esc(code)+'</option>'}).join('')||'<option value="RUB">RUB</option>';startInput.value=current.start||'';endInput.value=current.end||'';if(state.view&&state.view.labels){const categories=Object.keys(state.view.labels).filter(function(key){return key.indexOf('category|')===0}).map(function(key){return {id:key.slice(9),label:state.view.labels[key]}}).sort(function(a,b){return a.label.localeCompare(b.label)});const selectedCategory=current.category_id||'';categoryInput.innerHTML='<option value="">Все категории</option>'+categories.map(function(item){return '<option value="'+esc(item.id)+'"'+(item.id===selectedCategory?' selected':'')+'>'+esc(item.label)+'</option>'}).join('')}}
+  function renderFinanceState(state){financeState=state;runtime.financeRevisionPrefix=state.revision_prefix||null;syncChip.dataset.state=state.sync_status;syncChip.textContent=state.sync_status==='READY'?'Local-first готов':state.sync_status==='DEGRADED'?'Локально · sync degraded':state.sync_status==='SYNCING'?'Фоновое обновление…':state.sync_status==='FAILED'?'Sync недоступен':'Local-first';revisionChip.textContent=state.revision_prefix?'rev '+state.revision_prefix:'rev —';syncBanner.dataset.state=state.sync_status;syncBanner.textContent=state.sync_status==='DEGRADED'?'Сеть/синхронизация временно недоступна. Показывается последняя проверенная локальная ревизия.':state.snapshot_status==='READY'?'Финансовые разделы работают из локальной verified revision; сеть используется только отдельным background sync.':'Проверенная локальная ревизия ещё не загружена.';populateFilters(state);const view=state.view;if(!view||view.status==='LOADING'){financeContent.innerHTML='<div class="loading">Считаем локально в Web Worker…</div>';return}if(view.status==='EMPTY'){financeContent.innerHTML='<div class="empty">Первый verified snapshot ещё не готов. Выполняется безопасный cold bootstrap; выдуманные суммы не показываются.</div>';return}if(view.status==='ERROR'){financeContent.innerHTML='<div class="error">Локальный расчёт не выполнен: '+esc(view.reason)+'</div>';return}if(view.status!=='READY')return;const currency=view.filter_context.currency||'RUB';let html='';if(view.route==='home'){const totals=view.results.totals;html='<div class="kpi-grid">'+kpi('Доходы',rowMeasure(totals,'INCOME'),currency)+kpi('Расходы',rowMeasure(totals,'EXPENSE'),currency)+kpi('Денежный поток',rowMeasure(totals,'CASH_FLOW'),currency)+kpi('Сбережения',rowMeasure(totals,'SAVINGS'),currency)+'</div><div class="panel-grid"><section class="panel"><div class="panel-head"><div><h2>Динамика денежного потока</h2><p>Canonical Worker · общий фильтр</p></div></div>'+series(view.results.trend.rows,'CASH_FLOW')+'</section><aside class="panel"><h2>Происхождение данных</h2>'+provenance(view)+'</aside></div>'}else if(view.route==='expenses'){html='<div class="kpi-grid">'+kpi('Расходы',rowMeasure(view.results.total,'EXPENSE'),currency)+'</div><div class="panel-grid"><section class="panel"><h2>Расходы по категориям</h2>'+breakdown(view.results.breakdown.rows,'EXPENSE',currency,view.labels)+'</section><aside class="panel"><h2>Происхождение данных</h2>'+provenance(view)+'</aside></div>'}else if(view.route==='income'){html='<div class="kpi-grid">'+kpi('Доходы',rowMeasure(view.results.total,'INCOME'),currency)+'</div><div class="panel-grid"><section class="panel"><h2>Доходы по категориям</h2>'+breakdown(view.results.breakdown.rows,'INCOME',currency,view.labels)+'</section><aside class="panel"><h2>Происхождение данных</h2>'+provenance(view)+'</aside></div>'}else{const total=view.results.total;html='<div class="kpi-grid">'+kpi('Доходы',rowMeasure(total,'INCOME'),currency)+kpi('Расходы',rowMeasure(total,'EXPENSE'),currency)+kpi('Денежный поток',rowMeasure(total,'CASH_FLOW'),currency)+'</div><div class="panel-grid"><section class="panel"><h2>Денежный поток по месяцам</h2>'+series(view.results.series.rows,'CASH_FLOW')+'</section><aside class="panel"><h2>Происхождение данных</h2>'+provenance(view)+'</aside></div>'}financeContent.innerHTML=html}
+
+  filterApply.addEventListener('click',function(){if(!finance)return;finance.setFilterContext({currency:currencyInput.value,start:startInput.value,end:endInput.value,account_id:null,category_id:categoryInput.value||null,member_id:null,project_id:null}).catch(function(){})});
+  syncRefresh.addEventListener('click',function(){if(!finance)return;runtime.backgroundSyncCalls+=1;finance.backgroundSync().catch(function(){})});
+
+  async function bootFinance(){const ready=window.PrhLocalReadModelStore&&window.PrhLocalFirstSync&&window.PrhLocalFirstDelta&&window.PrhLocalFinanceRuntime&&window.__PRH_LF_WORKER_BUNDLE_SOURCE__;if(!ready){syncBanner.textContent='Source preview: browser runtime отсутствует до trusted candidate packaging.';return}try{const store=PrhLocalReadModelStore.createStore({indexedDB:indexedDB,IDBKeyRange:IDBKeyRange,name:'prihrash-local-first-v1'});let fullSync=null,deltaSync=null;try{const fullTransport=PrhLocalFirstSync.createGoogleScriptTransport();fullSync=PrhLocalFirstSync.createSyncCoordinator({store:store,transport:fullTransport});const deltaTransport=PrhLocalFirstDelta.createGoogleScriptDeltaTransport();deltaSync=PrhLocalFirstDelta.createDeltaCoordinator({store:store,transport:deltaTransport,fullSyncCoordinator:fullSync})}catch(error){runtime.transportUnavailableReason=String(error&&error.code||'BACKGROUND_TRANSPORT_UNAVAILABLE')}const workerClient=PrhLocalFinanceRuntime.createWorkerClient({bundleSource:window.__PRH_LF_WORKER_BUNDLE_SOURCE__});finance=PrhLocalFinanceRuntime.createRuntime({store:store,workerClient:workerClient,fullSyncCoordinator:fullSync,deltaCoordinator:deltaSync,onState:renderFinanceState});window.__PRH_LF_FINANCE_RUNTIME__=finance;toolbar.hidden=FINANCE_ROUTES.indexOf(routeFromUrl())<0;financeContent.hidden=toolbar.hidden;previewGrid.hidden=!toolbar.hidden;await finance.start(routeFromUrl());render(routeFromUrl(),false)}catch(error){syncChip.dataset.state='FAILED';syncChip.textContent='Local-first недоступен';syncBanner.dataset.state='FAILED';syncBanner.textContent='Local-first runtime не запущен: '+String(error&&error.code||'RUNTIME_BOOT_FAILED')}}
+
+  const boot=window.__PRH_LF_SERVER_BOOT__;const initial=boot&&Object.prototype.hasOwnProperty.call(ROUTES,boot.route)?boot.route:routeFromUrl();render(initial,false);window.__PRH_LF_SPA_TEST__=Object.freeze({navigate:navigate,render:render,getState:function(){return Object.freeze(Object.assign({},runtime))},runDiagnostic:runRouteDiagnostic});Promise.resolve().then(bootFinance);
 })();
 </script>
 </body>

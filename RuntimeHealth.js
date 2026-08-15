@@ -47,6 +47,42 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED');
   }
 
+  // FIN-LF-001 owner-data proof. Execute the exact scalar JSON wire endpoint
+  // used by google.script.run after an empty/wiped IndexedDB. Owner payload is
+  // parsed and validated only inside this Apps Script execution and never
+  // returned to CI. This proves the deployed endpoint serializes nullable
+  // canonical keys into real JSON bytes before the browser RPC boundary.
+  if (typeof prhLocalFirstSyncBootstrapWire !== 'function') {
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_WIRE_MISSING');
+  }
+  var localFirstWire;
+  var localFirstBootstrap;
+  try {
+    localFirstWire = prhLocalFirstSyncBootstrapWire({ local_revision: '' });
+    if (typeof localFirstWire !== 'string' || !localFirstWire) {
+      throw new Error('LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID');
+    }
+    localFirstBootstrap = JSON.parse(localFirstWire);
+  } catch (error) {
+    var localFirstRaw = String(error && (error.code || error.message) || '').trim();
+    var localFirstMatch = localFirstRaw.match(/\b(?:LOCAL_FIRST|CANONICAL|R2|WORKER)_[A-Z0-9_]{2,96}\b/);
+    if (localFirstMatch) {
+      throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_' + localFirstMatch[0]);
+    }
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_UNCLASSIFIED_FAILURE');
+  }
+  if (!localFirstBootstrap || localFirstBootstrap.state !== 'FULL_BOOTSTRAP' ||
+      localFirstBootstrap.schema !== 'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1' ||
+      localFirstBootstrap.financial_write_authorized !== false ||
+      localFirstBootstrap.canonical_mutation_performed !== false ||
+      !Array.isArray(localFirstBootstrap.transactions) ||
+      localFirstBootstrap.transactions.some(function(tx) {
+        return !tx || !Object.prototype.hasOwnProperty.call(tx, 'destination_account_id');
+      }) ||
+      !Number.isInteger(localFirstBootstrap.serialized_chars) || localFirstBootstrap.serialized_chars < 1) {
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID');
+  }
+
   return {
     ok:true,
     status:'OK',
@@ -57,6 +93,7 @@ function prhReleaseHealthCheck(expectedBuild) {
     requiredSheetCount:requiredSheets.length,
     readCheck:true,
     dataRuntimeCheck:true,
+    localFirstSyncCheck:true,
     latencyMs:Math.max(0,Date.now()-startedAt)
   };
 }
@@ -67,8 +104,8 @@ function prhRuntimeTransportPing() {
 
 /**
  * Stable scalar transport contract. Keep its field count backward compatible;
- * DATA runtime proof is enforced inside prhReleaseHealthCheck before this token
- * can be returned rather than adding a new serialized field.
+ * DATA and Local-first runtime proofs are enforced inside prhReleaseHealthCheck
+ * before this token can be returned rather than adding serialized fields.
  */
 function prhReleaseHealthCheckToken(expectedBuild) {
   var result = prhReleaseHealthCheck(expectedBuild);

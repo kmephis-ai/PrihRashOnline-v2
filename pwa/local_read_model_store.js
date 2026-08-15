@@ -332,7 +332,12 @@
     }
 
     async function readGenerationStore(tx, storeName, generationId) {
-      return requestPromise(tx.objectStore(storeName).index('generation_id').getAll(IDBKeyRangeCtor.only(generationId)));
+      var records = await requestPromise(tx.objectStore(storeName).index('generation_id').getAll(IDBKeyRangeCtor.only(generationId)));
+      return records.map(function (record) {
+        var payload = Object.assign({}, record);
+        delete payload.generation_id;
+        return payload;
+      });
     }
 
     async function getActiveSnapshot(options) {

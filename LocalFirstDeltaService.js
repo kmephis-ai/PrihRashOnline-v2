@@ -244,7 +244,7 @@ function prhLocalFirstDelta(request) {
     target_revision: targetRevision,
     target_generation_id: targetRevision,
     base_inventory_digest: normalized.inventory.digest,
-    transaction_upserts: txDelta.upserts,
+    transaction_upserts: Object.freeze(txDelta.upserts.map(prhLocalFirstSyncProjectTransaction_)),
     transaction_deletes: txDelta.deletes,
     dimension_upserts: dimDelta.upserts,
     dimension_deletes: dimDelta.deletes,
