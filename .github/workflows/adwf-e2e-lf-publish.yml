@@ -1,0 +1,80 @@
+name: ADWF E2E-LF Exact Publish
+
+on:
+  push:
+    branches:
+      - agent/e2e-lf-publish-20260816-a1
+
+permissions:
+  contents: write
+
+env:
+  EXPECTED_OLD: b7eec6e26778dc653dc556097c8cc668d203ec5f
+  EXPECTED_MID: f6270eace9d95b997811500d4e7e39f281448513
+  EXPECTED_HEAD: ef4808cc4220385a5eb136bf9512b558d92d47a2
+  EXPECTED_TREE: 3887aba415e910ee79058106dbf0261c28e3c928
+  EXPECTED_BUNDLE_SHA256: 59eb83f6ff180c966a3d30e16ee2c15648e4b7c4cf5387e8a1ada7b0e2c11cad
+  WRITER_BRANCH: agent/E2E-LF-001-product-ready-local-first
+
+jobs:
+  publish-exact-local-git:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct exact local bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .adwf-transport/e2e-lf-foundation.0{0,1,2,3,4,5,6,7} | base64 -d > /tmp/e2e-lf-foundation.bundle
+          ACTUAL_SHA="$(sha256sum /tmp/e2e-lf-foundation.bundle | awk '{print $1}')"
+          test "${ACTUAL_SHA}" = "${EXPECTED_BUNDLE_SHA256}"
+          git bundle verify /tmp/e2e-lf-foundation.bundle
+
+      - name: Verify exact commit chain and tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch /tmp/e2e-lf-foundation.bundle HEAD:refs/heads/adwf-e2e-payload
+          PAYLOAD_HEAD="$(git rev-parse refs/heads/adwf-e2e-payload)"
+          test "${PAYLOAD_HEAD}" = "${EXPECTED_HEAD}"
+          test "$(git rev-parse "${PAYLOAD_HEAD}^{tree}")" = "${EXPECTED_TREE}"
+          test "$(git rev-parse "${EXPECTED_MID}^")" = "${EXPECTED_OLD}"
+          test "$(git rev-parse "${EXPECTED_HEAD}^")" = "${EXPECTED_MID}"
+          CHAIN="$(git rev-list --first-parent --reverse "${EXPECTED_OLD}..${PAYLOAD_HEAD}")"
+          EXPECTED_CHAIN="$(printf '%s\n%s' "${EXPECTED_MID}" "${EXPECTED_HEAD}")"
+          test "${CHAIN}" = "${EXPECTED_CHAIN}"
+          git merge-base --is-ancestor "${EXPECTED_OLD}" "${PAYLOAD_HEAD}"
+
+      - name: Verify writer has not moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_HEAD="$(git ls-remote origin "refs/heads/${WRITER_BRANCH}" | awk '{print $1}')"
+          test "${REMOTE_HEAD}" = "${EXPECTED_OLD}"
+
+      - name: Fast-forward exact local commits to writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin "${EXPECTED_HEAD}:refs/heads/${WRITER_BRANCH}"
+          REMOTE_HEAD="$(git ls-remote origin "refs/heads/${WRITER_BRANCH}" | awk '{print $1}')"
+          test "${REMOTE_HEAD}" = "${EXPECTED_HEAD}"
+
+      - name: Publish transport evidence
+        shell: bash
+        run: |
+          {
+            echo '## ADWF exact local Git publish PASS'
+            echo
+            echo "- writer: \`${WRITER_BRANCH}\`"
+            echo "- old: \`${EXPECTED_OLD}\`"
+            echo "- foundation: \`${EXPECTED_MID}\`"
+            echo "- head: \`${EXPECTED_HEAD}\`"
+            echo "- tree: \`${EXPECTED_TREE}\`"
+            echo "- bundle sha256: \`${EXPECTED_BUNDLE_SHA256}\`"
+            echo '- mode: ordinary fast-forward, no force push'
+          } >> "$GITHUB_STEP_SUMMARY"
