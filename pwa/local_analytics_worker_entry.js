@@ -1,6 +1,10 @@
 'use strict';
 
 const { evaluateAnalytics } = require('../lib/analytics/analytics_engine');
+const {
+  CANONICAL_FIELDS,
+  PROVENANCE_FIELDS
+} = require('../lib/domain/canonical_transaction');
 
 const WORKER_SCHEMA = 'PRH_LOCAL_ANALYTICS_WORKER_V1';
 const WORKER_VERSION = '1.0.0';
@@ -19,7 +23,12 @@ const SAFE_REASONS = new Set([
   'WORKER_QUERY_INVALID',
   'WORKER_TOO_MANY_PENDING',
   'WORKER_UNSUPPORTED_MESSAGE',
-  'WORKER_CANONICAL_EVALUATION_FAILED'
+  'WORKER_CANONICAL_EVALUATION_FAILED',
+  'WORKER_CANONICAL_TX_NOT_OBJECT',
+  'WORKER_CANONICAL_TOP_LEVEL_EXTRA',
+  'WORKER_CANONICAL_PROVENANCE_NOT_OBJECT',
+  'WORKER_CANONICAL_PROVENANCE_EXTRA',
+  'WORKER_CANONICAL_SHAPE_DIVERGENCE'
 ]);
 
 const state = {
@@ -30,6 +39,48 @@ const state = {
   cancelled: false,
   pending: 0
 };
+
+function codedError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function safeSchemaFieldToken(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 48) || 'UNKNOWN';
+}
+
+function canonicalShapeReason(transactions) {
+  if (!Array.isArray(transactions)) return 'WORKER_TRANSACTIONS_INVALID';
+  for (const tx of transactions) {
+    if (!tx || typeof tx !== 'object' || Array.isArray(tx)) return 'WORKER_CANONICAL_TX_NOT_OBJECT';
+    const keys = Object.keys(tx);
+    for (const field of CANONICAL_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(tx, field)) {
+        return `WORKER_CANONICAL_FIELD_MISSING_${safeSchemaFieldToken(field)}`;
+      }
+    }
+    if (keys.some((key) => !CANONICAL_FIELDS.includes(key))) return 'WORKER_CANONICAL_TOP_LEVEL_EXTRA';
+    if (keys.length !== CANONICAL_FIELDS.length) return 'WORKER_CANONICAL_TOP_LEVEL_EXTRA';
+    const provenance = tx.provenance;
+    if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
+      return 'WORKER_CANONICAL_PROVENANCE_NOT_OBJECT';
+    }
+    const provenanceKeys = Object.keys(provenance);
+    for (const field of PROVENANCE_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(provenance, field)) {
+        return `WORKER_CANONICAL_PROVENANCE_MISSING_${safeSchemaFieldToken(field)}`;
+      }
+    }
+    if (provenanceKeys.some((key) => !PROVENANCE_FIELDS.includes(key))) return 'WORKER_CANONICAL_PROVENANCE_EXTRA';
+    if (provenanceKeys.length !== PROVENANCE_FIELDS.length) return 'WORKER_CANONICAL_PROVENANCE_EXTRA';
+  }
+  return null;
+}
 
 function safeReason(error, fallback) {
   const code = error && typeof error.code === 'string' ? error.code : '';
@@ -52,30 +103,18 @@ function emitError(requestId, error, fallback) {
 
 function validateHex64(value, reason) {
   const normalized = String(value || '').toLowerCase();
-  if (!HEX64.test(normalized)) {
-    const error = new Error(reason);
-    error.code = reason;
-    throw error;
-  }
+  if (!HEX64.test(normalized)) throw codedError(reason);
   return normalized;
 }
 
 function validateRequestId(value) {
   const text = String(value || '');
-  if (!REQUEST_ID.test(text)) {
-    const error = new Error('WORKER_REQUEST_ID_INVALID');
-    error.code = 'WORKER_REQUEST_ID_INVALID';
-    throw error;
-  }
+  if (!REQUEST_ID.test(text)) throw codedError('WORKER_REQUEST_ID_INVALID');
   return text;
 }
 
 function assertReady() {
-  if (!state.initialized) {
-    const error = new Error('WORKER_NOT_READY');
-    error.code = 'WORKER_NOT_READY';
-    throw error;
-  }
+  if (!state.initialized) throw codedError('WORKER_NOT_READY');
 }
 
 function exactBinding(generationId, revision, epoch) {
@@ -125,20 +164,12 @@ function handleAnalyticsQuery(message) {
   const generationId = validateHex64(message.generation_id, 'WORKER_GENERATION_INVALID');
   const revision = validateHex64(message.revision, 'WORKER_REVISION_INVALID');
   if (!Array.isArray(message.transactions) || message.transactions.length > MAX_TRANSACTIONS) {
-    const error = new Error('WORKER_TRANSACTIONS_INVALID');
-    error.code = 'WORKER_TRANSACTIONS_INVALID';
-    throw error;
+    throw codedError('WORKER_TRANSACTIONS_INVALID');
   }
   if (!message.query || typeof message.query !== 'object' || Array.isArray(message.query)) {
-    const error = new Error('WORKER_QUERY_INVALID');
-    error.code = 'WORKER_QUERY_INVALID';
-    throw error;
+    throw codedError('WORKER_QUERY_INVALID');
   }
-  if (state.pending >= MAX_PENDING) {
-    const error = new Error('WORKER_TOO_MANY_PENDING');
-    error.code = 'WORKER_TOO_MANY_PENDING';
-    throw error;
-  }
+  if (state.pending >= MAX_PENDING) throw codedError('WORKER_TOO_MANY_PENDING');
 
   const epoch = state.epoch;
   if (!exactBinding(generationId, revision, epoch)) {
@@ -153,7 +184,17 @@ function handleAnalyticsQuery(message) {
         stale(requestId, generationId, revision, 'STALE_BEFORE_EVALUATE');
         return;
       }
-      const result = evaluateAnalytics(message.transactions, message.query);
+      const shapeReason = canonicalShapeReason(message.transactions);
+      if (shapeReason) throw codedError(shapeReason);
+      let result;
+      try {
+        result = evaluateAnalytics(message.transactions, message.query);
+      } catch (error) {
+        if (error && error.code === 'CANONICAL_TRANSACTION_SHAPE_INVALID') {
+          throw codedError('WORKER_CANONICAL_SHAPE_DIVERGENCE');
+        }
+        throw error;
+      }
       if (!exactBinding(generationId, revision, epoch)) {
         stale(requestId, generationId, revision, 'STALE_AFTER_EVALUATE');
         return;
@@ -177,7 +218,7 @@ self.onmessage = function onMessage(event) {
   const message = event && event.data;
   try {
     if (!message || typeof message !== 'object' || Array.isArray(message) || typeof message.type !== 'string') {
-      throw Object.assign(new Error('WORKER_MESSAGE_INVALID'), { code: 'WORKER_MESSAGE_INVALID' });
+      throw codedError('WORKER_MESSAGE_INVALID');
     }
     switch (message.type) {
       case 'INIT':
@@ -193,7 +234,7 @@ self.onmessage = function onMessage(event) {
         handleCancelGeneration(message);
         return;
       default:
-        throw Object.assign(new Error('WORKER_UNSUPPORTED_MESSAGE'), { code: 'WORKER_UNSUPPORTED_MESSAGE' });
+        throw codedError('WORKER_UNSUPPORTED_MESSAGE');
     }
   } catch (error) {
     emitError(message && message.request_id, error, safeReason(error, 'WORKER_MESSAGE_INVALID'));
