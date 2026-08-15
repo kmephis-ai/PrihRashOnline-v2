@@ -43,7 +43,7 @@ const prepareEnd = deploy.indexOf('\n      - name:', prepareStart + 1);
 const prepareBlock = deploy.slice(prepareStart, prepareEnd);
 assert(prepareBlock.includes('secrets.APPS_SCRIPT_ID') && prepareBlock.includes('secrets.CLASPRC_JSON'), 'credential-bearing deploy preparation must stay inside the gated Roadmap step');
 assert(deploy.includes(`--arg deploymentMode '${N_A_MODE}'`), 'N/A deploy evidence must state its mode');
-assert(deploy.includes("artifactHash:null,versionNumber:null"), 'N/A deploy evidence must not claim a deployed artifact/version');
+assert(deploy.includes('artifactHash:null,versionNumber:null'), 'N/A deploy evidence must not claim a deployed artifact/version');
 assert(deploy.includes(`DESCRIPTION='CI-002 ${N_A_MODE}'`), 'N/A deploy status must be machine visible');
 assert(deploy.includes('DEPLOYMENT_MODE_INVALID'), 'unknown deploy mode must fail closed');
 
@@ -56,7 +56,7 @@ for (const step of ['Set up trusted Node.js', 'Install trusted locked tooling', 
   assert(block.includes(`if: steps.candidate.outputs.deployment_mode == '${DEPLOY_MODE}'`), `${step} must be Roadmap-only`);
 }
 
-const healthNABranch = health.indexOf(`if [[ \"${DEPLOYMENT_MODE}\" == '${N_A_MODE}' ]]`);
+const healthNABranch = health.indexOf('if [[ "${DEPLOYMENT_MODE}" == \'' + N_A_MODE + '\' ]]');
 assert(healthNABranch >= 0, 'runtime health must explicitly handle non-Roadmap N/A evidence');
 assert(health.includes(`DESCRIPTION='CI-002 ${N_A_MODE}'`), 'runtime N/A status must be machine visible');
 assert(health.includes(`PASS (${N_A_MODE}; no runtime mutation/probe)`), 'final health enforcement must accept only explicit non-Roadmap N/A mode');
