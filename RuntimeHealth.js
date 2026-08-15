@@ -47,17 +47,22 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED');
   }
 
-  // FIN-LF-001 owner-data proof. Execute the exact FULL_BOOTSTRAP server path
-  // that the browser calls after an empty/wiped IndexedDB. The generated owner
-  // payload remains local to Apps Script execution and is never returned to CI.
-  // This proves canonical projection, exact nullable keys, dimension resolution,
-  // serialization and the configured payload-size bound on real owner data.
-  if (typeof prhLocalFirstSyncBootstrap !== 'function') {
-    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_MISSING');
+  // FIN-LF-001 owner-data proof. Execute the exact scalar JSON wire endpoint
+  // used by google.script.run after an empty/wiped IndexedDB. Owner payload is
+  // parsed and validated only inside this Apps Script execution and never
+  // returned to CI. This proves the deployed endpoint serializes nullable
+  // canonical keys into real JSON bytes before the browser RPC boundary.
+  if (typeof prhLocalFirstSyncBootstrapWire !== 'function') {
+    throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_SYNC_WIRE_MISSING');
   }
+  var localFirstWire;
   var localFirstBootstrap;
   try {
-    localFirstBootstrap = prhLocalFirstSyncBootstrap({ local_revision: '' });
+    localFirstWire = prhLocalFirstSyncBootstrapWire({ local_revision: '' });
+    if (typeof localFirstWire !== 'string' || !localFirstWire) {
+      throw new Error('LOCAL_FIRST_SYNC_WIRE_RESPONSE_INVALID');
+    }
+    localFirstBootstrap = JSON.parse(localFirstWire);
   } catch (error) {
     var localFirstRaw = String(error && (error.code || error.message) || '').trim();
     var localFirstMatch = localFirstRaw.match(/\b(?:LOCAL_FIRST|CANONICAL|R2|WORKER)_[A-Z0-9_]{2,96}\b/);
@@ -70,6 +75,10 @@ function prhReleaseHealthCheck(expectedBuild) {
       localFirstBootstrap.schema !== 'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1' ||
       localFirstBootstrap.financial_write_authorized !== false ||
       localFirstBootstrap.canonical_mutation_performed !== false ||
+      !Array.isArray(localFirstBootstrap.transactions) ||
+      localFirstBootstrap.transactions.some(function(tx) {
+        return !tx || !Object.prototype.hasOwnProperty.call(tx, 'destination_account_id');
+      }) ||
       !Number.isInteger(localFirstBootstrap.serialized_chars) || localFirstBootstrap.serialized_chars < 1) {
     throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID');
   }
