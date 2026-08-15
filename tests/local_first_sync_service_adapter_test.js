@@ -28,6 +28,19 @@ assert.ok(!serviceSource.includes('prhGoogleRepositoryReadOperationsTable_('), '
 assert.ok(!/\.setValue\s*\(|\.setValues\s*\(|\.appendRow\s*\(|\.deleteRow\s*\(/.test(serviceSource), 'sync service must not mutate Google canonical data');
 assert.ok(serviceSource.includes('financial_write_authorized: false'));
 assert.ok(serviceSource.includes('canonical_mutation_performed: false'));
+assert.ok(serviceSource.includes('prhLocalFirstSyncHealthToken'));
+assert.ok(serviceSource.includes('prhLocalFirstSyncAssertWireRoundTrip_'));
+
+const CANONICAL_KEYS = [
+  'schema', 'schema_version', 'transaction_id', 'occurred_at', 'type', 'status',
+  'amount_minor', 'currency', 'account_id', 'destination_account_id', 'category_id',
+  'member_id', 'project_id', 'tags', 'counterparty', 'description',
+  'reverses_transaction_id', 'adjustment_semantics', 'provenance'
+].sort();
+const PROVENANCE_KEYS = [
+  'source_system', 'source_container', 'source_record_id', 'source_fingerprint',
+  'identity_strategy', 'transform_version', 'source_position'
+].sort();
 
 const REV_A = 'a'.repeat(64);
 let snapshotCalls = 0;
@@ -137,9 +150,21 @@ assert.strictEqual(full.financial_write_authorized, false);
 assert.strictEqual(full.canonical_mutation_performed, false);
 assert.ok(Number.isInteger(full.serialized_chars) && full.serialized_chars > 0);
 assert.deepStrictEqual(full.dimensions.map((row) => row.dimension_key), full.dimensions.map((row) => row.dimension_key).slice().sort());
+for (const tx of full.transactions) {
+  assert.deepStrictEqual(Object.keys(tx).sort(), CANONICAL_KEYS, 'transport must preserve exact canonical top-level keys');
+  assert.deepStrictEqual(Object.keys(tx.provenance).sort(), PROVENANCE_KEYS, 'transport must preserve exact provenance keys');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(tx, 'destination_account_id'), true,
+    'nullable destination_account_id must survive Apps Script/JSON transport shape');
+}
+assert.strictEqual(full.transactions[0].destination_account_id, null);
+assert.strictEqual(full.transactions[1].destination_account_id, null);
+
+const healthToken = context.prhLocalFirstSyncHealthToken();
+assert.strictEqual(snapshotCalls, 2);
+assert.strictEqual(healthToken, 'PRH_LOCAL_FIRST_SYNC_HEALTH_V1|EXACT_WIRE|DIMENSIONS|OK');
 
 const noop = context.prhLocalFirstSyncBootstrap({ local_revision: REV_A });
-assert.strictEqual(snapshotCalls, 2);
+assert.strictEqual(snapshotCalls, 3);
 assert.strictEqual(noop.state, 'NOOP');
 assert.strictEqual(noop.revision, REV_A);
 assert.strictEqual(noop.generation_id, REV_A);
@@ -172,6 +197,16 @@ assert.throws(
   /LOCAL_FIRST_SYNC_GENERATION_REVISION_MISMATCH/
 );
 
+function runnerForFailure(error) {
+  return {
+    success: null,
+    failure: null,
+    withSuccessHandler(fn) { this.success = fn; return this; },
+    withFailureHandler(fn) { this.failure = fn; return this; },
+    prhLocalFirstSyncBootstrap() { this.failure(error); }
+  };
+}
+
 let transportRequest = null;
 const mockRunner = {
   success: null,
@@ -186,7 +221,29 @@ const mockRunner = {
   const result = await transport.fetchBootstrap({ local_revision: REV_A });
   assert.deepStrictEqual(result, { ok: true });
   assert.deepStrictEqual(transportRequest, { local_revision: REV_A });
-  console.log('local_first_sync_service_adapter_test: PASS');
+
+  const safeFailureTransport = syncClient.createGoogleScriptTransport({
+    googleScriptRun: runnerForFailure(new Error('Exception: LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID'))
+  });
+  await assert.rejects(
+    () => safeFailureTransport.fetchBootstrap({ local_revision: '' }),
+    (error) => error && error.code === 'LOCAL_FIRST_SYNC_WIRE_TRANSACTION_SHAPE_INVALID'
+  );
+
+  const unsafeFailureTransport = syncClient.createGoogleScriptTransport({
+    googleScriptRun: runnerForFailure(new Error('private row value and arbitrary server details'))
+  });
+  await assert.rejects(
+    () => unsafeFailureTransport.fetchBootstrap({ local_revision: '' }),
+    (error) => error && error.code === 'LOCAL_FIRST_SYNC_REMOTE_CALL_FAILED'
+  );
+
+  console.log('local_first_sync_service_adapter_test: PASS', {
+    exactWireShape: true,
+    nullableDestinationKeyPreserved: true,
+    ownerHealthTokenScalarOnly: true,
+    safeRemoteReasonPropagation: true
+  });
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
