@@ -114,6 +114,8 @@
       "warm_runtime_ready_wait_ms",
       "action_to_popstate_p95_ms",
       "popstate_to_meaningful_ready_p95_ms",
+      "meaningful_ready_to_first_frame_p95_ms",
+      "first_to_stable_frame_p95_ms",
       "meaningful_ready_to_stable_frame_p95_ms",
       "action_to_stable_frame_p95_ms"
     ]

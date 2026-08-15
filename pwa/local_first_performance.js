@@ -37,6 +37,8 @@
   var domCacheInstalled = false;
   var pendingHistoryPhase = null;
   var historyPhaseSamples = [];
+  var financeMeaningfulCommitSequence = 0;
+  var financeMeaningfulCommitWaiters = [];
 
   function fail(code) {
     var error = new Error(code);
@@ -106,11 +108,12 @@
   }
 
 
-  function historyPhaseBreakdown(actionStart, popstateAt, meaningfulReadyAt, stableFrameAt) {
+  function historyPhaseBreakdown(actionStart, popstateAt, meaningfulReadyAt, stableFrameAt, firstFrameAt) {
     var start = finiteDuration(actionStart);
     var popstate = finiteDuration(popstateAt);
     var ready = finiteDuration(meaningfulReadyAt);
     var stable = finiteDuration(stableFrameAt);
+    var firstFrame = finiteDuration(firstFrameAt);
     function span(from, to) {
       if (from === null || to === null || to < from) return null;
       return roundedDuration(to - from);
@@ -118,6 +121,8 @@
     return Object.freeze({
       action_to_popstate_ms: span(start, popstate),
       popstate_to_meaningful_ready_ms: span(popstate, ready),
+      meaningful_ready_to_first_frame_ms: span(ready, firstFrame),
+      first_to_stable_frame_ms: span(firstFrame, stable),
       meaningful_ready_to_stable_frame_ms: span(ready, stable),
       action_to_stable_frame_ms: span(start, stable)
     });
@@ -134,6 +139,8 @@
       sample_count: list.length,
       action_to_popstate_p95_ms: p95('action_to_popstate_ms'),
       popstate_to_meaningful_ready_p95_ms: p95('popstate_to_meaningful_ready_ms'),
+      meaningful_ready_to_first_frame_p95_ms: p95('meaningful_ready_to_first_frame_ms'),
+      first_to_stable_frame_p95_ms: p95('first_to_stable_frame_ms'),
       meaningful_ready_to_stable_frame_p95_ms: p95('meaningful_ready_to_stable_frame_ms'),
       action_to_stable_frame_p95_ms: p95('action_to_stable_frame_ms')
     });
@@ -231,6 +238,61 @@
   function routeMeaningfulReady(route) {
     if (activeRoute() !== route) return false;
     return FINANCE_ROUTES.indexOf(route) >= 0 ? financeMeaningfulReady(route) : dataMeaningfulReady(route);
+  }
+
+  function signalFinanceMeaningfulCommit(element) {
+    if (!element || element.id !== 'lf-finance-content') return null;
+    var route = activeRoute();
+    if (FINANCE_ROUTES.indexOf(route) < 0 || !financeMeaningfulReady(route)) return null;
+    financeMeaningfulCommitSequence += 1;
+    var entry = Object.freeze({
+      sequence: financeMeaningfulCommitSequence,
+      route: route,
+      at: now()
+    });
+    var pending = financeMeaningfulCommitWaiters.slice();
+    financeMeaningfulCommitWaiters = [];
+    pending.forEach(function (waiter) {
+      if (waiter.route === route && entry.sequence >= waiter.minSequence) waiter.resolve(entry);
+      else financeMeaningfulCommitWaiters.push(waiter);
+    });
+    return entry;
+  }
+
+  function waitForFinanceMeaningfulCommit(route, timeoutMs) {
+    if (FINANCE_ROUTES.indexOf(route) < 0) return Promise.reject(fail('PERF_LF_HISTORY_COMMIT_ROUTE_INVALID'));
+    var minSequence = financeMeaningfulCommitSequence + 1;
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var waiter = {
+        route: route,
+        minSequence: minSequence,
+        resolve: function (entry) {
+          if (settled) return;
+          settled = true;
+          if (timeoutId !== null && root && typeof root.clearTimeout === 'function') root.clearTimeout(timeoutId);
+          resolve(entry);
+        }
+      };
+      financeMeaningfulCommitWaiters.push(waiter);
+      var timeoutId = root && typeof root.setTimeout === 'function' ? root.setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        var index = financeMeaningfulCommitWaiters.indexOf(waiter);
+        if (index >= 0) financeMeaningfulCommitWaiters.splice(index, 1);
+        reject(fail('PERF_LF_HISTORY_MEANINGFUL_COMMIT_TIMEOUT'));
+      }, Math.max(1, Number(timeoutMs) || 6000)) : null;
+    });
+  }
+
+  function nextFrameAt() {
+    return new Promise(function (resolve, reject) {
+      if (!root || typeof root.requestAnimationFrame !== 'function') {
+        reject(fail('PERF_LF_RAF_UNAVAILABLE'));
+        return;
+      }
+      root.requestAnimationFrame(function () { resolve(now()); });
+    });
   }
 
   async function waitRouteReady(route) {
@@ -407,6 +469,7 @@
         if (previousKey === nextKey) {
           descriptor.set.call(this, value);
           currentKey.set(this, nextKey);
+          signalFinanceMeaningfulCommit(this);
           return;
         }
         if (previousKey) park(this, previousKey);
@@ -416,10 +479,12 @@
           this.appendChild(cached);
           parked.delete(nextKey);
           currentKey.set(this, nextKey);
+          signalFinanceMeaningfulCommit(this);
           return;
         }
         descriptor.set.call(this, value);
         currentKey.set(this, nextKey);
+        signalFinanceMeaningfulCommit(this);
       }
     });
     domCacheInstalled = true;
@@ -500,13 +565,16 @@
   async function measureHistoryAction(route, action) {
     var started = now();
     pendingHistoryPhase = { action_started: started, popstate_at: null };
+    var meaningfulCommit = waitForFinanceMeaningfulCommit(route, 6000);
     try {
       action();
-      await waitUntil(function () { return routeMeaningfulReady(route); }, 6000, 'PERF_LF_ROUTE_NOT_READY');
-      var meaningfulReadyAt = now();
-      await afterFrames(2);
-      var stableFrameAt = now();
-      var phase = historyPhaseBreakdown(started, pendingHistoryPhase && pendingHistoryPhase.popstate_at, meaningfulReadyAt, stableFrameAt);
+      var commit = await meaningfulCommit;
+      if (!pendingHistoryPhase || pendingHistoryPhase.popstate_at === null) throw fail('PERF_LF_HISTORY_POPSTATE_NOT_OBSERVED');
+      if (!commit || !finiteDuration(commit.at) || !routeMeaningfulReady(route)) throw fail('PERF_LF_HISTORY_MEANINGFUL_COMMIT_INVALID');
+      var meaningfulReadyAt = commit.at;
+      var firstFrameAt = await nextFrameAt();
+      var stableFrameAt = await nextFrameAt();
+      var phase = historyPhaseBreakdown(started, pendingHistoryPhase.popstate_at, meaningfulReadyAt, stableFrameAt, firstFrameAt);
       historyPhaseSamples.push(phase);
       return stableFrameAt - started;
     } finally {
@@ -641,6 +709,8 @@
       ' · module→READY ' + ms(fmp.module_to_ready_ms)) : 'FMP phases: недоступно';
     var historyText = history ? ('Back/Forward phases · action→popstate ' + ms(history.action_to_popstate_p95_ms) +
       ' · popstate→READY ' + ms(history.popstate_to_meaningful_ready_p95_ms) +
+      ' · READY→RAF1 ' + ms(history.meaningful_ready_to_first_frame_p95_ms) +
+      ' · RAF1→RAF2 ' + ms(history.first_to_stable_frame_p95_ms) +
       ' · READY→2RAF ' + ms(history.meaningful_ready_to_stable_frame_p95_ms)) : 'Back/Forward phases: недоступно';
     return fmpText + ' · warm-ready wait ' + ms(warmReadyWaitMs) + ' | ' + historyText;
   }

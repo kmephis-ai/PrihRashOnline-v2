@@ -20,14 +20,16 @@ assert.deepStrictEqual(phases, {
 });
 
 
-const historyPhases = performanceRuntime.historyPhaseBreakdown(100, 125, 140, 172);
+const historyPhases = performanceRuntime.historyPhaseBreakdown(100, 125, 140, 172, 156);
 assert.deepStrictEqual(historyPhases, {
   action_to_popstate_ms: 25,
   popstate_to_meaningful_ready_ms: 15,
+  meaningful_ready_to_first_frame_ms: 16,
+  first_to_stable_frame_ms: 16,
   meaningful_ready_to_stable_frame_ms: 32,
   action_to_stable_frame_ms: 72
 });
-const invalidHistoryOrder = performanceRuntime.historyPhaseBreakdown(100, 90, 140, 172);
+const invalidHistoryOrder = performanceRuntime.historyPhaseBreakdown(100, 90, 140, 172, 156);
 assert.strictEqual(invalidHistoryOrder.action_to_popstate_ms, null, 'history phase ordering must fail closed');
 assert.strictEqual(invalidHistoryOrder.popstate_to_meaningful_ready_ms, 50);
 
@@ -59,6 +61,8 @@ for (const field of [
   'warm_runtime_ready_wait_ms',
   'action_to_popstate_p95_ms',
   'popstate_to_meaningful_ready_p95_ms',
+  'meaningful_ready_to_first_frame_p95_ms',
+  'first_to_stable_frame_p95_ms',
   'meaningful_ready_to_stable_frame_p95_ms',
   'action_to_stable_frame_p95_ms'
 ]) {

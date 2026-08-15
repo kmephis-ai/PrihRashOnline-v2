@@ -36,6 +36,8 @@ assert.strictEqual(contract.warm_invariants.mandatory_network_requests, 0);
 assert.strictEqual(contract.warm_invariants.google_sheets_reads, 0);
 assert.strictEqual(contract.warm_invariants.server_document_reload, 0);
 assert.strictEqual(performanceNode.storeName, 'prihrash-local-first-v1', 'performance probe must use the canonical owner Local Read Model DB');
+assert(performanceSource.includes('waitForFinanceMeaningfulCommit(route, 6000)'), 'history measurement must arm from exact meaningful finance DOM commit, not RAF polling');
+assert(performanceSource.includes('signalFinanceMeaningfulCommit(this)'), 'finance DOM cache setter must publish the exact meaningful commit boundary');
 
 for (const [metricId, spec] of Object.entries(contract.metrics)) {
   assert.strictEqual(runtimeContract.product_slo_targets_ms[metricId], spec.threshold_ms, `${metricId} threshold drift`);
@@ -163,6 +165,8 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
         assert(report.back_forward_phases && report.back_forward_phases.sample_count === 10, 'history phase evidence must cover all Back/Forward samples');
         assert(report.back_forward_phases.action_to_stable_frame_p95_ms !== null, 'history total phase p95 must be available');
         assert(report.back_forward_phases.action_to_popstate_p95_ms !== null, 'history popstate phase p95 must be available');
+        assert(report.back_forward_phases.meaningful_ready_to_first_frame_p95_ms !== null, 'history READY to RAF1 p95 must be available');
+        assert(report.back_forward_phases.first_to_stable_frame_p95_ms !== null, 'history RAF1 to RAF2 p95 must be available');
         assert(Number.isFinite(report.warm_runtime_ready_wait_ms), 'warm runtime readiness wait must be privacy-safe numeric telemetry');
         assert.strictEqual(report.provenance.runtime_sha256_prefix, runtimeSha.slice(0,12));
         assert.strictEqual(report.provenance.revision_hash_prefix, revisionPrefix);
