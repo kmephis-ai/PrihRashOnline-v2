@@ -15,6 +15,16 @@ const marker = JSON.parse(fs.readFileSync(path.join(ROOT, 'local-first-browser-r
 const markerContract = JSON.parse(fs.readFileSync(path.join(ROOT, 'lib/local_first/local_first_browser_runtime_marker.v1.json'), 'utf8'));
 const storeSource = fs.readFileSync(path.join(ROOT, 'pwa/local_read_model_store.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
 const performanceSource = fs.readFileSync(path.join(ROOT, 'pwa/local_first_performance.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
+const spaSource = fs.readFileSync(path.join(ROOT, 'LocalFirstSpaWebApp.html'), 'utf8');
+const scrollRestorationOpen = '<script data-lf-history-scroll-restoration="manual">';
+const scrollRestorationStart = spaSource.indexOf(scrollRestorationOpen);
+assert(scrollRestorationStart >= 0, 'canonical SPA must declare manual history scroll restoration');
+assert.strictEqual(spaSource.indexOf(scrollRestorationOpen, scrollRestorationStart + scrollRestorationOpen.length), -1, 'canonical SPA must declare manual history scroll restoration exactly once');
+const scrollRestorationBodyStart = scrollRestorationStart + scrollRestorationOpen.length;
+const scrollRestorationEnd = spaSource.indexOf('</script>', scrollRestorationBodyStart);
+assert(scrollRestorationEnd > scrollRestorationBodyStart, 'canonical scroll restoration script must be terminated');
+const scrollRestorationSource = spaSource.slice(scrollRestorationBodyStart, scrollRestorationEnd).replace(/<\/script/gi, '<\\/script');
+assert.strictEqual(spaSource.indexOf('<script'), scrollRestorationStart, 'manual scroll restoration must be the first canonical SPA script');
 
 assert.strictEqual(contract.schema, 'PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1');
 assert.strictEqual(contract.version, '1.0.0');
@@ -45,7 +55,7 @@ assert.strictEqual(performanceNode.evaluateMetric('warm_route_switch_p95', [1,2,
 
 const runtimeSha = 'a'.repeat(64);
 const revisionPrefix = 'b'.repeat(12);
-const harness = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+const harness = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script data-lf-history-scroll-restoration="manual">${scrollRestorationSource}</script></head>
 <body data-active-lf-route="home">
 <span id="lf-sync-chip" data-state="READY">READY</span>
 <main id="lf-main">
@@ -136,8 +146,10 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
       try {
         await page.goto(baseUrl, { waitUntil:'load', timeout:15000 });
         await page.waitForFunction(() => !!window.PrhLocalFirstPerformance && !!window.__PRH_LF_SPA_TEST__ && !!document.getElementById('lf-performance-report'));
+        assert.strictEqual(await page.evaluate(() => history.scrollRestoration), 'manual', `${viewport.name} must enter warm history with canonical manual scroll restoration`);
         warmPhase = true;
         const report = await page.evaluate(() => PrhLocalFirstPerformance.run());
+        assert.strictEqual(await page.evaluate(() => history.scrollRestoration), 'manual', `${viewport.name} history traversal must preserve manual scroll restoration`);
         assert.strictEqual(report.schema, 'PRH_LOCAL_FIRST_PERFORMANCE_V1');
         assert.strictEqual(report.status, 'PASS', `${viewport.name} report failed: ${report.reason}`);
         assert.strictEqual(report.reason, null);

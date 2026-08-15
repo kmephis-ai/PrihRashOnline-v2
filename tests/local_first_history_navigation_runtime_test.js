@@ -19,6 +19,33 @@ function count(text, token) {
   return String(text).split(token).length - 1;
 }
 
+function extractMarkedScript(html, marker) {
+  const open = `<script ${marker}>`;
+  const start = html.indexOf(open);
+  assert(start >= 0, `missing marked script: ${marker}`);
+  assert.strictEqual(html.indexOf(open, start + open.length), -1, `duplicate marked script: ${marker}`);
+  const bodyStart = start + open.length;
+  const end = html.indexOf('</script>', bodyStart);
+  assert(end > bodyStart, `unterminated marked script: ${marker}`);
+  return { start, body: html.slice(bodyStart, end) };
+}
+
+const scrollRestorationMarker = 'data-lf-history-scroll-restoration="manual"';
+const scrollRestorationScript = extractMarkedScript(source, scrollRestorationMarker);
+assert.strictEqual(source.indexOf('<script'), scrollRestorationScript.start, 'manual scroll restoration must be the first script in the document head');
+assert(scrollRestorationScript.start < source.indexOf('<style>'), 'manual scroll restoration must run before style/layout work and history entries');
+assert(!/scrollRestoration\s*=\s*['"]auto['"]/.test(source), 'SPA must never opt back into browser automatic scroll restoration');
+
+const supportedHistory = { scrollRestoration: 'auto' };
+vm.runInNewContext(scrollRestorationScript.body, { history: supportedHistory }, { filename: 'history-scroll-restoration.js' });
+assert.strictEqual(supportedHistory.scrollRestoration, 'manual', 'canonical head script must disable browser-native scroll restoration');
+const unsupportedHistory = {};
+assert.doesNotThrow(
+  () => vm.runInNewContext(scrollRestorationScript.body, { history: unsupportedHistory }, { filename: 'history-scroll-restoration-unsupported.js' }),
+  'unsupported history implementations must remain fail-safe'
+);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(unsupportedHistory, 'scrollRestoration'), false, 'unsupported history must not be mutated');
+
 assert.strictEqual(typeof context.prhLocalFirstSpaRepairHistoryRestore_, 'function', 'server renderer must expose the bounded history repair');
 
 assert.ok(source.includes('financeWarmReady:false'), 'SPA runtime must distinguish cached paint from fully hydrated warm runtime');
