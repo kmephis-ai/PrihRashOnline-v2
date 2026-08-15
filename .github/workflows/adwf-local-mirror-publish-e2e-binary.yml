@@ -12,10 +12,10 @@ permissions:
 
 env:
   TARGET_BRANCH: agent/E2E-LF-001-product-ready-local-first
-  EXPECTED_PARENT: b7eec6e26778dc653dc556097c8cc668d203ec5f
-  EXPECTED_COMMIT: f6270eace9d95b997811500d4e7e39f281448513
-  EXPECTED_TREE: 6d917ee927568c03390759f381304b2a9cd530ff
-  EXPECTED_BUNDLE_SHA256: f96db5c56a2c47f47a4e91010d080d084c9aeda5fbbc1edb7903c5daeb689999
+  EXPECTED_PARENT: f6270eace9d95b997811500d4e7e39f281448513
+  EXPECTED_COMMIT: ef4808cc4220385a5eb136bf9512b558d92d47a2
+  EXPECTED_TREE: 25fdd50d1c838858b5b264ceb655f5291a0994b3
+  EXPECTED_BUNDLE_SHA256: ef45f62bcc1c220219286299dfa2ec626e65b4c082ed93582cbfce35cde822be
 
 jobs:
   publish-exact-local-commit:
@@ -30,32 +30,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-00)" = "484c055edf28d1da2f29ec53db14a0ec1d284d90"
-          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-01)" = "06a91248be1eec2d2cbc5caf5188416a73fee32a"
-          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-02)" = "ab04d5845826b44041ff5f7b7528419d15b7a045"
-          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-03)" = "4a583477d00f21314530d2061095e9528f4a1b00"
-          test "$(git hash-object .adwf-transport/e2e-lf-binary-chunks/part-04)" = "a8e57e06c7b6d477ef816f9e91855c72322bad59"
-          cat .adwf-transport/e2e-lf-binary-chunks/part-{00,01,02,03,04} > /tmp/e2e-lf-update.bundle
-          test "$(wc -c < /tmp/e2e-lf-update.bundle | tr -d ' ')" = "7579"
-          echo "${EXPECTED_BUNDLE_SHA256}  /tmp/e2e-lf-update.bundle" | sha256sum --check --strict
-          git bundle verify /tmp/e2e-lf-update.bundle
+          test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-00)" = "f79b13bcff0d6c3f8e6b0d612fc1db0aec09890e"
+          test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-01)" = "9ead4e9b79fa7af09627a6a565f72527580227f7"
+          test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-02)" = "d28cffa57c3334a5913468914985c84b56112f3a"
+          test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-03)" = "0f17d698f109b9c9999d302d69c00ee135c0a682"
+          test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-04)" = "03ea215c2250862a03c6d2227d64c20c5d6f3998"
+          test "$(git hash-object .adwf-transport/e2e-lf-visual-binary-chunks/part-05)" = "7dd7ddc4b78056ffa49b68ee79caba3b9c4134c0"
+          cat .adwf-transport/e2e-lf-visual-binary-chunks/part-{00,01,02,03,04,05} > /tmp/e2e-lf-visual-update.bundle
+          test "$(wc -c < /tmp/e2e-lf-visual-update.bundle | tr -d ' ')" = "8999"
+          echo "${EXPECTED_BUNDLE_SHA256}  /tmp/e2e-lf-visual-update.bundle" | sha256sum --check --strict
+          git bundle verify /tmp/e2e-lf-visual-update.bundle
 
       - name: Verify exact local commit identity and diff
         shell: bash
         run: |
           set -euo pipefail
-          git fetch /tmp/e2e-lf-update.bundle HEAD:refs/heads/adwf-publish-e2e
-          test "$(git rev-parse refs/heads/adwf-publish-e2e)" = "${EXPECTED_COMMIT}"
-          test "$(git rev-parse refs/heads/adwf-publish-e2e^)" = "${EXPECTED_PARENT}"
-          test "$(git rev-parse refs/heads/adwf-publish-e2e^{tree})" = "${EXPECTED_TREE}"
-          test "$(git rev-list --parents -n 1 refs/heads/adwf-publish-e2e | awk '{print NF}')" -eq 2
+          git fetch /tmp/e2e-lf-visual-update.bundle HEAD:refs/heads/adwf-publish-e2e-visual
+          test "$(git rev-parse refs/heads/adwf-publish-e2e-visual)" = "${EXPECTED_COMMIT}"
+          test "$(git rev-parse refs/heads/adwf-publish-e2e-visual^)" = "${EXPECTED_PARENT}"
+          test "$(git rev-parse refs/heads/adwf-publish-e2e-visual^{tree})" = "${EXPECTED_TREE}"
+          test "$(git rev-list --parents -n 1 refs/heads/adwf-publish-e2e-visual | awk '{print NF}')" -eq 2
           mapfile -t changed < <(git diff --name-only "${EXPECTED_PARENT}" "${EXPECTED_COMMIT}")
           expected=(
-            .ai-context/PROJECT_CONTEXT.md
-            docs/PROJECT_STATUS.md
-            lib/local_first/local_first_product_ready.v1.json
-            llms.txt
-            tests/local_first_product_ready_runtime_test.js
+            tests/local_first_product_ready_visual_test.js
           )
           test "${#changed[@]}" -eq "${#expected[@]}"
           diff -u <(printf '%s\n' "${expected[@]}" | sort) <(printf '%s\n' "${changed[@]}" | sort)
