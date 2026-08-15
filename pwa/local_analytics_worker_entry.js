@@ -12,6 +12,7 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/;
 const MAX_TRANSACTIONS = 20000;
 const MAX_PENDING = 32;
+const MAX_QUERY_CACHE = 48;
 const SCHEDULE_DELAY_MS = 4;
 const SAFE_REASONS = new Set([
   'WORKER_NOT_READY',
@@ -28,7 +29,8 @@ const SAFE_REASONS = new Set([
   'WORKER_CANONICAL_TOP_LEVEL_EXTRA',
   'WORKER_CANONICAL_PROVENANCE_NOT_OBJECT',
   'WORKER_CANONICAL_PROVENANCE_EXTRA',
-  'WORKER_CANONICAL_SHAPE_DIVERGENCE'
+  'WORKER_CANONICAL_SHAPE_DIVERGENCE',
+  'WORKER_DATASET_BINDING_INVALID'
 ]);
 
 const state = {
@@ -37,7 +39,9 @@ const state = {
   revision: null,
   epoch: 0,
   cancelled: false,
-  pending: 0
+  pending: 0,
+  transactions: null,
+  queryCache: new Map()
 };
 
 function codedError(code) {
@@ -135,6 +139,11 @@ function stale(requestId, generationId, revision, reason) {
   });
 }
 
+function clearDataset() {
+  state.transactions = null;
+  state.queryCache.clear();
+}
+
 function handleInit() {
   state.initialized = true;
   emit({ type: 'READY', schema: WORKER_SCHEMA, version: WORKER_VERSION });
@@ -148,6 +157,27 @@ function handleSetRevision(message) {
   state.generationId = generationId;
   state.revision = revision;
   state.cancelled = false;
+  clearDataset();
+}
+
+function handleBindDataset(message) {
+  assertReady();
+  const generationId = validateHex64(message.generation_id, 'WORKER_GENERATION_INVALID');
+  const revision = validateHex64(message.revision, 'WORKER_REVISION_INVALID');
+  if (!exactBinding(generationId, revision, state.epoch)) throw codedError('WORKER_DATASET_BINDING_INVALID');
+  if (!Array.isArray(message.transactions) || message.transactions.length > MAX_TRANSACTIONS) {
+    throw codedError('WORKER_TRANSACTIONS_INVALID');
+  }
+  const shapeReason = canonicalShapeReason(message.transactions);
+  if (shapeReason) throw codedError(shapeReason);
+  state.transactions = message.transactions;
+  state.queryCache.clear();
+  emit({
+    type: 'DATASET_BOUND',
+    generation_id: generationId,
+    revision,
+    transaction_count: state.transactions.length
+  });
 }
 
 function handleCancelGeneration(message) {
@@ -156,6 +186,25 @@ function handleCancelGeneration(message) {
   if (generationId !== state.generationId) return;
   state.epoch += 1;
   state.cancelled = true;
+  clearDataset();
+}
+
+function queryCacheKey(query) {
+  try {
+    return JSON.stringify(query);
+  } catch (error) {
+    return null;
+  }
+}
+
+function rememberQueryResult(key, result) {
+  if (!key) return;
+  if (state.queryCache.has(key)) state.queryCache.delete(key);
+  while (state.queryCache.size >= MAX_QUERY_CACHE) {
+    const oldest = state.queryCache.keys().next().value;
+    state.queryCache.delete(oldest);
+  }
+  state.queryCache.set(key, result);
 }
 
 function handleAnalyticsQuery(message) {
@@ -163,9 +212,6 @@ function handleAnalyticsQuery(message) {
   const requestId = validateRequestId(message.request_id);
   const generationId = validateHex64(message.generation_id, 'WORKER_GENERATION_INVALID');
   const revision = validateHex64(message.revision, 'WORKER_REVISION_INVALID');
-  if (!Array.isArray(message.transactions) || message.transactions.length > MAX_TRANSACTIONS) {
-    throw codedError('WORKER_TRANSACTIONS_INVALID');
-  }
   if (!message.query || typeof message.query !== 'object' || Array.isArray(message.query)) {
     throw codedError('WORKER_QUERY_INVALID');
   }
@@ -177,6 +223,29 @@ function handleAnalyticsQuery(message) {
     return;
   }
 
+  const transactions = state.transactions || message.transactions;
+  if (!Array.isArray(transactions) || transactions.length > MAX_TRANSACTIONS) {
+    throw codedError('WORKER_TRANSACTIONS_INVALID');
+  }
+  const usingBoundDataset = transactions === state.transactions;
+  if (!usingBoundDataset) {
+    const shapeReason = canonicalShapeReason(transactions);
+    if (shapeReason) throw codedError(shapeReason);
+  }
+
+  const cacheKey = usingBoundDataset ? queryCacheKey(message.query) : null;
+  if (cacheKey && state.queryCache.has(cacheKey)) {
+    emit({
+      type: 'ANALYTICS_RESULT',
+      request_id: requestId,
+      generation_id: generationId,
+      revision,
+      result: state.queryCache.get(cacheKey),
+      cache_hit: true
+    });
+    return;
+  }
+
   state.pending += 1;
   setTimeout(() => {
     try {
@@ -184,11 +253,9 @@ function handleAnalyticsQuery(message) {
         stale(requestId, generationId, revision, 'STALE_BEFORE_EVALUATE');
         return;
       }
-      const shapeReason = canonicalShapeReason(message.transactions);
-      if (shapeReason) throw codedError(shapeReason);
       let result;
       try {
-        result = evaluateAnalytics(message.transactions, message.query);
+        result = evaluateAnalytics(transactions, message.query);
       } catch (error) {
         if (error && error.code === 'CANONICAL_TRANSACTION_SHAPE_INVALID') {
           throw codedError('WORKER_CANONICAL_SHAPE_DIVERGENCE');
@@ -199,12 +266,14 @@ function handleAnalyticsQuery(message) {
         stale(requestId, generationId, revision, 'STALE_AFTER_EVALUATE');
         return;
       }
+      rememberQueryResult(cacheKey, result);
       emit({
         type: 'ANALYTICS_RESULT',
         request_id: requestId,
         generation_id: generationId,
         revision,
-        result
+        result,
+        cache_hit: false
       });
     } catch (error) {
       emitError(requestId, error, 'WORKER_CANONICAL_EVALUATION_FAILED');
@@ -226,6 +295,9 @@ self.onmessage = function onMessage(event) {
         return;
       case 'SET_REVISION':
         handleSetRevision(message);
+        return;
+      case 'BIND_DATASET':
+        handleBindDataset(message);
         return;
       case 'ANALYTICS_QUERY':
         handleAnalyticsQuery(message);
