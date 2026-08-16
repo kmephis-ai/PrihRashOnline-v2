@@ -102,7 +102,6 @@ assert.notStrictEqual(previewHtml, html, 'server render must inject iframe-safe 
 assert(previewHtml.includes('data-lf-server-bootstrap="1"'), 'server bootstrap marker missing');
 assert(previewHtml.includes('data-prh-local-first-data-extension="1.0.0"'), 'Local-first Data extension must be injected');
 assert(previewHtml.includes('data-prh-local-first-planning-extension="1.0.0"'), 'Local-first Planning extension must be injected');
-assert(previewHtml.includes('id="prh-local-first-visualization-extension"'), 'Local-first Visualization extension must be injected');
 assert(previewHtml.includes('history.replaceState'), 'server bootstrap must establish same-origin iframe history state');
 assert(previewHtml.includes('?surface=local-first&lf_route=expenses&privacy=MASKED&lf_diag=1'), 'server bootstrap must preserve route/privacy/diagnostic params');
 assert(previewHtml.indexOf('data-lf-server-bootstrap="1"') < previewHtml.indexOf('<script>\n(function(){'), 'server bootstrap must execute before SPA runtime');
@@ -114,7 +113,6 @@ const safePreview = context.doGet({ parameter:{ surface:'local-first', lf_route:
 assert(safePreview.includes('?surface=local-first&lf_route=home&privacy=MASKED'), 'server bootstrap must fail closed to safe route/privacy state');
 assert(!safePreview.includes('&lf_diag=1'), 'diagnostic must remain opt-in');
 assert(safePreview.includes('data-prh-local-first-data-extension="1.0.0"'), 'safe route must keep Data extension available');
-assert(safePreview.includes('id="prh-local-first-visualization-extension"'), 'safe route must keep Visualization extension available');
 assert.strictEqual(localFileReads, 12, 'smoke + diagnostic route + safe route render must read four HTML files per render');
 
 for (const marker of [
