@@ -4,12 +4,14 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const adapter = require('../pwa/local_visualization_adapter');
+const browserRuntime = require('../tools/build-local-first-browser-runtime');
 
 const root = path.resolve(__dirname, '..');
 const extension = fs.readFileSync(path.join(root, 'LocalFirstVisualizationSpaExtension.html'), 'utf8');
 const service = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 const runtimeMarker = JSON.parse(fs.readFileSync(path.join(root, 'local-first-browser-runtime.json'), 'utf8'));
 const vendor = JSON.parse(fs.readFileSync(path.join(root, 'echarts-vendor.json'), 'utf8'));
+const runtimeConfig = browserRuntime.localFirstBrowserRuntimeConfig(root);
 
 assert.strictEqual(adapter.schema, 'PRH_LOCAL_VISUALIZATION_ADAPTER_V1');
 assert.strictEqual(adapter.version, '1.0.0');
@@ -34,6 +36,9 @@ assert(runtimeMarker.modules.includes('pwa/local_visualization_adapter.js'));
 assert.strictEqual(runtimeMarker.target_html, 'LocalFirstSpaWebApp.html');
 assert.strictEqual(runtimeMarker.runtime_network_required_for_warm_route, false);
 assert.strictEqual(runtimeMarker.external_cdn_required, false);
+assert.strictEqual(runtimeConfig.enabled, true);
+assert(runtimeConfig.marker.modules.includes('pwa/local_visualization_adapter.js'));
+assert(browserRuntime.ALLOWED_BROWSER_MODULES.includes('pwa/local_visualization_adapter.js'));
 
 assert(extension.includes('data-prh-local-first-visualization-extension="1.0.0"'));
 assert(extension.includes('window.__PRH_LF_FINANCE_RUNTIME__'));
