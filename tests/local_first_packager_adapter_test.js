@@ -12,6 +12,7 @@ const {
   PLACEHOLDER,
   RUNTIME_SCHEMA,
   WORKER_ENTRY,
+  ALLOWED_BROWSER_MODULES,
   ALLOWED_INERT_HTTP_URIS,
   localFirstBrowserRuntimeConfig,
   assertNoExternalRuntimeLoaders
@@ -32,6 +33,9 @@ assert.strictEqual(contract.default_state, 'DISABLED_WHEN_ABSENT');
 assert.strictEqual(contract.trust_bootstrap.candidate_packager_self_attestation_allowed, false);
 assert.strictEqual(contract.trust_bootstrap.disabled_mode_must_preserve_legacy_artifact_shape, true);
 assert.strictEqual(contract.trust_bootstrap.marker_must_not_be_present_in_PACK_LF_001_root, true);
+assert.deepStrictEqual(contract.allowed_browser_modules, Array.from(ALLOWED_BROWSER_MODULES));
+assert.strictEqual(ALLOWED_BROWSER_MODULES.includes('pwa/local_planning_runtime.js'), true, 'PACK-LF-002 must teach trusted main the planning module path');
+assert.strictEqual(contract.activation_example.modules.includes('pwa/local_planning_runtime.js'), true, 'contract example may prove planning capability without root activation');
 
 // PACK-LF-001 proved the trusted capability in main with no root marker. FIN-LF-001 is
 // the next stage and intentionally activates that already-trusted capability, so the
@@ -48,6 +52,7 @@ assert.strictEqual(currentRootConfig.marker.runtime_network_required_for_warm_ro
 assert.strictEqual(currentRootConfig.marker.external_cdn_required, false);
 assert.strictEqual(currentRootConfig.marker.cost_class, 'FREE_ONLY');
 assert.strictEqual(currentRootConfig.marker.modules.includes('pwa/local_finance_runtime.js'), true, 'FIN-LF activation must include the finance browser runtime');
+assert.strictEqual(currentRootConfig.marker.modules.includes('pwa/local_planning_runtime.js'), false, 'PACK-LF-002 bootstrap must not activate planning in the root marker');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'prh-pack-lf-'));
 const packBootstrapRoot = path.join(temp, 'pack-bootstrap-root');
@@ -129,6 +134,46 @@ try {
   const verifiedEnabled = verifyCandidate(enabledA, enabledB, SHA);
   assert.strictEqual(verifiedEnabled.localFirstBrowserRuntime.runtimeSha256, firstEnabled.localFirstBrowserRuntime.runtimeSha256);
 
+  // PACK-LF-002 extends only the trusted allow-list. Prove the future planning path in
+  // an isolated synthetic repository while the real root marker above remains unchanged.
+  const planningRepository = path.join(temp, 'planning-repository');
+  fs.mkdirSync(path.join(planningRepository, 'pwa'), { recursive:true });
+  fs.writeFileSync(path.join(planningRepository, 'pwa', 'local_planning_runtime.js'),
+    `'use strict';\nwindow.__PRH_SYNTHETIC_PLANNING_RUNTIME__=true;\n`);
+  fs.writeFileSync(path.join(planningRepository, 'pwa', 'local_analytics_worker_entry.js'),
+    `'use strict';\nself.onmessage=function(){};\n`);
+
+  const planningSource = path.join(temp, 'planning-source');
+  fs.mkdirSync(planningSource, { recursive:true });
+  fs.writeFileSync(path.join(planningSource, 'appsscript.json'), '{"timeZone":"Etc/UTC"}\n');
+  fs.writeFileSync(path.join(planningSource, 'Code.js'), 'function doGet(){return "PACK-LF-002 synthetic";}\n');
+  fs.writeFileSync(path.join(planningSource, TARGET_HTML),
+    `<!doctype html><html><body>${PLACEHOLDER}<main>planning bootstrap</main></body></html>\n`);
+  const planningMarker = marker({ modules:['pwa/local_planning_runtime.js'] });
+  fs.writeFileSync(path.join(planningSource, MARKER_FILE), JSON.stringify(planningMarker, null, 2) + '\n');
+
+  const planningA = path.join(temp, 'planning-a');
+  const planningB = path.join(temp, 'planning-b');
+  const firstPlanning = buildCandidate({ sourceRoot:planningSource, repositoryRoot:planningRepository, outRoot:planningA, candidateSha:SHA });
+  const secondPlanning = buildCandidate({ sourceRoot:planningSource, repositoryRoot:planningRepository, outRoot:planningB, candidateSha:SHA });
+  assert.deepStrictEqual(secondPlanning, firstPlanning, 'planning allow-list extension must remain deterministic');
+  assert.deepStrictEqual(firstPlanning.localFirstBrowserRuntime.modules.map((item)=>item.path), ['pwa/local_planning_runtime.js']);
+  const planningHtml = fs.readFileSync(path.join(planningA, 'files', TARGET_HTML), 'utf8');
+  assert(planningHtml.includes('__PRH_SYNTHETIC_PLANNING_RUNTIME__'));
+  assertNoExternalRuntimeLoaders(planningHtml);
+  assert.strictEqual(verifyCandidate(planningA, planningB, SHA).localFirstBrowserRuntime.runtimeSha256,
+    firstPlanning.localFirstBrowserRuntime.runtimeSha256);
+
+  const missingPlanningRepository = path.join(temp, 'missing-planning-repository');
+  fs.mkdirSync(path.join(missingPlanningRepository, 'pwa'), { recursive:true });
+  fs.writeFileSync(path.join(missingPlanningRepository, 'pwa', 'local_analytics_worker_entry.js'),
+    `'use strict';\nself.onmessage=function(){};\n`);
+  assert.throws(() => buildCandidate({
+    sourceRoot:planningSource, repositoryRoot:missingPlanningRepository,
+    outRoot:path.join(temp,'planning-missing'), candidateSha:SHA
+  }), /LOCAL_FIRST_RUNTIME_FILE_MISSING:pwa\/local_planning_runtime\.js/,
+  'allow-listed planning module must still fail closed when tracked bytes are absent');
+
   fs.writeFileSync(path.join(source, MARKER_FILE), JSON.stringify(marker({ unexpected:true })) + '\n');
   assert.throws(() => buildCandidate({ sourceRoot:source, repositoryRoot:ROOT, outRoot:path.join(temp,'invalid-shape'), candidateSha:SHA }), /LOCAL_FIRST_RUNTIME_MARKER_SHAPE_INVALID/);
 
@@ -144,6 +189,10 @@ try {
     disabledManifestLegacyCompatible:true,
     markerEnabledDeterministic:true,
     enabledModules:marker().modules.length,
+    planningAllowlisted:true,
+    planningRootActivated:false,
+    planningSyntheticDeterministic:true,
+    planningMissingFileFailClosed:true,
     candidateSelfAttestationAllowed:false,
     externalCdnRequired:false,
     freeOnly:true
