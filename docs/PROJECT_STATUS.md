@@ -4,6 +4,8 @@
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
+Root `AGENTS.md` is the public-safe repository AI operating contract. Он задаёт обязательные правила автономности, one-writer, privacy, FREE_ONLY, FIN-TRUTH и fail-closed delivery; этот human summary не расширяет authority.
+
 ## Текущий critical path — Post-LF Roadmap v2.5
 
 Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
