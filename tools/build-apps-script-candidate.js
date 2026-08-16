@@ -28,7 +28,7 @@ const RUNTIME_BUNDLE_MARKER_SCHEMA = 'PRH_R2_RUNTIME_BUNDLE_MARKER_V1';
 const ECHARTS_VENDOR_MARKER = 'echarts-vendor.json';
 const ECHARTS_VENDOR_SCHEMA = 'PRH_ECHARTS_VENDOR_LOCK_V1';
 const ECHARTS_VENDOR_PLACEHOLDER = '<!-- PRH_LOCAL_ECHARTS_VENDOR -->';
-const ECHARTS_TARGET_HTML = 'FinancialHomeWebApp.html';
+const ECHARTS_TARGET_HTML = 'LocalFirstSpaWebApp.html';
 const SHA_RE = /^[0-9a-f]{40}$/;
 
 function sha256(buffer) {
