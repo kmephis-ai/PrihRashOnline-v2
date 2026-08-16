@@ -62,11 +62,13 @@ const candidateRoot=path.join(candidateDir,'files');
 const shellHtml=fs.readFileSync(path.join(candidateRoot,'LocalFirstSpaWebApp.html'),'utf8');
 const dataExtension=fs.readFileSync(path.join(candidateRoot,'LocalFirstDataSpaExtension.html'),'utf8');
 const planningExtension=fs.readFileSync(path.join(candidateRoot,'LocalFirstPlanningSpaExtension.html'),'utf8');
+const visualizationExtension=fs.readFileSync(path.join(candidateRoot,'LocalFirstVisualizationSpaExtension.html'),'utf8');
 const serviceSource=fs.readFileSync(path.join(candidateRoot,'LocalFirstSpaService.js'),'utf8');
 assert(planningExtension.includes('data-prh-local-first-planning-extension="1.0.0"'));
+assert(visualizationExtension.includes('id="prh-local-first-visualization-extension"'));
 assert(shellHtml.includes('data-lf-route="budget"')&&shellHtml.includes('data-lf-route="obligations"')&&shellHtml.includes('data-lf-route="liquidity"'));
 function output(content){return {setTitle(){return this},addMetaTag(){return this},getContent(){return String(content)}};}
-function render(params){const context=vm.createContext({console,JSON,Object,Array,String,Number,Math,Date,RegExp,Error,encodeURIComponent,ScriptApp:undefined,HtmlService:{createHtmlOutputFromFile(name){if(name==='LocalFirstSpaWebApp')return output(shellHtml);if(name==='LocalFirstDataSpaExtension')return output(dataExtension);if(name==='LocalFirstPlanningSpaExtension')return output(planningExtension);throw new Error('unexpected '+name)},createHtmlOutput(content){return output(content)}}});vm.runInContext(serviceSource,context,{filename:'LocalFirstSpaService.js'});return context.prhLocalFirstSpaRender_(params).getContent();}
+function render(params){const context=vm.createContext({console,JSON,Object,Array,String,Number,Math,Date,RegExp,Error,encodeURIComponent,ScriptApp:undefined,HtmlService:{createHtmlOutputFromFile(name){if(name==='LocalFirstSpaWebApp')return output(shellHtml);if(name==='LocalFirstDataSpaExtension')return output(dataExtension);if(name==='LocalFirstPlanningSpaExtension')return output(planningExtension);if(name==='LocalFirstVisualizationSpaExtension')return output(visualizationExtension);throw new Error('unexpected '+name)},createHtmlOutput(content){return output(content)}}});vm.runInContext(serviceSource,context,{filename:'LocalFirstSpaService.js'});return context.prhLocalFirstSpaRender_(params).getContent();}
 function listen(server){return new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',()=>resolve(server.address()))})}
 function close(server){return new Promise((resolve)=>server.close(resolve))}
 
