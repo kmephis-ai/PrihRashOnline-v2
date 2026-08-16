@@ -17,37 +17,29 @@ jobs:
     env:
       EXPECTED_BASE_SHA: 12f764edc34aad32693fc7589ff53ded53740d5d
       TARGET_REF: refs/heads/agent/GOV-LF-001-roadmap-v25-consolidation
-      PATCH_PAYLOAD: .adwf/transport/gov-lf-001.patch.gz.b64
+      EXPECTED_BASE64_BYTES: 23680
+      EXPECTED_GZIP_SHA256: a65885da09b04855f116e43801244b36bf149104ab466c83826fea82469cd0cf
+      EXPECTED_PATCH_SHA256: bc1704b9e1f6582d16e5716e94fb5729b5c01053d0caed304c416ab288ae98e5
+      EXPECTED_PATCH_BYTES: 66223
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
-      - name: Decode and verify staged patch outside checkout
+      - name: Reassemble and verify staged patch outside checkout
         shell: bash
         run: |
           set -euo pipefail
-          test -f "${PATCH_PAYLOAD}"
-          python3 - <<'PY'
-          import base64
-          import gzip
-          import hashlib
-          import os
-          from pathlib import Path
-
-          source = Path(os.environ['PATCH_PAYLOAD'])
-          encoded = source.read_text(encoding='ascii').strip()
-          print(f'payload_base64_bytes={len(encoded)}')
-          compressed = base64.b64decode(encoded, validate=True)
-          print(f'payload_gzip_bytes={len(compressed)}')
-          print(f'payload_gzip_sha256={hashlib.sha256(compressed).hexdigest()}')
-          patch = gzip.decompress(compressed)
-          print(f'patch_bytes={len(patch)}')
-          if not patch.startswith(b'diff --git '):
-              raise SystemExit('decoded payload is not a git patch')
-          Path('/tmp/gov-lf-001.patch').write_bytes(patch)
-          PY
-          test -s /tmp/gov-lf-001.patch
+          chunks=(.adwf/transport/gov-lf-001/chunk-*.b64)
+          test "${#chunks[@]}" -eq 6
+          cat "${chunks[@]}" > /tmp/gov-lf-001.patch.gz.b64
+          test "$(wc -c < /tmp/gov-lf-001.patch.gz.b64 | tr -d ' ')" = "${EXPECTED_BASE64_BYTES}"
+          base64 -d /tmp/gov-lf-001.patch.gz.b64 > /tmp/gov-lf-001.patch.gz
+          printf '%s  %s\n' "${EXPECTED_GZIP_SHA256}" /tmp/gov-lf-001.patch.gz | sha256sum -c -
+          gzip -dc /tmp/gov-lf-001.patch.gz > /tmp/gov-lf-001.patch
+          printf '%s  %s\n' "${EXPECTED_PATCH_SHA256}" /tmp/gov-lf-001.patch | sha256sum -c -
+          test "$(wc -c < /tmp/gov-lf-001.patch | tr -d ' ')" = "${EXPECTED_PATCH_BYTES}"
+          grep -q '^diff --git ' /tmp/gov-lf-001.patch
 
       - name: Verify exact remote writer head
         shell: bash
