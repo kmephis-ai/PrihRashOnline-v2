@@ -86,11 +86,18 @@ Lifecycle user-facing: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED
 
 Одна конфликтующая writer-транзакция одновременно. Read-only audits допустимы параллельно. GitHub/provider state — source of truth. Не переходить к следующему writer до Main Verification текущего item.
 
-## Current R0/R1 truth
+## Current R0 truth
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE -> AIENG-002 = DONE -> AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS.
 
-`FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS. `ANL-010` authority = `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
+## Current R1 truth
+
+`FIN-010` — **DONE / Main Verification PASS**, Issue #85.
+`DATA-010` — **DONE / Main Verification PASS**, Issue #87.
+`ARCH-010` — **DONE / Main Verification PASS**, Issue #89.
+`ARCH-011` — **DONE / Main Verification PASS**, Issue #91.
+`MIG-010` — **DONE / Main Verification PASS**, Issue #96.
+`ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE / Main Verification PASS**. `ANL-010` authority = `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 
 Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после Local-first/Product Recovery rebaseline и не означает возврат к request-per-view architecture.
 
