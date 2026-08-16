@@ -16,7 +16,7 @@
     "financial_truth_policy": "FIN-TRUTH-v1"
   },
   "supported_core_measures": ["INCOME", "EXPENSE", "CASH_FLOW"],
-  "supported_dimensions": ["category_id", "account_id", "member_id", "project_id", "tag_id"],
+  "supported_dimensions": ["category_id", "account_id", "member_id", "project_id"],
   "principles": {
     "additive_only": true,
     "causality_claimed": false,
