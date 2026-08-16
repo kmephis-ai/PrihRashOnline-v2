@@ -1,210 +1,86 @@
 <style data-prh-local-first-visualization-extension="1.0.0">
   .lf-viz-panel{margin:0 0 16px;padding:16px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:18px;background:color-mix(in srgb,currentColor 3%,transparent);min-width:0}
-  .lf-viz-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
-  .lf-viz-head h2{margin:0;font-size:1rem;line-height:1.3}
-  .lf-viz-note{margin:3px 0 0;font-size:.82rem;line-height:1.4;opacity:.72}
-  .lf-viz-chart{width:100%;height:320px;min-height:240px;min-width:0}
-  .lf-viz-message{padding:18px 12px;border-radius:14px;background:color-mix(in srgb,currentColor 5%,transparent);font-size:.92rem;line-height:1.5}
-  .lf-viz-semantic{margin:10px 0 0;font-size:.78rem;line-height:1.45;opacity:.7}
+  .lf-viz-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.lf-viz-head h2{margin:0;font-size:1rem;line-height:1.3}
+  .lf-viz-note{margin:3px 0 0;font-size:.82rem;line-height:1.4;opacity:.72}.lf-viz-chart{width:100%;height:320px;min-height:240px;min-width:0}
+  .lf-viz-message{padding:18px 12px;border-radius:14px;background:color-mix(in srgb,currentColor 5%,transparent);font-size:.92rem;line-height:1.5}.lf-viz-semantic{margin:10px 0 0;font-size:.78rem;line-height:1.45;opacity:.7}
   @media (max-width:720px){.lf-viz-panel{padding:12px;border-radius:14px}.lf-viz-chart{height:260px;min-height:220px}.lf-viz-head{display:block}.lf-viz-note{margin-top:5px}}
   @media (max-width:420px){.lf-viz-chart{height:230px;min-height:210px}}
 </style>
 <script data-prh-local-first-visualization-extension="1.0.0">
 (function(){
   'use strict';
-  var VERSION='1.0.0';
-  var financeContent=document.getElementById('lf-finance-content');
+  var VERSION='1.0.0',financeContent=document.getElementById('lf-finance-content'),activeChart=null,activeElement=null,scheduled=false,lastSignature='';
   if(!financeContent)return;
-
-  var activeChart=null;
-  var activeElement=null;
-  var scheduled=false;
-  var lastSignature='';
-
-  function privacyMode(){
-    var raw=String(new URL(location.href).searchParams.get('privacy')||'').trim().toUpperCase();
-    if(!raw)return 'NORMAL';
-    return ['NORMAL','MASKED','DEMO','ZEN'].indexOf(raw)>=0?raw:'MASKED';
-  }
-
+  function privacyMode(){var raw=String(new URL(location.href).searchParams.get('privacy')||'').trim().toUpperCase();return !raw?'NORMAL':['NORMAL','MASKED','DEMO','ZEN'].indexOf(raw)>=0?raw:'MASKED'}
   function valuesVisible(){return privacyMode()==='NORMAL'}
-
-  function dispose(){
-    if(activeChart&&typeof activeChart.dispose==='function'){
-      try{activeChart.dispose()}catch(error){}
-    }
-    activeChart=null;
-    activeElement=null;
-    lastSignature='';
-  }
-
-  function removeExisting(){
-    var node=financeContent.querySelector('[data-lf-viz-panel="1"]');
-    if(node)node.remove();
-  }
-
-  function createPanel(title,note){
-    var panel=document.createElement('section');
-    panel.className='lf-viz-panel';
-    panel.dataset.lfVizPanel='1';
-    panel.setAttribute('aria-label',title);
-    var head=document.createElement('div');
-    head.className='lf-viz-head';
-    var text=document.createElement('div');
-    var heading=document.createElement('h2');
-    heading.textContent=title;
-    var description=document.createElement('p');
-    description.className='lf-viz-note';
-    description.textContent=note;
-    text.appendChild(heading);
-    text.appendChild(description);
-    head.appendChild(text);
-    panel.appendChild(head);
-    financeContent.insertBefore(panel,financeContent.firstChild);
-    return panel;
-  }
-
-  function showMessage(title,message){
-    dispose();
-    removeExisting();
-    var panel=createPanel(title,'Текстовое представление исходных показателей сохранено ниже.');
-    var box=document.createElement('div');
-    box.className='lf-viz-message';
-    box.setAttribute('role','status');
-    box.textContent=message;
-    panel.appendChild(box);
-  }
-
-  function theme(){
-    var bodyStyle=getComputedStyle(document.body);
-    var rootStyle=getComputedStyle(document.documentElement);
-    return {
-      text:String(bodyStyle.color||'#475569'),
-      accent:String(rootStyle.getPropertyValue('--accent')||rootStyle.getPropertyValue('--primary')||'#4f46e5').trim(),
-      grid:String(rootStyle.getPropertyValue('--border')||'rgba(127,127,127,.22)').trim()
-    };
-  }
-
-  function measureName(measure){
-    return {INCOME:'Доходы',EXPENSE:'Расходы',CASH_FLOW:'Денежный поток'}[measure]||String(measure||'Показатель');
-  }
-
+  function dispose(){if(activeChart&&typeof activeChart.dispose==='function'){try{activeChart.dispose()}catch(error){}}activeChart=null;activeElement=null;lastSignature=''}
+  function removeExisting(){var node=financeContent.querySelector('[data-lf-viz-panel="1"]');if(node)node.remove()}
+  function createPanel(title,note){var panel=document.createElement('section');panel.className='lf-viz-panel';panel.dataset.lfVizPanel='1';panel.setAttribute('aria-label',title);var head=document.createElement('div');head.className='lf-viz-head';var text=document.createElement('div'),heading=document.createElement('h2'),description=document.createElement('p');heading.textContent=title;description.className='lf-viz-note';description.textContent=note;text.appendChild(heading);text.appendChild(description);head.appendChild(text);panel.appendChild(head);financeContent.insertBefore(panel,financeContent.firstChild);return panel}
+  function showMessage(title,message){dispose();removeExisting();var panel=createPanel(title,'Текстовое представление исходных показателей сохранено ниже.'),box=document.createElement('div');box.className='lf-viz-message';box.setAttribute('role','status');box.textContent=message;panel.appendChild(box)}
+  function theme(){var bodyStyle=getComputedStyle(document.body),rootStyle=getComputedStyle(document.documentElement);return{text:String(bodyStyle.color||'#475569'),grid:String(rootStyle.getPropertyValue('--border')||'rgba(127,127,127,.22)').trim()}}
+  function measureName(measure){return{INCOME:'Доходы',EXPENSE:'Расходы',CASH_FLOW:'Денежный поток'}[measure]||String(measure||'Показатель')}
   function major(value){return Number(value)/100}
+  function optionFor(spec,currency){var colors=theme(),compact=new Intl.NumberFormat('ru-RU',{notation:'compact',maximumFractionDigits:1}),money=new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency||'RUB',maximumFractionDigits:2});var common={animationDuration:260,backgroundColor:'transparent',textStyle:{color:colors.text},tooltip:{trigger:'axis',valueFormatter:function(value){return money.format(Number(value)||0)}},grid:{left:16,right:18,top:28,bottom:22,containLabel:true}};if(spec.kind==='CATEGORY_BAR'){common.xAxis={type:'value',axisLabel:{color:colors.text,formatter:function(value){return compact.format(value)}},splitLine:{lineStyle:{color:colors.grid}}};common.yAxis={type:'category',data:spec.categories,axisLabel:{color:colors.text,width:138,overflow:'truncate'},axisLine:{lineStyle:{color:colors.grid}},axisTick:{show:false}};common.series=[{name:measureName(spec.measure),type:'bar',data:spec.values.map(major),barMaxWidth:26,itemStyle:{borderRadius:[0,6,6,0]}}];return common}common.legend={top:0,textStyle:{color:colors.text}};common.xAxis={type:'category',data:spec.buckets,axisLabel:{color:colors.text,hideOverlap:true},axisLine:{lineStyle:{color:colors.grid}},axisTick:{show:false}};common.yAxis={type:'value',axisLabel:{color:colors.text,formatter:function(value){return compact.format(value)}},splitLine:{lineStyle:{color:colors.grid}}};common.series=spec.series.map(function(item){return{name:measureName(item.measure),type:item.measure==='CASH_FLOW'?'line':'bar',smooth:item.measure==='CASH_FLOW',showSymbol:false,data:item.values.map(major),barMaxWidth:24}});return common}
+  function signature(spec){var payload=[spec.source_revision,spec.route,spec.kind,spec.status];if(spec.buckets)payload.push(spec.buckets.join('|'));if(spec.categories)payload.push(spec.categories.join('|'));if(spec.series)spec.series.forEach(function(item){payload.push(item.measure+':'+item.values.join(','))});if(spec.values)payload.push(spec.values.join(','));return payload.join('::')}
+  function renderNow(){scheduled=false;var finance=window.__PRH_LF_FINANCE_RUNTIME__,adapter=window.PrhLocalVisualizationAdapter;if(!finance||typeof finance.getState!=='function'||!adapter||typeof adapter.chartSpecFromView!=='function')return;var state=finance.getState(),view=state&&state.view;if(!view||view.status!=='READY'||['home','expenses','income','cash-flow'].indexOf(view.route)<0)return;var spec;try{spec=adapter.chartSpecFromView(view)}catch(error){showMessage('График','График временно недоступен. Проверенные показатели доступны ниже.');return}if(!valuesVisible()){showMessage(spec.title,'График скрыт в режиме приватности. Текстовые показатели ниже также защищены.');return}if(spec.status!=='READY'){showMessage(spec.title,spec.message||'Для графика пока недостаточно данных.');return}if(!window.echarts||typeof window.echarts.init!=='function'){showMessage(spec.title,'График временно недоступен. Проверенные показатели доступны ниже.');return}var nextSignature=signature(spec),existing=financeContent.querySelector('[data-lf-viz-chart="1"]');if(activeChart&&activeElement===existing&&nextSignature===lastSignature)return;dispose();removeExisting();var panel=createPanel(spec.title,'Интерактивный график строится только по уже рассчитанным проверенным показателям.'),chartElement=document.createElement('div');chartElement.className='lf-viz-chart';chartElement.dataset.lfVizChart='1';chartElement.setAttribute('aria-hidden','true');panel.appendChild(chartElement);var semantic=document.createElement('p');semantic.className='lf-viz-semantic';semantic.textContent='Доступное текстовое представление тех же показателей сохранено ниже графика.';panel.appendChild(semantic);try{activeChart=window.echarts.init(chartElement,null,{renderer:'canvas'});activeElement=chartElement;lastSignature=nextSignature;activeChart.setOption(optionFor(spec,view.filter_context&&view.filter_context.currency||'RUB'),true)}catch(error){showMessage(spec.title,'График временно недоступен. Проверенные показатели доступны ниже.')}}
+  function schedule(){if(scheduled)return;scheduled=true;Promise.resolve().then(function(){requestAnimationFrame(renderNow)})}
+  var observer=new MutationObserver(function(records){var onlyVisualization=true;records.forEach(function(record){Array.prototype.forEach.call(record.addedNodes||[],function(node){if(!(node.nodeType===1&&node.closest&&node.closest('[data-lf-viz-panel="1"]')))onlyVisualization=false});Array.prototype.forEach.call(record.removedNodes||[],function(node){if(!(node.nodeType===1&&node.matches&&node.matches('[data-lf-viz-panel="1"]')))onlyVisualization=false})});if(!onlyVisualization)schedule()});observer.observe(financeContent,{childList:true,subtree:true});
+  window.addEventListener('resize',function(){if(activeChart)activeChart.resize()},{passive:true});window.addEventListener('pagehide',dispose,{once:true});window.__PRH_LF_VISUALIZATION__=Object.freeze({version:VERSION,refresh:schedule,dispose:dispose});schedule();
+})();
+</script>
 
-  function optionFor(spec,currency){
-    var colors=theme();
-    var compact=new Intl.NumberFormat('ru-RU',{notation:'compact',maximumFractionDigits:1});
-    var money=new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency||'RUB',maximumFractionDigits:2});
-    var common={
-      animationDuration:260,
-      backgroundColor:'transparent',
-      textStyle:{color:colors.text},
-      tooltip:{trigger:'axis',valueFormatter:function(value){return money.format(Number(value)||0)}},
-      grid:{left:16,right:18,top:28,bottom:22,containLabel:true}
-    };
-    if(spec.kind==='CATEGORY_BAR'){
-      common.tooltip.trigger='axis';
-      common.xAxis={type:'value',axisLabel:{color:colors.text,formatter:function(value){return compact.format(value)}},splitLine:{lineStyle:{color:colors.grid}}};
-      common.yAxis={type:'category',data:spec.categories,axisLabel:{color:colors.text,width:138,overflow:'truncate'},axisLine:{lineStyle:{color:colors.grid}},axisTick:{show:false}};
-      common.series=[{name:measureName(spec.measure),type:'bar',data:spec.values.map(major),barMaxWidth:26,itemStyle:{borderRadius:[0,6,6,0]}}];
-      return common;
-    }
-    common.legend={top:0,textStyle:{color:colors.text}};
-    common.xAxis={type:'category',data:spec.buckets,axisLabel:{color:colors.text,hideOverlap:true},axisLine:{lineStyle:{color:colors.grid}},axisTick:{show:false}};
-    common.yAxis={type:'value',axisLabel:{color:colors.text,formatter:function(value){return compact.format(value)}},splitLine:{lineStyle:{color:colors.grid}}};
-    common.series=spec.series.map(function(item){
-      return {name:measureName(item.measure),type:item.measure==='CASH_FLOW'?'line':'bar',smooth:item.measure==='CASH_FLOW',showSymbol:false,data:item.values.map(major),barMaxWidth:24};
-    });
-    return common;
-  }
-
-  function signature(spec){
-    var payload=[spec.source_revision,spec.route,spec.kind,spec.status];
-    if(spec.buckets)payload.push(spec.buckets.join('|'));
-    if(spec.categories)payload.push(spec.categories.join('|'));
-    if(spec.series)spec.series.forEach(function(item){payload.push(item.measure+':'+item.values.join(','))});
-    if(spec.values)payload.push(spec.values.join(','));
-    return payload.join('::');
-  }
-
-  function renderNow(){
-    scheduled=false;
-    var finance=window.__PRH_LF_FINANCE_RUNTIME__;
-    var adapter=window.PrhLocalVisualizationAdapter;
-    if(!finance||typeof finance.getState!=='function'||!adapter||typeof adapter.chartSpecFromView!=='function')return;
-    var state=finance.getState();
-    var view=state&&state.view;
-    if(!view||view.status!=='READY')return;
-    if(['home','expenses','income','cash-flow'].indexOf(view.route)<0)return;
-
-    var spec;
-    try{spec=adapter.chartSpecFromView(view)}catch(error){
-      showMessage('График','График временно недоступен. Проверенные показатели доступны ниже.');
-      return;
-    }
-    if(!valuesVisible()){
-      showMessage(spec.title,'График скрыт в режиме приватности. Текстовые показатели ниже также защищены.');
-      return;
-    }
-    if(spec.status!=='READY'){
-      showMessage(spec.title,spec.message||'Для графика пока недостаточно данных.');
-      return;
-    }
-    if(!window.echarts||typeof window.echarts.init!=='function'){
-      showMessage(spec.title,'График временно недоступен. Проверенные показатели доступны ниже.');
-      return;
-    }
-
-    var nextSignature=signature(spec);
-    var existing=financeContent.querySelector('[data-lf-viz-chart="1"]');
-    if(activeChart&&activeElement===existing&&nextSignature===lastSignature)return;
-    dispose();
-    removeExisting();
-
-    var panel=createPanel(spec.title,'Интерактивный график строится только по уже рассчитанным проверенным показателям.');
-    var chartElement=document.createElement('div');
-    chartElement.className='lf-viz-chart';
-    chartElement.dataset.lfVizChart='1';
-    chartElement.setAttribute('aria-hidden','true');
-    panel.appendChild(chartElement);
-    var semantic=document.createElement('p');
-    semantic.className='lf-viz-semantic';
-    semantic.textContent='Доступное текстовое представление тех же показателей сохранено ниже графика.';
-    panel.appendChild(semantic);
-
-    try{
-      activeChart=window.echarts.init(chartElement,null,{renderer:'canvas'});
-      activeElement=chartElement;
-      lastSignature=nextSignature;
-      activeChart.setOption(optionFor(spec,view.filter_context&&view.filter_context.currency||'RUB'),true);
-    }catch(error){
-      showMessage(spec.title,'График временно недоступен. Проверенные показатели доступны ниже.');
-    }
-  }
-
-  function schedule(){
-    if(scheduled)return;
-    scheduled=true;
-    Promise.resolve().then(function(){requestAnimationFrame(renderNow)});
-  }
-
-  var observer=new MutationObserver(function(records){
-    var onlyVisualization=true;
-    records.forEach(function(record){
-      Array.prototype.forEach.call(record.addedNodes||[],function(node){
-        if(!(node.nodeType===1&&node.closest&&node.closest('[data-lf-viz-panel="1"]')))onlyVisualization=false;
-      });
-      Array.prototype.forEach.call(record.removedNodes||[],function(node){
-        if(!(node.nodeType===1&&node.matches&&node.matches('[data-lf-viz-panel="1"]')))onlyVisualization=false;
-      });
-    });
-    if(!onlyVisualization)schedule();
+<style data-prh-local-first-analytics-studio="1.0.0">
+  .lf-studio-shell{margin-top:16px;display:grid;gap:14px}.lf-studio-toolbar,.lf-studio-widget{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);min-width:0}
+  .lf-studio-toolbar{padding:16px;display:grid;grid-template-columns:minmax(210px,1.6fr) auto auto;gap:10px;align-items:end}.lf-studio-control{display:grid;gap:5px;min-width:0}.lf-studio-control label{font-size:12px;font-weight:850;color:var(--muted)}
+  .lf-studio-control select{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface-2);color:var(--text);border-radius:10px;padding:9px 10px}.lf-studio-action{border:0;border-radius:11px;padding:10px 13px;font-weight:900;cursor:pointer;background:var(--brand);color:#fff;min-height:42px}.lf-studio-action.secondary{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}.lf-studio-action:disabled{opacity:.55;cursor:not-allowed}
+  .lf-studio-status{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);color:var(--muted);overflow-wrap:anywhere}.lf-studio-status[data-state="ERROR"]{color:var(--bad)}.lf-studio-status[data-state="READY"]{color:var(--ok)}
+  .lf-studio-widget{padding:17px}.lf-studio-widget-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.lf-studio-widget h2{margin:0}.lf-studio-meta{display:flex;gap:6px;flex-wrap:wrap}.lf-studio-meta span{border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:11px;color:var(--muted)}
+  .lf-studio-chart{width:100%;height:330px;min-height:240px;margin-top:12px}.lf-studio-table-wrap{margin-top:12px;overflow:auto;border:1px solid var(--line);border-radius:12px}.lf-studio-table{width:100%;border-collapse:collapse;min-width:420px}.lf-studio-table th,.lf-studio-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}.lf-studio-table th{font-size:12px;color:var(--muted);background:var(--surface-2)}.lf-studio-table tr:last-child td{border-bottom:0}.lf-studio-drill{border:1px solid var(--line);background:var(--surface-2);color:var(--text);border-radius:8px;padding:6px 9px;cursor:pointer;font-weight:800}.lf-studio-empty{padding:28px;text-align:center;color:var(--muted)}.lf-studio-boundary{font-size:12px;color:var(--muted);line-height:1.45}.lf-studio-boundary strong{color:var(--text)}#lf-studio-nav[aria-current="page"]{background:var(--surface);color:var(--brand);border-color:var(--line);box-shadow:var(--shadow)}
+  @media(max-width:900px){.lf-studio-toolbar{grid-template-columns:1fr 1fr}.lf-studio-control{grid-column:1/-1}.lf-studio-action{width:100%}}@media(max-width:600px){.lf-studio-toolbar{grid-template-columns:1fr}.lf-studio-control{grid-column:auto}.lf-studio-widget{padding:13px}.lf-studio-chart{height:260px;min-height:220px}.lf-studio-table{min-width:360px}}
+</style>
+<script data-prh-local-first-analytics-studio="1.0.0">
+(function(){
+  'use strict';
+  var SCHEMA='PRH_LOCAL_ANALYTICS_STUDIO_WIDGET_V1',VERSION='1.0.0',STORAGE_KEY='prh.localAnalyticsStudio.widget.v1',HASH_RE=/^[0-9a-f]{64}$/,ALLOWED_PRIVACY=['NORMAL','MASKED','DEMO','ZEN'];
+  var TEMPLATES=Object.freeze({
+    'expense-category':Object.freeze({id:'expense-category',title:'Расходы по категориям',route:'expenses',resultKey:'breakdown',measure:'EXPENSE',semanticMeasure:'EXPENSE',semanticDimension:'category_id',grain:'NONE',kind:'CATEGORY_BAR'}),
+    'income-category':Object.freeze({id:'income-category',title:'Доходы по категориям',route:'income',resultKey:'breakdown',measure:'INCOME',semanticMeasure:'INCOME',semanticDimension:'category_id',grain:'NONE',kind:'CATEGORY_BAR'}),
+    'cashflow-month':Object.freeze({id:'cashflow-month',title:'Денежный поток по месяцам',route:'home',resultKey:'trend',measure:'CASH_FLOW',semanticMeasure:'CASH_FLOW',semanticDimension:'time_bucket',grain:'MONTH',kind:'TIME_SERIES'})
   });
-  observer.observe(financeContent,{childList:true,subtree:true});
-
-  window.addEventListener('resize',function(){if(activeChart)activeChart.resize()},{passive:true});
-  window.addEventListener('pagehide',dispose,{once:true});
-  window.__PRH_LF_VISUALIZATION__=Object.freeze({version:VERSION,refresh:schedule,dispose:dispose});
-  schedule();
+  var nav=document.getElementById('lf-nav'),main=document.getElementById('lf-main'),titleNode=document.getElementById('lf-title'),summaryNode=document.getElementById('lf-summary'),routePill=document.getElementById('lf-route-pill'),toolbar=document.getElementById('lf-finance-toolbar'),financeContent=document.getElementById('lf-finance-content'),previewGrid=document.getElementById('lf-preview-grid');
+  if(!nav||!main||!titleNode||!summaryNode||!routePill||!toolbar||!financeContent||!previewGrid)return;
+  var shell=null,studioLink=null,chart=null,activeWidget=null,lastBaseContext=null,restoring=false;
+  function privacyMode(){var raw=String(new URL(location.href).searchParams.get('privacy')||'').trim().toUpperCase();return !raw?'NORMAL':ALLOWED_PRIVACY.indexOf(raw)>=0?raw:'MASKED'}
+  function active(){return String(location.hash||'').toLowerCase()==='#studio'}
+  function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]})}
+  function safeReason(error){var raw=String(error&&(error.code||error.message)||'STUDIO_QUERY_FAILED'),match=raw.match(/[A-Z][A-Z0-9_]{2,95}/);return match?match[0]:'STUDIO_QUERY_FAILED'}
+  function currency(value){var text=String(value||'RUB').toUpperCase();return/^[A-Z]{3}$/.test(text)?text:'RUB'}
+  function money(valueMinor,code){if(!Number.isSafeInteger(valueMinor))return'—';return new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency(code),maximumFractionDigits:2}).format(valueMinor/100)}
+  function monthStart(bucket){return/^\d{4}-\d{2}$/.test(String(bucket||''))?String(bucket)+'-01':null}
+  function nextMonth(bucket){var match=/^(\d{4})-(\d{2})$/.exec(String(bucket||''));if(!match)return null;return new Date(Date.UTC(Number(match[1]),Number(match[2]),1)).toISOString().slice(0,10)}
+  function safeContext(input){input=input||{};var out={currency:currency(input.currency||'RUB'),start:null,end:null,account_id:null,category_id:null,member_id:null,project_id:null};if(/^\d{4}-\d{2}-\d{2}$/.test(String(input.start||''))&&/^\d{4}-\d{2}-\d{2}$/.test(String(input.end||''))&&String(input.start)<String(input.end)){out.start=String(input.start);out.end=String(input.end)}return out}
+  function savedContext(input){var safe=safeContext(input);return Object.freeze({currency:safe.currency,start:safe.start,end:safe.end})}
+  function binding(template){return Object.freeze({measure:template.semanticMeasure,dimension:template.semanticDimension,grain:template.grain})}
+  function exactSavedKeys(value){return Object.keys(value).sort().join('|')==='filter_context|query_identity|schema|semantic_binding|template_id|version|visualization'}
+  function validateSaved(value){if(!value||typeof value!=='object'||Array.isArray(value)||!exactSavedKeys(value)||value.schema!==SCHEMA||value.version!==VERSION||!TEMPLATES[value.template_id]||!HASH_RE.test(String(value.query_identity||'')))return null;var template=TEMPLATES[value.template_id],expected=binding(template),actual=value.semantic_binding;if(!actual||actual.measure!==expected.measure||actual.dimension!==expected.dimension||actual.grain!==expected.grain||value.visualization!==template.kind)return null;var context=safeContext(value.filter_context||{});if(context.account_id||context.category_id||context.member_id||context.project_id)return null;return Object.freeze({schema:SCHEMA,version:VERSION,template_id:template.id,query_identity:String(value.query_identity),semantic_binding:expected,filter_context:savedContext(context),visualization:template.kind})}
+  function readSaved(){try{var raw=localStorage.getItem(STORAGE_KEY);return raw?validateSaved(JSON.parse(raw)):null}catch(error){return null}}
+  function writeSaved(widget){var safe=validateSaved(widget);if(!safe)throw new Error('STUDIO_SAVED_SPEC_INVALID');localStorage.setItem(STORAGE_KEY,JSON.stringify(safe));return safe}
+  function clearSaved(){try{localStorage.removeItem(STORAGE_KEY)}catch(error){}}
+  function financeRuntime(){var runtime=window.__PRH_LF_FINANCE_RUNTIME__;return runtime&&typeof runtime.getState==='function'&&typeof runtime.setRoute==='function'&&typeof runtime.setFilterContext==='function'?runtime:null}
+  function queryResult(view,template){var result=view&&view.results&&view.results[template.resultKey];if(!result||result.schema!=='PRH_ANALYTICS_RESULT_V1'||!HASH_RE.test(String(result.query_hash||'')))throw new Error('STUDIO_BOUND_RESULT_INVALID');if(!result.provenance||result.provenance.financial_truth_policy!=='FIN-TRUTH-v1'||String(result.provenance.input_revision||'')!==String(view.revision||''))throw new Error('STUDIO_PROVENANCE_INVALID');return result}
+  function widgetSpec(template,result,context){return Object.freeze({schema:SCHEMA,version:VERSION,template_id:template.id,query_identity:String(result.query_hash),semantic_binding:binding(template),filter_context:savedContext(context),visualization:template.kind})}
+  function rowLabel(view,template,row){var dimension=String(row&&row.dimensions&&(template.kind==='CATEGORY_BAR'?row.dimensions.category_id:row.dimensions.time_bucket)||'');return template.kind==='CATEGORY_BAR'?String(view.labels&&view.labels['category|'+dimension]||dimension||'Без категории'):dimension}
+  function setStatus(message,state){var node=shell&&shell.querySelector('#lf-studio-status');if(node){node.textContent=message;node.dataset.state=state||'IDLE'}}
+  function disposeChart(){if(chart&&typeof chart.dispose==='function'){try{chart.dispose()}catch(error){}}chart=null}
+  function chartOption(template,rows,view){var code=view.filter_context&&view.filter_context.currency||'RUB',labels=rows.map(function(row){return rowLabel(view,template,row)}),values=rows.map(function(row){return Number(row.measures&&row.measures[template.measure]||0)/100}),formatter=new Intl.NumberFormat('ru-RU',{style:'currency',currency:currency(code),maximumFractionDigits:2}),text=String(getComputedStyle(document.body).color||'#475569');if(template.kind==='CATEGORY_BAR')return{animationDuration:220,tooltip:{trigger:'axis',valueFormatter:function(v){return formatter.format(Number(v)||0)}},grid:{left:16,right:18,top:18,bottom:22,containLabel:true},xAxis:{type:'value',axisLabel:{color:text}},yAxis:{type:'category',data:labels,axisLabel:{color:text,width:150,overflow:'truncate'}},series:[{type:'bar',data:values,barMaxWidth:26}]};return{animationDuration:220,tooltip:{trigger:'axis',valueFormatter:function(v){return formatter.format(Number(v)||0)}},grid:{left:16,right:18,top:18,bottom:22,containLabel:true},xAxis:{type:'category',data:labels,axisLabel:{color:text,hideOverlap:true}},yAxis:{type:'value',axisLabel:{color:text}},series:[{type:'line',smooth:true,showSymbol:true,data:values}]}}
+  function tableHtml(template,rows,view){var code=view.filter_context&&view.filter_context.currency||'RUB';if(!rows.length)return'<div class="lf-studio-empty">По этому запросу нет данных.</div>';return'<div class="lf-studio-table-wrap"><table class="lf-studio-table"><thead><tr><th>Разрез</th><th>Значение</th><th>Drill</th></tr></thead><tbody>'+rows.slice(0,40).map(function(row,index){return'<tr><td>'+esc(rowLabel(view,template,row))+'</td><td>'+esc(money(row.measures&&row.measures[template.measure],code))+'</td><td><button class="lf-studio-drill" type="button" data-studio-drill="'+index+'" aria-label="Открыть детализацию строки">Открыть</button></td></tr>'}).join('')+'</tbody></table></div>'}
+  function renderWidget(template,result,view,lineage){disposeChart();var rows=Array.isArray(result.rows)?result.rows:[],host=shell.querySelector('#lf-studio-widget-host'),lineageText=lineage&&lineage.parent_query_hash?' · drill '+esc(lineage.parent_query_hash.slice(0,10))+'→'+esc(String(result.query_hash).slice(0,10)):'';host.innerHTML='<article class="lf-studio-widget"><div class="lf-studio-widget-head"><div><h2>'+esc(template.title)+'</h2><div class="lf-studio-meta"><span>BOUND</span><span>'+esc(template.semanticMeasure)+'</span><span>'+esc(template.semanticDimension)+'</span><span>'+esc(template.grain)+'</span><span>query '+esc(String(result.query_hash).slice(0,12))+'…'+lineageText+'</span></div></div><button class="lf-studio-action secondary" id="lf-studio-back" type="button"'+(lineage?'':' hidden')+'>← К исходному запросу</button></div><div class="lf-studio-chart" id="lf-studio-chart" aria-hidden="true"></div>'+tableHtml(template,rows,view)+'</article>';var chartNode=host.querySelector('#lf-studio-chart');if(window.echarts&&typeof window.echarts.init==='function'&&rows.length){try{chart=window.echarts.init(chartNode,null,{renderer:'canvas'});chart.setOption(chartOption(template,rows,view),true)}catch(error){chartNode.hidden=true}}else chartNode.hidden=true;host.querySelectorAll('[data-studio-drill]').forEach(function(button){button.addEventListener('click',function(){drill(Number(button.dataset.studioDrill)).catch(function(error){setStatus('Drill недоступен: '+safeReason(error),'ERROR')})})});var back=host.querySelector('#lf-studio-back');if(back)back.addEventListener('click',function(){execute(activeWidget&&activeWidget.template_id||template.id,lastBaseContext,{restoreIdentity:activeWidget&&activeWidget.query_identity||null}).catch(function(error){setStatus('Не удалось восстановить запрос: '+safeReason(error),'ERROR')})})}
+  async function execute(templateId,contextInput,options){options=options||{};if(privacyMode()!=='NORMAL')throw new Error('STUDIO_PRIVACY_RESTRICTED');var template=TEMPLATES[templateId];if(!template)throw new Error('STUDIO_UNBOUND_TEMPLATE_REJECTED');var finance=financeRuntime();if(!finance)throw new Error('STUDIO_LOCAL_RUNTIME_NOT_READY');var current=finance.getState();if(!current||current.snapshot_status!=='READY')throw new Error('STUDIO_VERIFIED_SNAPSHOT_REQUIRED');var context=safeContext(contextInput||current.filter_context||{});lastBaseContext=context;setStatus('Выполняем bound-запрос локально…','RUNNING');await finance.setFilterContext(context);var view=await finance.setRoute(template.route);if(!view||view.status!=='READY')throw new Error(view&&view.reason||'STUDIO_BOUND_VIEW_NOT_READY');var result=queryResult(view,template);if(options.restoreIdentity&&String(options.restoreIdentity)!==String(result.query_hash))throw new Error('STUDIO_SAVED_QUERY_IDENTITY_MISMATCH');activeWidget=widgetSpec(template,result,context);renderWidget(template,result,view,null);setStatus('Готово: bound query выполнен canonical Web Worker. Сеть: 0, финансовые записи: 0.','READY');return Object.freeze({widget:activeWidget,view:view,result:result})}
+  async function drill(index){if(!activeWidget)throw new Error('STUDIO_DRILL_PARENT_REQUIRED');var template=TEMPLATES[activeWidget.template_id],finance=financeRuntime();if(!finance)throw new Error('STUDIO_LOCAL_RUNTIME_NOT_READY');var state=finance.getState(),view=state&&state.view,result=queryResult(view,template),rows=Array.isArray(result.rows)?result.rows:[],row=rows[index];if(!row)throw new Error('STUDIO_DRILL_ROW_INVALID');var context=safeContext(lastBaseContext||state.filter_context||{});if(template.kind==='CATEGORY_BAR'){var category=String(row.dimensions&&row.dimensions.category_id||'');if(!category)throw new Error('STUDIO_DRILL_DIMENSION_INVALID');context.category_id=category}else{var bucket=String(row.dimensions&&row.dimensions.time_bucket||''),start=monthStart(bucket),end=nextMonth(bucket);if(!start||!end)throw new Error('STUDIO_DRILL_DIMENSION_INVALID');context.start=start;context.end=end}setStatus('Открываем drill-through локально…','RUNNING');await finance.setFilterContext(context);var childView=await finance.setRoute(template.route);if(!childView||childView.status!=='READY')throw new Error('STUDIO_DRILL_VIEW_NOT_READY');var child=queryResult(childView,template);renderWidget(template,child,childView,Object.freeze({parent_query_hash:activeWidget.query_identity,child_query_hash:child.query_hash,semantic_measure:template.semanticMeasure,semantic_dimension:template.semanticDimension,grain:template.grain}));setStatus('Drill-through готов. Родительская query identity сохранена в lineage; private ID не сохраняется.','READY');return child}
+  function createShell(){if(shell)return shell;shell=document.createElement('section');shell.id='lf-studio-shell';shell.className='lf-studio-shell';shell.hidden=true;shell.setAttribute('aria-label','Analytics Studio');shell.innerHTML='<div class="lf-studio-toolbar"><div class="lf-studio-control"><label for="lf-studio-template">Проверенный запрос</label><select id="lf-studio-template"><option value="expense-category">Расходы по категориям</option><option value="income-category">Доходы по категориям</option><option value="cashflow-month">Денежный поток по месяцам</option></select></div><button class="lf-studio-action" id="lf-studio-run" type="button">Выполнить</button><button class="lf-studio-action secondary" id="lf-studio-save" type="button">Сохранить виджет</button></div><div class="lf-studio-status" id="lf-studio-status" role="status" aria-live="polite">Выберите bound-запрос. Studio не создаёт собственных финансовых формул.</div><div id="lf-studio-widget-host"></div><div class="lf-studio-boundary"><strong>Граница:</strong> только три проверенных semantic binding поверх существующих Local-first queries. UNBOUND отклоняется; сохранение содержит только конфигурацию и query hash, без сумм, строк операций, labels или private IDs.</div>';main.appendChild(shell);shell.querySelector('#lf-studio-run').addEventListener('click',function(){execute(shell.querySelector('#lf-studio-template').value,null,{}).catch(function(error){setStatus('Запрос не выполнен: '+safeReason(error),'ERROR')})});shell.querySelector('#lf-studio-save').addEventListener('click',function(){try{if(!activeWidget)throw new Error('STUDIO_SAVE_REQUIRES_BOUND_WIDGET');writeSaved(activeWidget);setStatus('Конфигурация сохранена локально без финансовых значений и private IDs.','READY')}catch(error){setStatus('Сохранение не выполнено: '+safeReason(error),'ERROR')}});return shell}
+  function studioHref(){var url=new URL(location.href);url.searchParams.set('surface','local-first');url.searchParams.set('lf_route','home');url.hash='studio';return url.pathname+url.search+url.hash}
+  function installNav(){if(studioLink)return;studioLink=document.createElement('a');studioLink.id='lf-studio-nav';studioLink.href=studioHref();studioLink.textContent='Аналитика';studioLink.addEventListener('click',function(event){if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();var test=window.__PRH_LF_SPA_TEST__;if(test&&typeof test.navigate==='function')test.navigate('home',{history:false,focusMain:false});history.pushState({prhLfStudio:true},'',studioHref());renderMode(true)});nav.appendChild(studioLink);nav.addEventListener('click',function(event){var link=event.target.closest('[data-lf-route]');if(active()&&link){var url=new URL(location.href);url.hash='';history.replaceState(history.state||{},'',url.pathname+url.search)}},true)}
+  function renderMode(tryRestore){createShell();installNav();var on=active();shell.hidden=!on;studioLink.setAttribute('href',studioHref());if(on){toolbar.hidden=true;financeContent.hidden=true;previewGrid.hidden=true;titleNode.textContent='Analytics Studio';summaryNode.textContent='Собирайте проверенные аналитические виджеты поверх уже работающего Local-first контура.';routePill.textContent='Раздел: Аналитика';nav.querySelectorAll('[data-lf-route]').forEach(function(link){link.removeAttribute('aria-current')});studioLink.setAttribute('aria-current','page');if(privacyMode()!=='NORMAL'){disposeChart();shell.querySelector('#lf-studio-widget-host').innerHTML='';setStatus('Analytics Studio скрыта в режиме приватности.','ERROR');return}if(tryRestore&&!restoring){var saved=readSaved();if(saved){restoring=true;shell.querySelector('#lf-studio-template').value=saved.template_id;setTimeout(function(){execute(saved.template_id,saved.filter_context,{restoreIdentity:saved.query_identity}).then(function(){setStatus('Сохранённый bound-виджет восстановлен с той же query identity.','READY')}).catch(function(error){clearSaved();setStatus('Сохранённая конфигурация отклонена: '+safeReason(error),'ERROR')}).finally(function(){restoring=false})},0)}}}else{disposeChart();studioLink.removeAttribute('aria-current')}}
+  installNav();createShell();window.addEventListener('popstate',function(){setTimeout(function(){renderMode(true)},0)});window.addEventListener('hashchange',function(){renderMode(true)});var bodyObserver=new MutationObserver(function(){renderMode(false)});bodyObserver.observe(document.body,{attributes:true,attributeFilter:['data-active-lf-route']});window.addEventListener('resize',function(){if(chart)chart.resize()},{passive:true});window.addEventListener('pagehide',function(){disposeChart();bodyObserver.disconnect()},{once:true});window.__PRH_LF_ANALYTICS_STUDIO__=Object.freeze({schema:SCHEMA,version:VERSION,templates:Object.freeze(Object.keys(TEMPLATES)),storageKey:STORAGE_KEY,execute:execute,readSaved:readSaved,validateSaved:validateSaved,clearSaved:clearSaved,isActive:active});renderMode(true);
 })();
 </script>

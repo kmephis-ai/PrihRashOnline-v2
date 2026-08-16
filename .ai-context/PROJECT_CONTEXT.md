@@ -25,13 +25,17 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `PLAN-REC-001` Issue #225 / PR #277 — **DONE / Main Verification PASS**, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`. Owner Product UAT v259 и Product Ready E2E PASS. Budget/Obligations/Liquidity используют owner-approved explicit authorities, separate `planning_revision`, exact finance revision binding, Local-first read/cache/Worker path, zero warm planning network/Sheets reads и no financial write; Cash Flow не является balance proxy.
 
-`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`. Trusted Apps Script candidate packager теперь разрешает pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html` без self-attestation.
+`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`. Trusted Apps Script candidate packager разрешает pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html` без self-attestation.
 
-`VIZ-REC-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #226, PR #282, branch `agent/VIZ-REC-001-local-first-visuals`, trust anchor `main@5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`.
+`PACK-VIZ-LF-002` Issue #283 / PR #284 — **DONE_ENGINEERING / Main Verification PASS**, merge `00659d0e423e4baf222b056e732b576887200891`. Trusted main разрешает `pwa/local_visualization_adapter.js` packaging без feature self-authorization.
 
-Fresh post-LF writer активирует exact pinned local ECharts lock, добавляет `PRH_LOCAL_VISUALIZATION_ADAPTER_V1@1.0.0` и server-injected `LocalFirstVisualizationSpaExtension.html`. Adapter принимает только `READY` view с `FIN-TRUTH-v1`, `canonical_worker_only=true`, `ui_financial_formula_used=false` и exact input revision; chart spec имеет `DISPLAY_ONLY` authority. Extension читает уже рассчитанный view через `window.__PRH_LF_FINANCE_RUNTIME__.getState()`, не запускает дополнительный finance query, не использует external CDN/runtime fetch и сохраняет semantic fallback.
+`VIZ-REC-001` Issue #226 / PR #285 — **DONE / Main Verification PASS**, candidate `d5865247506d59c91b33ca3265080e7b60a79dd1`, merge `011bb5e5a42f3ccab4d1e82f323bd304b2c89783`. Fresh Owner Product UAT и Product Ready evidence подтверждают Local-first household visualization, privacy и mobile behavior.
 
-Expenses/Income используют Top-7 + `Прочее` с exact conservation. Home/Cash Flow требуют минимум два периода и иначе показывают честное insufficient-data state. MASKED/DEMO/ZEN privacy modes не рисуют числовой canvas. Fresh candidate обязан пройти exact-SHA machine evidence и новый Owner Product UAT desktop + physical mobile. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` закрыт без merge и остаётся только historical engineering evidence.
+`STUDIO-REC-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #228, PR #286, branch `agent/STUDIO-REC-001-local-first-analytics-studio`, trust anchor `main@011bb5e5a42f3ccab4d1e82f323bd304b2c89783`.
+
+Current bounded Studio recovery не создаёт отдельный analytics engine: он использует existing `PRH_LOCAL_FINANCE_RUNTIME_V1` + canonical Web Worker / `PRH_ANALYTICS_QUERY_V1`. Supported product scope ограничен semantic-bound `EXPENSE/category_id`, `INCOME/category_id` и `CASH_FLOW/MONTH`; unknown/UNBOUND template fail-closed. Result обязан быть `PRH_ANALYTICS_RESULT_V1`, `FIN-TRUTH-v1` и exact input revision bound.
+
+Studio работает как same-document `#studio` mode внутри canonical Local-first SPA. Save/reload хранит только configuration + exact query hash и не сохраняет financial values/result rows/labels/private IDs. Restore повторно исполняет canonical query и требует ту же query identity. Category/month drill выполняется через тот же Local-first runtime; parent query hash сохраняется в lineage, private drill IDs остаются ephemeral. Privacy != NORMAL скрывает Studio values fail-closed; ECharts остаётся local-only renderer, semantic table остаётся доступным fallback. Fresh exact-SHA trusted runtime evidence и Owner Product UAT desktop + physical mobile обязательны до Product Ready.
 
 ## Local-first architecture boundary
 
@@ -66,11 +70,11 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 ## Visualization post-LF boundary
 
-`VIZ-REC-001` использует Local-first canonical read model / approved display-only ChartSpec. Renderer не вычисляет financial truth, не меняет FIN/query/write authority и не добавляет synthetic/demo household series под видом real data.
+`VIZ-REC-001` завершён на Local-first canonical read model / approved display-only ChartSpec. Renderer не вычисляет financial truth, не меняет FIN/query/write authority и не добавляет synthetic/demo household series под видом real data.
 
 Renderer: Apache ECharts 6.1.0, `dist/echarts.simple.min.js`, pinned upstream commit/blob identity, `LOCAL_ONLY`, external CDN/runtime fetch forbidden, semantic fallback required. Cash Flow показывает meaningful multi-period series либо честный insufficient-data state; Expense composition — Top-N + «Прочее»; mobile/tablet/dark mode обязаны оставаться читаемыми.
 
-Новый user-facing VIZ candidate требует fresh exact-SHA rendered evidence, responsive/a11y/interaction tests, Local-first performance/parity evidence, zero mandatory warm network/Sheets reads и fresh Owner Product UAT desktop + physical mobile. Старые performance/UAT evidence не переносятся как Product Ready authority.
+Любой новый user-facing visualization/Studio candidate требует fresh exact-SHA rendered evidence, responsive/a11y/interaction tests, Local-first performance/parity evidence, zero mandatory warm network/Sheets reads и fresh Owner Product UAT desktop + physical mobile. Старые performance/UAT evidence не переносятся как Product Ready authority.
 
 ## Product lifecycle
 
@@ -100,7 +104,7 @@ Real or real-derived household finance data stays private. Public repo соде�
 
 ## Reusable engineering foundation
 
-R2 `DESIGN-020`, `VIZ-020`, R2 finance/data contracts, R3 planning/wealth contracts, R7 semantic analytics and R8 Studio/dashboard configuration contracts остаются reusable. Они не получают automatic Product Ready credit и будут подключаться через local-first read path постепенно.
+R2 `DESIGN-020`, `VIZ-020`, R2 finance/data contracts, R3 planning/wealth contracts, R7 semantic analytics and R8 Studio/dashboard configuration contracts остаются reusable. Они не получают automatic Product Ready credit и подключаются через local-first read path постепенно.
 
 PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh, PERF-013 incremental aggregates и PERF-070 planner/cache сохраняются как validated building blocks для sync/reconciliation/local parity. Они не должны возвращать Google Sheets в warm click path.
 
@@ -128,7 +132,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance, Data, Planning, Performance и Visualization runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance, Data, Planning, Performance, Visualization и Studio runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 
