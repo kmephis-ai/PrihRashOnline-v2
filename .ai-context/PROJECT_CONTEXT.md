@@ -92,7 +92,11 @@ Lifecycle user-facing: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED
 
 `FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS. `ANL-010` authority = `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 
+Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после Local-first/Product Recovery rebaseline и не означает возврат к request-per-view architecture.
+
 MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound/non-reusable; любой новый irreversible financial write требует fresh owner authorization. **Current write authority = false**.
+
+`MASTER-G3 / Canonical platform` — complete; historical pre-close state: open.
 
 FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
@@ -126,7 +130,7 @@ Read-only multi-AI review имеет `writer_authority=false`. Required roles: `
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Новые ANL-090 contract tests обязаны попадать в full layered suite. Red-gate bypass запрещён.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Новые ANL-090 contract cases выполняются внутри существующего `analytics_query_edge_contract_test.js` PURE_DOMAIN_APPLICATION gate; отдельная ослабляющая test-classification authority не добавляется. Red-gate bypass запрещён.
 
 ## Source precedence
 
