@@ -30,6 +30,9 @@
       <a href="?surface=local-first&lf_route=expenses" data-lf-route="expenses">Расходы</a>
       <a href="?surface=local-first&lf_route=income" data-lf-route="income">Доходы</a>
       <a href="?surface=local-first&lf_route=cash-flow" data-lf-route="cash-flow">Денежный поток</a>
+      <a href="?surface=local-first&lf_route=budget" data-lf-route="budget">Бюджет</a>
+      <a href="?surface=local-first&lf_route=obligations" data-lf-route="obligations">Обязательства</a>
+      <a href="?surface=local-first&lf_route=liquidity" data-lf-route="liquidity">Ликвидность</a>
       <a href="?surface=local-first&lf_route=data-quality" data-lf-route="data-quality">Качество данных</a>
     </nav>
     <main class="main" id="lf-main" tabindex="-1">
@@ -64,6 +67,9 @@
     expenses:Object.freeze({title:'Расходы',summary:'Расходы и структура по категориям считаются canonical Web Worker на общем FilterContext.'}),
     income:Object.freeze({title:'Доходы',summary:'Доходы и структура по категориям считаются canonical Web Worker на той же локальной ревизии.'}),
     'cash-flow':Object.freeze({title:'Денежный поток',summary:'Доходы, расходы и денежный поток по периодам — без server request на каждый переход.'}),
+    budget:Object.freeze({title:'Бюджет',summary:'План, факт и отклонение по явно заданному общему бюджету сценария «Базовый».'}),
+    obligations:Object.freeze({title:'Обязательства',summary:'Повторяющиеся платежи и отдельно датированные обязательства без автоматического создания операций.'}),
+    liquidity:Object.freeze({title:'Ликвидность',summary:'Явно зафиксированные остатки и сверка с операциями; денежный поток не подменяет баланс.'}),
     'data-quality':Object.freeze({title:'Качество данных',summary:'Local-first Data Quality подключается следующим этапом DATA-LF-001.'})
   });
   const FINANCE_ROUTES=Object.freeze(['home','expenses','income','cash-flow']);

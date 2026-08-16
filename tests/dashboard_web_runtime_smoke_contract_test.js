@@ -27,6 +27,7 @@ function makeHtmlOutput(content) {
 let homeReadSmokeCalls = 0;
 let dataRuntimeSmokeCalls = 0;
 let localFirstBootstrapCalls = 0;
+let planningBootstrapCalls = 0;
 const context = vm.createContext({
   console, JSON, Object, Array, Set, String, Number, Math, Date, RegExp, Error, encodeURIComponent,
   HtmlService:{
@@ -62,6 +63,36 @@ const context = vm.createContext({
       serialized_chars:256
     });
   },
+  prhPlanningLocalFirstBootstrapWire(request){
+    planningBootstrapCalls+=1;
+    assert(request && typeof request === 'object');
+    assert.strictEqual(Object.keys(request).length,2);
+    assert.strictEqual(request.local_planning_revision,'');
+    assert.strictEqual(request.expected_canonical_revision,'c'.repeat(64));
+    return JSON.stringify({
+      schema:'PRH_LOCAL_PLANNING_SYNC_RESPONSE_V1',
+      version:'1.0.0',
+      state:'FULL_SNAPSHOT',
+      canonical_revision:'c'.repeat(64),
+      planning_revision:'d'.repeat(64),
+      financial_write_authorized:false,
+      canonical_mutation_performed:false,
+      auto_transaction_creation:false,
+      cash_flow_balance_proxy_used:false,
+      source:{
+        schema:'PRH_LOCAL_PLANNING_SOURCE_V1',
+        version:'1.0.0',
+        canonical_revision:'c'.repeat(64),
+        planning_revision:'d'.repeat(64),
+        currency:'RUB',
+        budget:{state:'NOT_CONFIGURED',plans:[]},
+        recurring:{state:'EMPTY',plans:[]},
+        commitments:{state:'EMPTY',items:[]},
+        liquidity:{state:'SETUP_REQUIRED',observations:[]}
+      },
+      telemetry:{status:'FULL_SNAPSHOT'}
+    });
+  },
   PR_BUILD_INFO:{schemaVersion:1,candidateSha:'a'.repeat(40),sourceTreeHash:'b'.repeat(64)},
   PR_CONFIG:{SHEETS:{OPERATIONS:'OPS',SETTINGS:'SETTINGS',CONTROL:'CONTROL'}},
   SpreadsheetApp:{getActiveSpreadsheet(){return{getSheetByName(name){if(!['OPS','SETTINGS','CONTROL'].includes(name))return null;return{getRange(){return{getValue(){return 'discarded';}};}};}};}}
@@ -85,12 +116,14 @@ assert.strictEqual(smokeToken,'PRH_WEBAPP_SMOKE_V5|R2|OK');
 assert.strictEqual(homeReadSmokeCalls,0);
 assert.strictEqual(dataRuntimeSmokeCalls,0);
 assert.strictEqual(localFirstBootstrapCalls,0);
+assert.strictEqual(planningBootstrapCalls,0);
 
 const healthToken=vm.runInContext("prhReleaseHealthCheckToken({candidateSha:'"+'a'.repeat(40)+"',sourceTreeHash:'"+'b'.repeat(64)+"'})",context);
 assert.match(healthToken,/^PRH_HEALTH_V1\|OK\|a{40}\|b{64}\|1\|V8\|3\|1\|[0-9]+$/);
 assert.strictEqual(homeReadSmokeCalls,1,'trusted health must prove private Home read path exactly once');
 assert.strictEqual(dataRuntimeSmokeCalls,1,'trusted health must prove DATA canonical modules exactly once');
 assert.strictEqual(localFirstBootstrapCalls,1,'trusted health must prove Local-first scalar JSON FULL_BOOTSTRAP wire exactly once');
+assert.strictEqual(planningBootstrapCalls,1,'trusted health must prove exact-revision Local-first planning source exactly once');
 
 assert.doesNotMatch(dashboardSource,/function\s+doGet\s*\(/);
 assert.match(routerSource,/function\s+doGet\s*\(/);
@@ -102,6 +135,8 @@ assert.match(runtimeSource,/prhR2DataRuntimeSmokeToken\(\)/);
 assert.match(runtimeSource,/RUNTIME_HEALTH_R2_DATA_SMOKE_FAILED/);
 assert.match(runtimeSource,/prhLocalFirstSyncBootstrapWire\(\{ local_revision: '' \}\)/);
 assert.match(runtimeSource,/RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID/);
+assert.match(runtimeSource,/prhPlanningLocalFirstBootstrapWire/);
+assert.match(runtimeSource,/RUNTIME_HEALTH_PLANNING_BOOTSTRAP_INVALID/);
 assert.match(runtimeSource,/destination_account_id/);
 assert.match(runtimeSource,/Stable scalar transport contract/);
 
@@ -109,5 +144,5 @@ console.log('dashboard-web-runtime-smoke: PASS',{
   syntax:'V8',canonicalDefault:'R2_HOME',primaryDataRoutes:['transactions','data-quality'],legacyRollback:true,
   renderSmokeVersion:5,privateHomeReadSmokeVersion:3,dataRuntimeSmokeVersion:1,localFirstBootstrapProofVersion:1,
   technicalRenderReadsFinancialRows:false,trustedPrivateHomeReadProof:true,trustedDataModuleProof:true,
-  trustedLocalFirstScalarJsonWireProof:true,nullableDestinationWireKey:true,healthTokenShapePreserved:true
+  trustedLocalFirstScalarJsonWireProof:true,trustedPlanningLocalFirstWireProof:true,nullableDestinationWireKey:true,healthTokenShapePreserved:true
 });

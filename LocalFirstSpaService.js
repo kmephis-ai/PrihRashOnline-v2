@@ -13,6 +13,7 @@ var PRH_LOCAL_FIRST_SPA_PREVIEW = Object.freeze({
   SURFACE: 'local-first',
   FILE: 'LocalFirstSpaWebApp',
   DATA_EXTENSION_FILE: 'LocalFirstDataSpaExtension',
+  PLANNING_EXTENSION_FILE: 'LocalFirstPlanningSpaExtension',
   FINANCIAL_WRITE: false,
   CANONICAL_MUTATION: false,
   PRIVATE_PAYLOAD: false,
@@ -54,6 +55,9 @@ function prhLocalFirstSpaNormalizeRoute_(value) {
     expenses: true,
     income: true,
     'cash-flow': true,
+    budget: true,
+    obligations: true,
+    liquidity: true,
     'data-quality': true
   };
   return Object.prototype.hasOwnProperty.call(allowed, route) ? route : 'home';
@@ -193,6 +197,17 @@ function prhLocalFirstSpaInjectDataExtension_(html) {
   return source.replace(marker, extension + '\n' + marker);
 }
 
+function prhLocalFirstSpaInjectPlanningExtension_(html) {
+  var source = String(html || '');
+  var marker = '</body>';
+  if (source.split(marker).length - 1 !== 1) throw new Error('LF_SPA_PLANNING_EXTENSION_BODY_MARKER_INVALID');
+  var extension = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.PLANNING_EXTENSION_FILE).getContent();
+  if (!extension || extension.indexOf('data-prh-local-first-planning-extension="1.0.0"') < 0) {
+    throw new Error('LF_SPA_PLANNING_EXTENSION_INVALID');
+  }
+  return source.replace(marker, extension + '\n' + marker);
+}
+
 function prhLocalFirstSpaRender_(params) {
   params = params || {};
   var source = HtmlService.createHtmlOutputFromFile(PRH_LOCAL_FIRST_SPA_PREVIEW.FILE);
@@ -200,6 +215,7 @@ function prhLocalFirstSpaRender_(params) {
   html = prhLocalFirstSpaRepairHistoryRestore_(html);
   html = prhLocalFirstSpaApplyHouseholdCopy_(html, params);
   html = prhLocalFirstSpaInjectDataExtension_(html);
+  html = prhLocalFirstSpaInjectPlanningExtension_(html);
   var selfUrl = prhLocalFirstSpaSelfUrl_();
   if (selfUrl) {
     var rollbackHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=home');
@@ -228,6 +244,7 @@ function prhLocalFirstSpaSmokeToken() {
   if (!html ||
       html.indexOf('data-prh-local-first-spa="1"') < 0 ||
       html.indexOf('data-prh-local-first-data-extension="1.0.0"') < 0 ||
+      html.indexOf('data-prh-local-first-planning-extension="1.0.0"') < 0 ||
       html.indexOf('data-lf-server-responsive-guard="1"') < 0 ||
       html.indexOf('data-lf-server-bootstrap="1"') < 0 ||
       html.indexOf('history.replaceState') < 0 ||
@@ -252,5 +269,5 @@ function prhLocalFirstSpaSmokeToken() {
   if (/PUBLIC_SYNTHETIC|SYN-TX-/.test(html)) {
     throw new Error('LF_SPA_FIXTURE_PRESENT');
   }
-  return 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|DATA_LOCAL_READ_ONLY|OK';
+  return 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|DATA_LOCAL_READ_ONLY|PLANNING_LOCAL_READ_ONLY|OK';
 }

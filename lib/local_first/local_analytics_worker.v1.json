@@ -9,7 +9,8 @@
     "independent_financial_formulas": false,
     "network": false,
     "storage": false,
-    "canonical_financial_write": false
+    "canonical_financial_write": false,
+    "planning_evaluator": "lib/planning/local_planning_engine.js#evaluatePlanning"
   },
   "identity": {
     "generation_id_format": "SHA256_HEX_64",
@@ -19,18 +20,79 @@
   },
   "messages": {
     "in": {
-      "INIT": ["type"],
-      "SET_REVISION": ["type", "generation_id", "revision"],
-      "BIND_DATASET": ["type", "generation_id", "revision", "transactions"],
-      "ANALYTICS_QUERY": ["type", "request_id", "generation_id", "revision", "query"],
-      "CANCEL_GENERATION": ["type", "generation_id"]
+      "INIT": [
+        "type"
+      ],
+      "SET_REVISION": [
+        "type",
+        "generation_id",
+        "revision"
+      ],
+      "BIND_DATASET": [
+        "type",
+        "generation_id",
+        "revision",
+        "transactions"
+      ],
+      "ANALYTICS_QUERY": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "query"
+      ],
+      "PLANNING_QUERY": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "source",
+        "query"
+      ],
+      "CANCEL_GENERATION": [
+        "type",
+        "generation_id"
+      ]
     },
     "out": {
-      "READY": ["type", "schema", "version"],
-      "DATASET_BOUND": ["type", "generation_id", "revision", "transaction_count"],
-      "ANALYTICS_RESULT": ["type", "request_id", "generation_id", "revision", "result"],
-      "STALE_DISCARDED": ["type", "request_id", "generation_id", "revision", "reason"],
-      "ERROR": ["type", "request_id", "reason"]
+      "READY": [
+        "type",
+        "schema",
+        "version"
+      ],
+      "DATASET_BOUND": [
+        "type",
+        "generation_id",
+        "revision",
+        "transaction_count"
+      ],
+      "ANALYTICS_RESULT": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "result"
+      ],
+      "PLANNING_RESULT": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "planning_revision",
+        "result"
+      ],
+      "STALE_DISCARDED": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "reason"
+      ],
+      "ERROR": [
+        "type",
+        "request_id",
+        "reason"
+      ]
     }
   },
   "state": {

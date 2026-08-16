@@ -8,7 +8,9 @@
     "storage_namespace": "prihrash-local-first-v3",
     "required_state": "ACTIVE_VERIFIED",
     "browser_snapshot_status": "READY",
-    "same_snapshot_as_finance": true
+    "same_snapshot_as_finance": true,
+    "warm_snapshot_cache": "EXACT_GENERATION_REVISION_IN_MEMORY",
+    "cache_invalidation": "FINANCE_REVISION_CHANGE"
   },
   "transactions": {
     "read_only": true,
@@ -17,7 +19,8 @@
     "filters": ["start", "end_exclusive", "category_id", "account_id", "member_id"],
     "detail": "local_exact_transaction_id_within_current_filter",
     "history_query_keys": ["tx_page", "tx_start", "tx_end", "tx_category", "tx_account", "tx_member", "tx_detail"],
-    "history_financial_payload_forbidden": true
+    "history_financial_payload_forbidden": true,
+    "warm_derived_query_cache": "EXACT_REVISION_FILTER_CONTEXT_BOUNDED_8"
   },
   "data_quality": {
     "read_only": true,
@@ -29,7 +32,8 @@
       "ACCOUNT_DIMENSION_MISSING",
       "MEMBER_DIMENSION_MISSING",
       "DUPLICATE_SOURCE_FINGERPRINT"
-    ]
+    ],
+    "warm_derived_cache": "EXACT_REVISION"
   },
   "privacy": {
     "normal_owner_values": true,

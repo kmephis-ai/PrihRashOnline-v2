@@ -17,7 +17,13 @@
     "partial_generation_visible": false,
     "storage": "INDEXEDDB",
     "private_browser_storage": true,
-    "stores": ["meta", "transactions", "dimensions", "aggregates", "sync_journal"],
+    "stores": [
+      "meta",
+      "transactions",
+      "dimensions",
+      "aggregates",
+      "sync_journal"
+    ],
     "transaction_key": "transaction_id",
     "incompatible_schema_action": "REBUILD",
     "corruption_action": "REBUILD",
@@ -44,8 +50,22 @@
     "query_payload_contains_dataset": false,
     "revision_scoped_query_cache": true,
     "stale_completion": "DISCARD",
-    "messages_in": ["INIT", "SET_REVISION", "BIND_DATASET", "ANALYTICS_QUERY", "CANCEL_GENERATION"],
-    "messages_out": ["READY", "DATASET_BOUND", "ANALYTICS_RESULT", "STALE_DISCARDED", "ERROR"]
+    "messages_in": [
+      "INIT",
+      "SET_REVISION",
+      "BIND_DATASET",
+      "ANALYTICS_QUERY",
+      "PLANNING_QUERY",
+      "CANCEL_GENERATION"
+    ],
+    "messages_out": [
+      "READY",
+      "DATASET_BOUND",
+      "ANALYTICS_RESULT",
+      "PLANNING_RESULT",
+      "STALE_DISCARDED",
+      "ERROR"
+    ]
   },
   "sync": {
     "schema": "PRH_BACKGROUND_SYNC_V1",

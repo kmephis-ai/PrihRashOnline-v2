@@ -69,6 +69,7 @@ assert(manifest.localFirstBrowserRuntime,'DATA visual test must use exact candid
 const candidateRoot = path.join(candidateDir,'files');
 const shellHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstSpaWebApp.html'),'utf8');
 const extensionHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstDataSpaExtension.html'),'utf8');
+const planningExtensionHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstPlanningSpaExtension.html'),'utf8');
 const serviceSource = fs.readFileSync(path.join(candidateRoot,'LocalFirstSpaService.js'),'utf8');
 assert(shellHtml.includes('data-prh-local-first-runtime="1.0.0"'));
 assert(extensionHtml.includes('data-prh-local-first-data-extension="1.0.0"'));
@@ -76,7 +77,7 @@ assert(extensionHtml.includes('data-prh-local-first-data-extension="1.0.0"'));
 function htmlOutput(content){return {title:'',meta:[],setTitle(value){this.title=String(value);return this;},addMetaTag(name,value){this.meta.push([name,value]);return this;},getContent(){return String(content);}}}
 function renderCandidate(params){
   const context=vm.createContext({console,JSON,Object,Array,String,Number,Math,Date,RegExp,Error,encodeURIComponent,ScriptApp:undefined,HtmlService:{
-    createHtmlOutputFromFile(name){if(name==='LocalFirstSpaWebApp')return htmlOutput(shellHtml);if(name==='LocalFirstDataSpaExtension')return htmlOutput(extensionHtml);throw new Error(`unexpected candidate file ${name}`)},
+    createHtmlOutputFromFile(name){if(name==='LocalFirstSpaWebApp')return htmlOutput(shellHtml);if(name==='LocalFirstDataSpaExtension')return htmlOutput(extensionHtml);if(name==='LocalFirstPlanningSpaExtension')return htmlOutput(planningExtensionHtml);throw new Error(`unexpected candidate file ${name}`)},
     createHtmlOutput(content){return htmlOutput(content)}
   }});
   vm.runInContext(serviceSource,context,{filename:'LocalFirstSpaService.js'});
@@ -188,13 +189,16 @@ function installSyncStub(page){
     assert.strictEqual(dq.state.autofixCalls,0);
     assert.strictEqual(dq.state.googleSheetsReads,0);
     assert.strictEqual(dq.state.networkCalls,0);
+    assert.strictEqual(dq.state.snapshotReads,1,'first Data route may read the exact ACTIVE+VERIFIED snapshot once');
+    assert(dq.state.snapshotCacheHits>=1,'warm Data routes must reuse the exact-revision in-memory snapshot');
+    assert(dq.state.derivedCacheHits>=1,'warm Data routes must reuse exact-revision derived projections');
     assert.deepStrictEqual(dq.calls,baselineCalls,'warm Data navigation/filter/page/detail/DQ must not call google.script.run');
     assert.deepStrictEqual(requests,[],`warm Data interactions emitted HTTP requests: ${requests.join(' | ')}`);
     assert.deepStrictEqual(errors,[],`${name} page errors: ${errors.join(' | ')}`);
     assert(dq.overflow<=2,`${name} DQ overflow ${dq.overflow}`);
 
     const screenshot=path.join(artifactDir,`local-first-data-${name}.png`);await page.screenshot({path:screenshot,fullPage:true});
-    evidence.push({name,viewport,privacy:state.privacy,revisionPrefix:revision.slice(0,12),transactions:45,pageSize:20,filteredTotal:filtered.state.total,dqProblemCount:dq.state.lastState.problem_count,warmHttpRequests:requests.length,warmGoogleScriptRunDelta:(dq.calls.full+dq.calls.delta)-(baselineCalls.full+baselineCalls.delta),canonicalWrites:dq.state.canonicalWrites,autofixCalls:dq.state.autofixCalls,responsiveOverflowPx:dq.overflow});
+    evidence.push({name,viewport,privacy:state.privacy,revisionPrefix:revision.slice(0,12),transactions:45,pageSize:20,filteredTotal:filtered.state.total,dqProblemCount:dq.state.lastState.problem_count,snapshotReads:dq.state.snapshotReads,snapshotCacheHits:dq.state.snapshotCacheHits,derivedCacheHits:dq.state.derivedCacheHits,warmHttpRequests:requests.length,warmGoogleScriptRunDelta:(dq.calls.full+dq.calls.delta)-(baselineCalls.full+baselineCalls.delta),canonicalWrites:dq.state.canonicalWrites,autofixCalls:dq.state.autofixCalls,responsiveOverflowPx:dq.overflow});
     await context.close();
   }
 
@@ -205,10 +209,11 @@ function installSyncStub(page){
     const snapshotA={status:'READY',schema:'PRH_LOCAL_READ_MODEL_V1',generation_id:'a'.repeat(64),revision:'a'.repeat(64),transactions:transactions.slice(0,2),dimensions,aggregates:[]};
     const snapshotB={status:'READY',schema:'PRH_LOCAL_READ_MODEL_V1',generation_id:'b'.repeat(64),revision:'b'.repeat(64),transactions:transactions.slice(0,3),dimensions,aggregates:[]};
     await page.evaluate(({snapshotA,snapshotB})=>{
-      const original=window.PrhLocalReadModelStore;let calls=0,resolveFirst;
+      const original=window.PrhLocalReadModelStore,finance=window.__PRH_LF_FINANCE_RUNTIME__;let calls=0,resolveFirst;
       const first=new Promise((resolve)=>{resolveFirst=resolve});
       window.__DATA_LF_STALE_TEST__={calls:()=>calls,resolveFirst:()=>resolveFirst(snapshotA)};
       window.PrhLocalReadModelStore=Object.assign({},original,{createStore(){return {open:async()=>({status:'OPEN'}),getActiveSnapshot:async()=>{calls+=1;return calls===1?first:snapshotB}}}});
+      window.__PRH_LF_FINANCE_RUNTIME__=Object.assign({},finance,{getState(){return {snapshot_status:'READY',generation_id:snapshotB.generation_id,revision:snapshotB.revision}}});
     },{snapshotA,snapshotB});
     await page.click('[data-lf-route="transactions"]');
     await page.waitForFunction(()=>window.__DATA_LF_STALE_TEST__.calls()===1);

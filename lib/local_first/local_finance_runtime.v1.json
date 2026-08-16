@@ -13,28 +13,56 @@
     "analytics": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
     "financial_truth": "FIN-TRUTH-v1"
   },
-  "routes": ["home", "expenses", "income", "cash-flow"],
+  "routes": [
+    "home",
+    "expenses",
+    "income",
+    "cash-flow"
+  ],
   "filter_context": {
     "schema": "PRH_LOCAL_FINANCE_FILTER_CONTEXT_V1",
     "version": "1.0.0",
     "session_shared": true,
-    "fields": ["currency", "start", "end", "account_id", "category_id", "member_id", "project_id"],
+    "fields": [
+      "currency",
+      "start",
+      "end",
+      "account_id",
+      "category_id",
+      "member_id",
+      "project_id"
+    ],
     "history_financial_payload": false,
     "url_financial_payload": false,
     "route_switch_preserves_context": true
   },
   "queries": {
-    "home": ["TOTALS", "CASH_FLOW_MONTHLY"],
-    "expenses": ["EXPENSE_TOTAL", "EXPENSE_BY_CATEGORY"],
-    "income": ["INCOME_TOTAL", "INCOME_BY_CATEGORY"],
-    "cash-flow": ["CASH_FLOW_TOTAL", "CASH_FLOW_MONTHLY"],
+    "home": [
+      "TOTALS",
+      "CASH_FLOW_MONTHLY"
+    ],
+    "expenses": [
+      "EXPENSE_TOTAL",
+      "EXPENSE_BY_CATEGORY"
+    ],
+    "income": [
+      "INCOME_TOTAL",
+      "INCOME_BY_CATEGORY"
+    ],
+    "cash-flow": [
+      "CASH_FLOW_TOTAL",
+      "CASH_FLOW_MONTHLY"
+    ],
     "executor": "CANONICAL_WEB_WORKER_ONLY",
     "main_thread_financial_formula": false
   },
   "snapshot": {
     "required_state": "ACTIVE_PLUS_VERIFIED",
     "one_generation_per_render_cycle": true,
-    "query_binding": ["generation_id", "revision"],
+    "query_binding": [
+      "generation_id",
+      "revision"
+    ],
     "stale_result_commit": false,
     "empty_store": "COLD_FULL_BOOTSTRAP_NO_FAKE_VALUES",
     "sync_failure_with_verified": "DEGRADED_KEEP_LAST_VERIFIED"
@@ -45,7 +73,8 @@
       "pwa/local_read_model_store.js",
       "pwa/local_first_sync.js",
       "pwa/local_first_delta.js",
-      "pwa/local_finance_runtime.js"
+      "pwa/local_finance_runtime.js",
+      "pwa/local_planning_runtime.js"
     ],
     "generated_worker": "tools/build-local-analytics-worker.js",
     "external_runtime_cdn": false,
@@ -86,5 +115,13 @@
     "NO_FAKE_OWNER_FINANCIAL_VALUES",
     "NO_CANONICAL_FINANCIAL_WRITE",
     "FREE_ONLY"
-  ]
+  ],
+  "planning_extension": {
+    "roadmap_id": "PLAN-REC-001",
+    "runtime": "PRH_LOCAL_PLANNING_RUNTIME_V1@1.0.0",
+    "worker_message": "PLANNING_QUERY",
+    "canonical_revision_binding": true,
+    "warm_network_required": false,
+    "financial_write": false
+  }
 }

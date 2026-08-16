@@ -39,11 +39,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `E2E-LF-001` — **DONE / Main Verification PASS**, Issue #273, PR #274, merge `12f764edc34aad32693fc7589ff53ded53740d5d`; `MASTER-LF-PRODUCT` доказан на desktop + mobile, Product Ready E2E PASS, retained SLO/zero-network/FIN-TRUTH сохранены.
 
-`GOV-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`; Roadmap v2.5 post-LF consolidation завершена.
+`GOV-LF-001` — **DONE / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`. Roadmap v2.5 post-LF consolidation завершена.
 
-`PACK-LF-002` — **IN_PROGRESS / current writer**, Issue #278, branch `agent/PACK-LF-002-planning-packager-bootstrap`. Единственный active writer: добавить `pwa/local_planning_runtime.js` в trusted closed allow-list без изменения root marker/runtime. Engineering-only, Product UAT N/A.
-
-`PLAN-REC-001` #225 / PR #277 — **BLOCKED** на `PACK-LF-002`. Exact candidate `3d3420ec40b0e7beb7d9abaded956e0e6f9b71ab` имеет PR Validation #997 PASS, но Trusted DEV Deploy #955 fail-closed отклонил unknown planning module. Feature candidate сохраняется, но не имеет deploy/merge authority до PACK-LF-002 Main Verification и fresh rebase/lifecycle.
+`PLAN-REC-001` — **IN_PROGRESS / current writer**, Issue #225, branch `agent/PLAN-REC-001-planning-local-first`. Owner authority для Budget/Obligations/Liquidity утверждена. Реализация обязана использовать отдельный Local-first planning snapshot/cache, exact canonical revision binding, existing BUD-020/OBL-020/BAL-030/FIN-TRUTH contracts, zero warm planning network/Sheets reads и no financial write; Cash Flow запрещён как balance proxy.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -76,11 +74,13 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 `PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0` использует тот же `PRH_LOCAL_READ_MODEL_V1` snapshot для `transactions` и `data-quality`. Transaction filters, 20-row pagination и detail выполняются локально; detail не может выйти за текущий filter set. History хранит только безопасные query keys/IDs, без amount/description/counterparty payload. Data Quality read-only проверяет referential consistency transaction -> category/account/member dimensions и группы совпадающих source fingerprints. Эти сигналы не заменяют canonical validation и не получают autofix/write authority. Async render epoch запрещает commit результата старой generation после нового route/revision render.
 
+`PRH_LOCAL_PLANNING_RUNTIME_V1@1.0.0` добавляет owner-approved Budget/Obligations/Liquidity поверх Local-first core: planning snapshot имеет отдельный `planning_revision`, но принимается только при exact совпадении `canonical_revision` с active finance revision. `03 Бюджеты/Базовый` использует только явную общую строку периода; `04 Регулярные` — только lossless recurrence; `05 Обязательства` не получает inferred recurrence; Liquidity требует явных `06 Баланс` observations. Warm route query выполняется через existing canonical Worker без mandatory network/Sheets read.
+
 `PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0` задаёт retained performance contract, доказанный в завершённых `PERF-LF-001` и `E2E-LF-001`: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Monotonic `performance.now()` и nearest-rank p95 измеряют реальные browser boundaries. Cold bootstrap, background sync и server technical health latency не подменяют warm Product SLO; insufficient/invalid samples fail-closed.
 
 ## Product Recovery handoff
 
-`R2R` forensic/product recovery остаётся исходной причиной architectural rebaseline: большое число engineering DONE не доказало working product. Local-first recovery `LF0..LF4` теперь завершена `MASTER-LF-PRODUCT`. Временный global LF freeze снят; при этом R9/R10 остаются gated до `MASTER-GSTUDIO`. Post-LF disposition: `PLAN-REC-001` re-depend на `E2E-LF-001`, а обнаруженный trusted packager blocker временно добавляет prerequisite `PACK-LF-002`; до его Main Verification PLAN остаётся BLOCKED; `VIZ-REC-001` rebaseline/blocked без old-candidate credit; `E2E-REC-001` superseded; `STUDIO-REC-001` re-depended/backlog.
+`R2R` forensic/product recovery остаётся исходной причиной architectural rebaseline: большое число engineering DONE не доказало working product. Local-first recovery `LF0..LF4` теперь завершена `MASTER-LF-PRODUCT`. Временный global LF freeze снят; при этом R9/R10 остаются gated до `MASTER-GSTUDIO`. Post-LF disposition: `PLAN-REC-001` re-depend на `E2E-LF-001` и становится единственным следующим READY после GOV-LF Main Verification; `VIZ-REC-001` rebaseline/blocked без old-candidate credit; `E2E-REC-001` superseded; `STUDIO-REC-001` re-depended/backlog.
 
 Product lifecycle неизменен: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` требует exact-candidate Product Ready evidence; architecture docs и synthetic tests не являются owner UAT. Завершённый `E2E-LF-001` прошёл и machine Chromium evidence, и owner `GENERIC_V1` Product UAT desktop + mobile; это historical trust anchor и не отменяет обязательный fresh Product Ready E2E для будущих user-facing items.
 

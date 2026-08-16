@@ -1,6 +1,7 @@
 'use strict';
 
 const { evaluateAnalytics } = require('../lib/analytics/analytics_engine');
+const { evaluatePlanning } = require('../lib/planning/local_planning_engine');
 const {
   CANONICAL_FIELDS,
   PROVENANCE_FIELDS
@@ -283,6 +284,69 @@ function handleAnalyticsQuery(message) {
   }, SCHEDULE_DELAY_MS);
 }
 
+
+function handlePlanningQuery(message) {
+  assertReady();
+  const requestId = validateRequestId(message.request_id);
+  const generationId = validateHex64(message.generation_id, 'WORKER_GENERATION_INVALID');
+  const revision = validateHex64(message.revision, 'WORKER_REVISION_INVALID');
+  if (!message.source || typeof message.source !== 'object' || Array.isArray(message.source) ||
+      !message.query || typeof message.query !== 'object' || Array.isArray(message.query)) {
+    throw codedError('WORKER_QUERY_INVALID');
+  }
+  if (String(message.source.canonical_revision || '') !== revision) throw codedError('WORKER_DATASET_BINDING_INVALID');
+  const planningRevision = validateHex64(message.source.planning_revision, 'WORKER_REVISION_INVALID');
+  if (state.pending >= MAX_PENDING) throw codedError('WORKER_TOO_MANY_PENDING');
+
+  const epoch = state.epoch;
+  if (!exactBinding(generationId, revision, epoch) || !Array.isArray(state.transactions)) {
+    stale(requestId, generationId, revision, 'BINDING_NOT_CURRENT');
+    return;
+  }
+  const cacheKey = queryCacheKey({ kind: 'PLANNING_QUERY', revision, planning_revision: planningRevision, query: message.query });
+  if (cacheKey && state.queryCache.has(cacheKey)) {
+    emit({
+      type: 'PLANNING_RESULT',
+      request_id: requestId,
+      generation_id: generationId,
+      revision,
+      planning_revision: planningRevision,
+      result: state.queryCache.get(cacheKey),
+      cache_hit: true
+    });
+    return;
+  }
+
+  state.pending += 1;
+  setTimeout(() => {
+    try {
+      if (!exactBinding(generationId, revision, epoch)) {
+        stale(requestId, generationId, revision, 'STALE_BEFORE_EVALUATE');
+        return;
+      }
+      const result = evaluatePlanning(state.transactions, message.source, message.query);
+      if (!exactBinding(generationId, revision, epoch)) {
+        stale(requestId, generationId, revision, 'STALE_AFTER_EVALUATE');
+        return;
+      }
+      rememberQueryResult(cacheKey, result);
+      emit({
+        type: 'PLANNING_RESULT',
+        request_id: requestId,
+        generation_id: generationId,
+        revision,
+        planning_revision: planningRevision,
+        result,
+        cache_hit: false
+      });
+    } catch (error) {
+      emitError(requestId, error, 'WORKER_CANONICAL_EVALUATION_FAILED');
+    } finally {
+      state.pending = Math.max(0, state.pending - 1);
+    }
+  }, SCHEDULE_DELAY_MS);
+}
+
 self.onmessage = function onMessage(event) {
   const message = event && event.data;
   try {
@@ -301,6 +365,9 @@ self.onmessage = function onMessage(event) {
         return;
       case 'ANALYTICS_QUERY':
         handleAnalyticsQuery(message);
+        return;
+      case 'PLANNING_QUERY':
+        handlePlanningQuery(message);
         return;
       case 'CANCEL_GENERATION':
         handleCancelGeneration(message);
