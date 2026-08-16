@@ -23,16 +23,36 @@ const SHA = '4'.repeat(40);
 const contract = JSON.parse(fs.readFileSync(path.join(ROOT, 'lib/local_first/local_first_browser_runtime_marker.v1.json'), 'utf8'));
 
 assert.strictEqual(ALLOWED_BROWSER_MODULES.includes(MODULE), true,
-  'PACK-VIZ-LF-002 must teach trusted main the exact visualization adapter path');
+  'trusted main must allow the exact visualization adapter path before feature activation');
 assert.strictEqual(contract.allowed_browser_modules.includes(MODULE), true,
   'marker contract must match the trusted visualization adapter allow-list');
 
 const currentRoot = localFirstBrowserRuntimeConfig(ROOT);
 assert.strictEqual(currentRoot.enabled, true, 'current Local-first root marker must remain valid');
-assert.strictEqual(currentRoot.marker.modules.includes(MODULE), false,
-  'PACK-VIZ-LF-002 bootstrap must not activate visualization adapter in the real root');
-assert.strictEqual(fs.existsSync(path.join(ROOT, 'pwa', 'local_visualization_adapter.js')), false,
-  'engineering-only bootstrap must not ship feature adapter bytes in the real root');
+assert.strictEqual(currentRoot.marker.modules.includes(MODULE), true,
+  'VIZ-REC-001 activation must use the exact adapter path already trusted by main');
+assert.strictEqual(currentRoot.marker.runtime_network_required_for_warm_route, false,
+  'visualization activation must not require warm-route network');
+assert.strictEqual(currentRoot.marker.external_cdn_required, false,
+  'visualization activation must not require an external CDN');
+assert.strictEqual(currentRoot.marker.cost_class, 'FREE_ONLY',
+  'visualization activation must remain FREE_ONLY');
+
+const adapterPath = path.join(ROOT, 'pwa', 'local_visualization_adapter.js');
+assert.strictEqual(fs.existsSync(adapterPath), true,
+  'activated trusted visualization adapter must exist as a tracked regular file');
+const adapterStat = fs.lstatSync(adapterPath);
+assert(adapterStat.isFile() && !adapterStat.isSymbolicLink(),
+  'activated visualization adapter must be a regular non-symlink file');
+const adapterSource = fs.readFileSync(adapterPath, 'utf8');
+assertNoExternalRuntimeLoaders(adapterSource);
+for (const forbidden of [
+  'google.script.run', 'fetch(', 'XMLHttpRequest(', 'UrlFetchApp.',
+  'setValues(', 'appendRow(', 'deleteRow(', 'insertRowAfter('
+]) {
+  assert(!adapterSource.includes(forbidden),
+    `display-only visualization adapter gained forbidden authority: ${forbidden}`);
+}
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'prh-pack-viz-lf-002-'));
 const repository = path.join(temp, 'repository');
@@ -105,10 +125,11 @@ try {
   }), /LOCAL_FIRST_RUNTIME_FILE_MISSING:pwa\/local_visualization_adapter\.js/,
   'allow-listed visualization adapter must fail closed when tracked bytes are absent');
 
-  console.log('local_first_visualization_packager_adapter_test: PASS', {
+  console.log('local_first_runtime_packager_contract_test: PASS', {
     exactAllowedModule: MODULE,
-    rootActivationChanged: false,
-    featureBytesShippedByBootstrap: false,
+    rootActivationTrusted: true,
+    trackedAdapterRequired: true,
+    displayOnlyAuthority: true,
     deterministic: true,
     missingFileFailClosed: true,
     runtimeNetworkRequired: false,
