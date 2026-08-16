@@ -1,9 +1,9 @@
-# PrihRashOnline-v2 — Executable GitHub Roadmap v2.4
+# PrihRashOnline-v2 — Executable GitHub Roadmap v2.5
 
-Дата: 2026-08-11
-Источник решений: `Master Audit v2.1` + независимый `Product/Runtime Forensic Audit 2026-08-11` + согласованный владельцем Product Recovery rebaseline
+Дата: 2026-08-16
+Источник решений: `Master Audit v2.1` + `Product/Runtime Forensic Audit 2026-08-11` + Local-first rebaseline 2026-08-14 + доказанный `MASTER-LF-PRODUCT` 2026-08-16
 Назначение: публично-безопасный исполняемый backlog для GitHub  
-Статус документа: APPROVED / EXECUTABLE / PRODUCT-RECOVERY-FIRST
+Статус документа: APPROVED / EXECUTABLE / POST-LF-CONSOLIDATED
 
 ## 1. Контракт Roadmap
 
@@ -172,71 +172,54 @@ GitHub Issue сохраняет совместимый execution `status` (`BACK
 | PROF-020 | P2 | DESIGN-020 | Household/preferences center | family member/profile/preferences/accessibility settings separated from financial domain | BACKLOG |
 | PWA-020 | P1 | HOME-020,TX-020 | Installable PWA baseline | install manifest, responsive offline shell/read cache policy, update strategy, private-cache safety tests | BACKLOG |
 
-## 5. Wave R2R — Product Recovery
+## 5. Wave R2R — Product Recovery и Local-first consolidation
 
-Цель: превратить накопленную engineering architecture в быстрый, честно доступный и реально работающий private household product. R2R имеет абсолютный product priority над дальнейшим R9/R10 feature expansion.
+### 5.1. Доказанный Local-first trust anchor
 
-| ID | Priority | depends_on | Deliverable | Product acceptance / evidence | Status |
-|---|---|---|---|---|---|
-| GOV-REC-001 | P0 | — | Product lifecycle и evidence governance | Roadmap/task protocol/Main Verification различают `engineering` и `user_facing`; synthetic-only evidence не закрывает user-facing Issue; R2R и Product status matrix canonical | IN_PROGRESS |
-| UI-REC-001 | P0 | GOV-REC-001 | Truthful canonical navigation | R2 Home остаётся default; primary nav показывает только `runtime_private_data=true`; Legacy — явный rollback; owner-authenticated desktop/mobile route evidence | BACKLOG |
-| PERF-REC-001 | P0 | GOV-REC-001 | Live Apps Script baseline + revision snapshot | не менее 20 cold/20 warm samples; phase/read counters; один logical canonical snapshot на revision; PERF-011/012 реально подключены; cache invalidation/parity доказаны | BACKLOG |
-| DATA-REC-001 | P0 | UI-REC-001,PERF-REC-001 | Private Transactions + Data Quality | private canonical rows/filters/drill и DQ scan работают на одном snapshot; no writes; loading/empty/error; deployed authenticated journey | BACKLOG |
-| FIN-REC-001 | P0 | DATA-REC-001 | Private Expenses/Income/Cash Flow | общий period/filter state; FIN parity; meaningful trend/compare/drill; no duplicated formulas; deployed authenticated E2E | BACKLOG |
-| PLAN-REC-001 | P1 | GOV-REC-001,DATA-REC-001 | Budget/Obligations/Liquidity authorities | approved source/schema/ownership; real private setup/empty/drill flows; отсутствующий balance source не маскируется под KPI | BACKLOG |
-| VIZ-REC-001 | P1 | FIN-REC-001,PLAN-REC-001 | Local ECharts adapter + household visual redesign | pinned local renderer реально выполняет ChartSpec; 6+ period cash-flow или honest insufficient-data; Top-N+Other; responsive/a11y/table fallback; owner UAT | BACKLOG |
-| E2E-REC-001 | P0 | UI-REC-001,PERF-REC-001,DATA-REC-001,FIN-REC-001,PLAN-REC-001,VIZ-REC-001 | Authenticated deployed Product gate | exact-SHA owner-authenticated route journey; filters/drills/back-forward/empty/error/privacy; cold/warm distribution; zero hangs; sanitized evidence | BACKLOG |
-| STUDIO-REC-001 | P2 | E2E-REC-001 (`depends_on_product_ready`) | Bind existing R7/R8/VIZ-090 to private runtime | private query -> bound widget -> save -> reload -> restore -> drill; query budget/cache/privacy/a11y; no `UNBOUND` within accepted scope | BACKLOG |
+Временная recovery-цепочка `LF0..LF4` завершена. `E2E-LF-001` #273 / PR #274 прошёл Product Ready и Main Verification; канонический merge `main@12f764edc34aad32693fc7589ff53ded53740d5d` доказал `MASTER-LF-PRODUCT`.
 
-### R2R gates
+Следствия для Roadmap v2.5:
 
-- `MASTER-GREC-0 / GOVERNANCE-READY`: `GOV-REC-001 = DONE_ENGINEERING`.
-- `MASTER-GREC-1 / CANONICAL-UI-SAFE`: `UI-REC-001 = PRODUCT_READY`.
-- `MASTER-GREC-2 / RUNTIME-SLO-BASELINED`: `PERF-REC-001 = DONE_ENGINEERING` и owner-authenticated baseline PASS.
-- `MASTER-GREC-3 / PRIVATE-DETAIL-READY`: `DATA-REC-001 = PRODUCT_READY`.
-- `MASTER-GREC-4 / DAILY-FINANCE-READY`: `FIN-REC-001 = PRODUCT_READY`.
-- `MASTER-GREC-5 / PLANNING-DATA-READY`: `PLAN-REC-001 = PRODUCT_READY`.
-- `MASTER-GREC-6 / VISUAL-READY`: `VIZ-REC-001 = PRODUCT_READY`.
-- `MASTER-GUX / PRODUCT-READY`: все `MASTER-GREC-1..6` PASS и `E2E-REC-001 = DONE`.
-- `MASTER-GSTUDIO / STUDIO-READY`: `MASTER-GUX + STUDIO-REC-001 = DONE`.
+- временный глобальный freeze `feature_expansion_frozen=true`, действовавший **до** `MASTER-LF-PRODUCT`, снят;
+- `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` больше не является отдельным execution authority и сохраняется как historical/consolidated reference с доказанными архитектурными инвариантами и SLO;
+- Local-first core остаётся единственной целевой primary UX architecture: `SPA -> IndexedDB/in-memory -> Web Worker -> local UI`; request-per-view не получает автоматического права вернуться в critical warm path;
+- Google Sheets остаётся canonical source на текущем этапе; YDB — только отдельная future migration lane и не становится prerequisite Product Ready;
+- снятие временного LF freeze **не** снимает dependency gates R9/R10: advanced analytics остаётся закрыта до `MASTER-GSTUDIO`.
 
-### MASTER-GUX blocking evidence
+Machine contract: `lib/local_first/local_first_roadmap.v1.json@1.1.0`. Он фиксирует `LF0..LF4 = DONE`, `MASTER-LF-PRODUCT = DONE`, добавляет пропущенный в ранней machine-версии `PACK-LF-001` и сохраняет future YDB lane fail-closed.
 
-`MASTER-GUX` невозможно пройти только unit/contracts/synthetic/file-local/browser markers. Обязательны:
+### 5.2. Post-LF governance transaction
 
-1. owner-authenticated canonical Web App exact candidate SHA;
-2. advertised routes используют approved private authorities;
-3. полный `Home -> Transactions -> Expenses -> Income -> Cash Flow -> Budget -> Obligations -> Data Quality` journey;
-4. FIN parity summary/detail и no-write/no-leak evidence;
-5. cold/warm timing distribution и zero-hang criterion, а не единичный `latencyMs`;
-6. empty/malformed/source-unavailable/cache-invalidation recovery;
-7. desktop/mobile UAT, useful charts и отсутствие internal contract vocabulary;
-8. sanitized artifacts без private values, labels, identifiers или Web App locator.
+`GOV-LF-001` #275 — единственный writer до собственного Main Verification. Он не меняет production/runtime financial semantics, а нормализует Roadmap/lifecycle после завершения Local-first recovery.
 
-До первой live baseline действуют provisional SLO: cold first usable p95 ≤ 8 s, warm Home p95 ≤ 3 s, warm route switch p95 ≤ 2 s, zero hangs > 15 s. После baseline пороги изменяются только явным owner-approved Roadmap decision.
+До завершения `GOV-LF-001` resolver при отсутствии другого explicit `READY` обязан возвращать `NO_DEPENDENCY_READY_ITEM`; implicit promotion из `BACKLOG` запрещён. Roadmap v2.5 синхронизирует executable lifecycle с уже нормативно описанным переходом `BACKLOG -> READY`, после чего governance-транзакция материализует **ровно один** следующий `READY`.
 
-### Product status matrix после forensic rebaseline
+### 5.3. Legacy Product Recovery disposition и следующий порядок
 
-| ID/group | Engineering status | Product status | Recovery/action |
-|---|---|---|---|
-| R0 + FIN/DATA/ARCH core | DONE | FOUNDATION_READY | KEEP DONE |
-| OBS-010 | DONE_ENGINEERING | NOT_OPERATING_SLO | PERF-REC-001/E2E-REC-001 |
-| PERF-010 | CODE_COMPLETE | PARTIALLY_INTEGRATED | PERF-REC-001 |
-| PERF-011/012/013/070 | DONE_ENGINEERING | BLOCKED_INTEGRATION | PERF-REC-001 |
-| PERF-014 | DONE_ENGINEERING | SYNTHETIC_GATE_ONLY | KEEP; no product credit |
-| DESIGN-020/HOME-020 | DONE_ENGINEERING | PARTIAL_PRODUCT | UI/PERF/VIZ recovery |
-| TX/EXP/INC/CF/BUD/OBL/DQ-020 | DONE_ENGINEERING | BLOCKED_INTEGRATION | DATA/FIN/PLAN recovery |
-| UI-MIG-020 | HISTORICAL_DONE | SUPERSEDED_PRODUCT_CLAIM | UI-REC-001 |
-| PROF-020/PWA-020 | DONE_ENGINEERING | NOT_CANONICAL | defer until reprioritized |
-| R3 implemented items | DONE_ENGINEERING | NOT_INTEGRATED | post-GUX planning backlog |
-| R7 all items | DONE_ENGINEERING | ENGINE_READY_NOT_PRODUCT | STUDIO-REC-001 |
-| STUDIO-080/DASH-080..086/VIZ-070 | DONE_ENGINEERING | BLOCKED_INTEGRATION | STUDIO-REC-001 |
-| PRIV-080 | NARROW_RUNTIME_SCOPE_DONE | NEEDS_DEPLOYED_E2E | E2E/STUDIO recovery |
-| MASTER-G8-ENGINEERING | ENGINEERING_PASS | SUPERSEDED_PRODUCT_GATE | MASTER-GSTUDIO |
-| VIZ-090 | DONE_ENGINEERING | NOT_RENDERED_NOT_BOUND | VIZ/STUDIO recovery |
-| ANL-090 | CODE_COMPLETE candidate | PAUSED_REBASELINE | resume only after MASTER-GSTUDIO decision |
+| ID | Priority | Post-LF dependency | Disposition | Live state после GOV-LF-001 Main Verification |
+|---|---|---|---|---|
+| `PLAN-REC-001` | P1 | `E2E-LF-001 = DONE` | **REDEPEND_LOCAL_FIRST**: сохранить полезный scope Budget/Obligations/Liquidity, но строить его поверх Local-first core и canonical authorities | **READY — единственный следующий writer candidate** |
+| `VIZ-REC-001` | P1 | `PLAN-REC-001 = DONE` | **REBASELINE_NO_OLD_CANDIDATE_CREDIT**: ECharts/household visual ideas переиспользуются; старый request-per-view candidate/PR #238 не получает merge/Product Ready authority от `MASTER-LF-PRODUCT` | BLOCKED |
+| `E2E-REC-001` | P0 | — | **SUPERSEDED_BY_E2E-LF-001** как общий Product Ready producer; future user-facing items сохраняют собственный exact-candidate Product Ready E2E | CLOSED / SUPERSEDED |
+| `STUDIO-REC-001` | P2 | `VIZ-REC-001 = PRODUCT_READY` | **REDEPEND_LOCAL_FIRST**: существующий R7/R8/VIZ engineering capital подключается только к актуальному Local-first runtime после visual/planning product gates | BACKLOG |
+| `ANL-090` | P2 | `STUDIO-REC-001 = PRODUCT_READY` + separate owner decision | historical code сохраняется, automatic resurrection запрещён | BLOCKED / PAUSED_REBASELINE |
+| `YC-041` | P1 | owner cloud bootstrap | cloud identity lane не зависит от снятия LF freeze | BLOCKED |
+| `YC-042` | P1 | owner YDB target + approved identity | shadow replication не создаётся автономно | BLOCKED |
 
-Исторические закрытые Issues не переоткрываются массово: их GitHub lifecycle сохраняется, а Product status и recovery link фиксируют фактическую зрелость без переписывания истории.
+Почему следующий item именно `PLAN-REC-001`: после завершения Local-first core это единственный открытый bounded Product Recovery scope более высокого приоритета, чьи продуктовые данные/authorities ещё не закрыты и который не требует cloud bootstrap. Старый `VIZ-REC-001` нельзя выбирать раньше, потому что его exact candidate относится к прежней request-per-view ветке и должен быть пересобран после planning authority; `E2E-REC-001` дублирует уже доказанный producer; `STUDIO-REC-001`, R9/R10 и YDB имеют более поздние product/external gates.
+
+### 5.4. Post-LF gates
+
+- `MASTER-LF-PRODUCT`: **DONE**, trust anchor `E2E-LF-001` #273 / PR #274.
+- `MASTER-GREC-5 / PLANNING-DATA-READY`: `PLAN-REC-001 = PRODUCT_READY` на Local-first runtime.
+- `MASTER-GREC-6 / VISUAL-READY`: rebaselined `VIZ-REC-001 = PRODUCT_READY`; старый candidate credit запрещён.
+- `MASTER-GSTUDIO / STUDIO-READY`: `MASTER-GREC-6 + STUDIO-REC-001 = DONE`.
+- `MASTER-G9-ENGINEERING`/R9 и R10 не получают writer authority до `MASTER-GSTUDIO` и отдельного dependency-ready выбора resolver.
+- `YC-041`/`YC-042` и YDB-LF остаются `BLOCKED` до owner-controlled cloud bootstrap; `FREE_ONLY` и no-billing-autoprovisioning обязательны.
+
+### 5.5. Исторический Product Recovery capital
+
+`GOV-REC-001`, `UI-REC-001`, `PERF-REC-001`, `DATA-REC-001` завершены и остаются reusable evidence. `FIN-REC-001` закрыт без merge и superseded Local-first financial implementation. Исторические R2R gates/Issues не переоткрываются массово и не переписывают Git history; полезные contracts переиспользуются только через актуальные dependencies.
 
 ## 6. Wave R3 — Planning, Wealth, Decision Intelligence
 
@@ -491,18 +474,18 @@ Future `MASTER-G9-ENGINEERING` не даёт production claim автоматич
 
 ## 18. Приоритет исполнения
 
-Порядок dependency-driven запуска:
+Порядок dependency-driven запуска после `MASTER-LF-PRODUCT`:
 
-1. `R2R` имеет абсолютный product priority над R5/R6/R9/R10 и любыми новыми P2/P3 UI/analytics work items.
-2. `GOV-REC-001` — единственный active writer; после `MASTER-GREC-0` параллельно READY только `UI-REC-001` и `PERF-REC-001`, при сохранении one-writer execution.
-3. `ANL-090` Issue #217 остаётся `BLOCKED / PAUSED_REBASELINE`, PR #218 — draft; код не удаляется и не merge до post-`MASTER-GSTUDIO` decision.
-4. `MASTER-GUX` разблокирует working Daily product; только затем `STUDIO-REC-001`; `MASTER-GSTUDIO` разблокирует дальнейшие R9/R10 features.
-5. `MASTER-G7-ENGINEERING` и `MASTER-G8-ENGINEERING` остаются reusable engineering capital и не удовлетворяют Product Ready dependency.
-6. R4 cloud work может продолжаться только если не забирает critical Recovery capacity и не меняет Google canonical ownership; YC-041/042 сохраняют owner blockers.
-7. R5/R6/R9/R10 feature expansion frozen до соответствующего product gate.
-8. `LANG-RU`, `FREE_ONLY`, `DATA-PUBLIC`, `FIN-TRUTH`, `MYSELF`, exact-SHA delivery и recovery policies не ослабляются Recovery Wave.
-9. Ghostfolio остаётся benchmark, а не dependency; изменения принимаются только отдельным audit/ADR/work item.
-10. Dependency resolver не может трактовать `DONE_ENGINEERING` как `PRODUCT_READY`, если downstream объявляет `depends_on_product_ready`.
+1. Пока `GOV-LF-001` находится `IN_PROGRESS`, он единственный writer; ни один соседний `READY/BACKLOG/BLOCKED` item не получает authority.
+2. После Main Verification `GOV-LF-001` ровно один explicit `READY` — `PLAN-REC-001`; resolver не повышает `BACKLOG` неявно.
+3. `VIZ-REC-001` остаётся `BLOCKED` до завершения planning scope и обязан быть rebaselined на текущий Local-first main; PR #238/старый request-per-view candidate не merge автоматически.
+4. `E2E-REC-001` superseded завершённым `E2E-LF-001`; новый Product Ready producer не создаётся без нового user-facing scope.
+5. `STUDIO-REC-001` остаётся `BACKLOG` до `VIZ-REC-001 = PRODUCT_READY`; `ANL-090`, R9/R10 остаются blocked/frozen до `MASTER-GSTUDIO` и отдельного dependency-ready решения.
+6. `YC-041`, `YC-042`, `YDB-LF-001/002` остаются fail-closed до owner-controlled cloud/bootstrap условий; `MASTER-LF-PRODUCT` не разрешает billing-backed provisioning.
+7. `BACKLOG -> READY` является допустимым **явным** lifecycle transition; `READY` всё равно не означает `IN_PROGRESS`, пока resolver не выбрал item при отсутствии active writer.
+8. `MASTER-G7-ENGINEERING` и `MASTER-G8-ENGINEERING` остаются reusable engineering capital и не удовлетворяют Product Ready dependency.
+9. `LANG-RU`, `FREE_ONLY`, `DATA-PUBLIC`, `FIN-TRUTH`, `MYSELF`, exact-SHA delivery, privacy и recovery policies не ослабляются post-LF консолидацией.
+10. Dependency resolver не может трактовать `DONE_ENGINEERING` как `PRODUCT_READY`, а снятый LF freeze не может трактоваться как разрешение обойти stage/external blockers.
 
 Эта Roadmap намеренно не содержит фактических финансовых значений или агрегатов исходной книги. Их evidence хранится только в приватном Master Audit/закрытом runtime и используется как PASS/FAIL gate.
 
@@ -545,3 +528,14 @@ Future `MASTER-G9-ENGINEERING` не даёт production claim автоматич
 - R9/R10 frozen; ANL-090 Issue #217 переведён в `BLOCKED / PAUSED_REBASELINE`, PR #218 сохранён draft.
 - Foundation R0/R1, FIN-TRUTH, canonical data, ports/adapters, privacy, `FREE_ONLY`, exact-SHA delivery и recovery сохраняются без rewrite.
 - Roadmap теперь содержит **116 executable work items**: прежние 107 + 9 Product Recovery items.
+
+
+## 23. Post-LF consolidation — v2.5 / 2026-08-16
+
+- `MASTER-LF-PRODUCT` доказан `E2E-LF-001` #273 / PR #274; canonical trust anchor — `main@12f764edc34aad32693fc7589ff53ded53740d5d`.
+- Временный Local-first global feature freeze снят; amendment `ROADMAP_LOCAL_FIRST_RECOVERY.md` переведён в historical/consolidated reference без потери SLO/invariants/YDB migration ladder.
+- `PRH_LOCAL_FIRST_ROADMAP_V1` обновлён до `1.1.0`: LF0..LF4 отмечены `DONE`, `PACK-LF-001` добавлен в machine chain, YDB future lane остаётся blocked.
+- Исправлен lifecycle contract: нормативный `BACKLOG -> READY` теперь поддерживается executable validator; implicit promotion по-прежнему запрещён.
+- Legacy recovery dispositions: `PLAN-REC-001` re-depend на Local-first и является единственным post-governance `READY`; `VIZ-REC-001` rebaseline/block, `E2E-REC-001` superseded, `STUDIO-REC-001` re-depended/backlog.
+- Cloud blockers `YC-041`/`YC-042` и old request-per-view candidates не получают authority от снятия LF freeze.
+- R9/R10 остаются gated `MASTER-GSTUDIO`; снятие временного LF freeze не означает unrestricted feature expansion.

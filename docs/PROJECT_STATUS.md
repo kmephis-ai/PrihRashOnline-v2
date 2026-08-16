@@ -1,10 +1,10 @@
 # PrihRashOnline-v2 — текущий статус проекта
 
-Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` v2.4 + временное approved amendment `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence. Human documentation не может отменять красный machine gate.
+Это public-safe human summary. Authoritative execution state: `docs/ROADMAP.md` v2.5 + live GitHub Issues + exact-SHA code/tests/workflows + machine evidence; `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` сохранён как historical/consolidated reference. Human documentation не может отменять красный machine gate.
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
-## Текущий critical path — Local-first Recovery
+## Текущий critical path — Post-LF Roadmap v2.5 consolidation
 
 Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
 
@@ -17,11 +17,12 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `FIN-LF-001` — **DONE / Main Verification PASS**, Issue #259, PR #260, candidate `0c58714df70e6065d6ec409cdc3bae991a85df36`, merge `c20258cd659f0e4a82c050b91eb04cc33c8e996b`; exact-candidate Owner Product UAT PASS, warm p95 `32 ms`, `10` переходов, сеть `0`.
 - `DATA-LF-001` — **DONE / Main Verification PASS**, Issue #263, PR #264, merge `326ddad4d5c41d684b1cec9e4a8a97bc680c5ed7`; exact-candidate Owner Product UAT PASS, warm p95 `43.40 ms`, `10` переходов, прогрев `4`, сеть `0`, Back/Forward PASS, loading/error PASS.
 - `PERF-LF-001` — **DONE / Main Verification PASS**, Issue #265, PR #266, candidate `7a41884cb1a812796bc2d473aaf0b86991dfcf65`, Apps Script v252, merge `bd181178c241418d0c22973d0d59ce2fdefb6195`; Owner UAT #10 PASS: route p95 `43.10 ms`, filter/KPI p95 `28.60 ms`, desktop chart p95 `43.80 ms`, Back/Forward p95 `54.30 ms`, cached FMP `473.70 ms`, zero mandatory network / Google Sheets reads.
-- `E2E-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #273, branch `agent/E2E-LF-001-product-ready-local-first`. Цель: доказать authenticated exact-candidate `MASTER-LF-PRODUCT` через полный Local-first Product Ready journey desktop + mobile, сохранив FIN-TRUTH, performance SLO, zero mandatory network / zero Google Sheets reads и fail-closed recovery semantics.
+- `E2E-LF-001` — **DONE / Main Verification PASS**, Issue #273, PR #274, merge `12f764edc34aad32693fc7589ff53ded53740d5d`; `MASTER-LF-PRODUCT` и Product Ready E2E desktop+mobile доказаны.
+- `GOV-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #275, branch `agent/GOV-LF-001-roadmap-v25-consolidation`. Scope: governance-only консолидация Roadmap v2.5, machine Roadmap и resolver regression; runtime/FIN logic не меняется.
 
-До `MASTER-LF-PRODUCT` новый Dashboard feature expansion frozen, кроме security/privacy/data-integrity incidents и самой Local-first recovery chain. Warm route/filter/chart после синхронизации должен работать локально без обязательного network request и без Google Sheets read.
+Временный global LF freeze завершился достижением `MASTER-LF-PRODUCT` и больше не действует. Warm route/filter/chart по-прежнему обязан быть local-first и сохранять доказанные SLO/zero mandatory network/zero Google Sheets reads. R9/R10 при этом остаются отдельно gated до `MASTER-GSTUDIO`.
 
-`FIN-REC-001` Issue #224 и PR #243 закрыты без merge как superseded request-per-view implementation. Их FIN-TRUTH/filter/revision/zero-write решения остаются engineering reference. `VIZ-REC-001` #226 сохраняет прежний runtime-integrated reference; R9/R10 остаются frozen.
+Post-LF sequence после Main Verification `GOV-LF-001`: ровно один explicit `READY` — `PLAN-REC-001`; `VIZ-REC-001` остаётся BLOCKED и требует rebaseline без old request-per-view candidate credit; `E2E-REC-001` superseded `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
 
 ## R0 — завершён
 
@@ -47,7 +48,7 @@ Post-R1 lifecycle handoff исторически начинается с `DESIGN
 
 R2 engineering contracts `DESIGN-020`, `VIZ-020`, `HOME-020`, `TX-020`, `EXP-020`, `INC-020`, `CF-020`, `BUD-020`, `OBL-020`, `DQ-020`, `PWA-020`, `PROF-020`, `UI-MIG-020` сохраняются как reusable engineering work, но product credit даётся только exact-SHA Product Ready evidence.
 
-Forensic/Product Recovery baseline `R2R` и `MASTER-GUX` остаются причиной freeze feature breadth. `GOV-REC-001`, `PERF-REC-001`, `UI-REC-001`, `GOV-REC-002`, `DATA-REC-001` завершили свои доказанные stages. `FIN-REC-001` superseded новым architecture direction. Старые PLAN/E2E/STUDIO recovery scopes будут re-depended или перенесены в LF3/LF4 после architecture rebaseline.
+Forensic/Product Recovery baseline `R2R` остаётся причиной архитектурного rebaseline. `GOV-REC-001`, `PERF-REC-001`, `UI-REC-001`, `GOV-REC-002`, `DATA-REC-001` завершили свои доказанные stages; `FIN-REC-001` superseded Local-first implementation. После `MASTER-LF-PRODUCT` PLAN/VIZ/E2E/STUDIO scopes получили явный v2.5 disposition: PLAN re-depend/next, VIZ rebaseline/block, E2E superseded, STUDIO re-depend/backlog.
 
 Request-per-view технические оптимизации PERF-010/011/012/013/070 не выбрасываются: они остаются полезными для bootstrap/sync, reconciliation и parity, но больше не определяют warm interaction topology.
 
@@ -82,7 +83,7 @@ Worker исполняет тот же canonical analytics evaluator, а не с�
 
 ## R4 / YDB future backend
 
-`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. На этапе E2E-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически; завершённый `MASTER-LF-PRODUCT` не создавал live YDB resource и не менял write ownership.
 
 Future ladder после Local-first Product Ready:
 
@@ -104,7 +105,7 @@ Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub
 
 Root `AGENTS.md` is the public-safe repository AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V2` enforce one-writer and separate engineering/product stages. Read-only multi-AI review остаётся supplementary evidence; machine gates и Main Verification выше textual review.
 
-Временный Local-first Roadmap amendment не отменяет `docs/ROADMAP.md` v2.4: он приоритетно задаёт LF0..LF4 recovery execution до консолидации в следующую каноническую Roadmap version.
+`docs/ROADMAP.md` v2.5 консолидировал LF0..LF4. `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` теперь historical/consolidated reference и больше не имеет отдельной execution authority.
 
 ## Current delivery chain
 
@@ -120,12 +121,12 @@ active Roadmap Issue
 -> Main Verification -> Issue DONE
 ```
 
-Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для E2E-LF-001 полный owner `GENERIC_V1` Product UAT desktop + mobile обязателен и не может быть заменён CI/self-attestation; machine representative-mobile evidence его только дополняет.
+Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для будущих user-facing items fresh owner/product evidence остаётся scope-specific; завершённый E2E-LF-001 не является reusable self-attestation для новых features.
 
 ## Source precedence
 
 1. security/privacy/cost/irreversible boundaries;
-2. `docs/ROADMAP.md` v2.4 + approved `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` + live GitHub Issues;
+2. `docs/ROADMAP.md` v2.5 + live GitHub Issues; Local-first recovery amendment — historical/consolidated reference;
 3. exact-SHA code/tests/workflows/machine evidence;
 4. versioned contracts;
 5. architecture/ADR/operations docs;

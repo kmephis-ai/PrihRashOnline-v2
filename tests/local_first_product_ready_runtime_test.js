@@ -41,7 +41,11 @@ assert.strictEqual(roadmapItem.work_class, product.work_class);
 assert.deepStrictEqual(roadmapItem.depends_on, ['PERF-LF-001']);
 assert.strictEqual(roadmapItem.exit_gate, product.exit_gate);
 assert.strictEqual(roadmap.freeze_until_gate, product.exit_gate);
-assert.strictEqual(roadmap.feature_expansion_frozen, true);
+assert.strictEqual(roadmap.freeze_gate_status, 'DONE');
+assert.strictEqual(roadmap.feature_expansion_frozen, false);
+assert.strictEqual(roadmap.trust_anchor.roadmap_id, product.roadmap_id);
+assert.strictEqual(roadmap.trust_anchor.gate, product.exit_gate);
+assert.strictEqual(roadmap.trust_anchor.status, 'DONE');
 
 assert.strictEqual(product.local_read_model.storage_namespace, data.local_read_model.storage_namespace, 'Product Ready must use DATA-LF canonical Local Read Model namespace');
 assert.strictEqual(product.local_read_model.storage_namespace, performanceNode.storeName, 'cached-FMP probe must read the active Product Ready Local Read Model namespace');

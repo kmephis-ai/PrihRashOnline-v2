@@ -343,6 +343,7 @@ function validateLifecycleTransition(from, to, evidence) {
   const current = String(from || '');
   const next = String(to || '');
   const allowed = new Set([
+    'BACKLOG->READY',
     'READY->IN_PROGRESS',
     'READY->BLOCKED',
     'BLOCKED->READY',

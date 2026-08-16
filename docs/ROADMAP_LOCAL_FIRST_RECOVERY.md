@@ -1,18 +1,20 @@
 # PrihRashOnline-v2 — Local-first Recovery Roadmap
 
-Статус: `APPROVED OWNER DIRECTION / EXECUTABLE AFTER ARCH-LF-001`  
-Дата: 2026-08-14  
+Статус: `CONSOLIDATED / HISTORICAL REFERENCE — MASTER-LF-PRODUCT DONE`
+Дата: 2026-08-14; консолидировано: 2026-08-16
 Основание: owner decision перейти на `Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization`, затем эволюционно мигрировать remote backend в YDB.
 
-Этот документ — amendment к `docs/ROADMAP.md` v2.4 на период архитектурного восстановления производительности. До консолидации Roadmap v2.5 он задаёт execution order только для Local-first recovery phases `LF0..LF4` и не ослабляет security/privacy/FIN-TRUTH/FREE_ONLY/Product Ready contracts основной Roadmap.
+Этот документ был amendment к `docs/ROADMAP.md` v2.4 на период архитектурного восстановления производительности. `MASTER-LF-PRODUCT` доказан `E2E-LF-001` #273 / PR #274 и вошёл в `main@12f764edc34aad32693fc7589ff53ded53740d5d`; с Roadmap v2.5 документ **не задаёт отдельный execution order** и сохраняется как historical/consolidated reference доказанных Local-first invariants, SLO и YDB migration ladder.
 
 `LF0..LF4` — **архитектурные recovery phases**, а не новое значение legacy machine field `wave`. До Roadmap v2.5 текущий `PRH_ROADMAP_TASK_V2` использует protocol-compatible `wave: R2R` для всей P0 Local-first recovery. Будущие YDB items используют `wave: R4` и не становятся READY до `MASTER-LF-PRODUCT`.
 
 ## 1. Freeze
 
-До `MASTER-LF-PRODUCT`:
+`MASTER-LF-PRODUCT` достигнут 2026-08-16. Ниже сохранена историческая freeze-policy, действовавшая **до** этого gate; она больше не является текущим глобальным блокером. Post-LF ограничения задаёт `docs/ROADMAP.md` v2.5 и live Issues.
 
-- новые dashboard feature-expansion items не начинают active implementation;
+Исторически до `MASTER-LF-PRODUCT`:
+
+- новые dashboard feature-expansion items не начинали active implementation;
 - существующие R9/R10 остаются paused;
 - request-per-view Apps Script/HtmlService не расширяется как primary UX architecture;
 - разрешены только incident fixes, security/privacy/data-integrity fixes и LF recovery chain.
@@ -156,15 +158,17 @@ YDB is not a prerequisite for Local-first Product Ready.
 6. YDB remote read authority after sustained parity/performance;
 7. write cutover — отдельный future owner-authorized Roadmap item with backup/reconciliation/rollback.
 
-## 6. Superseded Product Recovery items
+## 6. Post-LF disposition Product Recovery items
 
 - `FIN-REC-001` #224 / PR #243: closed without merge; reference only.
-- `PLAN-REC-001`, `VIZ-REC-001`, `E2E-REC-001`, `STUDIO-REC-001`: не должны становиться active writer до LF rebaseline; их полезный scope либо переносится в LF3/LF4, либо будет re-depended после Local-first Product Ready.
+- `PLAN-REC-001`: re-depended на завершённый `E2E-LF-001`; после `GOV-LF-001` Main Verification это единственный explicit `READY`.
+- `VIZ-REC-001`: старый request-per-view candidate не получает Product Ready/merge credit; scope сохраняется только как rebaseline после `PLAN-REC-001`, live state `BLOCKED`.
+- `E2E-REC-001`: общий producer superseded завершённым `E2E-LF-001`; future user-facing items продолжают требовать собственный Product Ready E2E.
+- `STUDIO-REC-001`: re-depended на актуальный visual Product Ready и остаётся `BACKLOG`.
+- `YC-041`/`YC-042` и YDB future lane сохраняют external owner/cloud blockers; снятие LF freeze не разрешает cloud provisioning.
 
-## 7. Resolver rule
+## 7. Resolver rule — historical и post-LF handoff
 
-Пока открыт `PACK-LF-001` со `status=IN_PROGRESS`, он единственный active writer; `FIN-LF-001` остаётся `BLOCKED` даже при `CODE_COMPLETE`, потому что его новый artifact format ещё не имеет trusted packager в `main`.
+Историческая PACK/FIN trust-bootstrap последовательность завершена и подтверждена Main Verification. Она сохраняется как evidence того, что candidate не может аттестовать собственный trusted packager.
 
-После Main Verification `PACK-LF-001` resolver возвращает writer authority в `FIN-LF-001`, который обязан rebase/reconstruct exact candidate поверх нового trusted `main` и только затем продолжить Trusted DEV Deploy/Product Ready.
-
-Соседние feature items не получают writer authority до `MASTER-LF-PRODUCT`, даже если их старые dependencies формально DONE. Это freeze policy recovery amendment, а не ослабление one-writer или Product Ready semantics.
+Post-LF resolver authority находится в `docs/ROADMAP.md` v2.5: `GOV-LF-001` — единственный writer до Main Verification; затем явный `BACKLOG -> READY` перевод материализует ровно один следующий item — `PLAN-REC-001`. `VIZ-REC-001`, `STUDIO-REC-001`, R9/R10 и cloud/YDB blockers не стартуют неявно.
