@@ -50,7 +50,9 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
 
-Public-safe MIG-010 evidence сохраняет machine result `MIG010_OWNER_POST_RECONCILIATION_V1`: post-write reconciliation завершена, `unexplainedMismatch=0`. Отдельная irreversible boundary остаётся явной: только Owner может создать `IRREVERSIBLE_ACTION_AUTHORIZED`; occurrence identity capability — `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Private values и owner resolution payload здесь не публикуются.
+Public-safe MIG-010 evidence сохраняет machine result `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`: post-write reconciliation завершена, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
+
+Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`. **Current write authority = false**. Owner-verified private full-history reconciliation remains completed correctness proof. Execution policy remains `MIG010_EXECUTION_POLICY_V1@1.0.0`; `FINALIZED_PENDING_RECONCILIATION` was not completion until separate post-write reconciliation PASS. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` was exact-bound/non-reusable. GitHub Actions cannot create it; AI/CI cannot reuse it for later mutations. Any future irreversible financial write requires fresh exact-bound owner authorization.
 
 `MASTER-G3 / Canonical platform` — complete; historical pre-close state: **open**. FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write остаётся fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
@@ -81,12 +83,41 @@ R2 engineering contracts остаются reusable, но product credit даёт
 
 ## R3 / R7 / R8 — reusable engineering foundation
 
-`TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics и Studio/dashboard contracts остаются reusable engineering foundation, но не автоматически считаются working private product без current Product Ready evidence.
+`TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. Studio/dashboard configuration contracts R8 также остаются reusable, но не автоматически считаются working private product без current Product Ready evidence.
 
 ## R4 / YDB future backend
 
 `YC-040` — DONE/Main Verification PASS и остаётся PoC/cost-envelope foundation. `YC-041`/`YC-042` не получают writer authority автоматически. Future ladder: `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> отдельный future owner-authorized write cutover`. Big-bang YDB cutover запрещён; `paidOverageAllowed=false`; unknown billing state остаётся BLOCKED.
 
+## Executable AI engineering baseline
+
+Root `AGENTS.md` is the public-safe repository AI operating contract. `tools/roadmap-task-protocol.js` + `PRH_ROADMAP_TASK_V2` enforce one-writer and separate engineering/product stages. Read-only multi-AI review остаётся supplementary evidence; machine gates и Main Verification выше textual review.
+
+## Current delivery chain
+
+```text
+active Roadmap Issue
+-> agent/<ID>-<slug> PR to main
+-> PR Validation
+-> immutable exact candidate
+-> Trusted DEV Deploy
+-> Trusted Runtime Health
+-> Product Ready E2E for work_class=user_facing
+-> CI-003 autonomous squash merge
+-> Main Verification -> Issue DONE
+```
+
+Engineering item закрывается как `DONE_ENGINEERING`. User-facing item закрывается только при `product_stage=PRODUCT_READY` и exact-candidate `product-ready-e2e=success`; synthetic/file-local evidence недостаточно. Для будущих user-facing items fresh owner/product evidence остаётся scope-specific; завершённый E2E-LF-001 не является reusable self-attestation для новых features.
+
 ## Execution invariant
 
 Одна конфликтующая writer-транзакция одновременно. Read-only audits допустимы параллельно. `DONE` для user-facing work запрещён без fresh exact-SHA machine/runtime evidence и требуемого Owner Product UAT. Engineering-only bootstrap не может фабриковать Product Ready. Security/privacy/cost/FIN-TRUTH gates остаются fail-closed.
+
+## Source precedence
+
+1. security/privacy/cost/irreversible boundaries;
+2. `docs/ROADMAP.md` v2.5 + live GitHub Issues; Local-first recovery amendment — historical/consolidated reference;
+3. exact-SHA code/tests/workflows/machine evidence;
+4. versioned contracts;
+5. architecture/ADR/operations docs;
+6. README/user docs.
