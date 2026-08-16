@@ -82,13 +82,13 @@ Lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_
 
 Read-only multi-AI review остаётся supplementary evidence без writer authority. Обязательная карта ролей: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`; P0/P1 блокируют продвижение до решения, P2/P3 advisory и не заменяют machine gates.
 
-## Canonical platform truth
+## Current R1 truth
 
 `FIN-010` — **DONE**, Issue #85 Main Verification PASS. `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 
 `ARCH-010` — **DONE / Main Verification PASS**, Issue #89. `ARCH-011` — **DONE / Main Verification PASS**, Issue #91. `MIG-010` — **DONE / Main Verification PASS**, Issue #96, private `OWNER_VERIFIED`. `ANL-010` — **DONE / Main Verification PASS**, `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`. `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS.
 
-MIG-010 occurrence identity capability — `CONTENT_FINGERPRINT_OCCURRENCE_V1`. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; irreversible authorization остаётся отдельным Owner-only boundary, а private owner resolution payload не переносится в public context.
+MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Execution policy остаётся `MIG010_EXECUTION_POLICY_V1@1.0.0`; `FINALIZED_PENDING_RECONCILIATION` не являлся завершением до отдельного private post-write reconciliation PASS. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не может переиспользовать historical authorization. Любая новая irreversible financial mutation требует fresh exact-bound owner authorization. **Current write authority = false**.
 
 `MASTER-G3 / Canonical platform` complete; historical pre-close state: open. Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется и при Local-first rebaseline.
 
@@ -96,6 +96,43 @@ FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority =
 
 Real or real-derived household finance data stays private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence. `FREE_ONLY` обязателен; automatic paid overage запрещён.
 
-## YDB future boundary
+## Reusable engineering foundation
 
-`YC-040` — DONE/Main Verification PASS. `YC-041`/`YC-042` остаются owner/cloud BLOCKED и не получают writer authority автоматически. Target ladder: `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> separate future owner-authorized write cutover`. Big-bang cutover запрещён.
+R2 `DESIGN-020`, `VIZ-020`, R2 finance/data contracts, R3 planning/wealth contracts, R7 semantic analytics and R8 Studio/dashboard configuration contracts остаются reusable. Они не получают automatic Product Ready credit и будут подключаться через local-first read path постепенно.
+
+PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh, PERF-013 incremental aggregates и PERF-070 planner/cache сохраняются как validated building blocks для sync/reconciliation/local parity. Они не должны возвращать Google Sheets в warm click path.
+
+## Future YDB boundary
+
+`YC-040` — DONE/Main Verification PASS. `YC-041`/`YC-042` остаются owner/cloud BLOCKED и не получают writer authority автоматически. Target ladder: `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> separate future owner-authorized write cutover`. Big-bang cutover запрещён. `paidOverageAllowed=false`; unknown billing state = BLOCKED.
+
+## Delivery and autonomy
+
+Required trusted chain остаётся неизменной:
+
+`PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> Product Ready E2E (user-facing only) -> CI-003 autonomous squash merge -> Main Verification`.
+
+Для `work_class=user_facing` перед merge обязательно требуется exact-SHA `PRODUCT_READY_E2E`. Manual merge для обхода Product Ready запрещён.
+
+One-writer rule: one Roadmap ID = one GitHub Issue = one active writer; branch `agent/<ROADMAP-ID>-<slug>`. Active issue lifecycle и exact candidate должны совпадать с machine evidence.
+
+## FinOps / safety
+
+`FINOPS-001` остаётся обязательной cost boundary: required checks не требуют платного provider/API. Unknown/unproven cost fail-closed. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable; любой новый irreversible financial write требует fresh owner authorization.
+
+## Read-only multi-AI review
+
+Read-only multi-AI review имеет `writer_authority=false` и является supplementary evidence. Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Review не голосует за merge и не может отменить PR Validation, Trusted Runtime Health, Product Ready или Main Verification.
+
+## TEST-010 boundary
+
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance, Data и Performance runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+
+## Source precedence
+
+1. security/privacy/cost/irreversible boundaries;
+2. `docs/ROADMAP.md` v2.5 + live GitHub Issues; `docs/ROADMAP_LOCAL_FIRST_RECOVERY.md` — historical/consolidated reference;
+3. exact-SHA code/tests/workflows/machine evidence;
+4. versioned contracts;
+5. architecture/ADR/operations docs;
+6. README/user docs.
