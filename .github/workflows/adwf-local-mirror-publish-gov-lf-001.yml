@@ -1,0 +1,118 @@
+name: ADWF Local Mirror Publish GOV-LF-001
+
+on:
+  push:
+    branches:
+      - agent/local-mirror-gov-lf-001-20260816-a1
+    paths:
+      - .github/workflows/adwf-local-mirror-publish-gov-lf-001.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish-exact-patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_BASE_SHA: 12f764edc34aad32693fc7589ff53ded53740d5d
+      TARGET_REF: refs/heads/agent/GOV-LF-001-roadmap-v25-consolidation
+      PATCH_PAYLOAD: .adwf/transport/gov-lf-001.patch.gz.b64
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Decode staged patch outside checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "${PATCH_PAYLOAD}"
+          base64 -d "${PATCH_PAYLOAD}" | gzip -d > /tmp/gov-lf-001.patch
+          test -s /tmp/gov-lf-001.patch
+
+      - name: Verify exact remote writer head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git ls-remote origin "${TARGET_REF}" | awk '{print $1}')"
+          test -n "${actual}"
+          test "${actual}" = "${EXPECTED_BASE_SHA}"
+          git cat-file -e "${EXPECTED_BASE_SHA}^{commit}"
+
+      - name: Apply exact local-mirror patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B adwf-publish "${EXPECTED_BASE_SHA}"
+          git apply --check /tmp/gov-lf-001.patch
+          git apply /tmp/gov-lf-001.patch
+          git diff --check
+
+      - name: Verify intended change surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/expected-files.txt <<'EOF'
+          .ai-context/PROJECT_CONTEXT.md
+          AGENTS.md
+          docs/PROJECT_STATUS.md
+          docs/ROADMAP.md
+          docs/ROADMAP_LOCAL_FIRST_RECOVERY.md
+          lib/local_first/local_first_roadmap.v1.json
+          tests/local_first_architecture_policy_contract_test.js
+          tests/local_first_product_ready_runtime_test.js
+          tests/roadmap_task_protocol_contract_test.js
+          tools/roadmap-task-protocol.js
+          EOF
+          LC_ALL=C sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          git diff --name-only | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+
+      - name: Run GOV-LF-001 local contract gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/roadmap_task_protocol_contract_test.js
+          node tests/local_first_architecture_policy_contract_test.js
+          node tests/local_first_product_ready_runtime_test.js
+          node tools/docs-drift-scan.js
+          node tools/language-policy-scan.js
+          node tests/language_policy_contract_test.js
+          node tools/verify-adwf-local-git-mirror.js
+          node tests/test_architecture_contract_test.js
+          node tests/security_privacy_policy_contract_test.js
+          node tools/free-only-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/secret-scan.js
+
+      - name: Commit one governance transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            .ai-context/PROJECT_CONTEXT.md \
+            AGENTS.md \
+            docs/PROJECT_STATUS.md \
+            docs/ROADMAP.md \
+            docs/ROADMAP_LOCAL_FIRST_RECOVERY.md \
+            lib/local_first/local_first_roadmap.v1.json \
+            tests/local_first_architecture_policy_contract_test.js \
+            tests/local_first_product_ready_runtime_test.js \
+            tests/roadmap_task_protocol_contract_test.js \
+            tools/roadmap-task-protocol.js
+          git diff --cached --name-only | LC_ALL=C sort > /tmp/staged-files.txt
+          diff -u /tmp/expected-files.txt /tmp/staged-files.txt
+          test -z "$(git ls-files --others --exclude-standard)"
+          git commit -m "[GOV-LF-001] Консолидировать Roadmap v2.5 после MASTER-LF-PRODUCT"
+
+      - name: Recheck race and publish fast-forward only
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git ls-remote origin "${TARGET_REF}" | awk '{print $1}')"
+          test "${actual}" = "${EXPECTED_BASE_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_BASE_SHA}" HEAD
+          git push origin "HEAD:${TARGET_REF}"
