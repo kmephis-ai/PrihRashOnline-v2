@@ -86,7 +86,7 @@ Read-only multi-AI review остаётся supplementary evidence без writer 
 
 `FIN-010` — **DONE**, Issue #85 Main Verification PASS. `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 
-`ARCH-010` — **DONE / Main Verification PASS**, Issue #89. `ARCH-011` — **DONE / Main Verification PASS**, Issue #91. `MIG-010` — **DONE / Main Verification PASS**, Issue #96, private `OWNER_VERIFIED`. `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS.
+`ARCH-010` — **DONE / Main Verification PASS**, Issue #89. `ARCH-011` — **DONE / Main Verification PASS**, Issue #91. `MIG-010` — **DONE / Main Verification PASS**, Issue #96, private `OWNER_VERIFIED`. `ANL-010` — **DONE / Main Verification PASS**, `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`. `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS.
 
 `MASTER-G3 / Canonical platform` complete; historical pre-close state: open. Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется и при Local-first rebaseline.
 
