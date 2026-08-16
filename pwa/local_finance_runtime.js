@@ -433,7 +433,7 @@
       var requestId = String(message.request_id || '');
       var entry = pending.get(requestId);
       if (!entry) return;
-      if (message.type === 'ANALYTICS_RESULT') {
+      if (message.type === 'ANALYTICS_RESULT' || message.type === 'PLANNING_RESULT') {
         pending.delete(requestId);
         entry.resolve(message);
       } else if (message.type === 'STALE_DISCARDED') {
@@ -490,6 +490,27 @@
       });
     }
 
+    async function planning(snapshot, planningSource, querySpec) {
+      await bind(snapshot);
+      if (!planningSource || String(planningSource.canonical_revision || '') !== String(snapshot.revision || '')) {
+        throw fail('LOCAL_FINANCE_PLANNING_REVISION_MISMATCH');
+      }
+      sequence += 1;
+      var requestId = 'plan-' + sequence + '-' + snapshot.revision.slice(0, 12);
+      if (!REQUEST_RE.test(requestId)) throw fail('LOCAL_FINANCE_REQUEST_ID_INVALID');
+      return new Promise(function (resolve, reject) {
+        pending.set(requestId, { resolve: resolve, reject: reject });
+        worker.postMessage({
+          type: 'PLANNING_QUERY',
+          request_id: requestId,
+          generation_id: snapshot.generation_id,
+          revision: snapshot.revision,
+          source: planningSource,
+          query: querySpec
+        });
+      });
+    }
+
     function dispose() {
       disposed = true;
       rejectAll('LOCAL_FINANCE_WORKER_DISPOSED');
@@ -497,7 +518,7 @@
       try { URLApi.revokeObjectURL(blobUrl); } catch (error) { void error; }
     }
 
-    return Object.freeze({ ready: ready, bind: bind, query: query, dispose: dispose });
+    return Object.freeze({ ready: ready, bind: bind, query: query, planning: planning, dispose: dispose });
   }
 
   function createRuntime(options) {
@@ -799,6 +820,21 @@
       return state.last_view;
     }
 
+    async function runPlanningQuery(planningSource, querySpec) {
+      if (!state.snapshot) throw fail('LOCAL_FINANCE_PLANNING_SNAPSHOT_REQUIRED');
+      if (!workerClient || typeof workerClient.planning !== 'function') throw fail('LOCAL_FINANCE_PLANNING_WORKER_UNAVAILABLE');
+      if (!planningSource || String(planningSource.canonical_revision || '') !== String(state.snapshot.revision || '')) {
+        throw fail('LOCAL_FINANCE_PLANNING_REVISION_MISMATCH');
+      }
+      var envelope = await workerClient.planning(state.snapshot, planningSource, querySpec);
+      if (!envelope || envelope.type !== 'PLANNING_RESULT' || !envelope.result) throw fail('LOCAL_FINANCE_PLANNING_RESULT_INVALID');
+      if (String(envelope.revision || '') !== String(state.snapshot.revision || '') ||
+          String(envelope.planning_revision || '') !== String(planningSource.planning_revision || '')) {
+        throw fail('LOCAL_FINANCE_PLANNING_RESULT_STALE');
+      }
+      return envelope.result;
+    }
+
     async function backgroundSync() {
       if (!state.snapshot && fullSync) {
         state.sync_status = 'SYNCING';
@@ -873,6 +909,7 @@
       backgroundSync: backgroundSync,
       renderCurrent: renderCurrent,
       getState: publicState,
+      runPlanningQuery: runPlanningQuery,
       normalizeFilterContext: normalizeFilterContext
     });
   }

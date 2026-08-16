@@ -57,7 +57,7 @@ assert.strictEqual(product.local_read_model.same_namespace_for_performance_probe
 assert.deepStrictEqual(product.journey.route_order, [
   'home', 'expenses', 'income', 'cash-flow', 'transactions', 'data-quality'
 ]);
-assert.deepStrictEqual(new Set(product.journey.route_order), new Set(spa.routes));
+assert(product.journey.route_order.every((route) => spa.routes.includes(route)), 'historical MASTER-LF-PRODUCT journey must remain available after post-LF route expansion');
 assert(finance.routes.every((route) => product.journey.route_order.includes(route)), 'all finance routes must be in Product Ready journey');
 assert(data.routes.every((route) => product.journey.route_order.includes(route)), 'all Data routes must be in Product Ready journey');
 assert.strictEqual(product.journey.single_document, true);

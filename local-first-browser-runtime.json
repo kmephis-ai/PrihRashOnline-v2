@@ -8,6 +8,7 @@
     "pwa/local_first_sync.js",
     "pwa/local_first_delta.js",
     "pwa/local_finance_runtime.js",
+    "pwa/local_planning_runtime.js",
     "pwa/local_first_performance.js"
   ],
   "worker_entry": "pwa/local_analytics_worker_entry.js",

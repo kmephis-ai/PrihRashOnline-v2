@@ -10,6 +10,7 @@ const contract = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'local_first'
 const architecture = JSON.parse(fs.readFileSync(path.join(root, 'lib', 'local_first', 'local_first_runtime.v1.json'), 'utf8'));
 const html = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
 const dataExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstDataSpaExtension.html'), 'utf8');
+const planningExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstPlanningSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 const routerSource = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
 
@@ -20,7 +21,7 @@ assert.strictEqual(contract.architecture_contract, 'PRH_LOCAL_FIRST_RUNTIME_V1@1
 assert.strictEqual(contract.preview.server_surface, 'local-first');
 assert.strictEqual(contract.preview.canonical_cutover, false);
 assert.strictEqual(contract.preview.primary_navigation_before_product_gate, false);
-assert.deepStrictEqual(contract.routes, ['home','transactions','expenses','income','cash-flow','data-quality']);
+assert.deepStrictEqual(contract.routes, ['home','transactions','expenses','income','cash-flow','budget','obligations','liquidity','data-quality']);
 assert.strictEqual(contract.lifecycle.single_html_document, true);
 assert.strictEqual(contract.lifecycle.router, 'HISTORY_API_PUSHSTATE_POPSTATE');
 assert.strictEqual(contract.lifecycle.server_document_reload_on_warm_route, false);
@@ -75,6 +76,7 @@ const context = vm.createContext({
       localFileReads += 1;
       if (name === 'LocalFirstSpaWebApp') return output(html);
       if (name === 'LocalFirstDataSpaExtension') return output(dataExtensionHtml);
+      if (name === 'LocalFirstPlanningSpaExtension') return output(planningExtensionHtml);
       throw new Error(`unexpected HtmlService file: ${name}`);
     },
     createHtmlOutput(content){ return output(content); }
@@ -85,10 +87,11 @@ vm.runInContext(routerSource, context, { filename:'CanonicalR2WebAppService.js' 
 
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.SURFACE, 'local-first');
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.DATA_EXTENSION_FILE, 'LocalFirstDataSpaExtension');
+assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.PLANNING_EXTENSION_FILE, 'LocalFirstPlanningSpaExtension');
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.PRIVATE_PAYLOAD, false);
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.FINANCIAL_WRITE, false);
 assert.strictEqual(context.PRH_LOCAL_FIRST_SPA_PREVIEW.CANONICAL_MUTATION, false);
-assert.strictEqual(context.prhLocalFirstSpaSmokeToken(), 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|DATA_LOCAL_READ_ONLY|OK');
+assert.strictEqual(context.prhLocalFirstSpaSmokeToken(), 'PRH_LF_SPA_V1|SINGLE_DOCUMENT|ZERO_WARM_NETWORK|DATA_LOCAL_READ_ONLY|PLANNING_LOCAL_READ_ONLY|OK');
 assert.strictEqual(context.prhR2ResolveSurface_('local-first'), 'local-first');
 
 const preview = context.doGet({ parameter:{ surface:'local-first', lf_route:'expenses', privacy:'MASKED', lf_diag:'1' } });
@@ -96,18 +99,19 @@ const previewHtml = preview.getContent();
 assert.notStrictEqual(previewHtml, html, 'server render must inject iframe-safe bootstrap state');
 assert(previewHtml.includes('data-lf-server-bootstrap="1"'), 'server bootstrap marker missing');
 assert(previewHtml.includes('data-prh-local-first-data-extension="1.0.0"'), 'Local-first Data extension must be injected');
+assert(previewHtml.includes('data-prh-local-first-planning-extension="1.0.0"'), 'Local-first Planning extension must be injected');
 assert(previewHtml.includes('history.replaceState'), 'server bootstrap must establish same-origin iframe history state');
 assert(previewHtml.includes('?surface=local-first&lf_route=expenses&privacy=MASKED&lf_diag=1'), 'server bootstrap must preserve route/privacy/diagnostic params');
 assert(previewHtml.indexOf('data-lf-server-bootstrap="1"') < previewHtml.indexOf('<script>\n(function(){'), 'server bootstrap must execute before SPA runtime');
 assert(preview.title.includes('Local-first'));
-assert.strictEqual(localFileReads, 4, 'smoke + route render must each read shell and data extension');
+assert.strictEqual(localFileReads, 6, 'smoke + route render must each read shell and two extensions');
 assert(!Array.from(context.PRH_CANONICAL_R2_WEB.NAVIGATION, (entry) => entry[0]).includes('local-first'), 'preview must not enter canonical primary navigation');
 
 const safePreview = context.doGet({ parameter:{ surface:'local-first', lf_route:'unknown', privacy:'unexpected', lf_diag:'0' } }).getContent();
 assert(safePreview.includes('?surface=local-first&lf_route=home&privacy=MASKED'), 'server bootstrap must fail closed to safe route/privacy state');
 assert(!safePreview.includes('&lf_diag=1'), 'diagnostic must remain opt-in');
 assert(safePreview.includes('data-prh-local-first-data-extension="1.0.0"'), 'safe route must keep Data extension available');
-assert.strictEqual(localFileReads, 6, 'smoke + diagnostic route + safe route render must read two HTML files per render');
+assert.strictEqual(localFileReads, 9, 'smoke + diagnostic route + safe route render must read three HTML files per render');
 
 for (const marker of [
   'data-prh-local-first-spa="1"',

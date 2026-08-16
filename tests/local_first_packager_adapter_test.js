@@ -52,7 +52,8 @@ assert.strictEqual(currentRootConfig.marker.runtime_network_required_for_warm_ro
 assert.strictEqual(currentRootConfig.marker.external_cdn_required, false);
 assert.strictEqual(currentRootConfig.marker.cost_class, 'FREE_ONLY');
 assert.strictEqual(currentRootConfig.marker.modules.includes('pwa/local_finance_runtime.js'), true, 'FIN-LF activation must include the finance browser runtime');
-assert.strictEqual(currentRootConfig.marker.modules.includes('pwa/local_planning_runtime.js'), false, 'PACK-LF-002 bootstrap must not activate planning in the root marker');
+assert.strictEqual(currentRootConfig.marker.modules.includes('pwa/local_planning_runtime.js'), true, 'PLAN-REC-001 must activate planning only after PACK-LF-002 reached trusted main');
+assert.strictEqual(fs.existsSync(path.join(ROOT, 'pwa', 'local_planning_runtime.js')), true, 'activated planning module must be tracked in the feature candidate');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'prh-pack-lf-'));
 const packBootstrapRoot = path.join(temp, 'pack-bootstrap-root');
@@ -190,7 +191,8 @@ try {
     markerEnabledDeterministic:true,
     enabledModules:marker().modules.length,
     planningAllowlisted:true,
-    planningRootActivated:false,
+    currentRootPlanningActivated:true,
+    packBootstrapActivatedPlanning:false,
     planningSyntheticDeterministic:true,
     planningMissingFileFailClosed:true,
     candidateSelfAttestationAllowed:false,

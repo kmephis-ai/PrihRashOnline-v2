@@ -251,7 +251,7 @@ Start with:
 - active Roadmap Issue/task packet;
 - relevant architecture/data/operations contracts.
 
-AIENG-001, AIENG-002 и AIENG-003 — historical DONE. `MASTER-LF-PRODUCT` доказан `E2E-LF-001` #273 / PR #274; `GOV-LF-001` #275 — единственный current writer до Main Verification Roadmap v2.5. После него единственный explicit next `READY` — `PLAN-REC-001`; VIZ/E2E/STUDIO legacy recovery и YC/YDB lanes следуют post-LF dispositions/gates, ANL-090 #217 остаётся `BLOCKED / PAUSED_REBASELINE`. FIN-TRUTH, private migration `OWNER_VERIFIED`, privacy, `FREE_ONLY` и write boundaries сохраняются.
+AIENG-001, AIENG-002 и AIENG-003 — historical DONE. `MASTER-LF-PRODUCT` доказан `E2E-LF-001` #273 / PR #274; `GOV-LF-001` #275 / PR #276 завершён Main Verification. `PLAN-REC-001` #225 — единственный current writer; owner-approved Budget/Obligations/Liquidity authority реализуется поверх Local-first core без financial writes, inferred balances/recurrence и Cash Flow-as-balance proxy. VIZ/E2E/STUDIO legacy recovery и YC/YDB lanes следуют post-LF dispositions/gates, ANL-090 #217 остаётся `BLOCKED / PAUSED_REBASELINE`. FIN-TRUTH, private migration `OWNER_VERIFIED`, privacy, `FREE_ONLY` и write boundaries сохраняются.
 
 ## 19. Local Git Mirror — ADWF
 

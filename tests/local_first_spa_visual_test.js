@@ -11,6 +11,7 @@ const { chromium } = require('playwright');
 const root = path.join(__dirname, '..');
 const sourceHtml = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
 const dataExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstDataSpaExtension.html'), 'utf8');
+const planningExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstPlanningSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 function htmlOutput(content) {
   return {
@@ -26,6 +27,7 @@ const serviceContext = vm.createContext({
     createHtmlOutputFromFile(name){
       if (name === 'LocalFirstSpaWebApp') return htmlOutput(sourceHtml);
       if (name === 'LocalFirstDataSpaExtension') return htmlOutput(dataExtensionHtml);
+      if (name === 'LocalFirstPlanningSpaExtension') return htmlOutput(planningExtensionHtml);
       throw new Error(`unexpected HtmlService file: ${name}`);
     },
     createHtmlOutput(content){ return htmlOutput(content); }
@@ -35,12 +37,13 @@ vm.runInContext(serviceSource, serviceContext, { filename:'LocalFirstSpaService.
 const html = serviceContext.prhLocalFirstSpaRender_({ lf_route:'home', privacy:'MASKED', lf_diag:'1' }).getContent();
 assert(html.includes('data-lf-server-responsive-guard="1"'),'server-rendered responsive guard missing');
 assert(html.includes('data-prh-local-first-data-extension="1.0.0"'),'server-rendered Data extension missing');
+assert(html.includes('data-prh-local-first-planning-extension="1.0.0"'),'server-rendered Planning extension missing');
 const artifactDir = path.join(root, 'artifacts');
 fs.mkdirSync(artifactDir, { recursive:true });
 const tempFile = path.join(os.tmpdir(), `prh-local-first-spa-${process.pid}.html`);
 fs.writeFileSync(tempFile, html, 'utf8');
 
-const routes = ['home','transactions','expenses','income','cash-flow','data-quality'];
+const routes = ['home','transactions','expenses','income','cash-flow','budget','obligations','liquidity','data-quality'];
 const viewports = [
   {name:'desktop',width:1440,height:900},
   {name:'mobile',width:390,height:844}
@@ -106,8 +109,14 @@ function p95(values) {
         assert.strictEqual(loadCount, 1, `${viewport.name} warm route clicks must not reload document`);
         assert.deepStrictEqual(warmRequests, [], `${viewport.name} warm route clicks emitted requests: ${warmRequests.join(' | ')}`);
 
+        const previousRoute = routes[routes.length - 2];
         await page.evaluate(() => history.back());
-        await page.waitForFunction(() => document.body.dataset.activeLfRoute === 'cash-flow');
+        await page.waitForFunction((expected) => document.body.dataset.activeLfRoute === expected, previousRoute);
+        assert.strictEqual(
+          await page.evaluate(() => window.__PRH_LF_SPA_TEST__.getState().activeRoute),
+          previousRoute,
+          `${viewport.name} Back must restore the immediately previous route`
+        );
         assert.strictEqual(loadCount, 1, `${viewport.name} Back must not reload document`);
         await page.evaluate(() => history.forward());
         await page.waitForFunction(() => document.body.dataset.activeLfRoute === 'data-quality');

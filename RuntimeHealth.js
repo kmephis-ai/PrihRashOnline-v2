@@ -83,6 +83,47 @@ function prhReleaseHealthCheck(expectedBuild) {
     throw new Error('RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID');
   }
 
+  // PLAN-REC-001 owner-authority proof. The planning payload remains inside
+  // authenticated Apps Script execution; CI receives only the stable health token.
+  // This validates exact canonical-revision binding plus no-write/no-inference
+  // authority without requiring 06 Баланс to exist: SETUP_REQUIRED is a valid
+  // owner-visible state and Cash Flow must never substitute for balance observations.
+  if (typeof prhPlanningLocalFirstBootstrapWire !== 'function') {
+    throw new Error('RUNTIME_HEALTH_PLANNING_SYNC_WIRE_MISSING');
+  }
+  var planningWire;
+  var planningBootstrap;
+  try {
+    planningWire = prhPlanningLocalFirstBootstrapWire({
+      local_planning_revision: '',
+      expected_canonical_revision: String(localFirstBootstrap.revision || '')
+    });
+    if (typeof planningWire !== 'string' || !planningWire) {
+      throw new Error('PLANNING_SYNC_WIRE_RESPONSE_INVALID');
+    }
+    planningBootstrap = JSON.parse(planningWire);
+  } catch (error) {
+    var planningRaw = String(error && (error.code || error.message) || '').trim();
+    var planningMatch = planningRaw.match(/\b(?:PLANNING|LOCAL_PLANNING|CANONICAL|R2)_[A-Z0-9_]{2,96}\b/);
+    if (planningMatch) throw new Error('RUNTIME_HEALTH_PLANNING_' + planningMatch[0]);
+    throw new Error('RUNTIME_HEALTH_PLANNING_UNCLASSIFIED_FAILURE');
+  }
+  if (!planningBootstrap || planningBootstrap.state !== 'FULL_SNAPSHOT' ||
+      planningBootstrap.schema !== 'PRH_LOCAL_PLANNING_SYNC_RESPONSE_V1' ||
+      planningBootstrap.canonical_revision !== localFirstBootstrap.revision ||
+      !/^[0-9a-f]{64}$/.test(String(planningBootstrap.planning_revision || '')) ||
+      planningBootstrap.financial_write_authorized !== false ||
+      planningBootstrap.canonical_mutation_performed !== false ||
+      planningBootstrap.auto_transaction_creation !== false ||
+      planningBootstrap.cash_flow_balance_proxy_used !== false ||
+      !planningBootstrap.source || planningBootstrap.source.schema !== 'PRH_LOCAL_PLANNING_SOURCE_V1' ||
+      planningBootstrap.source.canonical_revision !== localFirstBootstrap.revision ||
+      planningBootstrap.source.planning_revision !== planningBootstrap.planning_revision ||
+      !planningBootstrap.source.budget || !planningBootstrap.source.recurring ||
+      !planningBootstrap.source.commitments || !planningBootstrap.source.liquidity) {
+    throw new Error('RUNTIME_HEALTH_PLANNING_BOOTSTRAP_INVALID');
+  }
+
   return {
     ok:true,
     status:'OK',
@@ -94,6 +135,7 @@ function prhReleaseHealthCheck(expectedBuild) {
     readCheck:true,
     dataRuntimeCheck:true,
     localFirstSyncCheck:true,
+    planningLocalFirstCheck:true,
     latencyMs:Math.max(0,Date.now()-startedAt)
   };
 }

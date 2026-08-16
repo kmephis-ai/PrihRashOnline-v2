@@ -8,6 +8,7 @@ const vm = require('vm');
 const root = path.join(__dirname, '..');
 const htmlSource = fs.readFileSync(path.join(root, 'LocalFirstSpaWebApp.html'), 'utf8');
 const dataExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstDataSpaExtension.html'), 'utf8');
+const planningExtensionHtml = fs.readFileSync(path.join(root, 'LocalFirstPlanningSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'LocalFirstSpaService.js'), 'utf8');
 
 function htmlOutput(content) {
@@ -26,6 +27,7 @@ const context = vm.createContext({
     createHtmlOutputFromFile(name){
       if (name === 'LocalFirstSpaWebApp') return htmlOutput(htmlSource);
       if (name === 'LocalFirstDataSpaExtension') return htmlOutput(dataExtensionHtml);
+      if (name === 'LocalFirstPlanningSpaExtension') return htmlOutput(planningExtensionHtml);
       throw new Error(`unexpected HtmlService file: ${name}`);
     },
     createHtmlOutput(content){ return htmlOutput(content); }
@@ -65,6 +67,7 @@ for (const required of [
 }
 
 assert(household.includes('data-prh-local-first-data-extension="1.0.0"'), 'Data extension must be part of server-rendered Local-first document');
+assert(household.includes('data-prh-local-first-planning-extension="1.0.0"'), 'Planning extension must be part of server-rendered Local-first document');
 assert(household.includes('id="lf-revision-chip" hidden'), 'technical revision chip must be hidden outside diagnostic mode');
 assert(household.includes("function provenance(view){return '<div class=\"provenance\"><div>Источник: <strong>ваши проверенные операции</strong>"), 'normal provenance must be owner-facing');
 assert(household.includes("'Данные готовы'"), 'READY status must be owner-facing');

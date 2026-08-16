@@ -14,7 +14,7 @@ const DATA_SMOKE = 'PRH_R2_DATA_RUNTIME_V1|READ_ONLY|OK';
 
 function createContext(options = {}) {
   const existingSheets = new Set(options.sheets || ['operations','settings','control']);
-  const readCounter={value:0}, webSmokeCounter={value:0}, homeReadSmokeCounter={value:0}, dataSmokeCounter={value:0}, localFirstCounter={value:0};
+  const readCounter={value:0}, webSmokeCounter={value:0}, homeReadSmokeCounter={value:0}, dataSmokeCounter={value:0}, localFirstCounter={value:0}, planningCounter={value:0};
   const spreadsheet=options.noSpreadsheet?null:{
     getSheetByName(name){
       if(!existingSheets.has(name))return null;
@@ -48,22 +48,38 @@ function createContext(options = {}) {
     };
     return JSON.stringify(envelope);
   };
+  if(!options.planningMissing)context.prhPlanningLocalFirstBootstrapWire=function(request){
+    planningCounter.value+=1;
+    assert(request&&typeof request==='object');
+    assert.strictEqual(request.local_planning_revision,'');
+    assert.strictEqual(request.expected_canonical_revision,'c'.repeat(64));
+    if(options.planningThrows){
+      const error=new Error(options.planningErrorMessage||'PLANNING_SOURCE_SCHEMA_UNSUPPORTED');
+      if(options.planningErrorCode)error.code=options.planningErrorCode;
+      throw error;
+    }
+    if(options.planningRawWire!==undefined)return options.planningRawWire;
+    const planningRevision='d'.repeat(64);
+    const source={schema:'PRH_LOCAL_PLANNING_SOURCE_V1',version:'1.0.0',canonical_revision:'c'.repeat(64),planning_revision:planningRevision,currency:'RUB',budget:{state:'NOT_CONFIGURED',plans:[]},recurring:{state:'EMPTY',plans:[]},commitments:{state:'EMPTY',items:[]},liquidity:{state:'SETUP_REQUIRED',observations:[]}};
+    const envelope=options.planningInvalid||{schema:'PRH_LOCAL_PLANNING_SYNC_RESPONSE_V1',version:'1.0.0',state:'FULL_SNAPSHOT',canonical_revision:'c'.repeat(64),planning_revision:planningRevision,source,financial_write_authorized:false,canonical_mutation_performed:false,auto_transaction_creation:false,cash_flow_balance_proxy_used:false};
+    return JSON.stringify(envelope);
+  };
   vm.createContext(context);vm.runInContext(source,context,{filename:'RuntimeHealth.js'});
-  return{context,readCounter,webSmokeCounter,homeReadSmokeCounter,dataSmokeCounter,localFirstCounter};
+  return{context,readCounter,webSmokeCounter,homeReadSmokeCounter,dataSmokeCounter,localFirstCounter,planningCounter};
 }
 
 const transportOnly=createContext({noSpreadsheet:true});
 assert.strictEqual(transportOnly.context.prhRuntimeTransportPing(),'PRH_TRANSPORT_V1|OK');
 assert.strictEqual(transportOnly.readCounter.value,0);
 assert.strictEqual(transportOnly.dataSmokeCounter.value,0);
-assert.strictEqual(transportOnly.localFirstCounter.value,0);
+assert.strictEqual(transportOnly.localFirstCounter.value,0);assert.strictEqual(transportOnly.planningCounter.value,0);
 
 const healthy=createContext();
 const result=healthy.context.prhReleaseHealthCheck({candidateSha,sourceTreeHash});
 assert.strictEqual(result.ok,true);assert.strictEqual(result.status,'OK');assert.strictEqual(result.candidateSha,candidateSha);assert.strictEqual(result.sourceTreeHash,sourceTreeHash);
-assert.strictEqual(result.buildInfoSchemaVersion,1);assert.strictEqual(result.runtime,'V8');assert.strictEqual(result.requiredSheetCount,3);assert.strictEqual(result.readCheck,true);assert.strictEqual(result.dataRuntimeCheck,true);assert.strictEqual(result.localFirstSyncCheck,true);
+assert.strictEqual(result.buildInfoSchemaVersion,1);assert.strictEqual(result.runtime,'V8');assert.strictEqual(result.requiredSheetCount,3);assert.strictEqual(result.readCheck,true);assert.strictEqual(result.dataRuntimeCheck,true);assert.strictEqual(result.localFirstSyncCheck,true);assert.strictEqual(result.planningLocalFirstCheck,true);
 assert(Number.isInteger(result.latencyMs)&&result.latencyMs>=0);
-assert.strictEqual(healthy.readCounter.value,1);assert.strictEqual(healthy.webSmokeCounter.value,1);assert.strictEqual(healthy.homeReadSmokeCounter.value,1);assert.strictEqual(healthy.dataSmokeCounter.value,1);assert.strictEqual(healthy.localFirstCounter.value,1);
+assert.strictEqual(healthy.readCounter.value,1);assert.strictEqual(healthy.webSmokeCounter.value,1);assert.strictEqual(healthy.homeReadSmokeCounter.value,1);assert.strictEqual(healthy.dataSmokeCounter.value,1);assert.strictEqual(healthy.localFirstCounter.value,1);assert.strictEqual(healthy.planningCounter.value,1);
 
 const tokenHealthy=createContext();
 const token=tokenHealthy.context.prhReleaseHealthCheckToken({candidateSha,sourceTreeHash});
@@ -73,6 +89,7 @@ assert.deepStrictEqual(tokenParts.slice(0,8),['PRH_HEALTH_V1','OK',candidateSha,
 assert(/^\d+$/.test(tokenParts[8]));
 assert.strictEqual(tokenHealthy.dataSmokeCounter.value,1,'DATA proof must execute even though scalar shape is unchanged');
 assert.strictEqual(tokenHealthy.localFirstCounter.value,1,'Local-first scalar JSON wire proof must execute even though health token shape is unchanged');
+assert.strictEqual(tokenHealthy.planningCounter.value,1,'Planning scalar JSON wire proof must execute even though health token shape is unchanged');
 
 const publicResult=JSON.parse(JSON.stringify(result));
 ['amount','income','expense','balance','description','category','row','value','payload','account'].forEach((forbidden)=>{
@@ -100,8 +117,12 @@ assert.throws(()=>createContext({localFirstThrows:true,localFirstErrorMessage:'p
 assert.throws(()=>createContext({localFirstRawWire:'{malformed'}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_LOCAL_FIRST_UNCLASSIFIED_FAILURE/);
 assert.throws(()=>createContext({localFirstInvalid:{schema:'bad',state:'FULL_BOOTSTRAP',financial_write_authorized:false,canonical_mutation_performed:false,transactions:[{destination_account_id:null}],serialized_chars:1}}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID/);
 assert.throws(()=>createContext({localFirstInvalid:{schema:'PRH_LOCAL_FIRST_SYNC_SNAPSHOT_V1',state:'FULL_BOOTSTRAP',financial_write_authorized:false,canonical_mutation_performed:false,transactions:[{}],serialized_chars:1}}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_LOCAL_FIRST_BOOTSTRAP_INVALID/);
+assert.throws(()=>createContext({planningMissing:true}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_PLANNING_SYNC_WIRE_MISSING/);
+assert.throws(()=>createContext({planningThrows:true,planningErrorCode:'PLANNING_SOURCE_SCHEMA_UNSUPPORTED'}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_PLANNING_PLANNING_SOURCE_SCHEMA_UNSUPPORTED/);
+assert.throws(()=>createContext({planningRawWire:'{malformed'}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_PLANNING_UNCLASSIFIED_FAILURE/);
+assert.throws(()=>createContext({planningInvalid:{schema:'bad',state:'FULL_SNAPSHOT',canonical_revision:'c'.repeat(64),planning_revision:'d'.repeat(64),financial_write_authorized:false,canonical_mutation_performed:false,auto_transaction_creation:false,cash_flow_balance_proxy_used:false,source:{}}}).context.prhReleaseHealthCheck({candidateSha,sourceTreeHash}),/RUNTIME_HEALTH_PLANNING_BOOTSTRAP_INVALID/);
 
 console.log('runtime_health_contract_test: OK',{
   exactSha:true,sourceTreeHash:true,transportPing:true,privateSchemaRead:true,webAppRenderSmoke:'V5_R2',privateHomeReadSmoke:'V3_CANONICAL_LIB_DIMENSION_HASH',
-  dataRuntimeSmoke:'V1_READ_ONLY',localFirstScalarJsonWire:true,nullableDestinationWireKey:true,privacySafeOwnerBootstrapFailure:true,scalarShapePreserved:true,financialPayload:false
+  dataRuntimeSmoke:'V1_READ_ONLY',localFirstScalarJsonWire:true,planningLocalFirstWire:true,nullableDestinationWireKey:true,privacySafeOwnerBootstrapFailure:true,scalarShapePreserved:true,financialPayload:false
 });

@@ -16,6 +16,9 @@
     "expenses",
     "income",
     "cash-flow",
+    "budget",
+    "obligations",
+    "liquidity",
     "data-quality"
   ],
   "lifecycle": {
@@ -43,7 +46,12 @@
     "truthful_unbound_state": true,
     "synthetic_financial_values": false,
     "developer_reason_codes_visible": false,
-    "allowed_privacy_modes": ["NORMAL", "MASKED", "DEMO", "ZEN"],
+    "allowed_privacy_modes": [
+      "NORMAL",
+      "MASKED",
+      "DEMO",
+      "ZEN"
+    ],
     "invalid_privacy_mode": "MASKED_FAIL_SAFE",
     "financial_payload_in_url_history": false
   },
@@ -55,7 +63,11 @@
     "background_sync_bound": false,
     "background_sync_owner": "SYNC-LF-001/DELTA-LF-001",
     "financial_write": false,
-    "canonical_mutation": false
+    "canonical_mutation": false,
+    "planning_bound": true,
+    "planning_owner": "PLAN-REC-001",
+    "planning_warm_network": false,
+    "planning_financial_write": false
   },
   "product_gate": {
     "exit_gate": "MASTER-LF-SPA",
