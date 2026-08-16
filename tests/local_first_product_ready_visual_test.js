@@ -475,14 +475,35 @@ function evidenceRecord(fields) {
       const snapshotA={status:'READY',schema:'PRH_LOCAL_READ_MODEL_V1',generation_id:'a'.repeat(64),revision:'a'.repeat(64),transactions:transactions.slice(0,2),dimensions,aggregates:[]};
       const snapshotB={status:'READY',schema:'PRH_LOCAL_READ_MODEL_V1',generation_id:'b'.repeat(64),revision:'b'.repeat(64),transactions:transactions.slice(0,3),dimensions,aggregates:[]};
       await page.evaluate(({snapshotA,snapshotB})=>{
-        const original=window.PrhLocalReadModelStore;let calls=0,resolveFirst;
+        const originalStore=window.PrhLocalReadModelStore;
+        const originalFinance=window.__PRH_LF_FINANCE_RUNTIME__;
+        let calls=0,resolveFirst;
+        let financeState=Object.assign({},originalFinance.getState(),{
+          snapshot_status:'READY',
+          generation_id:snapshotA.generation_id,
+          revision:snapshotA.revision
+        });
         const first=new Promise((resolve)=>{resolveFirst=resolve});
-        window.__PRODUCT_READY_STALE__={calls:()=>calls,resolveFirst:()=>resolveFirst(snapshotA)};
-        window.PrhLocalReadModelStore=Object.assign({},original,{createStore(){return {open:async()=>({status:'OPEN'}),getActiveSnapshot:async()=>{calls+=1;return calls===1?first:snapshotB}}}});
+        window.__PRH_LF_FINANCE_RUNTIME__=Object.assign({},originalFinance,{getState:()=>financeState});
+        window.__PRODUCT_READY_STALE__={
+          calls:()=>calls,
+          promoteFinanceToB:()=>{
+            financeState=Object.assign({},financeState,{
+              snapshot_status:'READY',
+              generation_id:snapshotB.generation_id,
+              revision:snapshotB.revision
+            });
+          },
+          resolveFirst:()=>resolveFirst(snapshotA)
+        };
+        window.PrhLocalReadModelStore=Object.assign({},originalStore,{createStore(){return {open:async()=>({status:'OPEN'}),getActiveSnapshot:async()=>{calls+=1;return calls===1?first:snapshotB}}}});
       },{snapshotA,snapshotB});
       await page.click('[data-lf-route="transactions"]');
       await page.waitForFunction(()=>window.__PRODUCT_READY_STALE__.calls()===1);
-      await page.evaluate(()=>window.__PRH_LF_DATA_EXTENSION__.render());
+      await page.evaluate(()=>{
+        window.__PRODUCT_READY_STALE__.promoteFinanceToB();
+        return window.__PRH_LF_DATA_EXTENSION__.render();
+      });
       await page.waitForFunction(()=>window.__PRH_LF_DATA_EXTENSION__.getState().lastState?.revision==='b'.repeat(64));
       await page.evaluate(()=>window.__PRODUCT_READY_STALE__.resolveFirst());
       await page.waitForTimeout(80);
