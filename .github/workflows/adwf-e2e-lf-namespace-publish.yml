@@ -1,0 +1,84 @@
+name: ADWF E2E-LF Namespace Exact Publish
+
+on:
+  push:
+    branches:
+      - agent/e2e-lf-namespace-publish-20260816-a1
+
+permissions:
+  contents: write
+
+env:
+  EXPECTED_OLD: 5b6c7e712e1b67b2009529a12add9cb5467a933e
+  EXPECTED_TREE: 704ac2d9be37728ff41e32b2ae07c756a0faf700
+  EXPECTED_PATCH_SHA256: 05f299ae3c4d5e7cad00e8d5ff2aeb669d25643842120c32432cb1490856e04a
+  WRITER_BRANCH: agent/E2E-LF-001-product-ready-local-first
+
+jobs:
+  publish-exact-tree:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Preserve and verify exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .adwf-transport/e2e-lf-namespace-repair.patch /tmp/e2e-lf-namespace-repair.patch
+          ACTUAL_SHA="$(sha256sum /tmp/e2e-lf-namespace-repair.patch | awk '{print $1}')"
+          test "${ACTUAL_SHA}" = "${EXPECTED_PATCH_SHA256}"
+
+      - name: Verify writer has not moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_HEAD="$(git ls-remote origin "refs/heads/${WRITER_BRANCH}" | awk '{print $1}')"
+          test "${REMOTE_HEAD}" = "${EXPECTED_OLD}"
+
+      - name: Reproduce exact local tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "${EXPECTED_OLD}"
+          git apply --check /tmp/e2e-lf-namespace-repair.patch
+          git apply /tmp/e2e-lf-namespace-repair.patch
+          git add \
+            lib/local_first/local_first_product_ready.v1.json \
+            pwa/local_finance_runtime.js \
+            pwa/local_first_performance.js \
+            tests/local_finance_startup_cache_reload_runtime_test.js \
+            tests/local_finance_startup_view_cache_runtime_test.js \
+            tests/local_first_performance_runtime_test.js \
+            tests/local_first_product_ready_runtime_test.js \
+            tests/local_first_product_ready_visual_test.js
+          TREE="$(git write-tree)"
+          test "${TREE}" = "${EXPECTED_TREE}"
+          COMMIT="$(printf '%s\n' '[E2E-LF-001] Align Product Ready Local Read Model namespace' | \
+            git -c user.name='kmephis-ai' -c user.email='kmephis@gmail.com' commit-tree "${TREE}" -p "${EXPECTED_OLD}")"
+          echo "COMMIT=${COMMIT}" >> "$GITHUB_ENV"
+
+      - name: Fast-forward exact tree to writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "${COMMIT}^{tree}")" = "${EXPECTED_TREE}"
+          git push origin "${COMMIT}:refs/heads/${WRITER_BRANCH}"
+          REMOTE_HEAD="$(git ls-remote origin "refs/heads/${WRITER_BRANCH}" | awk '{print $1}')"
+          test "${REMOTE_HEAD}" = "${COMMIT}"
+
+      - name: Publish evidence
+        shell: bash
+        run: |
+          {
+            echo '## ADWF E2E-LF namespace repair publish PASS'
+            echo
+            echo "- writer: \`${WRITER_BRANCH}\`"
+            echo "- old: \`${EXPECTED_OLD}\`"
+            echo "- head: \`${COMMIT}\`"
+            echo "- tree: \`${EXPECTED_TREE}\`"
+            echo "- patch sha256: \`${EXPECTED_PATCH_SHA256}\`"
+            echo '- mode: ordinary fast-forward, no force push'
+          } >> "$GITHUB_STEP_SUMMARY"
