@@ -35,7 +35,9 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `DATA-LF-001` — **DONE / Main Verification PASS**, Issue #263, PR #264, merge `326ddad4d5c41d684b1cec9e4a8a97bc680c5ed7`; exact-candidate Owner Product UAT PASS, warm p95 `43.40 ms`, `10` переходов, прогрев `4`, сеть `0`, Back/Forward PASS, loading/error PASS.
 
-`PERF-LF-001` — **current writer / текущий writer**, Issue #265, PR #266, branch `agent/PERF-LF-001-local-first-performance-truth`. Это единственный active writer. Цель: real-browser performance truth по шести Local-first SLO, единый privacy-safe Performance Report, monotonic browser timing + nearest-rank p95, отдельные cold/warm domains, desktop/mobile evidence и zero mandatory network / zero Google Sheets reads перед exact-candidate Product UAT.
+`PERF-LF-001` — **DONE / Main Verification PASS**, Issue #265, PR #266, candidate `7a41884cb1a812796bc2d473aaf0b86991dfcf65`, Apps Script v252, merge `bd181178c241418d0c22973d0d59ce2fdefb6195`; Owner UAT #10 PASS по неизменённым SLO, включая Back/Forward p95 `54.30 ms` и cached FMP `473.70 ms`, при zero mandatory network / Google Sheets reads.
+
+`E2E-LF-001` — **current writer / текущий writer**, Issue #273, branch `agent/E2E-LF-001-product-ready-local-first`. Это единственный active writer. Цель: authenticated exact-candidate `MASTER-LF-PRODUCT` через полный Local-first Product Ready journey desktop + mobile с FIN-TRUTH, retained performance SLO, zero-network warm path и fail-closed loading/degraded/offline/recovery truth.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -68,13 +70,13 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 `PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0` использует тот же `PRH_LOCAL_READ_MODEL_V1` snapshot для `transactions` и `data-quality`. Transaction filters, 20-row pagination и detail выполняются локально; detail не может выйти за текущий filter set. History хранит только безопасные query keys/IDs, без amount/description/counterparty payload. Data Quality read-only проверяет referential consistency transaction -> category/account/member dimensions и группы совпадающих source fingerprints. Эти сигналы не заменяют canonical validation и не получают autofix/write authority. Async render epoch запрещает commit результата старой generation после нового route/revision render.
 
-`PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0` задаёт текущий acceptance contract `PERF-LF-001`: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Monotonic `performance.now()` и nearest-rank p95 измеряют реальные browser boundaries. Cold bootstrap, background sync и server technical health latency не подменяют warm Product SLO; insufficient/invalid samples fail-closed.
+`PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0` задаёт retained performance contract, доказанный в завершённом `PERF-LF-001` и обязательный для `E2E-LF-001`: warm route p95 <=100 ms; filter/KPI <=200 ms; ordinary chart repaint desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Monotonic `performance.now()` и nearest-rank p95 измеряют реальные browser boundaries. Cold bootstrap, background sync и server technical health latency не подменяют warm Product SLO; insufficient/invalid samples fail-closed.
 
 ## Product Recovery handoff
 
 `R2R` forensic/product recovery и `MASTER-GUX` остаются исходной причиной architectural rebaseline: большое число engineering DONE не доказало достаточную product responsiveness/integration. Local-first recovery теперь имеет приоритет над дальнейшим feature expansion. R9/R10 frozen; old PLAN/E2E/STUDIO recovery scopes re-depend после LF architecture/product gates.
 
-Product lifecycle неизменен: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` требует exact-candidate Product Ready evidence; architecture docs и synthetic tests не являются owner UAT. Для PERF-LF-001 автоматические Chromium tests могут доказать engineering/runtime correctness и desktop/mobile synthetic SLO, но AI/CI не может самостоятельно выдать owner Product UAT.
+Product lifecycle неизменен: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` требует exact-candidate Product Ready evidence; architecture docs и synthetic tests не являются owner UAT. Для `E2E-LF-001` автоматические Chromium tests доказывают engineering/runtime correctness и representative desktop/mobile journey, но полный owner `GENERIC_V1` Product UAT desktop + mobile обязателен; AI/CI не может выдать его самостоятельно.
 
 ## Current R0 truth
 
@@ -108,7 +110,7 @@ PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh
 
 ## Future YDB boundary
 
-`YC-040` PoC/cost envelope остаётся foundation. На PERF-LF-001 live YDB resource не создаётся и write ownership не меняется.
+`YC-040` PoC/cost envelope остаётся foundation. На `E2E-LF-001` live YDB resource не создаётся и write ownership не меняется.
 
 Migration ladder:
 

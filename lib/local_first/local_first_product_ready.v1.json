@@ -1,0 +1,167 @@
+{
+  "schema": "PRH_LOCAL_FIRST_PRODUCT_READY_V1",
+  "version": "1.0.0",
+  "roadmap_id": "E2E-LF-001",
+  "phase": "LF4",
+  "protocol_wave": "R2R",
+  "priority": "P0",
+  "work_class": "user_facing",
+  "exit_gate": "MASTER-LF-PRODUCT",
+  "product_gate": "PRODUCT_READY_E2E",
+  "cost_class": "FREE_ONLY",
+  "source_contracts": {
+    "architecture": "PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0",
+    "spa": "PRH_LOCAL_FIRST_SPA_SHELL_V1@1.0.0",
+    "finance": "PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0",
+    "data": "PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0",
+    "performance": "PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0",
+    "financial_truth": "FIN-TRUTH-v1"
+  },
+  "local_read_model": {
+    "storage_namespace": "prihrash-local-first-v3",
+    "namespace_authority": "PRH_LOCAL_FIRST_CACHE_NAMESPACE.ACTIVE_BOOT_TOKEN",
+    "same_namespace_for_finance_startup_cache": true,
+    "same_namespace_for_performance_probe": true
+  },
+  "candidate": {
+    "exact_sha_required": true,
+    "authenticated_dev_deploy_required": true,
+    "trusted_runtime_health_required": true,
+    "pr_validation_required": true,
+    "owner_uat_profile": "GENERIC_V1",
+    "owner_authentication_required": true,
+    "assistant_self_attestation_allowed": false,
+    "machine_mobile_replaces_owner_mobile": false
+  },
+  "devices": {
+    "machine_e2e": ["DESKTOP", "REPRESENTATIVE_MOBILE"],
+    "owner_uat": ["DESKTOP", "MOBILE"]
+  },
+  "journey": {
+    "route_order": ["home", "expenses", "income", "cash-flow", "transactions", "data-quality"],
+    "single_document": true,
+    "request_per_view_primary_path": false,
+    "shared_finance_filter_context": true,
+    "finance_filter_required": true,
+    "transaction_filter_required": true,
+    "transaction_drill_required": true,
+    "sync_refresh_required": true,
+    "back_forward_required": true,
+    "onboarding_entry": "CONDITIONAL_EXACT_OWNER_RUNTIME",
+    "canonical_financial_write": false
+  },
+  "required_scenarios": [
+    "READY_LOCAL_FULL_JOURNEY",
+    "FILTER_CONTEXT_PERSISTS_ACROSS_FINANCE_ROUTES",
+    "TRANSACTION_FILTER_AND_DRILL",
+    "BACK_FORWARD_WITHOUT_DOCUMENT_RELOAD",
+    "BACKGROUND_SYNC_REFRESH",
+    "REMOTE_FAILURE_WITH_VERIFIED_LOCAL_DEGRADED",
+    "REMOTE_RECOVERY_TO_VERIFIED_READY",
+    "OFFLINE_LOCAL_READ_AVAILABLE",
+    "NO_ACTIVE_SNAPSHOT_FAILS_CLOSED",
+    "STALE_GENERATION_COMPLETION_DISCARDED"
+  ],
+  "state_truth": {
+    "loading_visible": true,
+    "degraded_sync_visible": true,
+    "recovery_visible": true,
+    "remote_failure_may_masquerade_as_success": false,
+    "verified_local_remains_readable_on_remote_failure": true,
+    "stale_generation_acceptance": false,
+    "fatal_runtime_errors_allowed": false,
+    "duplicate_app_shell_allowed": false,
+    "developer_only_markers_owner_visible": false
+  },
+  "financial_truth": {
+    "canonical_worker_only": true,
+    "ui_financial_formula_allowed": false,
+    "exact_revision_provenance_required": true,
+    "fin_parity_required": true,
+    "canonical_financial_write": false
+  },
+  "performance": {
+    "warm_route_switch_p95_ms": 100,
+    "filter_kpi_update_p95_ms": 200,
+    "chart_repaint_desktop_p95_ms": 300,
+    "chart_repaint_mobile_p95_ms": 500,
+    "back_forward_p95_ms": 100,
+    "cached_first_meaningful_paint_p95_ms": 800,
+    "warm_mandatory_network_requests": 0,
+    "warm_google_sheets_reads": 0,
+    "warm_server_document_reloads": 0
+  },
+  "machine_evidence": {
+    "real_chromium_required": true,
+    "public_finance_data": "SYNTHETIC_ONLY",
+    "desktop_full_journey_required": true,
+    "representative_mobile_full_journey_required": true,
+    "real_indexeddb_required": true,
+    "worker_runtime_required": true,
+    "navigation_history_required": true,
+    "sync_degraded_recovery_required": true,
+    "performance_contract_retained": true
+  },
+  "owner_uat": {
+    "profile": "GENERIC_V1",
+    "required_fields": [
+      "owner_uat_desktop",
+      "owner_uat_mobile",
+      "owner_uat_visible_actions",
+      "owner_uat_russian_ui",
+      "owner_uat_no_developer_markers",
+      "owner_uat_visual_truth",
+      "owner_uat_visual_acceptance",
+      "owner_uat_back_forward",
+      "owner_uat_loading_error_states",
+      "owner_uat_route_switch_p95_ms"
+    ],
+    "all_required_fields_must_pass": true,
+    "exact_candidate_required": true,
+    "deployed_health_required": true
+  },
+  "privacy": {
+    "financial_payload_in_public_evidence": false,
+    "private_labels_in_public_evidence": false,
+    "private_ids_in_public_evidence": false,
+    "private_urls_in_public_evidence": false,
+    "allowed_evidence_fields": [
+      "schema",
+      "version",
+      "status",
+      "reason",
+      "route_id",
+      "action_id",
+      "runtime_state",
+      "sync_state",
+      "device_class",
+      "sample_count",
+      "p95_ms",
+      "threshold_ms",
+      "mandatory_network_requests",
+      "google_sheets_reads",
+      "document_loads",
+      "candidate_sha_prefix",
+      "source_tree_hash_prefix",
+      "revision_hash_prefix",
+      "generation_hash_prefix"
+    ]
+  },
+  "authorities": {
+    "canonical_financial_write": false,
+    "canonical_source_mutation": false,
+    "new_financial_formula": false,
+    "paid_dependency_required": false,
+    "ydb_prerequisite": false
+  },
+  "completion": {
+    "pr_validation": "PASS_EXACT_HEAD",
+    "trusted_dev_deploy": "PASS_EXACT_CANDIDATE",
+    "trusted_runtime_health": "PASS_EXACT_CANDIDATE",
+    "owner_product_uat": "PASS_GENERIC_V1_EXACT_CANDIDATE",
+    "product_ready_e2e_status": "SUCCESS_EXACT_CANDIDATE",
+    "autonomous_merge_before_product_ready": false,
+    "main_verification_required": true,
+    "issue_target_state": "DONE"
+  }
+}

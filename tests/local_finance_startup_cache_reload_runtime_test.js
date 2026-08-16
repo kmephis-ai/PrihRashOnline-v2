@@ -37,7 +37,7 @@ function closeServer(server) {
   try {
     await page.goto(url, { waitUntil:'load' });
     const seeded = await page.evaluate(async (revision) => {
-      const store = PrhLocalReadModelStore.createStore({ indexedDB, IDBKeyRange, name:'prihrash-local-first-v1' });
+      const store = PrhLocalReadModelStore.createStore({ indexedDB, IDBKeyRange, name:'prihrash-local-first-v3' });
       await store.wipe();
       await store.beginGeneration({ generationId:revision, revision });
       await store.writeGenerationChunk({
