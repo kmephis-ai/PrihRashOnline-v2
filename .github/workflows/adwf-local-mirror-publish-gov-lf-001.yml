@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      EXPECTED_BASE_SHA: 12f764edc34aad32693fc7589ff53ded53740d5d
+      EXPECTED_BASE_SHA: 2b03cb15857f2812c46e0ba7f36eaf52fa21f252
       TARGET_REF: refs/heads/agent/GOV-LF-001-roadmap-v25-consolidation
-      EXPECTED_BASE64_BYTES: 23680
-      EXPECTED_GZIP_SHA256: a65885da09b04855f116e43801244b36bf149104ab466c83826fea82469cd0cf
-      EXPECTED_PATCH_SHA256: bc1704b9e1f6582d16e5716e94fb5729b5c01053d0caed304c416ab288ae98e5
-      EXPECTED_PATCH_BYTES: 66223
+      EXPECTED_BASE64_BYTES: 3376
+      EXPECTED_GZIP_SHA256: 6b1e0b0992925f56ee01683bf73ae8de6c4da6eabdc430ff70a7d7a94aed13dd
+      EXPECTED_PATCH_SHA256: 64a7c112dd2b3e5eae595a9be2ef9cea49ca1a05bacc9886df7681d2b4ce1c38
+      EXPECTED_PATCH_BYTES: 6724
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -30,16 +30,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chunks=(.adwf/transport/gov-lf-001/chunk-*.b64)
-          test "${#chunks[@]}" -eq 6
-          cat "${chunks[@]}" > /tmp/gov-lf-001.patch.gz.b64
-          test "$(wc -c < /tmp/gov-lf-001.patch.gz.b64 | tr -d ' ')" = "${EXPECTED_BASE64_BYTES}"
-          base64 -d /tmp/gov-lf-001.patch.gz.b64 > /tmp/gov-lf-001.patch.gz
-          printf '%s  %s\n' "${EXPECTED_GZIP_SHA256}" /tmp/gov-lf-001.patch.gz | sha256sum -c -
-          gzip -dc /tmp/gov-lf-001.patch.gz > /tmp/gov-lf-001.patch
-          printf '%s  %s\n' "${EXPECTED_PATCH_SHA256}" /tmp/gov-lf-001.patch | sha256sum -c -
-          test "$(wc -c < /tmp/gov-lf-001.patch | tr -d ' ')" = "${EXPECTED_PATCH_BYTES}"
-          grep -q '^diff --git ' /tmp/gov-lf-001.patch
+          chunks=(.adwf/transport/gov-lf-001-ci-repair/chunk-*.b64)
+          test "${#chunks[@]}" -eq 1
+          cat "${chunks[@]}" > /tmp/gov-lf-001-ci-repair.patch.gz.b64
+          test "$(wc -c < /tmp/gov-lf-001-ci-repair.patch.gz.b64 | tr -d ' ')" = "${EXPECTED_BASE64_BYTES}"
+          base64 -d /tmp/gov-lf-001-ci-repair.patch.gz.b64 > /tmp/gov-lf-001-ci-repair.patch.gz
+          printf '%s  %s\n' "${EXPECTED_GZIP_SHA256}" /tmp/gov-lf-001-ci-repair.patch.gz | sha256sum -c -
+          gzip -dc /tmp/gov-lf-001-ci-repair.patch.gz > /tmp/gov-lf-001-ci-repair.patch
+          printf '%s  %s\n' "${EXPECTED_PATCH_SHA256}" /tmp/gov-lf-001-ci-repair.patch | sha256sum -c -
+          test "$(wc -c < /tmp/gov-lf-001-ci-repair.patch | tr -d ' ')" = "${EXPECTED_PATCH_BYTES}"
+          grep -q '^diff --git ' /tmp/gov-lf-001-ci-repair.patch
 
       - name: Verify exact remote writer head
         shell: bash
@@ -50,39 +50,33 @@ jobs:
           test "${actual}" = "${EXPECTED_BASE_SHA}"
           git cat-file -e "${EXPECTED_BASE_SHA}^{commit}"
 
-      - name: Apply exact local-mirror patch
+      - name: Apply exact Local Git Mirror repair patch
         shell: bash
         run: |
           set -euo pipefail
           git checkout -B adwf-publish "${EXPECTED_BASE_SHA}"
-          git apply --check /tmp/gov-lf-001.patch
-          git apply /tmp/gov-lf-001.patch
+          git apply --check /tmp/gov-lf-001-ci-repair.patch
+          git apply /tmp/gov-lf-001-ci-repair.patch
           git diff --check
 
-      - name: Verify intended change surface
+      - name: Verify intended repair surface
         shell: bash
         run: |
           set -euo pipefail
           cat > /tmp/expected-files.txt <<'EOF'
-          .ai-context/PROJECT_CONTEXT.md
-          AGENTS.md
-          docs/PROJECT_STATUS.md
-          docs/ROADMAP.md
-          docs/ROADMAP_LOCAL_FIRST_RECOVERY.md
-          lib/local_first/local_first_roadmap.v1.json
-          tests/local_first_architecture_policy_contract_test.js
-          tests/local_first_product_ready_runtime_test.js
-          tests/roadmap_task_protocol_contract_test.js
-          tools/roadmap-task-protocol.js
+          docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md
+          llms.txt
+          tools/ai-contract-scan.js
           EOF
           LC_ALL=C sort -o /tmp/expected-files.txt /tmp/expected-files.txt
           git diff --name-only | LC_ALL=C sort > /tmp/actual-files.txt
           diff -u /tmp/expected-files.txt /tmp/actual-files.txt
 
-      - name: Run GOV-LF-001 local contract gates
+      - name: Run failed gate and GOV-LF regression set
         shell: bash
         run: |
           set -euo pipefail
+          node tools/ai-contract-scan.js
           node tests/roadmap_task_protocol_contract_test.js
           node tests/local_first_architecture_policy_contract_test.js
           node tests/local_first_product_ready_runtime_test.js
@@ -96,27 +90,20 @@ jobs:
           node tools/privacy-public-data-scan.js
           node tools/secret-scan.js
 
-      - name: Commit one governance transaction
+      - name: Commit CI-red recovery on same writer
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- \
-            .ai-context/PROJECT_CONTEXT.md \
-            AGENTS.md \
-            docs/PROJECT_STATUS.md \
-            docs/ROADMAP.md \
-            docs/ROADMAP_LOCAL_FIRST_RECOVERY.md \
-            lib/local_first/local_first_roadmap.v1.json \
-            tests/local_first_architecture_policy_contract_test.js \
-            tests/local_first_product_ready_runtime_test.js \
-            tests/roadmap_task_protocol_contract_test.js \
-            tools/roadmap-task-protocol.js
+            docs/operations/AIENG003_MULTI_AI_REVIEW_PROTOCOL.md \
+            llms.txt \
+            tools/ai-contract-scan.js
           git diff --cached --name-only | LC_ALL=C sort > /tmp/staged-files.txt
           diff -u /tmp/expected-files.txt /tmp/staged-files.txt
           test -z "$(git ls-files --others --exclude-standard)"
-          git commit -m "[GOV-LF-001] Консолидировать Roadmap v2.5 после MASTER-LF-PRODUCT"
+          git commit -m "[GOV-LF-001] Синхронизировать AI contract с Roadmap v2.5"
 
       - name: Recheck race and publish fast-forward only
         shell: bash
