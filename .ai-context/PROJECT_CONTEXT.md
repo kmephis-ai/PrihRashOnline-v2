@@ -17,6 +17,8 @@
 
 Security/privacy/cost/irreversible boundaries всегда выше Roadmap amendment. Красный machine gate нельзя отменить human summary.
 
+Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> CI-003 autonomous squash merge -> Main Verification`. Красный этап не обходится и не заменяется human summary.
+
 ## Текущая инженерная задача
 
 `MASTER-LF-PRODUCT` завершён. `E2E-LF-001` Issue #273 / PR #274 — DONE / Main Verification PASS; Local-first Product Ready desktop+mobile доказан.
@@ -74,13 +76,19 @@ Lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_
 
 Одна конфликтующая writer-транзакция одновременно. Read-only audits допустимы параллельно. GitHub/provider state — source of truth. Не переходить к следующему writer до Main Verification текущего item.
 
+## Current R0 truth
+
+`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE -> AIENG-002 = DONE -> AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS.
+
+Read-only multi-AI review остаётся supplementary evidence без writer authority. Обязательная карта ролей: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`; P0/P1 блокируют продвижение до решения, P2/P3 advisory и не заменяют machine gates.
+
 ## Canonical platform truth
 
-`MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001`, `AIENG-002`, `AIENG-003`, `AIENG-004`, `AIENG-005`, `AIENG-006` — DONE/Main Verification PASS.
+`FIN-010` — **DONE**, Issue #85 Main Verification PASS. `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
 
-`FIN-010`, `DATA-010`, `ARCH-010`, `ARCH-011`, `MIG-010`, `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS. `MASTER-G3 / Canonical platform` complete; historical pre-close state: open.
+`ARCH-010` — **DONE / Main Verification PASS**, Issue #89. `ARCH-011` — **DONE / Main Verification PASS**, Issue #91. `MIG-010` — **DONE / Main Verification PASS**, Issue #96, private `OWNER_VERIFIED`. `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS.
 
-Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется и при Local-first rebaseline.
+`MASTER-G3 / Canonical platform` complete; historical pre-close state: open. Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется и при Local-first rebaseline.
 
 FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
