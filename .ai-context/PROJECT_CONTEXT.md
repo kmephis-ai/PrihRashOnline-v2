@@ -25,11 +25,13 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `PLAN-REC-001` Issue #225 / PR #277 — **DONE / Main Verification PASS**, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`. Owner Product UAT v259 и Product Ready E2E PASS. Budget/Obligations/Liquidity используют owner-approved explicit authorities, separate `planning_revision`, exact finance revision binding, Local-first read/cache/Worker path, zero warm planning network/Sheets reads и no financial write; Cash Flow не является balance proxy.
 
-`PACK-VIZ-LF-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #280, PR #281, branch `agent/PACK-VIZ-LF-001-echarts-packager-bootstrap`, trust anchor `main@d69f13f4842726ef893005fa1ebfbee1dc9e57bd`.
+`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`. Trusted Apps Script candidate packager разрешает pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html` без root activation и без self-attestation.
 
-Цель current writer: engineering-only trust bootstrap перед новым post-LF `VIZ-REC-001`. Trusted Apps Script candidate packager должен разрешать pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html`, но bootstrap **не активирует** root `echarts-vendor.json`, не меняет Product UI/FIN semantics и не получает Product Ready authority. Owner Product UAT / `product-ready-e2e` для этого bootstrap — NOT_APPLICABLE.
+`PACK-VIZ-LF-002` — **IN_PROGRESS / current writer / текущий writer**, Issue #283, PR #284, branch `agent/PACK-VIZ-LF-002-visualization-adapter-bootstrap`, trust anchor `main@5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`.
 
-После Main Verification `PACK-VIZ-LF-001`: `VIZ-REC-001` становится READY, получает fresh writer branch от нового trusted `main`, активирует pinned local renderer отдельным exact candidate и проходит fresh machine evidence + desktop/physical-mobile Owner Product UAT. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` — только historical engineering evidence, не post-LF merge/runtime authority.
+Цель current writer: engineering-only trust bootstrap, который добавляет ровно `pwa/local_visualization_adapter.js` в trusted Local-first browser runtime allow-list и marker contract, но **не активирует** этот module в root `local-first-browser-runtime.json`, не добавляет feature adapter bytes, не меняет Product UI/FIN/query/write authority и не получает Product Ready authority. Owner Product UAT / `product-ready-e2e` для bootstrap — NOT_APPLICABLE.
+
+`VIZ-REC-001` Issue #226 / PR #282 временно BLOCKED/Draft. Его exact head `084485347a49d88e0333a5a8ddc00fa52affb94a` — diagnostic only, потому что feature candidate не может одновременно расширять trusted allow-list и self-attest runtime. После Main Verification `PACK-VIZ-LF-002` VIZ пересобирается на новом trusted main и проходит fresh machine evidence + desktop/physical-mobile Owner Product UAT. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` — только historical engineering evidence.
 
 ## Local-first architecture boundary
 

@@ -14,7 +14,8 @@
     "pwa/local_first_delta.js",
     "pwa/local_finance_runtime.js",
     "pwa/local_planning_runtime.js",
-    "pwa/local_first_performance.js"
+    "pwa/local_first_performance.js",
+    "pwa/local_visualization_adapter.js"
   ],
   "worker_entry": "pwa/local_analytics_worker_entry.js",
   "required_policy": {
