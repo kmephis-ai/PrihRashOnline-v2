@@ -25,14 +25,15 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `GOV-LF-001` — **DONE / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`.
 - `PACK-LF-002` — **DONE_ENGINEERING / Main Verification PASS**, Issue #278, PR #279; trusted planning browser-module bootstrap завершён без self-attestation.
 - `PLAN-REC-001` — **DONE / Main Verification PASS**, Issue #225, PR #277, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`; Owner Product UAT v259 + Product Ready E2E PASS. Budget/Obligations/Liquidity работают как exact-revision-bound Local-first read-only planning flows без Cash Flow-as-balance proxy и без financial writes.
+- `PACK-VIZ-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #280, PR #281, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`; trusted ECharts vendor target разрешён для canonical `LocalFirstSpaWebApp.html` без root activation и без self-attestation.
 
 Текущая единственная writer-транзакция:
 
-- `PACK-VIZ-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #280, PR #281, branch `agent/PACK-VIZ-LF-001-echarts-packager-bootstrap`; engineering-only trust bootstrap переносит trusted ECharts vendor target с legacy `FinancialHomeWebApp.html` на canonical `LocalFirstSpaWebApp.html`. Root `echarts-vendor.json` в этом item не активируется; Product UI/FIN semantics не меняются; Owner Product UAT и `product-ready-e2e` для bootstrap — NOT_APPLICABLE.
+- `PACK-VIZ-LF-002` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #283, PR #284, branch `agent/PACK-VIZ-LF-002-visualization-adapter-bootstrap`, trust anchor `main@5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`; engineering-only bootstrap разрешает ровно `pwa/local_visualization_adapter.js` в trusted Local-first browser runtime allow-list **без root activation**, без Product UI diff и без изменения FIN/query/write authority. Owner Product UAT / `product-ready-e2e` — NOT_APPLICABLE.
 
-Следующая последовательность: `PACK-VIZ-LF-001 Main Verification -> VIZ-REC-001 READY -> fresh post-LF exact candidate -> desktop + physical mobile Owner Product UAT -> Product Ready -> Main Verification`. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` остаётся только historical engineering evidence и не имеет post-LF merge/runtime authority.
+`VIZ-REC-001` Issue #226 / PR #282 временно **BLOCKED** и Draft. Exact head `084485347a49d88e0333a5a8ddc00fa52affb94a` — diagnostic only: feature branch не может одновременно расширять trusted allow-list и получать от собственного packager runtime authority. После Main Verification `PACK-VIZ-LF-002` VIZ должен быть пересобран на новом trusted main и пройти fresh PR Validation -> trusted runtime -> desktop + physical mobile Owner Product UAT -> Product Ready -> Main Verification.
 
-`VIZ-REC-001` остаётся BLOCKED до Main Verification #280/#281. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
+Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` остаётся только historical engineering evidence и не имеет post-LF merge/runtime authority. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
 
 ## R0 — завершён
 
