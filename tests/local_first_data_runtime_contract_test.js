@@ -20,15 +20,19 @@ assert.strictEqual(contract.local_read_model.storage_namespace, 'prihrash-local-
 assert.strictEqual(contract.local_read_model.required_state, 'ACTIVE_VERIFIED');
 assert.strictEqual(contract.local_read_model.browser_snapshot_status, 'READY');
 assert.strictEqual(contract.local_read_model.same_snapshot_as_finance, true);
+assert.strictEqual(contract.local_read_model.warm_snapshot_cache, 'EXACT_GENERATION_REVISION_IN_MEMORY');
+assert.strictEqual(contract.local_read_model.cache_invalidation, 'FINANCE_REVISION_CHANGE');
 assert.strictEqual(contract.transactions.read_only, true);
 assert.strictEqual(contract.transactions.page_size, 20);
 assert.strictEqual(contract.transactions.detail, 'local_exact_transaction_id_within_current_filter');
 assert.deepStrictEqual(contract.transactions.filters, ['start','end_exclusive','category_id','account_id','member_id']);
 assert.strictEqual(contract.transactions.history_financial_payload_forbidden, true);
+assert.strictEqual(contract.transactions.warm_derived_query_cache, 'EXACT_REVISION_FILTER_CONTEXT_BOUNDED_8');
 assert.strictEqual(contract.data_quality.read_only, true);
 assert.strictEqual(contract.data_quality.canonical_write, false);
 assert.strictEqual(contract.data_quality.autofix, false);
 assert.strictEqual(contract.data_quality.semantics, 'LOCAL_PROJECTION_AND_REFERENTIAL_SIGNALS_ONLY');
+assert.strictEqual(contract.data_quality.warm_derived_cache, 'EXACT_REVISION');
 assert.deepStrictEqual(contract.data_quality.checks, [
   'CATEGORY_DIMENSION_MISSING',
   'ACCOUNT_DIMENSION_MISSING',
@@ -51,6 +55,11 @@ for (const marker of [
   "const DATA_ROUTES=Object.freeze(['transactions','data-quality'])",
   "name:'prihrash-local-first-v3'",
   "snapshot.status!=='READY'||snapshot.schema!=='PRH_LOCAL_READ_MODEL_V1'",
+  "generation===revision?generation+'|'+revision:null",
+  'DATA_LF_FINANCE_REVISION_MISMATCH',
+  'snapshotCacheHits',
+  'derivedCacheHits',
+  'invalidateLocalCaches();if(DATA_ROUTES.indexOf(route())>=0)renderCurrent()',
   'epoch!==runtime.renderEpoch',
   "window.addEventListener('popstate'",
   'history.pushState',
@@ -138,6 +147,8 @@ const snapshot = {
 };
 const before = JSON.stringify(snapshot);
 const dq = sandbox.__PRH_LF_DATA_EXTENSION__.buildDataQuality(snapshot);
+const dqCached = sandbox.__PRH_LF_DATA_EXTENSION__.buildDataQuality(snapshot);
+assert.strictEqual(dqCached, dq, 'same exact revision must reuse the derived Data Quality result');
 assert.strictEqual(JSON.stringify(snapshot), before, 'Data Quality scan must be read-only');
 assert.strictEqual(dq.total, 6);
 assert.strictEqual(dq.problem_count, 4);
@@ -154,6 +165,9 @@ assert.strictEqual(runtimeState.networkCalls, 0);
 assert.strictEqual(runtimeState.googleSheetsReads, 0);
 assert.strictEqual(runtimeState.canonicalWrites, 0);
 assert.strictEqual(runtimeState.autofixCalls, 0);
+assert.strictEqual(runtimeState.snapshotReads, 0);
+assert.strictEqual(runtimeState.snapshotCacheHits, 0);
+assert(runtimeState.derivedCacheHits >= 1, 'repeated exact-revision Data Quality scan must reuse derived cache');
 
 console.log('local_first_data_runtime_contract_test: PASS', {
   sameVerifiedSnapshot:true,
@@ -163,6 +177,7 @@ console.log('local_first_data_runtime_contract_test: PASS', {
   safeHistoryKeys:contract.transactions.history_query_keys.length,
   dataQualityChecks:contract.data_quality.checks.length,
   deterministicProblemCount:dq.problem_count,
+  exactRevisionWarmCache:true,
   zeroWarmNetwork:true,
   canonicalWrite:false,
   autofix:false,
