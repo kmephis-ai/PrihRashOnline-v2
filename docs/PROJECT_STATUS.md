@@ -25,14 +25,15 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `GOV-LF-001` — **DONE / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`.
 - `PACK-LF-002` — **DONE_ENGINEERING / Main Verification PASS**, Issue #278, PR #279; trusted planning browser-module bootstrap завершён без self-attestation.
 - `PLAN-REC-001` — **DONE / Main Verification PASS**, Issue #225, PR #277, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`; Owner Product UAT v259 + Product Ready E2E PASS. Budget/Obligations/Liquidity работают как exact-revision-bound Local-first read-only planning flows без Cash Flow-as-balance proxy и без financial writes.
+- `PACK-VIZ-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #280, PR #281, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`; trusted packager теперь связывает pinned ECharts vendor с canonical `LocalFirstSpaWebApp.html` без activation/self-attestation в bootstrap.
 
 Текущая единственная writer-транзакция:
 
-- `PACK-VIZ-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #280, PR #281, branch `agent/PACK-VIZ-LF-001-echarts-packager-bootstrap`; engineering-only trust bootstrap переносит trusted ECharts vendor target с legacy `FinancialHomeWebApp.html` на canonical `LocalFirstSpaWebApp.html`. Root `echarts-vendor.json` в этом item не активируется; Product UI/FIN semantics не меняются; Owner Product UAT и `product-ready-e2e` для bootstrap — NOT_APPLICABLE.
+- `VIZ-REC-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #226, PR #282, branch `agent/VIZ-REC-001-local-first-visuals`; fresh post-LF implementation активирует pinned Apache ECharts 6.1.0 через trusted lock, использует display-only `PRH_LOCAL_VISUAL_CHART_SPEC_V1` поверх canonical Worker view, сохраняет semantic fallback и не добавляет mandatory warm network/Google Sheets reads или financial writes.
 
-Следующая последовательность: `PACK-VIZ-LF-001 Main Verification -> VIZ-REC-001 READY -> fresh post-LF exact candidate -> desktop + physical mobile Owner Product UAT -> Product Ready -> Main Verification`. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` остаётся только historical engineering evidence и не имеет post-LF merge/runtime authority.
+Текущая последовательность: `VIZ-REC-001 PR Validation -> immutable exact candidate -> Trusted DEV Deploy -> Trusted Runtime Health -> fresh desktop + physical mobile Owner Product UAT -> Product Ready E2E -> autonomous merge -> Main Verification`. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` закрыт без merge и остаётся только historical engineering evidence без post-LF Product Ready authority.
 
-`VIZ-REC-001` остаётся BLOCKED до Main Verification #280/#281. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
+`E2E-REC-001` superseded завершённым `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
 
 ## R0 — завершён
 
@@ -79,7 +80,7 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 R2 engineering contracts остаются reusable, но product credit даётся только exact-SHA Product Ready evidence. Historical request-per-view optimizations могут использоваться для bootstrap/sync/reconciliation/parity, но не определяют warm interaction topology.
 
-`VIZ-REC-001` обязан использовать Local-first canonical read model / approved ChartSpec, pinned local Apache ECharts без external CDN/runtime fetch, semantic fallback и новый exact candidate. Renderer не получает FIN/query/write authority.
+`VIZ-REC-001` использует Local-first canonical read model / approved display-only ChartSpec, pinned local Apache ECharts без external CDN/runtime fetch и semantic fallback. Renderer не получает FIN/query/write authority. Expense composition ограничивается Top-N + `Прочее`; Cash Flow не выдумывает тренд при недостатке периодов; privacy modes fail-closed скрывают числовой canvas.
 
 ## R3 / R7 / R8 — reusable engineering foundation
 
