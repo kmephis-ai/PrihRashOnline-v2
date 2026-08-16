@@ -70,6 +70,7 @@ const candidateRoot = path.join(candidateDir,'files');
 const shellHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstSpaWebApp.html'),'utf8');
 const extensionHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstDataSpaExtension.html'),'utf8');
 const planningExtensionHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstPlanningSpaExtension.html'),'utf8');
+const visualizationExtensionHtml = fs.readFileSync(path.join(candidateRoot,'LocalFirstVisualizationSpaExtension.html'),'utf8');
 const serviceSource = fs.readFileSync(path.join(candidateRoot,'LocalFirstSpaService.js'),'utf8');
 assert(shellHtml.includes('data-prh-local-first-runtime="1.0.0"'));
 assert(extensionHtml.includes('data-prh-local-first-data-extension="1.0.0"'));
@@ -77,7 +78,7 @@ assert(extensionHtml.includes('data-prh-local-first-data-extension="1.0.0"'));
 function htmlOutput(content){return {title:'',meta:[],setTitle(value){this.title=String(value);return this;},addMetaTag(name,value){this.meta.push([name,value]);return this;},getContent(){return String(content);}}}
 function renderCandidate(params){
   const context=vm.createContext({console,JSON,Object,Array,String,Number,Math,Date,RegExp,Error,encodeURIComponent,ScriptApp:undefined,HtmlService:{
-    createHtmlOutputFromFile(name){if(name==='LocalFirstSpaWebApp')return htmlOutput(shellHtml);if(name==='LocalFirstDataSpaExtension')return htmlOutput(extensionHtml);if(name==='LocalFirstPlanningSpaExtension')return htmlOutput(planningExtensionHtml);throw new Error(`unexpected candidate file ${name}`)},
+    createHtmlOutputFromFile(name){if(name==='LocalFirstSpaWebApp')return htmlOutput(shellHtml);if(name==='LocalFirstDataSpaExtension')return htmlOutput(extensionHtml);if(name==='LocalFirstPlanningSpaExtension')return htmlOutput(planningExtensionHtml);if(name==='LocalFirstVisualizationSpaExtension')return htmlOutput(visualizationExtensionHtml);throw new Error(`unexpected candidate file ${name}`)},
     createHtmlOutput(content){return htmlOutput(content)}
   }});
   vm.runInContext(serviceSource,context,{filename:'LocalFirstSpaService.js'});
