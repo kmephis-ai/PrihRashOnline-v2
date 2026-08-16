@@ -25,15 +25,17 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `GOV-LF-001` — **DONE / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`.
 - `PACK-LF-002` — **DONE_ENGINEERING / Main Verification PASS**, Issue #278, PR #279; trusted planning browser-module bootstrap завершён без self-attestation.
 - `PLAN-REC-001` — **DONE / Main Verification PASS**, Issue #225, PR #277, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`; Owner Product UAT v259 + Product Ready E2E PASS. Budget/Obligations/Liquidity работают как exact-revision-bound Local-first read-only planning flows без Cash Flow-as-balance proxy и без financial writes.
-- `PACK-VIZ-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #280, PR #281, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`; trusted packager теперь связывает pinned ECharts vendor с canonical `LocalFirstSpaWebApp.html` без activation/self-attestation в bootstrap.
+- `PACK-VIZ-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #280, PR #281, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`; trusted packager связывает pinned ECharts vendor с canonical `LocalFirstSpaWebApp.html` без activation/self-attestation в bootstrap.
+- `PACK-VIZ-LF-002` — **DONE_ENGINEERING / Main Verification PASS**, Issue #283, PR #284, merge `00659d0e423e4baf222b056e732b576887200891`; trusted main разрешает Local-first visualization adapter packaging без feature self-authorization.
+- `VIZ-REC-001` — **DONE / Main Verification PASS**, Issue #226, PR #285, candidate `d5865247506d59c91b33ca3265080e7b60a79dd1`, merge `011bb5e5a42f3ccab4d1e82f323bd304b2c89783`; fresh Owner Product UAT + Product Ready evidence подтверждают Local-first household charts и privacy/mobile behavior.
 
 Текущая единственная writer-транзакция:
 
-- `VIZ-REC-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #226, PR #282, branch `agent/VIZ-REC-001-local-first-visuals`; fresh post-LF implementation активирует pinned Apache ECharts 6.1.0 через trusted lock, использует display-only `PRH_LOCAL_VISUAL_CHART_SPEC_V1` поверх canonical Worker view, сохраняет semantic fallback и не добавляет mandatory warm network/Google Sheets reads или financial writes.
+- `STUDIO-REC-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #228, PR #286, branch `agent/STUDIO-REC-001-local-first-analytics-studio`; post-LF recovery подключает bounded Analytics Studio к existing `PRH_LOCAL_FINANCE_RUNTIME_V1` / canonical Web Worker и принимает только semantic-bound widgets. UNBOUND widgets не получают product authority; save/reload хранит configuration + query identity без financial values/private IDs, drill private IDs остаются ephemeral.
 
-Текущая последовательность: `VIZ-REC-001 PR Validation -> immutable exact candidate -> Trusted DEV Deploy -> Trusted Runtime Health -> fresh desktop + physical mobile Owner Product UAT -> Product Ready E2E -> autonomous merge -> Main Verification`. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` закрыт без merge и остаётся только historical engineering evidence без post-LF Product Ready authority.
+Текущая последовательность: `STUDIO-REC-001 PR Validation -> immutable exact candidate -> Trusted DEV Deploy -> Trusted Runtime Health -> fresh desktop + physical mobile Owner Product UAT -> Product Ready E2E -> autonomous merge -> Main Verification`. До fresh Owner Product UAT user-facing Studio не считается Product Ready.
 
-`E2E-REC-001` superseded завершённым `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
+`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
 
 ## R0 — завершён
 
@@ -80,7 +82,9 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 R2 engineering contracts остаются reusable, но product credit даётся только exact-SHA Product Ready evidence. Historical request-per-view optimizations могут использоваться для bootstrap/sync/reconciliation/parity, но не определяют warm interaction topology.
 
-`VIZ-REC-001` использует Local-first canonical read model / approved display-only ChartSpec, pinned local Apache ECharts без external CDN/runtime fetch и semantic fallback. Renderer не получает FIN/query/write authority. Expense composition ограничивается Top-N + `Прочее`; Cash Flow не выдумывает тренд при недостатке периодов; privacy modes fail-closed скрывают числовой canvas.
+`VIZ-REC-001` завершён на Local-first canonical read model / approved display-only ChartSpec, pinned local Apache ECharts без external CDN/runtime fetch и с semantic fallback. Renderer не получает FIN/query/write authority. Expense composition ограничивается Top-N + `Прочее`; Cash Flow не выдумывает тренд при недостатке периодов; privacy modes fail-closed скрывают числовой canvas.
+
+`STUDIO-REC-001` использует только существующие canonical Local-first queries и exact `PRH_ANALYTICS_RESULT_V1` provenance. Первый bounded product scope: Expense/Income by `category_id` и Cash Flow by MONTH; widget persistence configuration-only, exact query identity restore, private drill IDs не сохраняются. Это не даёт старому `DashboardComposerWebApp.html` с `UNBOUND` semantic status никакой current product authority.
 
 ## R3 / R7 / R8 — reusable engineering foundation
 
