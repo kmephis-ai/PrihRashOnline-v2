@@ -1,0 +1,96 @@
+name: ADWF Local Git Mirror Stale Test Publish
+
+on:
+  push:
+    branches:
+      - agent/local-mirror-planrec-stale-test-20260816-b1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: adwf-local-publish-planrec-stale-test-20260816-b1
+  cancel-in-progress: false
+
+env:
+  TARGET_BRANCH: agent/PLAN-REC-001-planning-local-first
+  EXPECTED_SOURCE_SHA: 07463a113029392faf179b6978ae89dd4d7b7852
+  EXPECTED_TREE_SHA: 5735f6681c02ac513abecbefdff3660904168b4e
+  PATCH_B64: .github/adwf-local-mirror/planrec-stale-test.patch.gz.b64
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout disposable transport
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: transport
+          persist-credentials: false
+
+      - name: Checkout exact writer branch with push credential
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          path: candidate
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify exact writer head and apply one-file patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git -C candidate rev-parse HEAD)"
+          [[ "${ACTUAL_SHA}" == "${EXPECTED_SOURCE_SHA}" ]] || {
+            echo "::error::Writer moved: expected ${EXPECTED_SOURCE_SHA}, got ${ACTUAL_SHA}"
+            exit 1
+          }
+          base64 -d "transport/${PATCH_B64}" | gzip -d > "${RUNNER_TEMP}/repair.patch"
+          git -C candidate apply --check "${RUNNER_TEMP}/repair.patch"
+          git -C candidate apply "${RUNNER_TEMP}/repair.patch"
+          mapfile -t CHANGED < <(git -C candidate diff --name-only)
+          [[ "${#CHANGED[@]}" -eq 1 && "${CHANGED[0]}" == 'tests/local_first_product_ready_visual_test.js' ]] || {
+            printf '::error::Unexpected changed paths: %s\n' "${CHANGED[*]}"
+            exit 1
+          }
+          git -C candidate diff --check
+
+      - name: Run bounded test verification
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          node --check tests/local_first_product_ready_visual_test.js
+          node tests/local_first_product_ready_runtime_test.js
+          node tests/local_first_data_runtime_contract_test.js
+          node tests/local_first_spa_runtime_contract_test.js
+          node tests/local_first_planning_spa_contract_test.js
+          node tests/local_first_packager_adapter_test.js
+          node tools/docs-drift-scan.js
+          node tools/ai-contract-scan.js
+          git diff --check
+
+      - name: Verify exact local tree and publish fast-forward
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          git add tests/local_first_product_ready_visual_test.js
+          ACTUAL_TREE="$(git write-tree)"
+          [[ "${ACTUAL_TREE}" == "${EXPECTED_TREE_SHA}" ]] || {
+            echo "::error::Tree mismatch: expected ${EXPECTED_TREE_SHA}, got ${ACTUAL_TREE}"
+            exit 1
+          }
+          git config user.name 'kmephis-ai'
+          git config user.email 'kmephis@gmail.com'
+          git commit -m '[PLAN-REC-001] Align stale-generation E2E with finance revision binding'
+          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_SOURCE_SHA}" ]] || {
+            echo '::error::Publisher parent drifted.'
+            exit 1
+          }
+          [[ "$(git rev-parse HEAD^{tree})" == "${EXPECTED_TREE_SHA}" ]] || {
+            echo '::error::Publisher commit tree drifted.'
+            exit 1
+          }
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
