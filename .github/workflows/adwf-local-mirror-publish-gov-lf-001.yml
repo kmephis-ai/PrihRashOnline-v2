@@ -23,12 +23,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Decode staged patch outside checkout
+      - name: Decode and verify staged patch outside checkout
         shell: bash
         run: |
           set -euo pipefail
           test -f "${PATCH_PAYLOAD}"
-          base64 -d "${PATCH_PAYLOAD}" | gzip -d > /tmp/gov-lf-001.patch
+          python3 - <<'PY'
+          import base64
+          import gzip
+          import hashlib
+          import os
+          from pathlib import Path
+
+          source = Path(os.environ['PATCH_PAYLOAD'])
+          encoded = source.read_text(encoding='ascii').strip()
+          print(f'payload_base64_bytes={len(encoded)}')
+          compressed = base64.b64decode(encoded, validate=True)
+          print(f'payload_gzip_bytes={len(compressed)}')
+          print(f'payload_gzip_sha256={hashlib.sha256(compressed).hexdigest()}')
+          patch = gzip.decompress(compressed)
+          print(f'patch_bytes={len(patch)}')
+          if not patch.startswith(b'diff --git '):
+              raise SystemExit('decoded payload is not a git patch')
+          Path('/tmp/gov-lf-001.patch').write_bytes(patch)
+          PY
           test -s /tmp/gov-lf-001.patch
 
       - name: Verify exact remote writer head
