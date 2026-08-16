@@ -63,3 +63,17 @@ External runtime loaders запрещены. Canonical Worker dependency graph �
 ## Rollback
 
 Удаление/отсутствие marker полностью выключает capability. PACK-LF-001 сам marker не добавляет, поэтому его trusted deployment эквивалентен прежнему artifact format и не активирует Local-first product runtime.
+
+## PACK-LF-002 — post-LF расширение trusted allow-list для Planning
+
+После `MASTER-LF-PRODUCT` root marker уже включён для доказанного STORE/SYNC/DELTA/FIN/PERF runtime. Поэтому повторять исторический приём «marker полностью отсутствует» нельзя и не нужно. При добавлении нового executable browser module сохраняется тот же anti-self-attestation принцип в более узкой форме:
+
+1. `PACK-LF-002` добавляет `pwa/local_planning_runtime.js` только в закрытый trusted allow-list `main` и в contract/test evidence.
+2. Root `local-first-browser-runtime.json` в bootstrap **не добавляет** planning module, поэтому реально упакованный runtime остаётся прежним; новый allow-list сам по себе не активирует код.
+3. Synthetic temporary repository доказывает, что known planning module детерминированно встраивается, а отсутствующий tracked file всё равно блокируется fail-closed.
+4. Только после Main Verification `PACK-LF-002` feature item `PLAN-REC-001` переносится на новый trust anchor и отдельно добавляет planning module в root marker.
+5. `Trusted DEV Deploy` по-прежнему реконструирует candidate tooling-ом из trusted `main`; использование packager из feature branch запрещено.
+
+Причина транзакции: `PLAN-REC-001` candidate `3d3420ec40b0e7beb7d9abaded956e0e6f9b71ab` прошёл PR Validation #997, но Trusted DEV Deploy #955 корректно вернул `LOCAL_FIRST_RUNTIME_MODULE_FORBIDDEN:pwa/local_planning_runtime.js`. Это доказательство работающей trust boundary, а не основание ослаблять verifier.
+
+`PACK-LF-002` является engineering-only prerequisite: Product UAT неприменим, FIN-TRUTH/write authority/Local-first SLO/root runtime semantics не меняются.

@@ -39,7 +39,11 @@ Security/privacy/cost/irreversible boundaries всегда выше Roadmap amen
 
 `E2E-LF-001` — **DONE / Main Verification PASS**, Issue #273, PR #274, merge `12f764edc34aad32693fc7589ff53ded53740d5d`; `MASTER-LF-PRODUCT` доказан на desktop + mobile, Product Ready E2E PASS, retained SLO/zero-network/FIN-TRUTH сохранены.
 
-`GOV-LF-001` — **IN_PROGRESS / current writer**, Issue #275, branch `agent/GOV-LF-001-roadmap-v25-consolidation`. Это единственный active writer. Scope только governance/docs/machine-roadmap/resolver regression: консолидировать v2.5, снять завершённый временный LF freeze, классифицировать legacy recovery items и после Main Verification оставить ровно один следующий explicit `READY` — `PLAN-REC-001`.
+`GOV-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`; Roadmap v2.5 post-LF consolidation завершена.
+
+`PACK-LF-002` — **IN_PROGRESS / current writer**, Issue #278, branch `agent/PACK-LF-002-planning-packager-bootstrap`. Единственный active writer: добавить `pwa/local_planning_runtime.js` в trusted closed allow-list без изменения root marker/runtime. Engineering-only, Product UAT N/A.
+
+`PLAN-REC-001` #225 / PR #277 — **BLOCKED** на `PACK-LF-002`. Exact candidate `3d3420ec40b0e7beb7d9abaded956e0e6f9b71ab` имеет PR Validation #997 PASS, но Trusted DEV Deploy #955 fail-closed отклонил unknown planning module. Feature candidate сохраняется, но не имеет deploy/merge authority до PACK-LF-002 Main Verification и fresh rebase/lifecycle.
 
 Owner decision 2026-08-14: PrihRashOnline переходит на **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не считается целевой UX architecture. Google Sheets остаётся canonical source на переходном этапе; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
@@ -76,7 +80,7 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 ## Product Recovery handoff
 
-`R2R` forensic/product recovery остаётся исходной причиной architectural rebaseline: большое число engineering DONE не доказало working product. Local-first recovery `LF0..LF4` теперь завершена `MASTER-LF-PRODUCT`. Временный global LF freeze снят; при этом R9/R10 остаются gated до `MASTER-GSTUDIO`. Post-LF disposition: `PLAN-REC-001` re-depend на `E2E-LF-001` и становится единственным следующим READY после GOV-LF Main Verification; `VIZ-REC-001` rebaseline/blocked без old-candidate credit; `E2E-REC-001` superseded; `STUDIO-REC-001` re-depended/backlog.
+`R2R` forensic/product recovery остаётся исходной причиной architectural rebaseline: большое число engineering DONE не доказало working product. Local-first recovery `LF0..LF4` теперь завершена `MASTER-LF-PRODUCT`. Временный global LF freeze снят; при этом R9/R10 остаются gated до `MASTER-GSTUDIO`. Post-LF disposition: `PLAN-REC-001` re-depend на `E2E-LF-001`, а обнаруженный trusted packager blocker временно добавляет prerequisite `PACK-LF-002`; до его Main Verification PLAN остаётся BLOCKED; `VIZ-REC-001` rebaseline/blocked без old-candidate credit; `E2E-REC-001` superseded; `STUDIO-REC-001` re-depended/backlog.
 
 Product lifecycle неизменен: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` требует exact-candidate Product Ready evidence; architecture docs и synthetic tests не являются owner UAT. Завершённый `E2E-LF-001` прошёл и machine Chromium evidence, и owner `GENERIC_V1` Product UAT desktop + mobile; это historical trust anchor и не отменяет обязательный fresh Product Ready E2E для будущих user-facing items.
 

@@ -4,7 +4,7 @@
 
 Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority закреплена `CI-003`.
 
-## Текущий critical path — Post-LF Roadmap v2.5 consolidation
+## Текущий critical path — PACK-LF-002 trusted planning bootstrap
 
 Решение владельца от 2026-08-14: request-per-view модель `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не развивается как стратегический пользовательский read path. Целевая архитектура: **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Google Sheets остаётся canonical source на переходном этапе; YDB — будущий remote read backend через shadow/dual-read/compare/canary/strangler migration.
 
@@ -18,11 +18,13 @@ Machine release model: `EXACT_SHA_AUTONOMOUS`; trusted delivery authority зак
 - `DATA-LF-001` — **DONE / Main Verification PASS**, Issue #263, PR #264, merge `326ddad4d5c41d684b1cec9e4a8a97bc680c5ed7`; exact-candidate Owner Product UAT PASS, warm p95 `43.40 ms`, `10` переходов, прогрев `4`, сеть `0`, Back/Forward PASS, loading/error PASS.
 - `PERF-LF-001` — **DONE / Main Verification PASS**, Issue #265, PR #266, candidate `7a41884cb1a812796bc2d473aaf0b86991dfcf65`, Apps Script v252, merge `bd181178c241418d0c22973d0d59ce2fdefb6195`; Owner UAT #10 PASS: route p95 `43.10 ms`, filter/KPI p95 `28.60 ms`, desktop chart p95 `43.80 ms`, Back/Forward p95 `54.30 ms`, cached FMP `473.70 ms`, zero mandatory network / Google Sheets reads.
 - `E2E-LF-001` — **DONE / Main Verification PASS**, Issue #273, PR #274, merge `12f764edc34aad32693fc7589ff53ded53740d5d`; `MASTER-LF-PRODUCT` и Product Ready E2E desktop+mobile доказаны.
-- `GOV-LF-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #275, branch `agent/GOV-LF-001-roadmap-v25-consolidation`. Scope: governance-only консолидация Roadmap v2.5, machine Roadmap и resolver regression; runtime/FIN logic не меняется.
+- `GOV-LF-001` — **DONE_ENGINEERING / Main Verification PASS**, Issue #275, PR #276, merge `d57d0b3554737b9a57bde5d55f13c13e88cbcbc4`; post-LF Roadmap v2.5 consolidation завершена.
+- `PACK-LF-002` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #278, branch `agent/PACK-LF-002-planning-packager-bootstrap`; trusted allow-list bootstrap для `pwa/local_planning_runtime.js`, root marker/runtime activation запрещена, Product UAT N/A.
+- `PLAN-REC-001` — **BLOCKED**, Issue #225, PR #277; PR Validation #997 PASS на candidate `3d3420ec40b0e7beb7d9abaded956e0e6f9b71ab`, но Trusted DEV Deploy #955 корректно fail-closed остановился на `LOCAL_FIRST_RUNTIME_MODULE_FORBIDDEN`. Продолжение только после PACK-LF-002 Main Verification и fresh rebase/lifecycle.
 
 Временный global LF freeze завершился достижением `MASTER-LF-PRODUCT` и больше не действует. Warm route/filter/chart по-прежнему обязан быть local-first и сохранять доказанные SLO/zero mandatory network/zero Google Sheets reads. R9/R10 при этом остаются отдельно gated до `MASTER-GSTUDIO`.
 
-Post-LF sequence после Main Verification `GOV-LF-001`: ровно один explicit `READY` — `PLAN-REC-001`; `VIZ-REC-001` остаётся BLOCKED и требует rebaseline без old request-per-view candidate credit; `E2E-REC-001` superseded `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
+Post-LF sequence: `GOV-LF-001` завершён; `PACK-LF-002` сейчас единственный active engineering writer из-за trusted reconstruction blocker, `PLAN-REC-001` временно BLOCKED и вернётся через explicit `BLOCKED -> READY -> IN_PROGRESS` после bootstrap; `VIZ-REC-001` остаётся BLOCKED и требует rebaseline без old request-per-view candidate credit; `E2E-REC-001` superseded `E2E-LF-001`; `STUDIO-REC-001` BACKLOG. `YC-041`/`YC-042` остаются owner/cloud BLOCKED.
 
 ## R0 — завершён
 
