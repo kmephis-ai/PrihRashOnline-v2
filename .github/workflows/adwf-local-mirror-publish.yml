@@ -1,0 +1,115 @@
+name: ADWF Local Git Mirror Publish
+
+on:
+  push:
+    branches:
+      - agent/local-mirror-planrec-perf-20260816-b1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: adwf-local-publish-planrec-perf-20260816-b1
+  cancel-in-progress: false
+
+env:
+  TARGET_BRANCH: agent/PLAN-REC-001-planning-local-first
+  EXPECTED_SOURCE_SHA: cca2bc0d82fefc38364a0af7409e2f9711be17c6
+  EXPECTED_TREE_SHA: 5d8ef02373d403f8d567d68055153d8952904956
+  PATCH_B64: .github/adwf-local-mirror/planrec-perf-repair.patch.gz.b64
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout disposable transport
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: transport
+          persist-credentials: false
+
+      - name: Checkout exact writer branch with push credential
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          path: candidate
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify exact writer head and decode local patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git -C candidate rev-parse HEAD)"
+          [[ "${ACTUAL_SHA}" == "${EXPECTED_SOURCE_SHA}" ]] || {
+            echo "::error::Writer moved: expected ${EXPECTED_SOURCE_SHA}, got ${ACTUAL_SHA}"
+            exit 1
+          }
+          base64 -d "transport/${PATCH_B64}" | gzip -d > "${RUNNER_TEMP}/repair.patch"
+          git -C candidate apply --check "${RUNNER_TEMP}/repair.patch"
+          git -C candidate apply "${RUNNER_TEMP}/repair.patch"
+          mapfile -t CHANGED < <(git -C candidate diff --name-only | sort)
+          EXPECTED=(
+            LocalFirstDataSpaExtension.html
+            lib/local_first/local_data_runtime.v1.json
+            tests/local_first_data_runtime_contract_test.js
+            tests/local_first_data_spa_visual_test.js
+          )
+          mapfile -t EXPECTED_SORTED < <(printf '%s\n' "${EXPECTED[@]}" | sort)
+          [[ "${CHANGED[*]}" == "${EXPECTED_SORTED[*]}" ]] || {
+            printf '::error::Unexpected changed paths: %s\n' "${CHANGED[*]}"
+            exit 1
+          }
+          git -C candidate diff --check
+
+      - name: Run bounded browserless verification
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          node tests/local_first_data_runtime_contract_test.js
+          node tests/local_first_spa_runtime_contract_test.js
+          node tests/local_first_product_ready_runtime_test.js
+          node tests/local_first_planning_spa_contract_test.js
+          node tests/local_first_packager_adapter_test.js
+          node tools/docs-drift-scan.js
+          node tools/ai-contract-scan.js
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('LocalFirstDataSpaExtension.html').read_text()
+          start=s.index('<script data-prh-local-first-data-extension="1.0.0">')
+          start=s.index('>',start)+1
+          end=s.index('</script>',start)
+          Path('/tmp/local-first-data-extension.js').write_text(s[start:end])
+          PY
+          node --check /tmp/local-first-data-extension.js
+          git diff --check
+
+      - name: Verify exact local tree and publish fast-forward
+        shell: bash
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          git add LocalFirstDataSpaExtension.html \
+            lib/local_first/local_data_runtime.v1.json \
+            tests/local_first_data_runtime_contract_test.js \
+            tests/local_first_data_spa_visual_test.js
+          ACTUAL_TREE="$(git write-tree)"
+          [[ "${ACTUAL_TREE}" == "${EXPECTED_TREE_SHA}" ]] || {
+            echo "::error::Tree mismatch: expected ${EXPECTED_TREE_SHA}, got ${ACTUAL_TREE}"
+            exit 1
+          }
+          git config user.name 'kmephis-ai'
+          git config user.email 'kmephis@gmail.com'
+          git commit -m '[PLAN-REC-001] Cache exact-revision Data warm projections'
+          [[ "$(git rev-parse HEAD^)" == "${EXPECTED_SOURCE_SHA}" ]] || {
+            echo '::error::Publisher parent drifted.'
+            exit 1
+          }
+          [[ "$(git rev-parse HEAD^{tree})" == "${EXPECTED_TREE_SHA}" ]] || {
+            echo '::error::Publisher commit tree drifted.'
+            exit 1
+          }
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          echo "published_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT:-/dev/null}"
