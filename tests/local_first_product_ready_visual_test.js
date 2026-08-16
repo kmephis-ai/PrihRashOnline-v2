@@ -80,6 +80,7 @@ const candidateRoot = path.join(candidateDir, 'files');
 const shellHtml = fs.readFileSync(path.join(candidateRoot, 'LocalFirstSpaWebApp.html'), 'utf8');
 const extensionHtml = fs.readFileSync(path.join(candidateRoot, 'LocalFirstDataSpaExtension.html'), 'utf8');
 const planningExtensionHtml = fs.readFileSync(path.join(candidateRoot, 'LocalFirstPlanningSpaExtension.html'), 'utf8');
+const visualizationExtensionHtml = fs.readFileSync(path.join(candidateRoot, 'LocalFirstVisualizationSpaExtension.html'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(candidateRoot, 'LocalFirstSpaService.js'), 'utf8');
 assert(shellHtml.includes('data-prh-local-first-runtime="1.0.0"'));
 assert(extensionHtml.includes('data-prh-local-first-data-extension="1.0.0"'));
@@ -101,6 +102,7 @@ function renderCandidate(params) {
         if (name === 'LocalFirstSpaWebApp') return htmlOutput(shellHtml);
         if (name === 'LocalFirstDataSpaExtension') return htmlOutput(extensionHtml);
         if (name === 'LocalFirstPlanningSpaExtension') return htmlOutput(planningExtensionHtml);
+        if (name === 'LocalFirstVisualizationSpaExtension') return htmlOutput(visualizationExtensionHtml);
         throw new Error(`unexpected candidate file ${name}`);
       },
       createHtmlOutput(content){ return htmlOutput(content); }
