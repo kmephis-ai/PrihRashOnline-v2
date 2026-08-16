@@ -142,7 +142,8 @@ assert.strictEqual(byId.get('unchanged').delta, 0);
 assert.strictEqual(byId.get('unchanged').state, 'UNCHANGED');
 assert.strictEqual(decomposition.result.rows.reduce((sum, row) => sum + row.delta, 0), 100);
 assert.strictEqual(decomposition.result.rows.reduce((sum, row) => sum + row.absolute_delta, 0), 600);
-assert.deepStrictEqual(decomposition.result.rows.map((row) => row.driver_id), ['food', 'home', 'new-driver', 'removed-driver', 'unchanged']);
+// Materiality ordering: absolute delta DESC, then signed delta DESC, then opaque driver ID.
+assert.deepStrictEqual(decomposition.result.rows.map((row) => row.driver_id), ['food', 'new-driver', 'home', 'removed-driver', 'unchanged']);
 assert.deepStrictEqual(decomposition.result.rows.map((row) => row.rank), [1, 2, 3, 4, 5]);
 
 // Evidence is exact current/reference read-only query context + driver filter, with no financial value in navigation metadata.
