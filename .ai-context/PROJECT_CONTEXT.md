@@ -96,12 +96,12 @@ Lifecycle user-facing: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED
 `DATA-010` — **DONE / Main Verification PASS**, Issue #87.
 `ARCH-010` — **DONE / Main Verification PASS**, Issue #89.
 `ARCH-011` — **DONE / Main Verification PASS**, Issue #91.
-`MIG-010` — **DONE / Main Verification PASS**, Issue #96.
+`MIG-010` — **DONE / Main Verification PASS**, Issue #96; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
 `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE / Main Verification PASS**. `ANL-010` authority = `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 
 Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после Local-first/Product Recovery rebaseline и не означает возврат к request-per-view architecture.
 
-MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` exact-bound/non-reusable; любой новый irreversible financial write требует fresh owner authorization. **Current write authority = false**.
+MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI cannot reuse it. Любой новый irreversible financial write требует fresh owner authorization. **Current write authority = false**.
 
 `MASTER-G3 / Canonical platform` — complete; historical pre-close state: open.
 
