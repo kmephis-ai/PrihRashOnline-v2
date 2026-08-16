@@ -167,6 +167,10 @@ function evidenceRecord(fields) {
 
 (async () => {
   const rendered = renderCandidate({ lf_route:'home', privacy:'MASKED' });
+  const storageNamespace = PRODUCT_CONTRACT.local_read_model.storage_namespace;
+  assert(rendered.includes("name:'" + storageNamespace + "'"), 'trusted Product Ready boot must use canonical Local Read Model namespace');
+  assert(rendered.includes("var CANONICAL_LOCAL_DB = '" + storageNamespace + "';"), 'finance startup cache must use canonical Local Read Model namespace');
+  assert(rendered.includes("var STORE_NAME = '" + storageNamespace + "';"), 'performance cached-FMP probe must use canonical Local Read Model namespace');
   const server = http.createServer((request,response) => {
     response.writeHead(200, {'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
     response.end(rendered);

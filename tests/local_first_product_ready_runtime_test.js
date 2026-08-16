@@ -17,6 +17,9 @@ const data = readJson('lib/local_first/local_data_runtime.v1.json');
 const perf = readJson('lib/local_first/local_first_performance.v1.json');
 const ownerUatWorkflow = read('.github/workflows/owner-product-uat-attestation.yml');
 const ownerUatDocs = read('docs/OWNER_UAT_PROFILES.md');
+const performanceNode = require('../pwa/local_first_performance');
+const financeRuntimeSource = read('pwa/local_finance_runtime.js');
+const spaServiceSource = read('LocalFirstSpaService.js');
 
 assert.strictEqual(product.schema, 'PRH_LOCAL_FIRST_PRODUCT_READY_V1');
 assert.strictEqual(product.version, '1.0.0');
@@ -39,6 +42,13 @@ assert.deepStrictEqual(roadmapItem.depends_on, ['PERF-LF-001']);
 assert.strictEqual(roadmapItem.exit_gate, product.exit_gate);
 assert.strictEqual(roadmap.freeze_until_gate, product.exit_gate);
 assert.strictEqual(roadmap.feature_expansion_frozen, true);
+
+assert.strictEqual(product.local_read_model.storage_namespace, data.local_read_model.storage_namespace, 'Product Ready must use DATA-LF canonical Local Read Model namespace');
+assert.strictEqual(product.local_read_model.storage_namespace, performanceNode.storeName, 'cached-FMP probe must read the active Product Ready Local Read Model namespace');
+assert(financeRuntimeSource.includes("var CANONICAL_LOCAL_DB = '" + product.local_read_model.storage_namespace + "';"), 'finance startup cache must read the active Product Ready Local Read Model namespace');
+assert(spaServiceSource.includes("ACTIVE_BOOT_TOKEN: \"name:'" + product.local_read_model.storage_namespace + "'\""), 'trusted renderer active cache namespace must match Product Ready contract');
+assert.strictEqual(product.local_read_model.same_namespace_for_finance_startup_cache, true);
+assert.strictEqual(product.local_read_model.same_namespace_for_performance_probe, true);
 
 assert.deepStrictEqual(product.journey.route_order, [
   'home', 'expenses', 'income', 'cash-flow', 'transactions', 'data-quality'

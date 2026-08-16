@@ -11,7 +11,7 @@
 
   var SCHEMA = 'PRH_LOCAL_FIRST_PERFORMANCE_V1';
   var VERSION = '1.0.0';
-  var STORE_NAME = 'prihrash-local-first-v1';
+  var STORE_NAME = 'prihrash-local-first-v3';
   var META_STORE = 'meta';
   var ACTIVE_KEY = 'active_generation';
   var MANIFEST_PREFIX = 'generation:';

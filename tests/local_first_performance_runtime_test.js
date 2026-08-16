@@ -35,7 +35,7 @@ assert.strictEqual(contract.measurement_domains.cold_bootstrap, 'SEPARATE_NOT_WA
 assert.strictEqual(contract.warm_invariants.mandatory_network_requests, 0);
 assert.strictEqual(contract.warm_invariants.google_sheets_reads, 0);
 assert.strictEqual(contract.warm_invariants.server_document_reload, 0);
-assert.strictEqual(performanceNode.storeName, 'prihrash-local-first-v1', 'performance probe must use the canonical owner Local Read Model DB');
+assert.strictEqual(performanceNode.storeName, 'prihrash-local-first-v3', 'performance probe must use the canonical owner Local Read Model DB');
 assert(performanceSource.includes('waitForFinanceMeaningfulCommit(route, 6000)'), 'history measurement must arm from exact meaningful finance DOM commit, not RAF polling');
 assert(performanceSource.includes('signalFinanceMeaningfulCommit(this)'), 'finance DOM cache setter must publish the exact meaningful commit boundary');
 
@@ -123,7 +123,7 @@ function closeServer(server) { return new Promise((resolve) => server.close(reso
     await seed.waitForFunction(() => !!window.PrhLocalReadModelStore && !!window.PrhLocalFirstPerformance);
     await seed.waitForTimeout(80);
     const seedStatus = await seed.evaluate(async (revision) => {
-      const store=PrhLocalReadModelStore.createStore({indexedDB,IDBKeyRange,name:'prihrash-local-first-v1'});
+      const store=PrhLocalReadModelStore.createStore({indexedDB,IDBKeyRange,name:'prihrash-local-first-v3'});
       await store.wipe();
       await store.beginGeneration({generationId:revision,revision});
       await store.writeGenerationChunk({generationId:revision,revision,transactions:[],dimensions:[],aggregates:[],sync_journal:[]});

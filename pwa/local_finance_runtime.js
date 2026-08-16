@@ -17,7 +17,7 @@
   var STARTUP_VIEW_CACHE_VERSION = '1.0.0';
   var STARTUP_VIEW_CACHE_DB = 'prihrash-local-finance-startup-view-v1';
   var STARTUP_VIEW_CACHE_STORE = 'ready_views';
-  var CANONICAL_LOCAL_DB = 'prihrash-local-first-v1';
+  var CANONICAL_LOCAL_DB = 'prihrash-local-first-v3';
   var LOCAL_META_STORE = 'meta';
   var LOCAL_ACTIVE_KEY = 'active_generation';
   var LOCAL_MANIFEST_PREFIX = 'generation:';

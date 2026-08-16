@@ -17,6 +17,12 @@
     "performance": "PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0",
     "financial_truth": "FIN-TRUTH-v1"
   },
+  "local_read_model": {
+    "storage_namespace": "prihrash-local-first-v3",
+    "namespace_authority": "PRH_LOCAL_FIRST_CACHE_NAMESPACE.ACTIVE_BOOT_TOKEN",
+    "same_namespace_for_finance_startup_cache": true,
+    "same_namespace_for_performance_probe": true
+  },
   "candidate": {
     "exact_sha_required": true,
     "authenticated_dev_deploy_required": true,
