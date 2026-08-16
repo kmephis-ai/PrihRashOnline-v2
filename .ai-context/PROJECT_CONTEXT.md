@@ -25,13 +25,13 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `PLAN-REC-001` Issue #225 / PR #277 — **DONE / Main Verification PASS**, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`. Owner Product UAT v259 и Product Ready E2E PASS. Budget/Obligations/Liquidity используют owner-approved explicit authorities, separate `planning_revision`, exact finance revision binding, Local-first read/cache/Worker path, zero warm planning network/Sheets reads и no financial write; Cash Flow не является balance proxy.
 
-`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`. Trusted Apps Script candidate packager разрешает pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html` без root activation и без self-attestation.
+`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`. Trusted Apps Script candidate packager теперь разрешает pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html` без self-attestation.
 
-`PACK-VIZ-LF-002` — **IN_PROGRESS / current writer / текущий writer**, Issue #283, PR #284, branch `agent/PACK-VIZ-LF-002-visualization-adapter-bootstrap`, trust anchor `main@5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`.
+`VIZ-REC-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #226, PR #282, branch `agent/VIZ-REC-001-local-first-visuals`, trust anchor `main@5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`.
 
-Цель current writer: engineering-only trust bootstrap, который добавляет ровно `pwa/local_visualization_adapter.js` в trusted Local-first browser runtime allow-list и marker contract, но **не активирует** этот module в root `local-first-browser-runtime.json`, не добавляет feature adapter bytes, не меняет Product UI/FIN/query/write authority и не получает Product Ready authority. Owner Product UAT / `product-ready-e2e` для bootstrap — NOT_APPLICABLE.
+Fresh post-LF writer активирует exact pinned local ECharts lock, добавляет `PRH_LOCAL_VISUALIZATION_ADAPTER_V1@1.0.0` и server-injected `LocalFirstVisualizationSpaExtension.html`. Adapter принимает только `READY` view с `FIN-TRUTH-v1`, `canonical_worker_only=true`, `ui_financial_formula_used=false` и exact input revision; chart spec имеет `DISPLAY_ONLY` authority. Extension читает уже рассчитанный view через `window.__PRH_LF_FINANCE_RUNTIME__.getState()`, не запускает дополнительный finance query, не использует external CDN/runtime fetch и сохраняет semantic fallback.
 
-`VIZ-REC-001` Issue #226 / PR #282 временно BLOCKED/Draft. Его exact head `084485347a49d88e0333a5a8ddc00fa52affb94a` — diagnostic only, потому что feature candidate не может одновременно расширять trusted allow-list и self-attest runtime. После Main Verification `PACK-VIZ-LF-002` VIZ пересобирается на новом trusted main и проходит fresh machine evidence + desktop/physical-mobile Owner Product UAT. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` — только historical engineering evidence.
+Expenses/Income используют Top-7 + `Прочее` с exact conservation. Home/Cash Flow требуют минимум два периода и иначе показывают честное insufficient-data state. MASKED/DEMO/ZEN privacy modes не рисуют числовой canvas. Fresh candidate обязан пройти exact-SHA machine evidence и новый Owner Product UAT desktop + physical mobile. Historical PR #238 / candidate `5bad584e6b09d6af3fc9bda18322f5682e1806fa` закрыт без merge и остаётся только historical engineering evidence.
 
 ## Local-first architecture boundary
 
@@ -66,9 +66,9 @@ Warm route/filter/chart обязан работать без mandatory network r
 
 ## Visualization post-LF boundary
 
-`VIZ-REC-001` должен использовать Local-first canonical read model / approved ChartSpec. Renderer не вычисляет financial truth, не меняет FIN/query/write authority и не добавляет synthetic/demo household series под видом real data.
+`VIZ-REC-001` использует Local-first canonical read model / approved display-only ChartSpec. Renderer не вычисляет financial truth, не меняет FIN/query/write authority и не добавляет synthetic/demo household series под видом real data.
 
-Renderer plan: Apache ECharts 6.1.0, `dist/echarts.simple.min.js`, pinned supply-chain identity, `LOCAL_ONLY`, external CDN/runtime fetch forbidden, semantic fallback required. Cash Flow должен показывать meaningful multi-period series либо честный insufficient-data state; Expense composition — Top-N + «Прочее»; mobile/tablet/dark mode обязаны оставаться читаемыми.
+Renderer: Apache ECharts 6.1.0, `dist/echarts.simple.min.js`, pinned upstream commit/blob identity, `LOCAL_ONLY`, external CDN/runtime fetch forbidden, semantic fallback required. Cash Flow показывает meaningful multi-period series либо честный insufficient-data state; Expense composition — Top-N + «Прочее»; mobile/tablet/dark mode обязаны оставаться читаемыми.
 
 Новый user-facing VIZ candidate требует fresh exact-SHA rendered evidence, responsive/a11y/interaction tests, Local-first performance/parity evidence, zero mandatory warm network/Sheets reads и fresh Owner Product UAT desktop + physical mobile. Старые performance/UAT evidence не переносятся как Product Ready authority.
 
@@ -128,7 +128,7 @@ Read-only multi-AI review имеет `writer_authority=false` и являетс�
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance, Data и Performance runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance, Data, Planning, Performance и Visualization runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
 
 ## Source precedence
 
