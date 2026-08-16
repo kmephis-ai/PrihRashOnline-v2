@@ -13,7 +13,7 @@ PrihRashOnline-v2 — maintainable household-finance system. Текущий runt
 При конфликте источников используйте порядок ниже и **fail closed** вместо усреднения противоречий:
 
 1. security/privacy/cost/irreversible-action policy boundaries;
-2. repository `docs/ROADMAP.md` — каноническая `Executable GitHub Roadmap v2.4` для порядка работ и dependencies;
+2. repository `docs/ROADMAP.md` — каноническая `Executable GitHub Roadmap v2.5` для порядка работ и dependencies;
 3. внешние `Master Audit v2.1` и `AI Development Playbook v1.0`, когда они явно предоставлены в task context;
 4. единственный active GitHub Roadmap Issue (`roadmap_id`, live status, dependencies, acceptance, rollback, privacy/cost class);
 5. executable code/tests/workflows на exact candidate SHA;
@@ -245,13 +245,13 @@ Multi-AI PASS — только supplementary evidence. Он никогда не 
 Start with:
 
 - `AGENTS.md`;
-- `docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.4; live lifecycle берётся из GitHub Issues;
+- `docs/ROADMAP.md` — каноническая Executable GitHub Roadmap v2.5; live lifecycle берётся из GitHub Issues;
 - `.ai-context/PROJECT_CONTEXT.md`;
 - `llms.txt`;
 - active Roadmap Issue/task packet;
 - relevant architecture/data/operations contracts.
 
-AIENG-001, AIENG-002 и AIENG-003 — historical DONE. Product Recovery rebaseline 2026-08-11 supersedes прежние product claims: `GOV-REC-001` / Issue #219 — единственный active writer; ANL-090 / Issue #217 `BLOCKED / PAUSED_REBASELINE`, PR #218 draft. FIN-TRUTH, private migration `OWNER_VERIFIED`, privacy, `FREE_ONLY` и write boundaries сохраняются.
+AIENG-001, AIENG-002 и AIENG-003 — historical DONE. `MASTER-LF-PRODUCT` доказан `E2E-LF-001` #273 / PR #274; `GOV-LF-001` #275 — единственный current writer до Main Verification Roadmap v2.5. После него единственный explicit next `READY` — `PLAN-REC-001`; VIZ/E2E/STUDIO legacy recovery и YC/YDB lanes следуют post-LF dispositions/gates, ANL-090 #217 остаётся `BLOCKED / PAUSED_REBASELINE`. FIN-TRUTH, private migration `OWNER_VERIFIED`, privacy, `FREE_ONLY` и write boundaries сохраняются.
 
 ## 19. Local Git Mirror — ADWF
 

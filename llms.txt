@@ -1,8 +1,8 @@
 # PrihRashOnline-v2 — AI entry points
 
 AGENTS.md — root public-safe AI operating contract: source precedence, autonomy, privacy/security/FREE_ONLY, machine delivery, financial/migration safety, DoD и CI-red recovery.
-docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.4 / PRODUCT-RECOVERY-FIRST**; dependencies и product stages берутся отсюда, live lifecycle — из GitHub Issues.
-.ai-context/PROJECT_CONTEXT.md — public-safe current project map; E2E-LF-001 current writer, Local-first recovery has priority until MASTER-LF-PRODUCT.
+docs/ROADMAP.md — **каноническая Executable GitHub Roadmap v2.5 / POST-LF-CONSOLIDATED**; dependencies и post-LF product stages берутся отсюда, live lifecycle — из GitHub Issues.
+.ai-context/PROJECT_CONTEXT.md — public-safe current project map; GOV-LF-001 current writer, MASTER-LF-PRODUCT proven, PLAN-REC-001 is the sole post-governance READY candidate.
 docs/PROJECT_STATUS.md — human-readable engineering/product status; GitHub Issue lifecycle и machine evidence имеют приоритет.
 .ai-context/roadmap-task-packet.schema.json — versioned `PRH_ROADMAP_TASK_V2` dual-stage task packet.
 docs/operations/AIENG002_ROADMAP_TASK_PROTOCOL.md — deterministic continuation/one-writer lifecycle protocol.

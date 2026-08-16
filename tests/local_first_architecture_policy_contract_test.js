@@ -87,9 +87,12 @@ assert.deepStrictEqual(contract.ydb_ladder.stages, [
 ]);
 
 assert.strictEqual(roadmapContract.schema, 'PRH_LOCAL_FIRST_ROADMAP_V1');
-assert.strictEqual(roadmapContract.version, '1.0.0');
+assert.strictEqual(roadmapContract.version, '1.1.0');
 assert.strictEqual(roadmapContract.freeze_until_gate, 'MASTER-LF-PRODUCT');
-assert.strictEqual(roadmapContract.feature_expansion_frozen, true);
+assert.strictEqual(roadmapContract.freeze_gate_status, 'DONE');
+assert.strictEqual(roadmapContract.feature_expansion_frozen, false);
+assert.strictEqual(roadmapContract.base_roadmap, 'docs/ROADMAP.md@v2.5');
+assert.strictEqual(roadmapContract.amendment_status, 'CONSOLIDATED_HISTORICAL');
 assert.strictEqual(roadmapContract.protocol.task_schema, 'PRH_ROADMAP_TASK_V2');
 assert.strictEqual(roadmapContract.protocol.local_first_protocol_wave, 'R2R');
 assert.strictEqual(roadmapContract.protocol.future_ydb_protocol_wave, 'R4');
@@ -98,13 +101,35 @@ assert.strictEqual(roadmapContract.protocol.paid_dependency_required, false);
 
 const expectedIds = [
   'ARCH-LF-001', 'SPA-LF-001', 'STORE-LF-001', 'WORKER-LF-001',
-  'SYNC-LF-001', 'DELTA-LF-001', 'FIN-LF-001', 'DATA-LF-001',
+  'SYNC-LF-001', 'DELTA-LF-001', 'PACK-LF-001', 'FIN-LF-001', 'DATA-LF-001',
   'PERF-LF-001', 'E2E-LF-001', 'YDB-LF-001', 'YDB-LF-002'
 ];
 assert.deepStrictEqual(roadmapContract.items.map((item) => item.id), expectedIds);
 assert.deepStrictEqual(roadmapContract.items.map((item) => item.order),
   expectedIds.map((_, index) => index + 1));
 assert.strictEqual(new Set(expectedIds).size, expectedIds.length);
+
+assert(roadmapContract.items
+  .filter((item) => item.phase !== 'FUTURE')
+  .every((item) => item.lifecycle_status === 'DONE'), 'LF0..LF4 must be recorded as completed after MASTER-LF-PRODUCT');
+assert(roadmapContract.items
+  .filter((item) => item.phase === 'FUTURE')
+  .every((item) => item.lifecycle_status === 'BLOCKED'), 'future YDB lane must remain fail-closed');
+assert.strictEqual(roadmapContract.trust_anchor.roadmap_id, 'E2E-LF-001');
+assert.strictEqual(roadmapContract.trust_anchor.gate, 'MASTER-LF-PRODUCT');
+assert.strictEqual(roadmapContract.trust_anchor.status, 'DONE');
+assert.strictEqual(roadmapContract.post_lf.governance_item, 'GOV-LF-001');
+assert.strictEqual(roadmapContract.post_lf.next_ready_after_governance, 'PLAN-REC-001');
+assert.strictEqual(roadmapContract.post_lf.exactly_one_ready_required, true);
+const postLfDisposition = new Map(roadmapContract.post_lf.legacy_recovery_disposition.map((entry) => [entry.id, entry]));
+assert.strictEqual(postLfDisposition.get('PLAN-REC-001').status_after_governance, 'READY');
+assert.strictEqual(postLfDisposition.get('VIZ-REC-001').status_after_governance, 'BLOCKED');
+assert.strictEqual(postLfDisposition.get('E2E-REC-001').disposition, 'SUPERSEDED_BY_E2E-LF-001');
+assert.strictEqual(postLfDisposition.get('STUDIO-REC-001').status_after_governance, 'BACKLOG');
+assert.strictEqual(roadmapContract.post_lf.legacy_recovery_disposition
+  .filter((entry) => entry.status_after_governance === 'READY').length, 1,
+'exactly one post-LF recovery item may be READY after governance');
+assert(roadmapContract.post_lf.external_blockers.every((entry) => entry.status === 'BLOCKED'));
 
 const itemIndex = new Map(roadmapContract.items.map((item) => [item.id, item]));
 const externalDoneDependencies = new Set(['GOV-REC-001', 'DATA-REC-001', 'YC-040']);
@@ -150,7 +175,7 @@ assert(roadmap.includes('| YDB-LF-001 | FUTURE | R4 | P1 |'));
 
 console.log('Local-first architecture policy contract: PASS', {
   contract: 'PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0',
-  roadmap: 'PRH_LOCAL_FIRST_ROADMAP_V1@1.0.0',
+  roadmap: 'PRH_LOCAL_FIRST_ROADMAP_V1@1.1.0',
   items: expectedIds.length,
   warmRequiredNetwork: false,
   warmGoogleSheetsReads: 0,

@@ -246,11 +246,65 @@ assert.strictEqual(ROADMAP_ID_RE.test('ui-MIG-020'), false);
   assert.strictEqual(result.task.rollback, 'Revert protocol files.');
 }
 
+assert.strictEqual(validateLifecycleTransition('BACKLOG', 'READY'), true);
 assert.strictEqual(validateLifecycleTransition('READY', 'IN_PROGRESS'), true);
 assert.strictEqual(validateLifecycleTransition('READY', 'BLOCKED'), true);
 assert.strictEqual(validateLifecycleTransition('BLOCKED', 'READY'), true);
 assert.strictEqual(validateLifecycleTransition('IN_PROGRESS', 'BLOCKED'), true);
 assert.throws(() => validateLifecycleTransition('READY', 'DONE'), /ROADMAP_LIFECYCLE_TRANSITION_INVALID/);
+
+
+// GOV-LF-001 regression: before governance there is no implicit promotion; while governance is
+// active it is the only writer; after its Main Verification the normalized graph exposes exactly
+// one explicit READY item and does not revive legacy request-per-view/cloud candidates.
+{
+  const e2eLf = item({
+    roadmap_id: 'E2E-LF-001', issue: 273, status: 'DONE', work_class: 'user_facing',
+    engineering_status: 'DONE_ENGINEERING', product_stage: 'DONE', target_stage: 'DONE',
+    priority: 'P0', wave: 'R2R', order: 11, branch_slug: 'product-ready-local-first', depends_on: [], blocking_product_gate: 'MASTER-LF-PRODUCT'
+  });
+  const plan = item({
+    roadmap_id: 'PLAN-REC-001', issue: 225, status: 'BACKLOG', work_class: 'user_facing',
+    engineering_status: 'BACKLOG', product_stage: 'NOT_STARTED', target_stage: 'DONE',
+    priority: 'P1', wave: 'R2R', order: 20, branch_slug: 'planning-local-first', depends_on: ['E2E-LF-001'], blocking_product_gate: 'MASTER-GREC-5'
+  });
+  const viz = item({
+    roadmap_id: 'VIZ-REC-001', issue: 226, status: 'BLOCKED', work_class: 'user_facing',
+    engineering_status: 'BACKLOG', product_stage: 'NOT_STARTED', target_stage: 'DONE',
+    priority: 'P1', wave: 'R2R', order: 21, branch_slug: 'visual-local-first-rebaseline', depends_on: ['PLAN-REC-001'], blocking_product_gate: 'MASTER-GREC-6'
+  });
+  const studio = item({
+    roadmap_id: 'STUDIO-REC-001', issue: 228, status: 'BACKLOG', work_class: 'user_facing',
+    engineering_status: 'BACKLOG', product_stage: 'NOT_STARTED', target_stage: 'DONE',
+    priority: 'P2', wave: 'R2R', order: 22, branch_slug: 'analytics-studio-local-first', depends_on: [],
+    depends_on_product_ready: ['VIZ-REC-001'], blocking_product_gate: 'MASTER-GSTUDIO'
+  });
+  const cloud = item({
+    roadmap_id: 'YC-041', issue: 148, status: 'BLOCKED', priority: 'P1', wave: 'R4', order: 40,
+    branch_slug: 'wif-deployment', depends_on: []
+  });
+
+  const preGovernance = resolveContinuation([e2eLf, plan, viz, studio, cloud]);
+  assert.strictEqual(preGovernance.status, 'BLOCKED');
+  assert.strictEqual(preGovernance.reason, 'NO_DEPENDENCY_READY_ITEM');
+
+  const governance = item({
+    roadmap_id: 'GOV-LF-001', issue: 275, status: 'IN_PROGRESS', priority: 'P0', wave: 'R2R', order: 19,
+    branch_slug: 'roadmap-v25-consolidation', depends_on: ['E2E-LF-001']
+  });
+  const active = resolveContinuation([e2eLf, governance, plan, viz, studio, cloud]);
+  assert.strictEqual(active.status, 'RESOLVED');
+  assert.strictEqual(active.action, 'CONTINUE_ACTIVE');
+  assert.strictEqual(active.roadmap_id, 'GOV-LF-001');
+
+  assert.strictEqual(validateLifecycleTransition('BACKLOG', 'READY'), true);
+  plan.status = 'READY';
+  const afterGovernance = resolveContinuation([e2eLf, plan, viz, studio, cloud]);
+  assert.strictEqual(afterGovernance.status, 'RESOLVED');
+  assert.strictEqual(afterGovernance.action, 'START_READY');
+  assert.strictEqual(afterGovernance.roadmap_id, 'PLAN-REC-001');
+  assert.strictEqual([plan, viz, studio, cloud].filter((entry) => entry.status === 'READY').length, 1);
+}
 assert.throws(() => validateLifecycleTransition('DONE', 'IN_PROGRESS'), /ROADMAP_LIFECYCLE_TRANSITION_INVALID/);
 assert.throws(() => validateLifecycleTransition('IN_PROGRESS', 'DONE', {
   prValidation: 'PASS',
@@ -436,5 +490,7 @@ console.log('roadmap_task_protocol_contract_test: OK', {
   productReadyE2ERequiredForUserFacingDone: true,
   productStageDependencies: true,
   runtimeIntegratedDependencies: true,
+  backlogPromotion: true,
+  postLfExactNextReady: true,
   privateContextRejected: true
 });
