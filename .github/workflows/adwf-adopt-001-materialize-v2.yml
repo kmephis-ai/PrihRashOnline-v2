@@ -1,0 +1,100 @@
+name: ADWF ADOPT-001 Materialize v2
+on:
+  push:
+    branches: [agent/adwf-adopt-001-materializer-v2-20260817]
+permissions:
+  contents: write
+concurrency:
+  group: adwf-adopt-001-materializer-v2
+  cancel-in-progress: false
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CONSUMER_BASE_SHA: 19dc9f653131715233da91a28598e012af64f36f
+      ADWF_SOURCE_SHA: f17a49a22b9608297e96977e0af7f4cb0c573fc7
+      WRITER_BRANCH: agent/ADWF-ADOPT-001-real-adoption
+    steps:
+      - name: Checkout exact consumer writer
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.WRITER_BRANCH }}
+          path: consumer
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Checkout exact ADWF source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.ADWF_SOURCE_SHA }}
+          path: framework
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify immutable baselines
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git -C consumer rev-parse HEAD)" == "${CONSUMER_BASE_SHA}" ]]
+          [[ "$(git -C framework rev-parse HEAD)" == "${ADWF_SOURCE_SHA}" ]]
+          [[ "$(git -C consumer status --porcelain)" == "" ]]
+      - name: Canonical adoption and bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="${GITHUB_WORKSPACE}/framework/.adwf" python - <<'PY'
+          from pathlib import Path
+          import subprocess, shutil
+          from lib.managed_surface import plan_adoption
+          from lib.managed_surface_transaction import apply_adoption
+          from lib.pack_materializer import materialize_project_pack
+          from lib.consumer_installation import build_record,write_record,validate_fresh_session
+          from lib.consumer_operational import build_binding as build_ops,write_binding as write_ops,resolve_operational_context
+          from lib.consumer_gates import build_binding as build_gates,write_binding as write_gates,load_binding as load_gates
+          from lib.consumer_ci import classify_anchor,classify_current,resolve_route
+          root=Path.cwd(); c=root/'consumer'; f=root/'framework'
+          base='19dc9f653131715233da91a28598e012af64f36f'; source='f17a49a22b9608297e96977e0af7f4cb0c573fc7'
+          base_tree=subprocess.check_output(['git','-C',str(c),'rev-parse',base+'^{tree}'],text=True).strip()
+          plan=plan_adoption(f,c,source_revision=source)
+          assert plan['status']=='READY' and plan['blockers']==[]
+          actions={}
+          for e in plan['entries']: actions[e['action']]=actions.get(e['action'],0)+1
+          assert actions=={'CREATE_PLANNED':520,'PRESERVE_SHARED':4,'KEEP_EXACT':10}, actions
+          adoption=apply_adoption(f,c,plan); assert adoption['status']=='COMMITTED'
+          pack=materialize_project_pack(c,f,apply=True,product_name='PrihRashOnline-v2',default_branch='main',repository_visibility='PUBLIC')
+          assert pack['status']=='APPLIED' and pack['pack']=='apps-script'
+          assert pack['safety']['monetary_budget_usd']==0 and pack['safety']['secrets']=='FORBIDDEN' and pack['safety']['network']=='NONE'
+          rec=build_record(f,c,adoption,consumer_repository='kmephis-ai/PrihRashOnline-v2',consumer_base_sha=base,consumer_base_tree=base_tree); write_record(rec,c,f)
+          ops=build_ops(c,c,consumer_repository='kmephis-ai/PrihRashOnline-v2',roadmap_path='docs/ROADMAP.md'); write_ops(ops,c,c)
+          phases={'pr':[{'check_name':'validate','app_slug':'github-actions','app_id':15368}],'main':[{'check_name':'verify','app_slug':'github-actions','app_id':15368}],'runtime':[]}
+          gates=build_gates(c,c,phases=phases,required_phases=['pr','main']); write_gates(gates,c,c); assert load_gates(c,c)['phases']==phases
+          assert classify_anchor(c,base)=='UNMANAGED_PREINSTALL'
+          current=classify_current(c,c,expected_repository='kmephis-ai/PrihRashOnline-v2'); assert current['mode']=='CONSUMER_NATIVE' and current['verified_managed_files']==520
+          for phase in ('pr','main'):
+            assert resolve_route(c,c,phase=phase,subject_sha='a'*40,anchor_sha=base,expected_repository='kmephis-ai/PrihRashOnline-v2')['mode']=='CONSUMER_NATIVE'
+          runtime=c/'.adwf-runtime'; proof=root/'runtime-proof'; shutil.move(runtime,proof)
+          try:
+            fresh=validate_fresh_session(c,f,expected_repository='kmephis-ai/PrihRashOnline-v2'); assert fresh['status']=='VERIFIED' and fresh['framework_source_sha']==source and fresh['monetary_budget_usd']==0
+            ctx=resolve_operational_context(c,c); assert ctx['mode']=='CONSUMER_NATIVE' and ctx['roadmap']=={'kind':'MARKDOWN_FILE','path':'docs/ROADMAP.md'} and ctx['work_items']['repository']=='kmephis-ai/PrihRashOnline-v2'
+          finally:
+            shutil.rmtree(proof)
+          PY
+      - name: Prove product bytes unchanged and publish non-workflow surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git -C consumer diff --name-only "${CONSUMER_BASE_SHA}" --)"
+          test ! -e consumer/.adwf-runtime
+          git -C consumer config user.name 'adwf-adoption-materializer'
+          git -C consumer config user.email 'adwf-adoption-materializer@users.noreply.github.com'
+          git -C consumer add -A
+          git -C consumer restore --staged -- \
+            .github/workflows/adwf-control.yml \
+            .github/workflows/adwf-main.yml \
+            .github/workflows/adwf-platform-smoke.yml \
+            .github/workflows/adwf-pr.yml \
+            .github/workflows/adwf-release.yml
+          git -C consumer diff --cached --quiet && { echo '::error::No non-workflow adoption changes'; exit 1; }
+          git -C consumer commit -m '[ADWF-ADOPT-001] Materialize consumer operating mode'
+          git -C consumer push origin "HEAD:${WRITER_BRANCH}"
+          echo "PUBLISHED_HEAD=$(git -C consumer rev-parse HEAD)"
