@@ -1,0 +1,162 @@
+{
+  "schema": "PRH_LOCAL_ANALYTICS_WORKER_V1",
+  "version": "1.0.0",
+  "roadmap_id": "WORKER-LF-001",
+  "cost_class": "FREE_ONLY",
+  "authority": {
+    "off_main_thread": true,
+    "canonical_evaluator": "lib/analytics/analytics_engine.js#evaluateAnalytics",
+    "independent_financial_formulas": false,
+    "network": false,
+    "storage": false,
+    "canonical_financial_write": false,
+    "planning_evaluator": "lib/planning/local_planning_engine.js#evaluatePlanning"
+  },
+  "identity": {
+    "generation_id_format": "SHA256_HEX_64",
+    "canonical_revision_format": "SHA256_HEX_64",
+    "request_id_max_length": 96,
+    "request_id_pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$"
+  },
+  "messages": {
+    "in": {
+      "INIT": [
+        "type"
+      ],
+      "SET_REVISION": [
+        "type",
+        "generation_id",
+        "revision"
+      ],
+      "BIND_DATASET": [
+        "type",
+        "generation_id",
+        "revision",
+        "transactions"
+      ],
+      "ANALYTICS_QUERY": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "query"
+      ],
+      "PLANNING_QUERY": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "source",
+        "query"
+      ],
+      "CANCEL_GENERATION": [
+        "type",
+        "generation_id"
+      ]
+    },
+    "out": {
+      "READY": [
+        "type",
+        "schema",
+        "version"
+      ],
+      "DATASET_BOUND": [
+        "type",
+        "generation_id",
+        "revision",
+        "transaction_count"
+      ],
+      "ANALYTICS_RESULT": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "result"
+      ],
+      "PLANNING_RESULT": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "planning_revision",
+        "result"
+      ],
+      "STALE_DISCARDED": [
+        "type",
+        "request_id",
+        "generation_id",
+        "revision",
+        "reason"
+      ],
+      "ERROR": [
+        "type",
+        "request_id",
+        "reason"
+      ]
+    }
+  },
+  "state": {
+    "initial": "UNINITIALIZED",
+    "ready": "READY",
+    "set_revision_increments_epoch": true,
+    "cancel_generation_increments_epoch": true,
+    "cancelled_current_generation_requires_new_set_revision": true,
+    "dataset_bound_once_per_revision": true,
+    "dataset_rebind_on_revision_change": true,
+    "query_cache_revision_scoped": true
+  },
+  "query_protocol": {
+    "requires_ready": true,
+    "requires_exact_generation_match": true,
+    "requires_exact_revision_match": true,
+    "requires_bound_dataset": true,
+    "query_message_contains_transactions": false,
+    "dataset_shape_validation_at_bind": true,
+    "scheduled_off_message_turn": true,
+    "recheck_binding_before_evaluate": true,
+    "recheck_binding_after_evaluate": true,
+    "stale_completion_policy": "DISCARD",
+    "stale_output_contains_analytics_payload": false,
+    "canonical_parity_required": true,
+    "bounded_revision_scoped_query_cache": true
+  },
+  "limits": {
+    "max_transactions_per_dataset": 20000,
+    "max_pending_requests": 32,
+    "max_query_cache_entries": 48
+  },
+  "forbidden_worker_capabilities": [
+    "fetch",
+    "XMLHttpRequest",
+    "WebSocket",
+    "EventSource",
+    "importScripts",
+    "indexedDB",
+    "localStorage",
+    "sessionStorage",
+    "google.script.run",
+    "SpreadsheetApp",
+    "UrlFetchApp"
+  ],
+  "privacy": {
+    "public_tests_synthetic_only": true,
+    "error_contains_financial_payload": false,
+    "stale_contains_financial_payload": false,
+    "public_telemetry_contains_financial_payload": false,
+    "allowed_public_observability": [
+      "schema",
+      "version",
+      "generation_hash_prefix",
+      "revision_hash_prefix",
+      "request_id",
+      "status",
+      "reason",
+      "duration_ms"
+    ]
+  },
+  "rollback": {
+    "primary_product_path_connected": false,
+    "canonical_source_mutation": false,
+    "fallback": "DIRECT_CANONICAL_EVALUATOR"
+  }
+}

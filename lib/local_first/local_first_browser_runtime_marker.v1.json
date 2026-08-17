@@ -1,0 +1,51 @@
+{
+  "schema": "PRH_LOCAL_FIRST_BROWSER_RUNTIME_MARKER_CONTRACT_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PACK-LF-001",
+  "marker_file": "local-first-browser-runtime.json",
+  "marker_schema": "PRH_LOCAL_FIRST_BROWSER_RUNTIME_MARKER_V1",
+  "marker_version": "1.0.0",
+  "default_state": "DISABLED_WHEN_ABSENT",
+  "target_html": "LocalFirstSpaWebApp.html",
+  "placeholder": "<!-- PRH_LOCAL_FIRST_BROWSER_RUNTIME -->",
+  "allowed_browser_modules": [
+    "pwa/local_read_model_store.js",
+    "pwa/local_first_sync.js",
+    "pwa/local_first_delta.js",
+    "pwa/local_finance_runtime.js",
+    "pwa/local_planning_runtime.js",
+    "pwa/local_first_performance.js",
+    "pwa/local_visualization_adapter.js"
+  ],
+  "worker_entry": "pwa/local_analytics_worker_entry.js",
+  "required_policy": {
+    "runtime_network_required_for_warm_route": false,
+    "external_cdn_required": false,
+    "cost_class": "FREE_ONLY",
+    "financial_write_authorized": false
+  },
+  "trust_bootstrap": {
+    "candidate_packager_self_attestation_allowed": false,
+    "disabled_mode_must_preserve_legacy_artifact_shape": true,
+    "marker_must_not_be_present_in_PACK_LF_001_root": true,
+    "future_activation_requires_trusted_main_packager": true
+  },
+  "activation_example": {
+    "schema": "PRH_LOCAL_FIRST_BROWSER_RUNTIME_MARKER_V1",
+    "version": "1.0.0",
+    "enabled": true,
+    "target_html": "LocalFirstSpaWebApp.html",
+    "modules": [
+      "pwa/local_read_model_store.js",
+      "pwa/local_first_sync.js",
+      "pwa/local_first_delta.js",
+      "pwa/local_finance_runtime.js",
+      "pwa/local_planning_runtime.js",
+      "pwa/local_first_performance.js"
+    ],
+    "worker_entry": "pwa/local_analytics_worker_entry.js",
+    "runtime_network_required_for_warm_route": false,
+    "external_cdn_required": false,
+    "cost_class": "FREE_ONLY"
+  }
+}

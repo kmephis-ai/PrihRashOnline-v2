@@ -1,0 +1,256 @@
+{
+  "schema": "PRH_LOCAL_FIRST_ROADMAP_V1",
+  "version": "1.1.0",
+  "roadmap_id": "ARCH-LF-001",
+  "base_roadmap": "docs/ROADMAP.md@v2.5",
+  "amendment": "docs/ROADMAP_LOCAL_FIRST_RECOVERY.md",
+  "freeze_until_gate": "MASTER-LF-PRODUCT",
+  "feature_expansion_frozen": false,
+  "protocol": {
+    "task_schema": "PRH_ROADMAP_TASK_V2",
+    "local_first_protocol_wave": "R2R",
+    "future_ydb_protocol_wave": "R4",
+    "one_active_writer": true,
+    "paid_dependency_required": false
+  },
+  "items": [
+    {
+      "id": "ARCH-LF-001",
+      "phase": "LF0",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 1,
+      "work_class": "engineering",
+      "depends_on": [
+        "GOV-REC-001",
+        "DATA-REC-001"
+      ],
+      "exit_gate": "MASTER-LF-0",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "SPA-LF-001",
+      "phase": "LF1",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 2,
+      "work_class": "user_facing",
+      "depends_on": [
+        "ARCH-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-SPA",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "STORE-LF-001",
+      "phase": "LF1",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 3,
+      "work_class": "engineering",
+      "depends_on": [
+        "ARCH-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-STORE",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "WORKER-LF-001",
+      "phase": "LF2",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 4,
+      "work_class": "engineering",
+      "depends_on": [
+        "STORE-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-WORKER",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "SYNC-LF-001",
+      "phase": "LF2",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 5,
+      "work_class": "engineering",
+      "depends_on": [
+        "STORE-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-SYNC-BASE",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "DELTA-LF-001",
+      "phase": "LF2",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 6,
+      "work_class": "engineering",
+      "depends_on": [
+        "SYNC-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-SYNC-DELTA",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "PACK-LF-001",
+      "phase": "LF3_BOOTSTRAP",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 7,
+      "work_class": "engineering",
+      "depends_on": [
+        "DELTA-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-PACKAGER",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "FIN-LF-001",
+      "phase": "LF3",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 8,
+      "work_class": "user_facing",
+      "depends_on": [
+        "SPA-LF-001",
+        "WORKER-LF-001",
+        "DELTA-LF-001",
+        "PACK-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-FIN",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "DATA-LF-001",
+      "phase": "LF3",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 9,
+      "work_class": "user_facing",
+      "depends_on": [
+        "SPA-LF-001",
+        "STORE-LF-001",
+        "DELTA-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-DATA",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "PERF-LF-001",
+      "phase": "LF3",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 10,
+      "work_class": "user_facing",
+      "depends_on": [
+        "FIN-LF-001",
+        "DATA-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-PERF",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "E2E-LF-001",
+      "phase": "LF4",
+      "protocol_wave": "R2R",
+      "priority": "P0",
+      "order": 11,
+      "work_class": "user_facing",
+      "depends_on": [
+        "PERF-LF-001"
+      ],
+      "exit_gate": "MASTER-LF-PRODUCT",
+      "lifecycle_status": "DONE"
+    },
+    {
+      "id": "YDB-LF-001",
+      "phase": "FUTURE",
+      "protocol_wave": "R4",
+      "priority": "P1",
+      "order": 12,
+      "work_class": "engineering",
+      "depends_on": [
+        "E2E-LF-001",
+        "YC-040"
+      ],
+      "exit_gate": "MASTER-YDB-SHADOW",
+      "lifecycle_status": "BLOCKED"
+    },
+    {
+      "id": "YDB-LF-002",
+      "phase": "FUTURE",
+      "protocol_wave": "R4",
+      "priority": "P1",
+      "order": 13,
+      "work_class": "engineering",
+      "depends_on": [
+        "YDB-LF-001"
+      ],
+      "exit_gate": "MASTER-YDB-READ",
+      "lifecycle_status": "BLOCKED"
+    }
+  ],
+  "amendment_status": "CONSOLIDATED_HISTORICAL",
+  "freeze_gate_status": "DONE",
+  "trust_anchor": {
+    "roadmap_id": "E2E-LF-001",
+    "issue": 273,
+    "pr": 274,
+    "main_sha": "12f764edc34aad32693fc7589ff53ded53740d5d",
+    "gate": "MASTER-LF-PRODUCT",
+    "status": "DONE"
+  },
+  "post_lf": {
+    "activation_gate": "GOV-LF-001_MAIN_VERIFICATION",
+    "governance_item": "GOV-LF-001",
+    "next_ready_after_governance": "PLAN-REC-001",
+    "exactly_one_ready_required": true,
+    "advanced_analytics_resume_gate": "MASTER-GSTUDIO",
+    "legacy_recovery_disposition": [
+      {
+        "id": "PLAN-REC-001",
+        "disposition": "REDEPEND_LOCAL_FIRST",
+        "status_after_governance": "READY",
+        "depends_on": [
+          "E2E-LF-001"
+        ]
+      },
+      {
+        "id": "VIZ-REC-001",
+        "disposition": "REBASELINE_NO_OLD_CANDIDATE_CREDIT",
+        "status_after_governance": "BLOCKED",
+        "depends_on": [
+          "PLAN-REC-001"
+        ]
+      },
+      {
+        "id": "E2E-REC-001",
+        "disposition": "SUPERSEDED_BY_E2E-LF-001",
+        "status_after_governance": "CLOSED_SUPERSEDED",
+        "successor": "E2E-LF-001"
+      },
+      {
+        "id": "STUDIO-REC-001",
+        "disposition": "REDEPEND_LOCAL_FIRST",
+        "status_after_governance": "BACKLOG",
+        "depends_on_product_ready": [
+          "VIZ-REC-001"
+        ]
+      }
+    ],
+    "external_blockers": [
+      {
+        "id": "YC-041",
+        "status": "BLOCKED",
+        "reason": "OWNER_CLOUD_BOOTSTRAP_REQUIRED"
+      },
+      {
+        "id": "YC-042",
+        "status": "BLOCKED",
+        "reason": "OWNER_YDB_TARGET_REQUIRED"
+      }
+    ]
+  }
+}

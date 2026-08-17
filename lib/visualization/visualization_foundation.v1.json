@@ -1,0 +1,107 @@
+{
+  "schema": "PRH_VISUALIZATION_FOUNDATION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "VIZ-020",
+  "upstream": {
+    "analytics_contract": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "design_system": "PRH_DESIGN_SYSTEM_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "schemas": {
+    "chart_spec": "PRH_CHART_SPEC_V1",
+    "widget_spec": "PRH_WIDGET_SPEC_V1",
+    "filter_context": "PRH_FILTER_CONTEXT_V1",
+    "drill_context": "PRH_DRILL_CONTEXT_V1",
+    "render_dataset": "PRH_VISUALIZATION_RENDER_DATASET_V1"
+  },
+  "invariants": {
+    "renderer_neutral_specs": true,
+    "configuration_only_specs": true,
+    "financial_payload_in_specs_allowed": false,
+    "renderer_option_runtime_only": true,
+    "renderer_owns_financial_truth": false,
+    "renderer_owns_query_semantics": false,
+    "public_financial_evidence": "SYNTHETIC_ONLY",
+    "external_asset_required": false,
+    "paid_dependency_required": false,
+    "cost_class": "FREE_ONLY"
+  },
+  "renderers": [
+    {
+      "id": "ECHARTS_6",
+      "family": "Apache ECharts",
+      "major": 6,
+      "primary_browser": true,
+      "replaceable": true,
+      "loading_policy": "LOCAL_OR_BUNDLED",
+      "external_cdn_required": false,
+      "network_authority": false,
+      "persistence_authority": false,
+      "financial_write_authority": false
+    }
+  ],
+  "chart_registry": [
+    {
+      "id": "BAR",
+      "renderer": "ECHARTS_6",
+      "required_encodings": ["x", "y"],
+      "optional_encodings": ["series"],
+      "x_kinds": ["DIMENSION"],
+      "y_kinds": ["MEASURE"],
+      "series_kinds": ["DIMENSION"],
+      "responsive_fallback": "HORIZONTAL_SCROLL_OR_REDUCE_LABEL_DENSITY",
+      "accessible_summary_required": true,
+      "supports_filter_selection": true,
+      "supports_drill": true
+    },
+    {
+      "id": "LINE",
+      "renderer": "ECHARTS_6",
+      "required_encodings": ["x", "y"],
+      "optional_encodings": ["series"],
+      "x_kinds": ["DIMENSION"],
+      "y_kinds": ["MEASURE"],
+      "series_kinds": ["DIMENSION"],
+      "responsive_fallback": "REDUCE_LABEL_DENSITY",
+      "accessible_summary_required": true,
+      "supports_filter_selection": true,
+      "supports_drill": true
+    },
+    {
+      "id": "DONUT",
+      "renderer": "ECHARTS_6",
+      "required_encodings": ["category", "value"],
+      "optional_encodings": [],
+      "category_kinds": ["DIMENSION"],
+      "value_kinds": ["MEASURE"],
+      "responsive_fallback": "LEGEND_BELOW",
+      "accessible_summary_required": true,
+      "supports_filter_selection": true,
+      "supports_drill": true
+    }
+  ],
+  "encoding_registry": {
+    "dimension_ids": ["time_bucket", "account_id", "category_id", "member_id", "project_id", "type"],
+    "measure_ids": ["INCOME", "EXPENSE", "CASH_FLOW", "SAVINGS", "BUDGET_VARIANCE", "GROSS_EXPENSE", "REFUND", "TRANSFER"]
+  },
+  "interaction": {
+    "filter_operators": ["INCLUDE", "EXCLUDE"],
+    "drill_targets": ["DETAILS", "TRANSACTION_EXPLORER"],
+    "context_identity": "SHA256_CANONICAL_JSON_V1",
+    "financial_payload_persistence": false
+  },
+  "limits": {
+    "max_title_length": 120,
+    "max_filter_items": 16,
+    "max_filter_values": 64,
+    "max_render_rows": 5000
+  },
+  "authorities": {
+    "query": false,
+    "financial_truth": false,
+    "storage": false,
+    "network": false,
+    "persistence": false,
+    "financial_write": false
+  }
+}

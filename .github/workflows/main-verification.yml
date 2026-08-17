@@ -1,0 +1,223 @@
+name: Main Verification
+
+on:
+  repository_dispatch:
+    types: [ci003-main-verification]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: main-verification-${{ github.event.client_payload.merge_sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      MERGE_SHA: ${{ github.event.client_payload.merge_sha }}
+      CANDIDATE_SHA: ${{ github.event.client_payload.candidate_sha }}
+      PR_NUMBER: ${{ github.event.client_payload.pr_number }}
+      ISSUE_NUMBER: ${{ github.event.client_payload.issue_number }}
+    steps:
+      - name: Verify autonomous merge is present on main
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=MAIN_VERIFICATION_NOT_COMPLETED' >> "$GITHUB_OUTPUT"
+          echo 'work_class=unknown' >> "$GITHUB_OUTPUT"
+          echo 'product_ready_e2e=NOT_APPLICABLE' >> "$GITHUB_OUTPUT"
+
+          if [[ ! "${MERGE_SHA}" =~ ^[0-9a-f]{40}$ || ! "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ || \
+                ! "${PR_NUMBER}" =~ ^[0-9]+$ || ! "${ISSUE_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo 'reason=DISPATCH_PAYLOAD_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.merged // false' <<<"${PR_JSON}")" != 'true' || \
+                "$(jq -r '.merge_commit_sha // empty' <<<"${PR_JSON}")" != "${MERGE_SHA}" || \
+                "$(jq -r '.head.sha // empty' <<<"${PR_JSON}")" != "${CANDIDATE_SHA}" || \
+                "$(jq -r '.head.repo.full_name // empty' <<<"${PR_JSON}")" != "${GITHUB_REPOSITORY}" || \
+                "$(jq -r '.base.ref // empty' <<<"${PR_JSON}")" != "${DEFAULT_BRANCH}" ]]; then
+            echo 'reason=MERGED_PR_IDENTITY_MISMATCH' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(jq -r '.merged_by.login // empty' <<<"${PR_JSON}")" != 'github-actions[bot]' ]]; then
+            echo 'reason=MERGE_NOT_AUTOMATION_OWNED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_BODY="$(jq -r '.body // ""' <<<"${PR_JSON}")"
+          mapfile -t ISSUE_REFS < <(printf '%s\n' "${PR_BODY}" | grep -Eio '^[[:space:]]*Closes[[:space:]]+#[0-9]+[[:space:]]*$' | grep -Eo '[0-9]+' || true)
+          if [[ "${#ISSUE_REFS[@]}" -ne 1 || "${ISSUE_REFS[0]}" != "${ISSUE_NUMBER}" ]]; then
+            echo 'reason=ROADMAP_ISSUE_LINK_MISMATCH' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BRANCH_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/branches/${DEFAULT_BRANCH}" --jq '.commit.sha')"
+          if [[ "${BRANCH_SHA}" != "${MERGE_SHA}" ]]; then
+            COMPARE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${MERGE_SHA}...${BRANCH_SHA}")"
+            if [[ "$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE_JSON}")" != "${MERGE_SHA}" ]]; then
+              echo 'reason=MERGE_NOT_ON_MAIN' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+          DEPLOY_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-dev-deploy")][0].state // empty' <<<"${STATUS_JSON}")"
+          HEALTH_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-runtime-health")][0].state // empty' <<<"${STATUS_JSON}")"
+          MERGE_STATE="$(jq -r '[.statuses[] | select(.context == "autonomous-merge")][0].state // empty' <<<"${STATUS_JSON}")"
+          if [[ "${DEPLOY_STATE}" != 'success' || "${HEALTH_STATE}" != 'success' || "${MERGE_STATE}" != 'success' ]]; then
+            echo 'reason=EXACT_CANDIDATE_GATES_NOT_GREEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ISSUE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          ISSUE_BODY="$(jq -r '.body // ""' <<<"${ISSUE_JSON}")"
+          if [[ "$(jq -r '.state' <<<"${ISSUE_JSON}")" != 'open' || "$(jq -r 'has("pull_request")' <<<"${ISSUE_JSON}")" == 'true' ]]; then
+            echo 'reason=ROADMAP_ISSUE_NOT_OPEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! grep -Eq '^roadmap_id:[[:space:]]*[A-Z0-9-]+[[:space:]]*$' <<<"${ISSUE_BODY}" || \
+             [[ "$(grep -Ec '^status:[[:space:]]*IN_PROGRESS[[:space:]]*$' <<<"${ISSUE_BODY}" || true)" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_STATE_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          WORK_CLASS="$(sed -nE 's/^work_class:[[:space:]]*(engineering|user_facing)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          TARGET_STAGE="$(sed -nE 's/^target_stage:[[:space:]]*(DONE_ENGINEERING|DONE)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          ENGINEERING_STATUS="$(sed -nE 's/^engineering_status:[[:space:]]*(BACKLOG|IN_PROGRESS|CODE_COMPLETE|DONE_ENGINEERING)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          PRODUCT_STAGE="$(sed -nE 's/^product_stage:[[:space:]]*(NOT_APPLICABLE|NOT_STARTED|CODE_COMPLETE|RUNTIME_INTEGRATED|REAL_E2E_VERIFIED|PRODUCT_READY|DONE)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          if [[ -z "${WORK_CLASS}" || -z "${TARGET_STAGE}" || -z "${ENGINEERING_STATUS}" || -z "${PRODUCT_STAGE}" ]]; then
+            echo 'reason=ROADMAP_STAGE_METADATA_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${WORK_CLASS}" == 'engineering' ]]; then
+            if [[ "${TARGET_STAGE}" != 'DONE_ENGINEERING' || "${ENGINEERING_STATUS}" != 'CODE_COMPLETE' || \
+                  "${PRODUCT_STAGE}" != 'CODE_COMPLETE' ]]; then
+              echo 'reason=ENGINEERING_STAGE_NOT_COMPLETE' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            PRODUCT_E2E_STATE="$(jq -r '[.statuses[] | select(.context == "product-ready-e2e")][0].state // empty' <<<"${STATUS_JSON}")"
+            if [[ "${TARGET_STAGE}" != 'DONE' || "${ENGINEERING_STATUS}" != 'CODE_COMPLETE' || \
+                  "${PRODUCT_STAGE}" != 'PRODUCT_READY' || "${PRODUCT_E2E_STATE}" != 'success' ]]; then
+              echo 'reason=PRODUCT_READY_E2E_NOT_PROVEN' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo 'product_ready_e2e=PASS' >> "$GITHUB_OUTPUT"
+          fi
+
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+          echo "work_class=${WORK_CLASS}" >> "$GITHUB_OUTPUT"
+
+      - name: Close Roadmap Issue from verified main
+        id: close
+        if: steps.verify.outputs.result == 'PASS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORK_CLASS: ${{ steps.verify.outputs.work_class }}
+          PRODUCT_READY_E2E: ${{ steps.verify.outputs.product_ready_e2e }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=ISSUE_CLOSE_FAILED' >> "$GITHUB_OUTPUT"
+          ISSUE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          ISSUE_BODY="$(jq -r '.body // ""' <<<"${ISSUE_JSON}")"
+          UPDATED_BODY_FILE="${RUNNER_TEMP}/roadmap-issue-done.md"
+          awk -v work_class="${WORK_CLASS}" '
+            BEGIN { status_changed=0; engineering_changed=0; product_changed=(work_class == "engineering" ? 1 : 0) }
+            /^status:[[:space:]]*IN_PROGRESS[[:space:]]*$/ && status_changed==0 { print "status: DONE"; status_changed=1; next }
+            /^engineering_status:[[:space:]]*(IN_PROGRESS|CODE_COMPLETE)[[:space:]]*$/ && engineering_changed==0 { print "engineering_status: DONE_ENGINEERING"; engineering_changed=1; next }
+            /^product_stage:[[:space:]]*PRODUCT_READY[[:space:]]*$/ && work_class == "user_facing" && product_changed==0 { print "product_stage: DONE"; product_changed=1; next }
+            { print }
+            END { if (status_changed != 1 || engineering_changed != 1 || product_changed != 1) exit 42 }
+          ' <<<"${ISSUE_BODY}" > "${UPDATED_BODY_FILE}" || {
+            echo 'reason=ISSUE_STATE_TRANSITION_FAILED' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          {
+            printf '\n\nMain verification evidence:\n\n'
+            printf 'main_verification:\n'
+            printf '  status: PASS\n'
+            printf '  pr: %s\n' "${PR_NUMBER}"
+            printf '  candidate_sha: %s\n' "${CANDIDATE_SHA}"
+            printf '  merge_sha: %s\n' "${MERGE_SHA}"
+            printf '  trusted_dev_deploy: PASS\n'
+            printf '  trusted_runtime_health: PASS\n'
+            printf '  autonomous_merge: PASS\n'
+            printf '  work_class: %s\n' "${WORK_CLASS}"
+            printf '  product_ready_e2e: %s\n' "${PRODUCT_READY_E2E}"
+          } >> "${UPDATED_BODY_FILE}"
+          PATCH_JSON="$(jq -n --rawfile body "${UPDATED_BODY_FILE}" '{state:"closed",state_reason:"completed",body:$body}')"
+          set +e
+          CLOSED_JSON="$(printf '%s' "${PATCH_JSON}" | gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --input - 2>/dev/null)"
+          CLOSE_STATUS=$?
+          set -e
+          if [[ "${CLOSE_STATUS}" -ne 0 || "$(jq -r '.state // empty' <<<"${CLOSED_JSON}" 2>/dev/null || true)" != 'closed' ]]; then
+            exit 0
+          fi
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+
+      - name: Publish main verification status
+        if: always() && env.MERGE_SHA != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFY_RESULT: ${{ steps.verify.outputs.result }}
+          VERIFY_REASON: ${{ steps.verify.outputs.reason }}
+          CLOSE_RESULT: ${{ steps.close.outputs.result }}
+          CLOSE_REASON: ${{ steps.close.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON="${VERIFY_REASON:-MAIN_VERIFICATION_NOT_COMPLETED}"
+          if [[ "${VERIFY_RESULT}" == 'PASS' ]]; then
+            REASON="${CLOSE_REASON:-ISSUE_CLOSE_FAILED}"
+            if [[ "${CLOSE_RESULT}" == 'PASS' ]]; then
+              STATE='success'
+              REASON='OK'
+            fi
+          fi
+          [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='MAIN_VERIFICATION_FAILED'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${MERGE_SHA}" \
+            -f state="${STATE}" \
+            -f context='main-verification' \
+            -f description="CI-003 ${REASON}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${MERGE_SHA}" \
+            -f state="${STATE}" \
+            -f context="main-verification-reason:${REASON}" \
+            -f description='CI-003 technical reason' >/dev/null
+
+      - name: Enforce main verification and Issue close
+        if: always()
+        env:
+          VERIFY_RESULT: ${{ steps.verify.outputs.result }}
+          VERIFY_REASON: ${{ steps.verify.outputs.reason }}
+          CLOSE_RESULT: ${{ steps.close.outputs.result }}
+          CLOSE_REASON: ${{ steps.close.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${VERIFY_RESULT}" != 'PASS' ]]; then
+            echo "::error::CI-003 main verification failed: ${VERIFY_REASON:-MAIN_VERIFICATION_NOT_COMPLETED}"
+            exit 1
+          fi
+          if [[ "${CLOSE_RESULT}" != 'PASS' ]]; then
+            echo "::error::CI-003 Issue close failed: ${CLOSE_REASON:-ISSUE_CLOSE_FAILED}"
+            exit 1
+          fi
+          echo 'CI-003 main verification: PASS'

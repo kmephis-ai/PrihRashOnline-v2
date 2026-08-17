@@ -1,0 +1,96 @@
+{
+  "schema": "PRH_FAMILY_AUTH_V1",
+  "version": "1.0.0",
+  "roadmap_id": "AUTH-040",
+  "mode": "PROVIDER_NEUTRAL_REFERENCE_POLICY",
+  "schemas": {
+    "verified_identity": "PRH_VERIFIED_IDENTITY_ASSERTION_V1",
+    "principal": "PRH_FAMILY_PRINCIPAL_V1",
+    "session": "PRH_FAMILY_SESSION_V1",
+    "mutation_nonce": "PRH_MUTATION_NONCE_V1",
+    "decision": "PRH_AUTHZ_DECISION_V1",
+    "telemetry": "PRH_AUTH_TELEMETRY_V1"
+  },
+  "identity": {
+    "raw_assertion_trusted": false,
+    "injected_verifier_required": true,
+    "verified_flag_required": true,
+    "audience_match_required": true,
+    "expiry_required": true,
+    "live_provider_required_for_ci": false
+  },
+  "session": {
+    "integrity": "HMAC_SHA256_RUNTIME_INJECTED_KEY",
+    "minimum_key_bytes": 32,
+    "session_id_random_bytes": 16,
+    "absolute_lifetime_seconds": 28800,
+    "idle_timeout_seconds": 1800,
+    "idle_activity_state": "SERVER_SIDE_STORE",
+    "rotation_version_bound": true,
+    "constant_time_signature_compare": true,
+    "token_identity_payload_allowed": false,
+    "raw_token_in_telemetry": false,
+    "raw_key_in_telemetry": false
+  },
+  "roles": {
+    "OWNER": ["FINANCE_READ", "TRANSACTION_DRAFT_EDIT", "BUDGET_PLAN_EDIT", "DATA_QUALITY_REVIEW", "PROFILE_EDIT", "HOUSEHOLD_ADMIN"],
+    "EDITOR": ["FINANCE_READ", "TRANSACTION_DRAFT_EDIT", "BUDGET_PLAN_EDIT", "DATA_QUALITY_REVIEW", "PROFILE_EDIT"],
+    "VIEWER": ["FINANCE_READ"]
+  },
+  "mutating_capabilities": ["TRANSACTION_DRAFT_EDIT", "BUDGET_PLAN_EDIT", "PROFILE_EDIT", "HOUSEHOLD_ADMIN"],
+  "mutation_nonce": {
+    "integrity": "HMAC_SHA256_RUNTIME_INJECTED_KEY",
+    "random_bytes": 16,
+    "lifetime_seconds": 300,
+    "session_and_version_bound": true,
+    "capability_bound": true,
+    "single_use": true
+  },
+  "isolation": {
+    "household_match_required": true,
+    "cross_household": "DENY"
+  },
+  "authorization": {
+    "unknown_role": "DENY",
+    "unknown_capability": "DENY",
+    "backend_financial_write_granted": false,
+    "google_write_policy_still_required": "GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED"
+  },
+  "current_runtime": {
+    "apps_script_access": "MYSELF",
+    "public_exposure_change": false,
+    "identity_provider_provisioned": false
+  },
+  "telemetry": {
+    "allowlist": ["schema", "version", "decision", "reason_code", "role", "capability", "session_state", "principal_hash", "household_hash", "session_hash", "decision_count"],
+    "pseudonymization": "HMAC_SHA256_RUNTIME_INJECTED_KEY",
+    "minimum_key_bytes": 32,
+    "financial_payload_allowed": false,
+    "raw_subject_allowed": false,
+    "raw_household_allowed": false,
+    "raw_session_allowed": false,
+    "raw_token_allowed": false,
+    "key_material_allowed": false
+  },
+  "authority": {
+    "identity_provider": false,
+    "financial_truth": false,
+    "canonical_schema_override": false,
+    "storage": false,
+    "network": false,
+    "financial_write": false,
+    "google_write_policy_override": false,
+    "public_runtime_exposure": false
+  },
+  "privacy": {
+    "public_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "tokens_or_keys_public": false,
+    "raw_identity_public": false,
+    "private_runtime_locator_public": false
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_identity_provider_required_for_ci": false,
+    "paid_dependency_required": false
+  }
+}

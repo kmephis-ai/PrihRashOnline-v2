@@ -1,0 +1,68 @@
+{
+  "schema": "PRH_DASHBOARD_INTERACTION_BUS_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-082",
+  "registry_schema": "PRH_DASHBOARD_INTERACTION_REGISTRY_V1",
+  "event_schema": "PRH_DASHBOARD_INTERACTION_EVENT_V1",
+  "session_schema": "PRH_DASHBOARD_INTERACTION_SESSION_V1",
+  "result_schema": "PRH_DASHBOARD_INTERACTION_RESULT_V1",
+  "identity_algorithm": "SHA256_CANONICAL_JSON_V1",
+  "upstream": {
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
+    "exploration_state": "PRH_EXPLORATION_STATE_V1@1.0.0",
+    "filter_context": "PRH_FILTER_CONTEXT_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "event_types": ["CLICK", "SELECTION", "BRUSH", "RESET", "BACK"],
+  "selection_operations": ["SET", "CLEAR"],
+  "filter_operators": ["INCLUDE", "EXCLUDE"],
+  "principles": {
+    "configuration_only": true,
+    "shared_context_target": "GLOBAL_FILTER_CONTEXT_ONLY",
+    "widget_context_mutation_allowed": false,
+    "drill_context_mutation_allowed": false,
+    "scope_mutation_allowed": false,
+    "binding_mutation_allowed": false,
+    "layout_mutation_allowed": false,
+    "query_execution_authority": false,
+    "query_mutation_allowed": false,
+    "financial_payload_allowed": false,
+    "event_replay_mutates_state": false,
+    "loop_prevention": "ORIGIN_DEDUP_PLUS_MAX_HOP",
+    "public_financial_evidence": "SYNTHETIC_ONLY",
+    "free_only": true
+  },
+  "interaction_rules": {
+    "click_max_values": 1,
+    "selection_max_values": 64,
+    "brush_field": "time_bucket",
+    "brush_max_values": 64,
+    "max_hop": 1,
+    "processed_origin_limit": 128,
+    "effect_target": "ALL_REGISTERED_EXCEPT_SOURCE"
+  },
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "event_type",
+    "source_widget_hash_prefix",
+    "origin_hash_prefix",
+    "state_hash_prefix",
+    "affected_widget_count",
+    "decision",
+    "reason"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "canonical_mutation": false,
+    "authorization": false,
+    "storage": false,
+    "network": false,
+    "deployment": false,
+    "renderer": false,
+    "layout": false
+  }
+}

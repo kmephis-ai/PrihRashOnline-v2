@@ -1,0 +1,43 @@
+{
+  "schema": "PRH_LOCAL_PLANNING_RUNTIME_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PLAN-REC-001",
+  "work_class": "user_facing",
+  "upstream": {
+    "finance_runtime": "PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0",
+    "worker": "PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0",
+    "planning_engine": "PRH_LOCAL_PLANNING_ENGINE_V1@1.0.0",
+    "financial_truth": "FIN-TRUTH-v1"
+  },
+  "routes": ["budget", "obligations", "liquidity"],
+  "storage": {
+    "database": "prihrash-local-planning-v1",
+    "store": "snapshots",
+    "active_key": "active",
+    "source_schema": "PRH_LOCAL_PLANNING_SOURCE_V1",
+    "canonical_revision_binding_required": true,
+    "planning_revision_format": "SHA256_HEX_64"
+  },
+  "sync": {
+    "server_function": "prhPlanningLocalFirstBootstrapWire",
+    "cold_or_background_only": true,
+    "warm_route_network_requests": 0,
+    "warm_route_google_sheets_reads": 0,
+    "stale_canonical_binding": "FAIL_CLOSED_WAIT_FOR_MATCHING_CANONICAL_REVISION"
+  },
+  "authority": {
+    "canonical_financial_write": false,
+    "source_financial_write": false,
+    "auto_transaction_creation": false,
+    "cash_flow_as_balance_proxy": false,
+    "recurrence_inference": false,
+    "local_derived_write": true,
+    "free_only": true
+  },
+  "product_ready": {
+    "desktop_and_mobile": true,
+    "setup_configured_empty_unavailable_states": true,
+    "owner_uat_required": true,
+    "exact_candidate_required": true
+  }
+}

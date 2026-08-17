@@ -1,0 +1,97 @@
+name: Roadmap-задача
+description: Каноническая задача из Executable GitHub Roadmap
+title: "[ROADMAP-ID] "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Human-facing описание задачи ведётся на русском языке. Machine identifiers, schema/API names и технические пути сохраняются без перевода.
+  - type: input
+    id: roadmap_id
+    attributes:
+      label: Roadmap ID
+      description: Технический идентификатор из docs/ROADMAP.md.
+      placeholder: DOC-002
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Нормативный язык
+      description: "language: ru"
+      options:
+        - ru — русский
+    validations:
+      required: true
+  - type: dropdown
+    id: work_class
+    attributes:
+      label: Класс работы
+      description: User-facing класс нельзя закрыть без deployed Product E2E.
+      options:
+        - engineering
+        - user_facing
+    validations:
+      required: true
+  - type: dropdown
+    id: target_stage
+    attributes:
+      label: Целевая стадия
+      description: Engineering item завершается DONE_ENGINEERING; user-facing — только DONE.
+      options:
+        - DONE_ENGINEERING
+        - DONE
+    validations:
+      required: true
+  - type: dropdown
+    id: engineering_status
+    attributes:
+      label: Текущая инженерная стадия
+      description: Перед autonomous merge значение должно быть CODE_COMPLETE.
+      options:
+        - BACKLOG
+        - IN_PROGRESS
+        - CODE_COMPLETE
+        - DONE_ENGINEERING
+    validations:
+      required: true
+  - type: input
+    id: product_stage
+    attributes:
+      label: Текущая продуктовая стадия
+      description: NOT_APPLICABLE, NOT_STARTED, CODE_COMPLETE, RUNTIME_INTEGRATED, REAL_E2E_VERIFIED или PRODUCT_READY.
+      placeholder: NOT_APPLICABLE
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Цель
+      description: Один измеримый результат на русском языке.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии приёмки
+      description: Machine-verifiable условия; технические identifiers допустимы без перевода.
+    validations:
+      required: true
+  - type: textarea
+    id: product_evidence
+    attributes:
+      label: Product evidence и blocking gate
+      description: Для user-facing укажите MASTER gate и sanitized exact-SHA deployed E2E evidence. Не публикуйте Web App URL, финансовые значения или authenticated payload.
+      placeholder: "blocking_product_gate: n/a"
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Приватность, стоимость и откат
+      description: Укажите data/privacy/FREE_ONLY/rollback boundary без приватного payload.
+    validations:
+      required: true
+# language: ru

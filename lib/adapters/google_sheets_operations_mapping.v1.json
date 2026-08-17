@@ -1,0 +1,62 @@
+{
+  "schema": "PRH_GOOGLE_OPERATIONS_MAPPING_V1",
+  "version": "1.0.0",
+  "sheet_name": "01 Операции",
+  "canonical_schema": "PRH_CANONICAL_TRANSACTION_V1@1",
+  "required_headers": [
+    "ID", "Дата и время", "Тип", "Сумма", "Счёт", "Счёт назначения",
+    "Категория", "Наименование", "Член семьи", "Проект", "Теги",
+    "Комментарий", "Источник", "Строка источника", "Статус"
+  ],
+  "type_map": {
+    "доход": "income",
+    "income": "income",
+    "расход": "expense",
+    "expense": "expense",
+    "перевод": "transfer",
+    "transfer": "transfer",
+    "возврат": "refund",
+    "refund": "refund",
+    "корректировка": "adjustment",
+    "adjustment": "adjustment"
+  },
+  "status_map": {
+    "": "posted",
+    "проведено": "posted",
+    "оплачено": "posted",
+    "перенесено": "posted",
+    "ok": "posted",
+    "posted": "posted",
+    "ожидает": "pending",
+    "черновик": "pending",
+    "pending": "pending",
+    "отменено": "void",
+    "void": "void"
+  },
+  "amount": {
+    "source_unit": "major_currency_unit",
+    "canonical_unit": "integer_minor_units",
+    "minor_scale": 100,
+    "rounding": "FORBIDDEN"
+  },
+  "currency": {
+    "source_header": null,
+    "policy": "EXPLICIT_ADAPTER_CONFIG_REQUIRED"
+  },
+  "dimensions": {
+    "account_id": "EXPLICIT_RESOLVER_REQUIRED",
+    "destination_account_id": "EXPLICIT_RESOLVER_REQUIRED",
+    "category_id": "EXPLICIT_RESOLVER_REQUIRED",
+    "member_id": "EXPLICIT_RESOLVER_REQUIRED_WHEN_PRESENT",
+    "project_id": "EXPLICIT_RESOLVER_REQUIRED_WHEN_PRESENT"
+  },
+  "refund_policy": "MAP_TO_EXPENSE_REDUCTION_WHEN_NO_REVERSAL_FIELD_EXISTS",
+  "provenance": {
+    "source_system": "GOOGLE_SHEETS",
+    "identity_strategy": "EXTERNAL_ID",
+    "source_record_id": "ID",
+    "source_position": "ROW_NUMBER",
+    "fingerprint": "SHA256_VERSIONED_ROW_PROJECTION"
+  },
+  "write_policy": "BLOCKED_UNTIL_EXPLICIT_FINANCIAL_MUTATION_POLICY"
+}

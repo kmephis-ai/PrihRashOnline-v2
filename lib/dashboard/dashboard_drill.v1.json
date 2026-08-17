@@ -1,0 +1,79 @@
+{
+  "schema": "PRH_DASHBOARD_DRILL_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-083",
+  "hierarchy_registry_schema": "PRH_DASHBOARD_DRILL_HIERARCHY_REGISTRY_V1",
+  "drill_state_schema": "PRH_DASHBOARD_DRILL_STATE_V1",
+  "action_schema": "PRH_DASHBOARD_DRILL_ACTION_V1",
+  "request_schema": "PRH_DASHBOARD_DRILL_THROUGH_REQUEST_V1",
+  "reconciliation_schema": "PRH_DASHBOARD_DRILL_RECONCILIATION_V1",
+  "identity_algorithm": "SHA256_CANONICAL_JSON_V1",
+  "upstream": {
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
+    "exploration_state": "PRH_EXPLORATION_STATE_V1@1.0.0",
+    "filter_context": "PRH_FILTER_CONTEXT_V1@1.0.0",
+    "drill_context": "PRH_DRILL_CONTEXT_V1@1.0.0",
+    "transaction_explorer": "PRH_TRANSACTION_EXPLORER_V1@1.0.0",
+    "kpi_dictionary": "PRH_KPI_DICTIONARY_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "time_hierarchy": {
+    "id": "TIME",
+    "dimension": "time_bucket",
+    "levels": ["YEAR", "QUARTER", "MONTH", "DAY"],
+    "transitions": [["YEAR", "QUARTER"], ["QUARTER", "MONTH"], ["MONTH", "DAY"]],
+    "quarter_execution": "EXPLICIT_WINDOW_WITH_MONTH_GRAIN",
+    "range_semantics": "[start,end)"
+  },
+  "runtime_hierarchies": {
+    "ids": ["CATEGORY", "ACCOUNT"],
+    "dimensions": {"CATEGORY": "category_id", "ACCOUNT": "account_id"},
+    "max_levels": 6,
+    "max_nodes": 2048,
+    "labels_allowed": false,
+    "leaf_identity": "CANONICAL_DIMENSION_ID"
+  },
+  "drill_actions": ["DOWN", "THROUGH", "BACK", "RESET"],
+  "supported_reconciliation_measures": ["INCOME", "EXPENSE", "CASH_FLOW"],
+  "limits": {
+    "max_descendant_leaf_ids": 64,
+    "max_reconciliation_matches": 5000,
+    "transaction_page_limit": 200
+  },
+  "principles": {
+    "configuration_orchestration_only": true,
+    "financial_truth_redefined": false,
+    "transaction_query_semantics_redefined": false,
+    "exploration_history_redefined": false,
+    "navigation_financial_payload_allowed": false,
+    "private_runtime_rows_public_evidence": false,
+    "reconciliation_uses_kpi_authority": true,
+    "reconciliation_mismatch_fail_closed": true,
+    "financial_write": false,
+    "free_only": true
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "action", "widget_hash_prefix", "context_hash_prefix",
+    "drill_hash_prefix", "request_hash_prefix", "result_count", "decision", "reason"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "canonical_mutation": false,
+    "authorization": false,
+    "storage": false,
+    "network": false,
+    "deployment": false,
+    "renderer": false,
+    "layout": false
+  },
+  "privacy": {
+    "public_evidence": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "telemetry_financial_values": false,
+    "telemetry_filter_values": false,
+    "telemetry_transaction_ids": false,
+    "telemetry_private_labels": false
+  }
+}

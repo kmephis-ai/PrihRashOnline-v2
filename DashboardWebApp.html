@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <style>
+    :root,html[data-theme="light"]{
+      --ds-font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
+      --ds-font-size-xs:12px;--ds-font-size-sm:13px;--ds-font-size-md:14px;--ds-font-size-lg:18px;--ds-font-size-xl:26px;--ds-font-size-display:38px;
+      --ds-line-height-compact:1.2;--ds-line-height-normal:1.45;--ds-line-height-relaxed:1.6;
+      --ds-font-weight-regular:400;--ds-font-weight-medium:600;--ds-font-weight-strong:700;--ds-font-weight-heavy:800;
+      --ds-space-1:4px;--ds-space-2:8px;--ds-space-3:12px;--ds-space-4:16px;--ds-space-5:20px;--ds-space-6:24px;--ds-space-8:32px;
+      --ds-radius-sm:8px;--ds-radius-md:12px;--ds-radius-lg:16px;--ds-radius-xl:20px;--ds-radius-pill:999px;
+      --ds-elevation-1:0 1px 2px rgba(16,35,63,.06);--ds-elevation-2:0 8px 24px rgba(16,35,63,.10);--ds-elevation-overlay:0 20px 48px rgba(6,29,55,.18);
+      --ds-focus-ring:#005fcc;--ds-focus-width:3px;--ds-focus-offset:2px;
+      --ds-motion-fast:120ms;--ds-motion-normal:180ms;--ds-motion-reduced:1ms;
+      --ds-canvas:#f4f7fb;--ds-surface:#ffffff;--ds-surface-subtle:#f7f9fc;--ds-surface-accent:#eef6ff;
+      --ds-text:#10233f;--ds-text-muted:#52657d;--ds-text-secondary:#314d72;
+      --ds-border:#d7e0ea;--ds-border-strong:#aebdce;
+      --ds-brand-start:#061d37;--ds-brand-end:#0b4f78;--ds-on-brand:#ffffff;
+      --ds-primary:#0b6570;--ds-on-primary:#ffffff;--ds-link:#1558b0;
+      --ds-warning-surface:#fff7e6;--ds-warning-text:#704400;
+      --ds-danger-surface:#fff1f2;--ds-danger-text:#8a1c2d;
+      --ds-positive-surface:#ecfdf3;--ds-positive-text:#136c3b;
+      --ds-overlay:rgba(6,29,55,.26);--ds-inverse-surface:#061d37;--ds-inverse-text:#ffffff;
+      --ink:var(--ds-text);--muted:var(--ds-text-muted);--line:var(--ds-border);--surface:var(--ds-surface);--canvas:var(--ds-canvas);--blue:var(--ds-link);--teal:var(--ds-primary);--shadow:var(--ds-elevation-2);--radius:var(--ds-radius-lg);--gap:var(--ds-space-4);
+      color-scheme:light;
+    }
+    html[data-theme="dark"]{
+      --ds-canvas:#0b1220;--ds-surface:#111b2c;--ds-surface-subtle:#162338;--ds-surface-accent:#142b46;
+      --ds-text:#f3f7fc;--ds-text-muted:#aebdd0;--ds-text-secondary:#c5d3e5;
+      --ds-border:#33445d;--ds-border-strong:#57708f;
+      --ds-brand-start:#061d37;--ds-brand-end:#123f66;--ds-on-brand:#f3f7fc;
+      --ds-primary:#34b5b0;--ds-on-primary:#06141a;--ds-link:#8fc5ff;
+      --ds-warning-surface:#3b2b12;--ds-warning-text:#ffd88a;
+      --ds-danger-surface:#3a1d27;--ds-danger-text:#ffb4c0;
+      --ds-positive-surface:#153426;--ds-positive-text:#9de8b8;
+      --ds-overlay:rgba(0,0,0,.58);--ds-inverse-surface:#e7eef8;--ds-inverse-text:#0b1220;
+      color-scheme:dark;
+    }
+    @media (prefers-color-scheme:dark){
+      html:not([data-theme]){
+        --ds-canvas:#0b1220;--ds-surface:#111b2c;--ds-surface-subtle:#162338;--ds-surface-accent:#142b46;
+        --ds-text:#f3f7fc;--ds-text-muted:#aebdd0;--ds-text-secondary:#c5d3e5;
+        --ds-border:#33445d;--ds-border-strong:#57708f;
+        --ds-brand-start:#061d37;--ds-brand-end:#123f66;--ds-on-brand:#f3f7fc;
+        --ds-primary:#34b5b0;--ds-on-primary:#06141a;--ds-link:#8fc5ff;
+        --ds-warning-surface:#3b2b12;--ds-warning-text:#ffd88a;
+        --ds-danger-surface:#3a1d27;--ds-danger-text:#ffb4c0;
+        --ds-positive-surface:#153426;--ds-positive-text:#9de8b8;
+        --ds-overlay:rgba(0,0,0,.58);--ds-inverse-surface:#e7eef8;--ds-inverse-text:#0b1220;
+        color-scheme:dark;
+      }
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;min-height:100%;background:var(--ds-canvas);color:var(--ds-text);font:var(--ds-font-size-md)/var(--ds-line-height-normal) var(--ds-font-family);}
+    body{background:var(--ds-canvas);color:var(--ds-text);}
+    button,select{font:inherit;}
+    button{cursor:pointer;}
+    [hidden]{display:none!important;}
+    :focus-visible{outline:var(--ds-focus-width) solid var(--ds-focus-ring);outline-offset:var(--ds-focus-offset);}
+    .topbar{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:var(--ds-space-5);padding:var(--ds-space-3) clamp(18px,3vw,44px);color:var(--ds-on-brand);background:linear-gradient(120deg,var(--ds-brand-start),var(--ds-brand-end) 72%);}
+    .brand-title{margin:0;font-size:clamp(21px,2vw,31px);}
+    .brand-subtitle{margin:5px 0 0;color:rgba(255,255,255,.78);}
+    .release-badge{display:inline-flex;margin-left:var(--ds-space-2);padding:var(--ds-space-1) var(--ds-space-2);border:1px solid rgba(255,255,255,.22);border-radius:var(--ds-radius-pill);font-size:11px;font-weight:var(--ds-font-weight-heavy);}
+    .headline-stat{font-size:clamp(17px,1.8vw,26px);font-weight:var(--ds-font-weight-heavy);white-space:nowrap;}
+    .nav-wrap{padding:var(--ds-space-2) clamp(14px,2vw,28px);background:var(--ds-surface);border-bottom:1px solid var(--ds-border);}
+    .tabs{max-width:1720px;margin:auto;display:grid;grid-template-columns:repeat(10,minmax(92px,1fr));border:1px solid var(--ds-border);border-radius:var(--ds-radius-md);overflow:hidden;}
+    .tab{min-height:46px;padding:9px 7px;border:0;border-right:1px solid var(--ds-border);background:var(--ds-surface);color:var(--ds-text-secondary);font-weight:var(--ds-font-weight-strong);white-space:nowrap;transition:background-color var(--ds-motion-fast),color var(--ds-motion-fast);}
+    .tab.active{color:var(--ds-on-primary);background:var(--ds-primary);}
+    .page{max-width:1720px;margin:auto;padding:14px clamp(14px,2vw,28px) 28px;}
+    .filters{display:grid;grid-template-columns:1fr 1fr 1.15fr .9fr 1.15fr;grid-auto-rows:1fr;gap:var(--gap);margin-bottom:var(--gap);}
+    .filter-card,.panel,.kpi-card,.secondary-card{min-width:0;background:var(--ds-surface);border:1px solid var(--ds-border);border-radius:var(--ds-radius-lg);box-shadow:var(--ds-elevation-2);}
+    .filter-card{min-height:84px;padding:var(--ds-space-3) 15px;display:flex;flex-direction:column;justify-content:center;background:var(--ds-surface);}
+    .filter-label{margin-bottom:7px;color:var(--ds-text-secondary);font-size:var(--ds-font-size-xs);font-weight:var(--ds-font-weight-strong);}
+    .filter-select{width:100%;min-height:38px;border:0;background:transparent;color:var(--ds-text);font-size:18px;font-weight:var(--ds-font-weight-heavy);transition:color var(--ds-motion-fast);}
+    .metric-value{font-size:20px;font-weight:var(--ds-font-weight-heavy);overflow-wrap:anywhere;}
+    .metric-note{margin-top:var(--ds-space-1);color:var(--ds-text-muted);font-size:var(--ds-font-size-xs);}
+    .view-context{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:var(--gap);padding:10px 14px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-md);background:var(--ds-surface-accent);}
+    .action-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:var(--gap);padding:10px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-md);background:var(--ds-surface);}
+    .action-button{min-height:44px;border:1px solid var(--ds-border-strong);border-radius:var(--ds-radius-md);background:var(--ds-surface);color:var(--ds-text-secondary);font-weight:var(--ds-font-weight-heavy);transition:background-color var(--ds-motion-fast),color var(--ds-motion-fast),border-color var(--ds-motion-fast);}
+    .action-button.primary{color:var(--ds-on-primary);background:var(--ds-primary);}
+    .action-button.warn{background:var(--ds-warning-surface);color:var(--ds-warning-text);}
+    .dashboard-grid{display:grid;grid-template-columns:1.06fr 1fr;gap:var(--gap);align-items:stretch;}
+    .dashboard-grid:has(#yearly-panel[hidden])>.overview-kpis{grid-column:1/-1;}
+    .panel{padding:18px;overflow:hidden;background:var(--ds-surface);}
+    .panel-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--ds-space-3);margin-bottom:var(--ds-space-3);}
+    .panel-title{margin:0;font-size:19px;}
+    .panel-note{color:var(--ds-text-muted);font-size:var(--ds-font-size-xs);}
+    .overview-kpis,.chart-panel{min-height:340px;}
+    .kpi-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--ds-space-3);}
+    .kpi-card{min-height:94px;padding:13px;display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:center;box-shadow:none;}
+    .kpi-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:var(--ds-primary);color:var(--ds-on-primary);font-weight:var(--ds-font-weight-heavy);}
+    .kpi-label,.secondary-label{color:var(--ds-text-secondary);font-size:var(--ds-font-size-xs);}
+    .kpi-value,.secondary-value{margin-top:var(--ds-space-1);font-size:17px;font-weight:var(--ds-font-weight-heavy);overflow-wrap:anywhere;}
+    .executive-secondary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:var(--ds-space-3);}
+    .secondary-card{min-height:78px;padding:11px;box-shadow:none;}
+    .insight{margin-top:13px;min-height:62px;padding:var(--ds-space-3) 14px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-md);background:var(--ds-surface-accent);}
+    .insight-title{color:var(--ds-link);font-weight:var(--ds-font-weight-heavy);}
+    .insight-text{margin-top:3px;color:var(--ds-text-secondary);}
+    .chart-host{width:100%;height:280px;overflow:hidden;}
+    .chart-host svg{display:block;width:100%;height:100%;}
+    .chart-empty{min-height:220px;display:grid;place-items:center;padding:var(--ds-space-5);border:1px dashed var(--ds-border);border-radius:var(--ds-radius-md);color:var(--ds-text-muted);text-align:center;}
+    .bottom-grid{grid-column:1/-1;display:grid;grid-template-columns:1.08fr .92fr;gap:var(--gap);}
+    .structure-layout{min-height:270px;display:grid;grid-template-columns:minmax(210px,.8fr) minmax(240px,1.2fr);gap:18px;align-items:center;}
+    .donut-wrap{position:relative;display:grid;place-items:center;}
+    .donut{width:min(220px,100%);aspect-ratio:1;border-radius:50%;background:var(--ds-surface-subtle);position:relative;}
+    .donut:after{content:"";position:absolute;inset:25%;border-radius:50%;background:var(--ds-surface);}
+    .donut-center{position:absolute;z-index:2;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none;}
+    .donut-total{font-size:19px;font-weight:var(--ds-font-weight-heavy);}
+    .legend{display:grid;gap:10px;}
+    .legend-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:var(--ds-space-2);align-items:center;}
+    .legend-dot{width:10px;height:10px;border-radius:50%;}
+    .view-detail{grid-column:1/-1;}
+    .detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:var(--ds-space-3);}
+    .detail-stat{padding:var(--ds-space-3);border:1px solid var(--ds-border);border-radius:var(--ds-radius-sm);background:var(--ds-surface-subtle);}
+    .detail-stat-label{color:var(--ds-text-muted);font-size:var(--ds-font-size-xs);}
+    .detail-stat-value{margin-top:var(--ds-space-1);font-size:18px;font-weight:var(--ds-font-weight-heavy);}
+    .table-wrap{overflow-x:auto;border:1px solid var(--ds-border);border-radius:var(--ds-radius-sm);}
+    .data-table{width:100%;min-width:560px;border-collapse:collapse;}
+    .data-table th,.data-table td{padding:9px 10px;border-bottom:1px solid var(--ds-border);text-align:left;}
+    .data-table th{background:var(--ds-surface-subtle);color:var(--ds-text-secondary);font-size:var(--ds-font-size-xs);}
+    .quality-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:10px;}
+    .quality-mini-button{min-height:30px;margin:2px;border:1px solid var(--ds-border-strong);border-radius:var(--ds-radius-sm);background:var(--ds-surface);color:var(--ds-link);transition:background-color var(--ds-motion-fast),color var(--ds-motion-fast);}
+    .loading-layer{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:var(--ds-overlay);}
+    .loading-layer.visible{display:grid;}
+    .loader-card{padding:18px 22px;border-radius:var(--ds-radius-md);background:var(--ds-surface);box-shadow:var(--ds-elevation-overlay);font-weight:var(--ds-font-weight-heavy);}
+    .status-toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,130%);z-index:40;padding:10px var(--ds-space-4);border-radius:var(--ds-radius-sm);background:var(--ds-inverse-surface);color:var(--ds-inverse-text);transition:transform var(--ds-motion-normal);}
+    .status-toast.visible{transform:translate(-50%,0);}
+    @media (max-width:1250px){
+      .tabs{display:flex;overflow-x:auto;scrollbar-width:none;}
+      .tabs::-webkit-scrollbar{display:none;}
+      .tab{min-width:118px;flex:0 0 118px;}
+      .filters{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .dashboard-grid,.bottom-grid{grid-template-columns:1fr;}
+      .kpi-layout{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .executive-secondary{grid-template-columns:repeat(3,minmax(0,1fr));}
+    }
+    @media (max-width:760px){
+      .topbar{flex-direction:column;align-items:flex-start;}
+      .page{padding:12px 10px 24px;}
+      .filters,.kpi-layout,.executive-secondary,.action-bar,.quality-summary{grid-template-columns:1fr;}
+      .view-context,.panel-heading{flex-direction:column;align-items:flex-start;}
+      .overview-kpis,.chart-panel{min-height:auto;}
+      .chart-host{height:250px;}
+      .structure-layout{grid-template-columns:1fr;}
+      .detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *,*::before,*::after{scroll-behavior:auto!important;transition-duration:var(--ds-motion-reduced)!important;animation-duration:var(--ds-motion-reduced)!important;animation-iteration-count:1!important;}
+    }
+  </style>
+</head>
+<body>
+  <script id="initial-data" type="application/json"><?!= initialData ?></script>
+  <header class="topbar">
+    <div><h1 class="brand-title">Дашборд доходов</h1><p class="brand-subtitle">Семейная аналитика <span class="release-badge">v1.0 RC</span></p></div>
+    <div class="headline-stat" id="headline-stat">Доходы • — операций</div>
+  </header>
+  <div class="nav-wrap"><nav class="tabs" id="tabs" role="tablist" aria-label="Разделы дашборда"></nav></div>
+  <main class="page">
+    <section class="filters" aria-label="Фильтры и контекст">
+      <article class="filter-card" data-testid="filter-card"><label class="filter-label" for="year-select">Выбранный год</label><select class="filter-select" id="year-select"></select></article>
+      <article class="filter-card" data-testid="filter-card"><label class="filter-label" for="month-select">Выбранный месяц</label><select class="filter-select" id="month-select"></select></article>
+      <article class="filter-card" data-testid="filter-card"><div class="filter-label">Текущий период</div><div class="metric-value" id="current-period">—</div><div class="metric-note" id="period-note">Данные загружаются</div></article>
+      <article class="filter-card" data-testid="filter-card"><div class="filter-label">Доходных операций</div><div class="metric-value" id="operations-value">—</div><div class="metric-note" id="operations-note">—</div></article>
+      <article class="filter-card" data-testid="filter-card"><div class="filter-label">Качество данных</div><div class="metric-value" id="quality-value">—</div><div class="metric-note" id="quality-note">—</div></article>
+    </section>
+    <section class="view-context"><strong id="view-title">Обзор</strong><span id="view-description">Ключевые показатели и визуализации.</span></section>
+    <section class="action-bar" id="action-bar" aria-label="Быстрые действия">
+      <button type="button" class="action-button primary" id="action-refresh">↻ Обновить данные</button>
+      <button type="button" class="action-button" id="action-quality">✓ Качество</button>
+      <button type="button" class="action-button" id="action-snapshot">◫ Снимок KPI</button>
+      <button type="button" class="action-button warn" id="action-pdf">PDF отчёт</button>
+    </section>
+    <section class="dashboard-grid">
+      <article class="panel overview-kpis" id="kpi-panel"><div class="panel-heading"><h2 class="panel-title" id="kpi-title">Executive-панель</h2><span class="panel-note" id="kpi-note">Выбранный период</span></div><div class="kpi-layout" id="kpi-layout"></div><div class="executive-secondary" id="executive-secondary"></div><div class="insight" id="insight"><div class="insight-title" id="insight-title">Главный вывод</div><div class="insight-text" id="insight-text">—</div></div></article>
+      <article class="panel chart-panel" id="yearly-panel"><div class="panel-heading"><h2 class="panel-title">Доходы по годам</h2><span class="panel-note">История</span></div><div class="chart-host" id="yearly-chart"></div></article>
+      <div class="bottom-grid" id="bottom-grid">
+        <article class="panel" id="monthly-panel"><div class="panel-heading"><h2 class="panel-title" id="monthly-title">Доходы по месяцам</h2><span class="panel-note">Выбранный год</span></div><div class="chart-host" id="monthly-chart"></div></article>
+        <article class="panel" id="structure-panel"><div class="panel-heading"><h2 class="panel-title" id="structure-title">Структура доходов</h2><span class="panel-note">Выбранный месяц</span></div><div class="structure-layout"><div class="donut-wrap"><div class="donut" id="donut"></div><div class="donut-center"><div class="donut-total" id="donut-total">0 ₽</div><div>Итого</div></div></div><div class="legend" id="structure-legend"></div></div></article>
+      </div>
+      <article class="panel view-detail" id="view-detail" hidden><div class="panel-heading"><h2 class="panel-title" id="detail-title">Детали</h2><button type="button" data-close-drilldown>Закрыть</button></div><div class="panel-note" id="detail-note"></div><div id="detail-content"></div></article>
+    </section>
+  </main>
+  <div class="status-toast" id="status-toast" role="status"></div>
+  <div class="loading-layer" id="loading-layer" aria-hidden="true"><div class="loader-card">Обновляем дашборд…</div></div>
+<script>
+(function () {
+  'use strict';
+  const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const VIEWS={overview:['Обзор','Ключевые показатели и визуализации.'],years:['Годы','Динамика по годам.'],months:['Месяцы','Помесячная динамика.'],month:['Месяц','Выбранный месяц.'],seasonality:['Сезонность','Сильные и слабые месяцы.'],structure:['Структура','Категории выбранного месяца.'],operations:['Операции','Операционные показатели.'],forecast:['Прогноз','Оценка темпа.'],quality:['Качество','Очередь качества данных.'],details:['Детали','Табличные детали.']};
+  const COLORS=['#087f82','#1967d2','#74a3ea','#ff8a4c','#9db2ca','#36b37e'];
+  const FIXTURE={
+    synthetic:true, privacyClass:'PUBLIC_SYNTHETIC', schemaVersion:1, appVersion:'synthetic-public-preview', spreadsheetUrl:'#',
+    period:{year:2026,month:'Июль',monthIndex:6,years:[2024,2025,2026],months:MONTHS.slice(),latestDate:'31.07.2026'},
+    summary:{incomeOperations:48,datedOperations:48,qualityScore:100,qualityLabel:'synthetic',selectedYearIncome:240000,selectedMonthIncome:32000,monthOperations:6,averageOperation:5333},
+    kpis:{averageYearIncome:180000,maximumYear:{year:2026,value:240000},activeMonths:7,averageActiveMonth:34286,peakMonth:{month:'Март',value:44000},minimumActiveMonth:{month:'Июль',value:32000},specialShare:0,yearChange:.2,historyShare:.44},
+    yearlyIncome:[{year:2024,value:120000},{year:2025,value:180000},{year:2026,value:240000}],
+    monthlyIncome:[28000,30000,44000,36000,35000,35000,32000,0,0,0,0,0].map(function(value,index){return {month:MONTHS[index],short:MONTHS[index].slice(0,3),value:value,operations:value?6:0};}),
+    monthStructure:[{label:'SYN-ALPHA',value:14000},{label:'SYN-BETA',value:10000},{label:'SYN-GAMMA',value:8000}],
+    insight:{title:'Synthetic preview',text:'Публичный локальный preview использует только независимо вымышленные данные.',tone:'neutral'},
+    executive:{selectedYearIncome:240000,selectedMonthIncome:32000,monthChange:.05,yearChange:.2,baseIncome:240000,specialIncome:0,forecast:288000,stabilityIndex:92,qualityScore:100,activeMonths:7,averageOperation:5333,largestSource:{label:'SYN-ALPHA',value:14000},otherShare:0,largeOperationCount:0,possibleDuplicateCount:0,yearOperationCount:42,monthOperationCount:6,reasons:{month:'Synthetic comparison.',year:'Synthetic comparison.',special:'Synthetic preview has no special classification.'}},
+    drilldowns:{year:group('Synthetic selected year',42),month:group('Synthetic selected month',6),previousMonth:group('Synthetic previous month',5),previousYear:group('Synthetic previous year',36),base:group('Synthetic base income',42),special:group('Synthetic special income',0),largestSource:group('Synthetic largest source',3),other:group('Synthetic other',0),large:group('Synthetic large operations',0),duplicates:Object.assign(group('Возможные точные дубли',0),{groupCount:0}),quality:group('Synthetic quality review',0)},
+    navigation:{active:'overview',tabs:Object.keys(VIEWS).map(function(key){return [key,VIEWS[key][0]];})}
+  };
+  function group(title,count){const rows=[];for(let i=0;i<count;i+=1){rows.push({row:i+2,id:'SYN-ROW-'+String(i+1).padStart(3,'0'),date:'15.07.2026',amount:1000+i*10,category:'SYN-ALPHA',description:'Synthetic fixture transaction',status:'SYNTHETIC',flags:[],openUrl:'#'});}return {title:title,count:count,total:rows.reduce(function(s,r){return s+r.amount;},0),rows:rows,openFirstUrl:'#'};}
+  let state=parseInitialData()||clone(FIXTURE); let activeView=validView((state.navigation||{}).active)?state.navigation.active:'overview'; const el={};
+  document.addEventListener('DOMContentLoaded',function(){cache();bind();render(state);});
+  function cache(){['tabs','year-select','month-select','current-period','period-note','operations-value','operations-note','quality-value','quality-note','view-title','view-description','kpi-title','kpi-note','kpi-layout','executive-secondary','insight-title','insight-text','yearly-panel','yearly-chart','bottom-grid','monthly-panel','monthly-title','monthly-chart','structure-panel','structure-title','donut','donut-total','structure-legend','view-detail','detail-title','detail-note','detail-content','action-refresh','action-quality','action-snapshot','action-pdf','status-toast','loading-layer','headline-stat'].forEach(function(id){el[id]=document.getElementById(id);});}
+  function bind(){el['year-select'].addEventListener('change',refreshFromFilters);el['month-select'].addEventListener('change',refreshFromFilters);el['action-refresh'].addEventListener('click',runUnifiedRefresh);el['action-quality'].addEventListener('click',function(){selectView('quality',true);loadQualityWorkbench();});el['action-snapshot'].addEventListener('click',createSnapshot);el['action-pdf'].addEventListener('click',createPdfReport);document.querySelector('[data-close-drilldown]').addEventListener('click',function(){el['view-detail'].hidden=true;});el['detail-content'].addEventListener('click',handleWorkbenchClick);}
+  function parseInitialData(){try{const text=document.getElementById('initial-data').textContent.trim();if(!text||text.indexOf('<?')===0)return null;return JSON.parse(text);}catch(e){return null;}}
+  function render(data){if(!data.navigation)data.navigation=clone(FIXTURE.navigation);renderTabs(data.navigation);fillSelect(el['year-select'],data.period.years,data.period.year);fillSelect(el['month-select'],data.period.months.map(function(m,i){return {value:i,label:m};}),data.period.monthIndex);el['headline-stat'].textContent='Доходы • '+formatInt(data.summary.incomeOperations)+' операций';el['current-period'].textContent=data.period.year+' • '+String(data.period.month).toLowerCase();el['period-note'].textContent='Данные по '+data.period.latestDate;el['operations-value'].textContent=formatInt(data.summary.incomeOperations);el['operations-note'].textContent='В выбранном месяце: '+formatInt(data.summary.monthOperations);el['quality-value'].textContent=data.summary.qualityScore+'/100 • '+data.summary.qualityLabel;el['quality-note'].textContent=formatInt(data.summary.datedOperations)+' операций с датой';renderKpis(data);renderExecutiveSecondary(data);renderInsight(data.insight||FIXTURE.insight);renderCharts(data);applyView(data,activeView);}
+  function renderTabs(nav){el.tabs.innerHTML='';nav.tabs.forEach(function(tab){const b=document.createElement('button');b.type='button';b.className='tab'+(tab[0]===activeView?' active':'');b.dataset.view=tab[0];b.setAttribute('aria-selected',tab[0]===activeView?'true':'false');b.textContent=tab[1];b.addEventListener('click',function(){selectView(tab[0],true);});el.tabs.appendChild(b);});}
+  function fillSelect(select,items,selected){select.innerHTML='';items.forEach(function(item){const value=typeof item==='object'?item.value:item;const label=typeof item==='object'?item.label:item;const o=document.createElement('option');o.value=value;o.textContent=label;o.selected=String(value)===String(selected);select.appendChild(o);});}
+  function renderKpis(data){const e=data.executive||{};const cards=[['₽','Доход за год',money(data.summary.selectedYearIncome),'year'],['◉','Доход за месяц',money(data.summary.selectedMonthIncome),'month'],['↗','Средний активный месяц',money(data.kpis.averageActiveMonth),'year'],['★','Максимальный год',data.kpis.maximumYear?data.kpis.maximumYear.year+' • '+money(data.kpis.maximumYear.value):'—','year'],['◆','Пиковый месяц',data.kpis.peakMonth?data.kpis.peakMonth.month+' • '+money(data.kpis.peakMonth.value):'—','month'],['▦','Активных месяцев',String(data.kpis.activeMonths),'year'],['≈','Прогноз',money(e.forecast||0),'year'],['✓','Качество',String(data.summary.qualityScore)+'/100','quality'],['#','Операций месяца',formatInt(data.summary.monthOperations),'month']];el['kpi-layout'].innerHTML=cards.map(function(c){return '<article class="kpi-card" data-testid="kpi-card" data-drilldown="'+c[3]+'"><div class="kpi-icon">'+escapeHtml(c[0])+'</div><div><div class="kpi-label">'+escapeHtml(c[1])+'</div><div class="kpi-value">'+escapeHtml(c[2])+'</div></div></article>';}).join('');Array.from(el['kpi-layout'].querySelectorAll('[data-drilldown]')).forEach(function(node){node.addEventListener('click',function(){openDrilldown(node.dataset.drilldown);});});}
+  function renderExecutiveSecondary(data){const e=data.executive||{};const cards=[['Стабильность',formatInt(e.stabilityIndex||0)+'/100','year'],['Средняя операция',money(e.averageOperation||data.summary.averageOperation),'month'],['Базовый доход',money(e.baseIncome||0),'base'],['Спецдоход',money(e.specialIncome||0),'special'],['Крупные операции',formatInt(e.largeOperationCount||0),'large'],['Возможные дубли',formatInt(e.possibleDuplicateCount||0),'duplicates']];el['executive-secondary'].innerHTML=cards.map(function(c){return '<article class="secondary-card" data-testid="secondary-kpi" data-drilldown="'+c[2]+'"><div class="secondary-label">'+escapeHtml(c[0])+'</div><div class="secondary-value">'+escapeHtml(c[1])+'</div></article>';}).join('');Array.from(el['executive-secondary'].querySelectorAll('[data-drilldown]')).forEach(function(node){node.addEventListener('click',function(){openDrilldown(node.dataset.drilldown);});});}
+  function renderInsight(insight){el['insight-title'].textContent=insight.title||'Главный вывод';el['insight-text'].textContent=insight.text||'—';}
+  function renderCharts(data){barChart(el['yearly-chart'],data.yearlyIncome.map(function(r){return String(r.year);}),data.yearlyIncome.map(function(r){return r.value;}));barChart(el['monthly-chart'],data.monthlyIncome.map(function(r){return r.short;}),data.monthlyIncome.map(function(r){return r.value;}));renderDonut(data.monthStructure,data.summary.selectedMonthIncome);}
+  function barChart(host,labels,values){const w=Math.max(320,host.clientWidth||620),h=270,p=38,max=Math.max.apply(null,values.concat([1])),step=(w-p*2)/Math.max(1,values.length),bw=Math.max(8,step*.55);let svg='<svg viewBox="0 0 '+w+' '+h+'">';values.forEach(function(v,i){const bh=(v/max)*(h-70),x=p+i*step+(step-bw)/2,y=h-35-bh;svg+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+bh+'" rx="3" fill="'+(i%2?COLORS[1]:COLORS[0])+'"></rect><text x="'+(x+bw/2)+'" y="'+(h-14)+'" text-anchor="middle" font-size="10" fill="#405675">'+escapeHtml(labels[i])+'</text>';});host.innerHTML=svg+'</svg>';}
+  function renderDonut(rows,total){const positive=(rows||[]).filter(function(r){return Number(r.value)>0;});const sum=Number(total)||positive.reduce(function(s,r){return s+Number(r.value||0);},0);el['donut-total'].textContent=money(sum);if(!sum){el.donut.style.background='#e8edf3';el['structure-legend'].innerHTML='';return;}let cursor=0;const stops=[];positive.forEach(function(r,i){const start=cursor;cursor+=Number(r.value)/sum*100;stops.push(COLORS[i%COLORS.length]+' '+start.toFixed(2)+'% '+cursor.toFixed(2)+'%');});el.donut.style.background='conic-gradient('+stops.join(',')+')';el['structure-legend'].innerHTML=positive.map(function(r,i){return '<div class="legend-row"><span class="legend-dot" style="background:'+COLORS[i%COLORS.length]+'"></span><span>'+escapeHtml(r.label)+'</span><strong>'+money(r.value)+'</strong></div>';}).join('');}
+  function selectView(view,push){if(!validView(view))return;activeView=view;state.navigation.active=view;render(state);if(push)syncUrl();}
+  function applyView(data,view){const copy=VIEWS[view]||VIEWS.overview;el['view-title'].textContent=copy[0];el['view-description'].textContent=copy[1];const showYear=view==='overview'||view==='years';const showMonth=['overview','months','seasonality','forecast'].indexOf(view)>=0;const showStructure=['overview','month','structure'].indexOf(view)>=0;el['yearly-panel'].hidden=!showYear;el['monthly-panel'].hidden=!showMonth;el['structure-panel'].hidden=!showStructure;el['bottom-grid'].hidden=!showMonth&&!showStructure;if(view==='overview'){el['view-detail'].hidden=true;}else if(view==='quality'&&isAppsScriptRuntime()){loadQualityWorkbench();}else{renderViewDetail(data,view);}}
+  function renderViewDetail(data,view){el['view-detail'].hidden=false;el['detail-title'].textContent=(VIEWS[view]||VIEWS.details)[0];el['detail-note'].textContent='Период: '+data.period.month+' '+data.period.year;if(view==='months'||view==='seasonality'){el['detail-content'].innerHTML=table(['Месяц','Операций','Доход'],data.monthlyIncome.map(function(r){return [r.month,r.operations,money(r.value)];}));return;}if(view==='years'){el['detail-content'].innerHTML=table(['Год','Доход'],data.yearlyIncome.map(function(r){return [r.year,money(r.value)];}));return;}if(view==='forecast'){const e=data.executive||{};el['detail-content'].innerHTML=detailStats([['Факт',money(data.summary.selectedYearIncome)],['Оценка года',money(e.forecast||0)],['Базовый доход',money(e.baseIncome||0)],['Активных месяцев',data.kpis.activeMonths]]);return;}el['detail-content'].innerHTML=detailStats([['Доход года',money(data.summary.selectedYearIncome)],['Доход месяца',money(data.summary.selectedMonthIncome)],['Операций месяца',formatInt(data.summary.monthOperations)],['Качество',data.summary.qualityScore+'/100']]);}
+  function openDrilldown(key){const groupData=(state.drilldowns||{})[key];if(!groupData){showToast('Для показателя нет детализации.');return;}el['view-detail'].hidden=false;el['detail-title'].textContent='Связанные операции — '+groupData.title;el['detail-note'].textContent='Read-only';el['detail-content'].innerHTML=drilldownTable(groupData.rows||[]);}
+  function drilldownTable(rows){if(!rows.length)return '<div class="chart-empty"><div><strong>Нет операций</strong><div>Для выбранного synthetic/runtime-среза строки отсутствуют.</div></div></div>';return '<div class="table-wrap"><table class="data-table"><thead><tr><th>Дата</th><th>Категория</th><th>Описание</th><th>Сумма</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+escapeHtml(r.date||'')+'</td><td>'+escapeHtml(r.category||'')+'</td><td>'+escapeHtml(r.description||'')+'</td><td>'+money(r.amount||0)+'</td></tr>';}).join('')+'</tbody></table></div>';}
+  function refreshFromFilters(){const year=Number(el['year-select'].value),month=Number(el['month-select'].value);if(isAppsScriptRuntime()){requestData(year,month);}else{state.period.year=year;state.period.monthIndex=month;state.period.month=state.period.months[month];render(state);showToast('PUBLIC_SYNTHETIC preview.');}}
+  function requestData(year,month){setLoading(true);google.script.run.withSuccessHandler(function(data){state=data;activeView=validView((data.navigation||{}).active)?data.navigation.active:activeView;render(state);setLoading(false);}).withFailureHandler(actionFailure).prhGetWebDashboardDataV13(year, month, activeView);}
+  function runUnifiedRefresh(){if(!isAppsScriptRuntime()){render(state);showToast('PUBLIC_SYNTHETIC preview: server refresh доступен в DEV runtime.');return;}setLoading(true);google.script.run.withSuccessHandler(function(){requestData(Number(el['year-select'].value),Number(el['month-select'].value));showToast('Обновление завершено.');}).withFailureHandler(actionFailure).prhRunUnifiedIncomeRefresh({year:Number(el['year-select'].value),month:Number(el['month-select'].value),view:activeView});}
+  function createSnapshot(){if(!isAppsScriptRuntime()){showToast('Снимок доступен в DEV runtime.');return;}setLoading(true);google.script.run.withSuccessHandler(function(){setLoading(false);showToast('Снимок KPI сохранён.');}).withFailureHandler(actionFailure).prhCreateIncomeDashboardSnapshot(Number(el['year-select'].value),Number(el['month-select'].value));}
+  function createPdfReport(){if(!isAppsScriptRuntime()){showToast('PDF доступен в DEV runtime.');return;}setLoading(true);google.script.run.withSuccessHandler(function(result){setLoading(false);showToast('PDF создан: '+(result.fileName||'готово'));}).withFailureHandler(actionFailure).prhCreateIncomePdfReport('MONTH');}
+  function loadQualityWorkbench(){if(!isAppsScriptRuntime()){renderViewDetail(state,'quality');return;}el['view-detail'].hidden=false;el['detail-title'].textContent='Quality Workbench';el['detail-content'].innerHTML='<div class="chart-empty">Загружаем очередь качества…</div>';google.script.run.withSuccessHandler(renderQualityWorkbench).withFailureHandler(actionFailure).prhGetQualityWorkbench();}
+  function renderQualityWorkbench(workbench){const rows=(workbench.rows||[]).map(function(item){return '<tr><td>'+escapeHtml(item.issueLabel||'')+'</td><td>'+escapeHtml(item.field||'')+'</td><td>'+escapeHtml(item.reason||'')+'</td><td><button class="quality-mini-button" data-classify-proposal="'+escapeHtml(item.proposalId||'')+'">Предложить категорию</button></td></tr>';}).join('');el['detail-content'].innerHTML='<div class="quality-summary">'+detailStats([['В очереди',workbench.queueCount||0],['Новые',workbench.newCount||0],['Подтверждены',workbench.approvedCount||0],['Отклонены',workbench.rejectedCount||0]])+'</div>'+(rows?'<div class="table-wrap"><table class="data-table"><tbody>'+rows+'</tbody></table></div>':'<div class="chart-empty">Очередь пуста</div>');}
+  function handleWorkbenchClick(event){const node=event.target.closest('[data-classify-proposal]');if(node)suggestClassification(node.dataset.classifyProposal);}
+  function suggestClassification(proposalId){if(!isAppsScriptRuntime()){showToast('Классификация доступна в DEV runtime.');return;}google.script.run.withSuccessHandler(function(s){showToast(s&&s.category?'Предложение: '+s.category:'Уверенного предложения нет.');}).withFailureHandler(actionFailure).prhSuggestCategoryForQualityProposal(proposalId);}
+  function actionFailure(error){setLoading(false);showToast('Действие не выполнено: '+(error&&error.message?error.message:String(error)));}
+  function detailStats(rows){return '<div class="detail-grid">'+rows.map(function(r){return '<div class="detail-stat"><div class="detail-stat-label">'+escapeHtml(r[0])+'</div><div class="detail-stat-value">'+escapeHtml(r[1])+'</div></div>';}).join('')+'</div>';}
+  function table(headers,rows){return '<div class="table-wrap"><table class="data-table"><thead><tr>'+headers.map(function(h){return '<th>'+escapeHtml(h)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.map(function(r){return '<tr>'+r.map(function(v){return '<td>'+escapeHtml(v)+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>';}
+  function syncUrl(){try{const u=new URL(location.href);u.searchParams.set('year',state.period.year);u.searchParams.set('month',state.period.monthIndex);u.searchParams.set('view',activeView);history.replaceState({},'',u.toString());}catch(e){}}
+  function validView(v){return Object.prototype.hasOwnProperty.call(VIEWS,String(v||''));}
+  function isAppsScriptRuntime(){return Boolean(window.google&&google.script&&google.script.run);}
+  function money(v){return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v)||0)+' ₽';}
+  function formatInt(v){return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(v)||0);}
+  function clone(v){return JSON.parse(JSON.stringify(v));}
+  function escapeHtml(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c];});}
+  function setLoading(show){el['loading-layer'].classList.toggle('visible',Boolean(show));el['loading-layer'].setAttribute('aria-hidden',show?'false':'true');}
+  function showToast(message){el['status-toast'].textContent=message;el['status-toast'].classList.add('visible');clearTimeout(showToast.timer);showToast.timer=setTimeout(function(){el['status-toast'].classList.remove('visible');},2500);}
+}());
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "schema": "PRH_LOCAL_FIRST_SPA_SHELL_V1",
+  "version": "1.0.0",
+  "roadmap_id": "SPA-LF-001",
+  "architecture_contract": "PRH_LOCAL_FIRST_RUNTIME_V1@1.0.0",
+  "preview": {
+    "server_surface": "local-first",
+    "route_parameter": "lf_route",
+    "canonical_cutover": false,
+    "bounded_rollback_surface": "home",
+    "primary_navigation_before_product_gate": false
+  },
+  "routes": [
+    "home",
+    "transactions",
+    "expenses",
+    "income",
+    "cash-flow",
+    "budget",
+    "obligations",
+    "liquidity",
+    "data-quality"
+  ],
+  "lifecycle": {
+    "single_html_document": true,
+    "router": "HISTORY_API_PUSHSTATE_POPSTATE",
+    "server_document_reload_on_warm_route": false,
+    "renderer_runtime": "APP_SINGLETON",
+    "renderer_recreated_on_route": false,
+    "chart_runtime_policy": "APP_SINGLETON_WHEN_BOUND",
+    "chart_vendor_activation": "FIN-LF-001",
+    "back_forward_server_reload": false
+  },
+  "warm_path": {
+    "mandatory_network_requests": 0,
+    "google_sheets_reads": 0,
+    "google_script_run_calls": 0,
+    "fetch_calls": 0,
+    "xhr_calls": 0
+  },
+  "presentation": {
+    "language": "ru",
+    "responsive": true,
+    "keyboard_links": true,
+    "focus_after_route_change": true,
+    "truthful_unbound_state": true,
+    "synthetic_financial_values": false,
+    "developer_reason_codes_visible": false,
+    "allowed_privacy_modes": [
+      "NORMAL",
+      "MASKED",
+      "DEMO",
+      "ZEN"
+    ],
+    "invalid_privacy_mode": "MASKED_FAIL_SAFE",
+    "financial_payload_in_url_history": false
+  },
+  "data_boundary": {
+    "indexeddb_bound": false,
+    "indexeddb_owner": "STORE-LF-001",
+    "worker_bound": false,
+    "worker_owner": "WORKER-LF-001",
+    "background_sync_bound": false,
+    "background_sync_owner": "SYNC-LF-001/DELTA-LF-001",
+    "financial_write": false,
+    "canonical_mutation": false,
+    "planning_bound": true,
+    "planning_owner": "PLAN-REC-001",
+    "planning_warm_network": false,
+    "planning_financial_write": false
+  },
+  "product_gate": {
+    "exit_gate": "MASTER-LF-SPA",
+    "exact_sha_required": true,
+    "authenticated_runtime_health_required": true,
+    "fresh_owner_product_uat_required": true,
+    "manual_merge": false
+  },
+  "cost": {
+    "class": "FREE_ONLY",
+    "paid_dependency_required": false,
+    "external_cdn_required": false
+  }
+}

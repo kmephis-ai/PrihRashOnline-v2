@@ -1,0 +1,374 @@
+name: Trusted DEV Deploy
+
+on:
+  workflow_run:
+    workflows: [PR Validation]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: trusted-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: DEV
+    env:
+      CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CLASP_USER: prihrash-ci
+    steps:
+      - name: Checkout trusted default-branch policy
+        id: trusted_checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Validate immutable candidate and source PR
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'deploy_required=false' >> "$GITHUB_OUTPUT"
+          echo 'deployment_mode=UNRESOLVED' >> "$GITHUB_OUTPUT"
+          echo 'reason=SOURCE_VALIDATION_FAILED' >> "$GITHUB_OUTPUT"
+          [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || {
+            echo '::error::Trusted deploy workflow must execute from the repository default branch.'
+            exit 1
+          }
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || {
+            echo '::error::Candidate SHA must be immutable 40-char lowercase hex.'
+            exit 1
+          }
+
+          PR_NUMBER="${EVENT_PR_NUMBER:-}"
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            ASSOCIATED_PRS="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/pulls")"
+            PR_NUMBER="$(jq -r \
+              --arg sha "${CANDIDATE_SHA}" \
+              --arg repo "${GITHUB_REPOSITORY}" \
+              --arg base "${DEFAULT_BRANCH}" \
+              '[.[] | select(.head.sha == $sha and .head.repo.full_name == $repo and .base.ref == $base)] | if length == 1 then .[0].number else empty end' \
+              <<<"${ASSOCIATED_PRS}")"
+          fi
+          [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]] || {
+            echo '::error::Exact validated candidate does not resolve to one same-repository PR targeting the default branch.'
+            exit 1
+          }
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.draft // false' <<<"${PR_JSON}")" == 'true' ]]; then
+            echo 'reason=SOURCE_PR_DRAFT' >> "$GITHUB_OUTPUT"
+            echo '::error::Draft PR cannot receive DEV deployment credentials or mutate the Apps Script DEV deployment.'
+            exit 1
+          fi
+          [[ "$(jq -r '.head.sha' <<<"${PR_JSON}")" == "${CANDIDATE_SHA}" ]] || {
+            echo '::error::PR head no longer matches the immutable validated candidate.'
+            exit 1
+          }
+          [[ "$(jq -r '.head.repo.full_name' <<<"${PR_JSON}")" == "${GITHUB_REPOSITORY}" ]] || {
+            echo '::error::Fork/cross-repository candidates cannot receive DEV deployment credentials.'
+            exit 1
+          }
+          [[ "$(jq -r '.base.ref' <<<"${PR_JSON}")" == "${DEFAULT_BRANCH}" ]] || {
+            echo '::error::Candidate PR must target the default branch.'
+            exit 1
+          }
+          HEAD_REF="$(jq -r '.head.ref // empty' <<<"${PR_JSON}")"
+          [[ -n "${HEAD_REF}" ]] || {
+            echo '::error::Candidate PR head ref is missing.'
+            exit 1
+          }
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+          PR_BODY="$(jq -r '.body // ""' <<<"${PR_JSON}")"
+          mapfile -t ISSUE_REFS < <(printf '%s\n' "${PR_BODY}" | grep -Eio '^[[:space:]]*Closes[[:space:]]+#[0-9]+[[:space:]]*$' | grep -Eo '[0-9]+' || true)
+          if [[ "${#ISSUE_REFS[@]}" -eq 0 ]]; then
+            echo 'deployment_mode=NOT_APPLICABLE_NON_ROADMAP' >> "$GITHUB_OUTPUT"
+            echo 'reason=NOT_APPLICABLE_NON_ROADMAP' >> "$GITHUB_OUTPUT"
+            echo 'Trusted DEV Deploy: N/A for non-Roadmap PR; DEV runtime will not be mutated.'
+            exit 0
+          fi
+          if [[ "${#ISSUE_REFS[@]}" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_REFERENCE_AMBIGUOUS' >> "$GITHUB_OUTPUT"
+            echo '::error::Roadmap-like PR must contain exactly one standalone Closes #N reference.'
+            exit 1
+          fi
+
+          ISSUE_NUMBER="${ISSUE_REFS[0]}"
+          ISSUE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          ISSUE_BODY="$(jq -r '.body // ""' <<<"${ISSUE_JSON}")"
+          if [[ "$(jq -r '.state' <<<"${ISSUE_JSON}")" != 'open' || "$(jq -r 'has("pull_request")' <<<"${ISSUE_JSON}")" == 'true' ]]; then
+            echo 'reason=ROADMAP_ISSUE_NOT_OPEN' >> "$GITHUB_OUTPUT"
+            echo '::error::Roadmap deployment requires one open linked Issue.'
+            exit 1
+          fi
+
+          ROADMAP_ID_COUNT="$(grep -Ec '^roadmap_id:[[:space:]]*[A-Z0-9-]+[[:space:]]*$' <<<"${ISSUE_BODY}" || true)"
+          STATUS_COUNT="$(grep -Ec '^status:[[:space:]]*IN_PROGRESS[[:space:]]*$' <<<"${ISSUE_BODY}" || true)"
+          WRITER_COUNT="$(grep -Ec '^writer_branch:[[:space:]]*agent/[A-Za-z0-9._/-]+[[:space:]]*$' <<<"${ISSUE_BODY}" || true)"
+          if [[ "${ROADMAP_ID_COUNT}" -ne 1 || "${STATUS_COUNT}" -ne 1 || "${WRITER_COUNT}" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_STATE_INVALID' >> "$GITHUB_OUTPUT"
+            echo '::error::Linked Roadmap Issue lacks exact active roadmap_id/status/writer_branch metadata.'
+            exit 1
+          fi
+          WRITER_BRANCH="$(sed -nE 's/^writer_branch:[[:space:]]*(agent\/[A-Za-z0-9._\/-]+)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          if [[ "${WRITER_BRANCH}" != "${HEAD_REF}" ]]; then
+            echo 'reason=ROADMAP_WRITER_BRANCH_MISMATCH' >> "$GITHUB_OUTPUT"
+            echo '::error::Roadmap Issue writer_branch does not match the exact source PR branch.'
+            exit 1
+          fi
+
+          echo 'deploy_required=true' >> "$GITHUB_OUTPUT"
+          echo 'deployment_mode=ROADMAP_EXACT_CANDIDATE' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+
+      - name: Set up trusted Node.js
+        id: node_setup
+        if: steps.source.outputs.deploy_required == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: trusted/package-lock.json
+
+      - name: Install trusted locked tooling
+        id: tooling
+        if: steps.source.outputs.deploy_required == 'true'
+        working-directory: trusted
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Download verified candidate artifact
+        id: artifact_download
+        if: steps.source.outputs.deploy_required == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/promoted"
+          gh run download "${SOURCE_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name "apps-script-candidate-${CANDIDATE_SHA}" \
+            --dir "${RUNNER_TEMP}/promoted"
+          test -f "${RUNNER_TEMP}/promoted/manifest.json"
+
+      - name: Checkout exact candidate without credentials
+        id: candidate_checkout
+        if: steps.source.outputs.deploy_required == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: candidate-source
+          persist-credentials: false
+
+      - name: Verify candidate artifact against trusted reconstruction
+        id: candidate_verify
+        if: steps.source.outputs.deploy_required == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node trusted/tools/build-apps-script-candidate.js \
+            --source candidate-source \
+            --out "${RUNNER_TEMP}/expected" \
+            --sha "${CANDIDATE_SHA}"
+          node trusted/tools/build-apps-script-candidate.js \
+            --verify "${RUNNER_TEMP}/promoted" \
+            --expected "${RUNNER_TEMP}/expected" \
+            --sha "${CANDIDATE_SHA}"
+
+      - name: Prepare verified deploy directory
+        id: deploy_prepare
+        if: steps.source.outputs.deploy_required == 'true'
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${APPS_SCRIPT_ID}" ]] || { echo '::error::Missing APPS_SCRIPT_ID'; exit 1; }
+          [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          rm -rf "${RUNNER_TEMP}/deploy"
+          mkdir -p "${RUNNER_TEMP}/deploy"
+          cp -a "${RUNNER_TEMP}/promoted/files/." "${RUNNER_TEMP}/deploy/"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "${APPS_SCRIPT_ID}" > "${RUNNER_TEMP}/deploy/.clasp.json"
+          node -e "const fs=require('fs'); const auth=JSON.parse(fs.readFileSync(process.env.HOME+'/.clasprc.json','utf8')); if(!auth.tokens || !auth.tokens['prihrash-ci']) throw new Error('named clasp profile missing'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/deploy/.clasp.json','utf8'));"
+
+      - name: Push verified candidate through Apps Script API
+        id: content_push
+        if: steps.source.outputs.deploy_required == 'true'
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUSH_JSON="$(node "${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-push.js" "${RUNNER_TEMP}/deploy")"
+          PUSH_OK="$(jq -r '.ok // false' <<<"${PUSH_JSON}" 2>/dev/null || printf 'false')"
+          PUSH_REASON="$(jq -r '.reason // "APPS_SCRIPT_CONTENT_PUSH_FAILED"' <<<"${PUSH_JSON}" 2>/dev/null || printf 'APPS_SCRIPT_CONTENT_PUSH_FAILED')"
+          [[ "${PUSH_REASON}" =~ ^[A-Z0-9_]+$ ]] || PUSH_REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'
+          echo "reason=${PUSH_REASON}" >> "$GITHUB_OUTPUT"
+          if [[ "${PUSH_OK}" != 'true' ]]; then exit 1; fi
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+
+      - name: Promote exact Apps Script version to stable deployments
+        id: version_promote
+        if: steps.source.outputs.deploy_required == 'true'
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_TREE_HASH="$(jq -r '.sourceTreeHash // empty' "${RUNNER_TEMP}/promoted/manifest.json")"
+          [[ "${SOURCE_TREE_HASH}" =~ ^[0-9a-f]{64}$ ]] || {
+            echo '::error::Verified candidate source tree hash is invalid.'
+            exit 1
+          }
+          export SOURCE_TREE_HASH
+          PROMOTE_JSON="$(node "${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-promote.js")"
+          PROMOTE_OK="$(jq -r '.ok // false' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'false')"
+          PROMOTE_REASON="$(jq -r '.reason // "DEPLOYMENT_PROMOTION_FAILED"' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'DEPLOYMENT_PROMOTION_FAILED')"
+          VERSION_NUMBER="$(jq -r '.versionNumber // 0' <<<"${PROMOTE_JSON}" 2>/dev/null || printf '0')"
+          VERSION_REUSED="$(jq -r '.versionReused // false' <<<"${PROMOTE_JSON}" 2>/dev/null || printf 'false')"
+          VERSIONS_DELETED="$(jq -r '.versionsDeleted // 0' <<<"${PROMOTE_JSON}" 2>/dev/null || printf '0')"
+          [[ "${PROMOTE_REASON}" =~ ^[A-Z0-9_]+$ ]] || PROMOTE_REASON='DEPLOYMENT_PROMOTION_FAILED'
+          [[ "${VERSION_REUSED}" == 'true' || "${VERSION_REUSED}" == 'false' ]] || VERSION_REUSED='false'
+          [[ "${VERSIONS_DELETED}" =~ ^[0-9]+$ ]] || VERSIONS_DELETED='0'
+          echo "reason=${PROMOTE_REASON}" >> "$GITHUB_OUTPUT"
+          echo "version_number=${VERSION_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "version_reused=${VERSION_REUSED}" >> "$GITHUB_OUTPUT"
+          echo "versions_deleted=${VERSIONS_DELETED}" >> "$GITHUB_OUTPUT"
+          if [[ "${PROMOTE_OK}" != 'true' || ! "${VERSION_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then exit 1; fi
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+
+      - name: Record privacy-safe deploy evidence
+        id: deploy_evidence
+        env:
+          DEPLOYMENT_MODE: ${{ steps.source.outputs.deployment_mode }}
+          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
+          VERSION_NUMBER: ${{ steps.version_promote.outputs.version_number }}
+          VERSION_REUSED: ${{ steps.version_promote.outputs.version_reused }}
+          VERSIONS_DELETED: ${{ steps.version_promote.outputs.versions_deleted }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p trusted-deploy-evidence
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            jq -n \
+              --arg candidateSha "${CANDIDATE_SHA}" \
+              --arg sourceRunId "${SOURCE_RUN_ID}" \
+              --argjson prNumber "${PR_NUMBER}" \
+              --arg deploymentMode 'NOT_APPLICABLE_NON_ROADMAP' \
+              --arg status 'NOT_APPLICABLE_NON_ROADMAP' \
+              --arg reasonCode 'NOT_APPLICABLE_NON_ROADMAP' \
+              '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,prNumber:$prNumber,deploymentMode:$deploymentMode,status:$status,reasonCode:$reasonCode,artifactHash:null,versionNumber:null,versionReused:false,versionsDeleted:0}' \
+              > trusted-deploy-evidence/evidence.json
+          elif [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            ARTIFACT_HASH="$(jq -r '.artifactHash' "${RUNNER_TEMP}/promoted/manifest.json")"
+            [[ "${ARTIFACT_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid trusted candidate artifact hash.'; exit 1; }
+            jq -n \
+              --arg candidateSha "${CANDIDATE_SHA}" \
+              --arg sourceRunId "${SOURCE_RUN_ID}" \
+              --argjson prNumber "${PR_NUMBER}" \
+              --arg artifactHash "${ARTIFACT_HASH}" \
+              --arg deploymentMode 'ROADMAP_EXACT_CANDIDATE' \
+              --argjson versionNumber "${VERSION_NUMBER}" \
+              --argjson versionReused "${VERSION_REUSED}" \
+              --argjson versionsDeleted "${VERSIONS_DELETED}" \
+              --arg status 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' \
+              '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,prNumber:$prNumber,artifactHash:$artifactHash,deploymentMode:$deploymentMode,versionNumber:$versionNumber,versionReused:$versionReused,versionsDeleted:$versionsDeleted,status:$status}' \
+              > trusted-deploy-evidence/evidence.json
+          else
+            echo '::error::Unknown trusted deployment mode.'
+            exit 1
+          fi
+
+      - name: Upload trusted deploy evidence
+        id: evidence_upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-dev-deploy-${{ github.event.workflow_run.head_sha }}
+          path: trusted-deploy-evidence/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish machine-visible trusted deploy status
+        if: always() && env.CANDIDATE_SHA != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          TRUSTED_CHECKOUT: ${{ steps.trusted_checkout.outcome }}
+          SOURCE_VALIDATION: ${{ steps.source.outcome }}
+          SOURCE_VALIDATION_REASON: ${{ steps.source.outputs.reason }}
+          DEPLOYMENT_MODE: ${{ steps.source.outputs.deployment_mode }}
+          NODE_SETUP: ${{ steps.node_setup.outcome }}
+          TOOLING_INSTALL: ${{ steps.tooling.outcome }}
+          ARTIFACT_DOWNLOAD: ${{ steps.artifact_download.outcome }}
+          CANDIDATE_CHECKOUT: ${{ steps.candidate_checkout.outcome }}
+          CANDIDATE_VERIFY: ${{ steps.candidate_verify.outcome }}
+          DEPLOY_PREPARE: ${{ steps.deploy_prepare.outcome }}
+          CONTENT_PUSH: ${{ steps.content_push.outcome }}
+          CONTENT_PUSH_REASON: ${{ steps.content_push.outputs.reason }}
+          VERSION_PROMOTE: ${{ steps.version_promote.outcome }}
+          VERSION_PROMOTE_REASON: ${{ steps.version_promote.outputs.reason }}
+          DEPLOY_EVIDENCE: ${{ steps.deploy_evidence.outcome }}
+          EVIDENCE_UPLOAD: ${{ steps.evidence_upload.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON='DEPLOY_STEP_UNKNOWN'
+          DESCRIPTION='CI-002 TRUSTED_DEPLOY_FAILED'
+          if [[ "${TRUSTED_CHECKOUT}" == 'failure' ]]; then REASON='TRUSTED_CHECKOUT_FAILED';
+          elif [[ "${SOURCE_VALIDATION}" == 'failure' ]]; then
+            REASON="${SOURCE_VALIDATION_REASON:-SOURCE_VALIDATION_FAILED}"
+            [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='SOURCE_VALIDATION_FAILED'
+          elif [[ "${DEPLOY_EVIDENCE}" == 'failure' ]]; then REASON='DEPLOY_EVIDENCE_FAILED';
+          elif [[ "${EVIDENCE_UPLOAD}" == 'failure' ]]; then REASON='DEPLOY_ARTIFACT_UPLOAD_FAILED';
+          elif [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' && "${JOB_STATUS}" == 'success' ]]; then
+            STATE='success'
+            REASON='NOT_APPLICABLE_NON_ROADMAP'
+            DESCRIPTION='CI-002 NOT_APPLICABLE_NON_ROADMAP'
+          elif [[ "${DEPLOYMENT_MODE}" != 'ROADMAP_EXACT_CANDIDATE' ]]; then REASON='DEPLOYMENT_MODE_INVALID';
+          elif [[ "${NODE_SETUP}" == 'failure' ]]; then REASON='NODE_SETUP_FAILED';
+          elif [[ "${TOOLING_INSTALL}" == 'failure' ]]; then REASON='TOOLING_INSTALL_FAILED';
+          elif [[ "${ARTIFACT_DOWNLOAD}" == 'failure' ]]; then REASON='ARTIFACT_DOWNLOAD_FAILED';
+          elif [[ "${CANDIDATE_CHECKOUT}" == 'failure' ]]; then REASON='CANDIDATE_CHECKOUT_FAILED';
+          elif [[ "${CANDIDATE_VERIFY}" == 'failure' ]]; then REASON='CANDIDATE_VERIFY_FAILED';
+          elif [[ "${DEPLOY_PREPARE}" == 'failure' ]]; then REASON='DEPLOY_PREP_FAILED';
+          elif [[ "${CONTENT_PUSH}" == 'failure' ]]; then
+            REASON="${CONTENT_PUSH_REASON:-APPS_SCRIPT_CONTENT_PUSH_FAILED}"
+            [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='APPS_SCRIPT_CONTENT_PUSH_FAILED'
+          elif [[ "${VERSION_PROMOTE}" == 'failure' ]]; then
+            REASON="${VERSION_PROMOTE_REASON:-DEPLOYMENT_PROMOTION_FAILED}"
+            [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='DEPLOYMENT_PROMOTION_FAILED'
+          elif [[ "${JOB_STATUS}" == 'success' ]]; then
+            STATE='success'
+            REASON='OK'
+            DESCRIPTION='CI-002 TRUSTED_DEPLOYED'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='trusted-dev-deploy' \
+            -f description="${DESCRIPTION}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context="trusted-dev-deploy-reason:${REASON}" \
+            -f description='CI-002 deploy technical reason' >/dev/null

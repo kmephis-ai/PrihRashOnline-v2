@@ -1,0 +1,86 @@
+{
+  "schema": "PRH_PWA_BASELINE_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PWA-020",
+  "upstream": {
+    "financial_home": "PRH_FINANCIAL_HOME_V1@1.0.0",
+    "transaction_explorer": "PRH_TRANSACTION_EXPLORER_V1@1.0.0",
+    "design_system": "PRH_DESIGN_SYSTEM_V1@1.0.0"
+  },
+  "bundle": {
+    "root": "pwa/",
+    "manifest": "pwa/manifest.webmanifest",
+    "service_worker": "pwa/service-worker.js",
+    "offline_shell": "pwa/index.html",
+    "cache_version": "prh-pwa-shell-v1",
+    "supported_host_requirement": "SECURE_ORIGIN_OR_LOCALHOST",
+    "current_apps_script_host_activation": "NOT_PROVEN_CURRENT_HOST"
+  },
+  "cache_policy": {
+    "default": "NETWORK_ONLY",
+    "shell_strategy": "CACHE_FIRST_EXPLICIT_ALLOWLIST",
+    "private_strategy": "NETWORK_ONLY_NO_CACHE_FALLBACK",
+    "cross_origin": "NETWORK_ONLY",
+    "non_get": "NETWORK_ONLY",
+    "allowed_shell_paths": [
+      "./",
+      "./index.html",
+      "./manifest.webmanifest",
+      "./icons/icon-192.svg",
+      "./icons/icon-512.svg"
+    ],
+    "private_path_tokens": [
+      "/api/",
+      "/private/",
+      "/finance/",
+      "/dashboard/",
+      "/transactions/",
+      "/analytics/",
+      "/home/",
+      "/explorer/"
+    ],
+    "financial_payload_cache_allowed": false,
+    "authenticated_response_cache_allowed": false
+  },
+  "update_strategy": {
+    "install": "PRECACHE_EXPLICIT_SHELL",
+    "activate": "DELETE_NON_CURRENT_PWA_SHELL_CACHES_THEN_CLAIM",
+    "stale_cache_reuse": false,
+    "runtime_financial_cache_migration": false
+  },
+  "manifest": {
+    "display": "standalone",
+    "start_url": "./",
+    "scope": "./",
+    "icons_required": ["192x192", "512x512"]
+  },
+  "authority": {
+    "financial_truth": false,
+    "canonical_override": false,
+    "storage": false,
+    "network_provider": false,
+    "financial_write": false,
+    "private_runtime_publication": false
+  },
+  "privacy": {
+    "public_finance_data": "INDEPENDENTLY_GENERATED_SYNTHETIC_ONLY",
+    "offline_shell_financial_payload": false,
+    "private_runtime_locator_public": false,
+    "evidence_allowlist": [
+      "schema",
+      "version",
+      "cache_version",
+      "controlled",
+      "offline_shell",
+      "cached_shell_count",
+      "private_cache_entries",
+      "status",
+      "reason_code"
+    ]
+  },
+  "cost": {
+    "mode": "FREE_ONLY",
+    "external_provider_required": false,
+    "cdn_required": false
+  }
+}

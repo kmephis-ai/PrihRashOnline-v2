@@ -1,0 +1,58 @@
+{
+  "schema": "PRH_REVISION_AWARE_READ_CACHE_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PERF-011",
+  "repository_contract": "PRH_TRANSACTION_REPOSITORY_V1@1.0.0",
+  "key": {
+    "components": [
+      "cache_schema_version",
+      "repository_schema",
+      "repository_adapter_namespace",
+      "projection_identity",
+      "repository_revision",
+      "operation",
+      "normalized_operation_identity"
+    ],
+    "hash": "SHA256_HEX",
+    "projection_identity_required_when_projection_capability": true,
+    "raw_query_in_telemetry": false,
+    "raw_transaction_id_in_telemetry": false
+  },
+  "freshness": {
+    "revision_required_before_hit": true,
+    "unknown_revision": "FAIL_CLOSED",
+    "revision_change": "INVALIDATE_ALL",
+    "schema_change": "MISS",
+    "projection_change": "MISS",
+    "ttl_expired": "MISS"
+  },
+  "bounds": {
+    "default_ttl_ms": 30000,
+    "max_ttl_ms": 300000,
+    "default_max_entries": 64,
+    "max_entries": 512,
+    "eviction": "LRU"
+  },
+  "operations": ["READ_ALL", "GET_BY_ID", "QUERY"],
+  "telemetry": {
+    "financial_payload_allowed": false,
+    "fields": [
+      "cache_status",
+      "reason_code",
+      "operation",
+      "cache_key_hash",
+      "revision_token_hash_prefix",
+      "entry_count",
+      "age_ms",
+      "eviction_count",
+      "invalidation_count"
+    ]
+  },
+  "authority": {
+    "financial_semantics": false,
+    "financial_write": false,
+    "network": false,
+    "external_provider_required": false,
+    "paid_dependency_required": false
+  }
+}

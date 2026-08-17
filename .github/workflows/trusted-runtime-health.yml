@@ -1,0 +1,583 @@
+name: Trusted Runtime Health
+
+on:
+  workflow_run:
+    workflows: [Trusted DEV Deploy]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+  issues: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: trusted-runtime-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: DEV
+    env:
+      DEPLOY_RUN_ID: ${{ github.event.workflow_run.id }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CLASP_USER: prihrash-ci
+    steps:
+      - name: Checkout trusted default-branch health policy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Resolve immutable deployed candidate evidence
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || {
+            echo '::error::Trusted runtime health must execute from the default branch.'
+            exit 1
+          }
+          rm -rf "${RUNNER_TEMP}/deploy-evidence" "${RUNNER_TEMP}/candidate"
+          mkdir -p "${RUNNER_TEMP}/deploy-evidence" "${RUNNER_TEMP}/candidate"
+          gh run download "${DEPLOY_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --dir "${RUNNER_TEMP}/deploy-evidence"
+          EVIDENCE_FILE="$(find "${RUNNER_TEMP}/deploy-evidence" -type f -name evidence.json -print -quit)"
+          [[ -n "${EVIDENCE_FILE}" ]] || { echo '::error::Trusted deploy evidence.json not found.'; exit 1; }
+
+          CANDIDATE_SHA="$(jq -r '.candidateSha // empty' "${EVIDENCE_FILE}")"
+          SOURCE_RUN_ID="$(jq -r '.sourceRunId // empty' "${EVIDENCE_FILE}")"
+          DEPLOYMENT_MODE="$(jq -r '.deploymentMode // empty' "${EVIDENCE_FILE}")"
+          EVIDENCE_STATUS="$(jq -r '.status // empty' "${EVIDENCE_FILE}")"
+          REASON_CODE="$(jq -r '.reasonCode // empty' "${EVIDENCE_FILE}")"
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::Invalid candidate SHA in trusted deploy evidence.'; exit 1; }
+          [[ "${SOURCE_RUN_ID}" =~ ^[0-9]+$ ]] || { echo '::error::Invalid source validation run ID.'; exit 1; }
+
+          if [[ -z "${DEPLOYMENT_MODE}" ]]; then
+            if [[ "${EVIDENCE_STATUS}" == 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' ]]; then
+              DEPLOYMENT_MODE='ROADMAP_EXACT_CANDIDATE'
+            else
+              echo '::error::Trusted deploy evidence has no recognized deployment mode.'
+              exit 1
+            fi
+          fi
+
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "source_run_id=${SOURCE_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "deployment_mode=${DEPLOYMENT_MODE}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            [[ "${EVIDENCE_STATUS}" == 'NOT_APPLICABLE_NON_ROADMAP' && "${REASON_CODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]] || {
+              echo '::error::Non-Roadmap deploy evidence is inconsistent.'
+              exit 1
+            }
+            echo 'deployment_reason=NOT_APPLICABLE_NON_ROADMAP' >> "$GITHUB_OUTPUT"
+            echo 'source_tree_hash=' >> "$GITHUB_OUTPUT"
+            echo 'artifact_hash=' >> "$GITHUB_OUTPUT"
+            echo 'Trusted Runtime Health: N/A because trusted deploy made no runtime mutation.'
+            exit 0
+          fi
+
+          [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' ]] || {
+            echo '::error::Unknown trusted deployment mode.'
+            exit 1
+          }
+          [[ "${EVIDENCE_STATUS}" == 'DEPLOYED_AWAITING_AUTHENTICATED_HEALTH' ]] || {
+            echo '::error::Roadmap deploy evidence status is invalid.'
+            exit 1
+          }
+          DEPLOY_ARTIFACT_HASH="$(jq -r '.artifactHash // empty' "${EVIDENCE_FILE}")"
+          [[ "${DEPLOY_ARTIFACT_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid artifact hash in trusted deploy evidence.'; exit 1; }
+          gh run download "${SOURCE_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name "apps-script-candidate-${CANDIDATE_SHA}" \
+            --dir "${RUNNER_TEMP}/candidate"
+          MANIFEST="${RUNNER_TEMP}/candidate/manifest.json"
+          [[ -f "${MANIFEST}" ]] || { echo '::error::Candidate manifest not found.'; exit 1; }
+          SOURCE_TREE_HASH="$(jq -r '.sourceTreeHash' "${MANIFEST}")"
+          ARTIFACT_HASH="$(jq -r '.artifactHash' "${MANIFEST}")"
+          [[ "${SOURCE_TREE_HASH}" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::Invalid source tree hash.'; exit 1; }
+          [[ "${ARTIFACT_HASH}" == "${DEPLOY_ARTIFACT_HASH}" ]] || { echo '::error::Deploy evidence artifact hash differs from validated candidate.'; exit 1; }
+          echo 'deployment_reason=OK' >> "$GITHUB_OUTPUT"
+          echo "source_tree_hash=${SOURCE_TREE_HASH}" >> "$GITHUB_OUTPUT"
+          echo "artifact_hash=${ARTIFACT_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up trusted Node.js
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: trusted/package-lock.json
+
+      - name: Install trusted locked tooling
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
+        working-directory: trusted
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Configure authenticated Apps Script execution
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
+          [[ "${APPS_SCRIPT_API_DEPLOYMENT_ID}" =~ ^AKfy[A-Za-z0-9_-]+$ ]] || { echo '::error::Missing or invalid APPS_SCRIPT_API_DEPLOYMENT_ID'; exit 1; }
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8'));"
+
+      - name: Run authenticated exact-build health
+        id: probe
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE'
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
+          APPS_SCRIPT_API_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_API_DEPLOYMENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLASP="${GITHUB_WORKSPACE}/trusted/node_modules/.bin/clasp"
+          EXECUTOR="${GITHUB_WORKSPACE}/trusted/tools/apps-script-api-exec.js"
+          PARAMS="$(jq -nc --arg candidateSha "${CANDIDATE_SHA}" --arg sourceTreeHash "${SOURCE_TREE_HASH}" '[{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash}]')"
+          TOKEN_PATTERN="^PRH_HEALTH_V1\\|OK\\|${CANDIDATE_SHA}\\|${SOURCE_TREE_HASH}\\|[0-9]+\\|V8\\|[0-9]+\\|1\\|[0-9]+$"
+
+          set +e
+          AUTH_OUTPUT="$(${CLASP} show-authorized-user --user "${CLASP_USER}" --json 2>&1)"
+          AUTH_STATUS=$?
+          set -e
+          AUTH_JSON="$(awk 'found || /^[[:space:]]*\{/ {found=1; print}' <<<"${AUTH_OUTPUT}")"
+          CLIENT_TYPE="$(jq -r '.clientType // empty' <<<"${AUTH_JSON}" 2>/dev/null || true)"
+          if [[ "${AUTH_STATUS}" -ne 0 || -z "${CLIENT_TYPE}" ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=OAUTH_CLIENT_PREFLIGHT_FAILED" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${CLIENT_TYPE}" == 'google-provided' ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=CUSTOM_OAUTH_CLIENT_REQUIRED" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${CLIENT_TYPE}" != 'user-provided' ]]; then
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=OAUTH_CLIENT_TYPE_UNSUPPORTED" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PING_JSON="$(node "${EXECUTOR}" prhRuntimeTransportPing '[]')"
+          PING_OK="$(jq -r '.ok // false' <<<"${PING_JSON}" 2>/dev/null || printf 'false')"
+          PING_TOKEN="$(jq -r '.result // empty' <<<"${PING_JSON}" 2>/dev/null || true)"
+          PING_REASON="$(jq -r '.reason // "AUTHENTICATED_TRANSPORT_PING_FAILED"' <<<"${PING_JSON}" 2>/dev/null || printf 'AUTHENTICATED_TRANSPORT_PING_FAILED')"
+          if [[ "${PING_OK}" != 'true' || "${PING_TOKEN}" != 'PRH_TRANSPORT_V1|OK' ]]; then
+            if [[ "${PING_REASON}" == 'AUTHENTICATED_EXECUTION_FAILED' || "${PING_REASON}" == 'SCRIPT_EXECUTION_FAILED' ]]; then
+              PING_REASON="TRANSPORT_${PING_REASON}"
+            fi
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=${PING_REASON}" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          HEALTH_JSON="$(node "${EXECUTOR}" prhReleaseHealthCheckToken "${PARAMS}")"
+          HEALTH_OK="$(jq -r '.ok // false' <<<"${HEALTH_JSON}" 2>/dev/null || printf 'false')"
+          TOKEN="$(jq -r '.result // empty' <<<"${HEALTH_JSON}" 2>/dev/null || true)"
+          HEALTH_REASON="$(jq -r '.reason // "HEALTH_TOKEN_MISSING_OR_MISMATCH"' <<<"${HEALTH_JSON}" 2>/dev/null || printf 'HEALTH_TOKEN_MISSING_OR_MISMATCH')"
+          if [[ "${HEALTH_OK}" != 'true' || ! "${TOKEN}" =~ ${TOKEN_PATTERN} ]]; then
+            if [[ "${HEALTH_REASON}" == 'AUTHENTICATED_EXECUTION_FAILED' || "${HEALTH_REASON}" == 'SCRIPT_EXECUTION_FAILED' ]]; then
+              HEALTH_REASON="HEALTH_${HEALTH_REASON}"
+            fi
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+            echo "reason=${HEALTH_REASON}" >> "$GITHUB_OUTPUT"
+            echo "latency_ms=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LATENCY_MS="${TOKEN##*|}"
+          echo "result=PASS" >> "$GITHUB_OUTPUT"
+          echo "reason=OK" >> "$GITHUB_OUTPUT"
+          echo "latency_ms=${LATENCY_MS}" >> "$GITHUB_OUTPUT"
+
+      - name: Record privacy-safe runtime evidence
+        if: always()
+        env:
+          DEPLOYMENT_MODE: ${{ steps.candidate.outputs.deployment_mode }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          SOURCE_RUN_ID: ${{ steps.candidate.outputs.source_run_id }}
+          SOURCE_TREE_HASH: ${{ steps.candidate.outputs.source_tree_hash }}
+          ARTIFACT_HASH: ${{ steps.candidate.outputs.artifact_hash }}
+          PROBE_RESULT: ${{ steps.probe.outputs.result }}
+          REASON_CODE: ${{ steps.probe.outputs.reason }}
+          LATENCY_MS: ${{ steps.probe.outputs.latency_ms }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p trusted-runtime-health-evidence
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            jq -n \
+              --arg candidateSha "${CANDIDATE_SHA}" \
+              --arg sourceRunId "${SOURCE_RUN_ID}" \
+              --arg deployRunId "${DEPLOY_RUN_ID}" \
+              --arg deploymentMode 'NOT_APPLICABLE_NON_ROADMAP' \
+              --arg status 'NOT_APPLICABLE_NON_ROADMAP' \
+              --arg reasonCode 'NOT_APPLICABLE_NON_ROADMAP' \
+              '{candidateSha:$candidateSha,sourceRunId:$sourceRunId,deployRunId:$deployRunId,deploymentMode:$deploymentMode,status:$status,reasonCode:$reasonCode,latencyMs:0,notProductE2e:true}' \
+              > trusted-runtime-health-evidence/evidence.json
+          elif [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            STATUS='FAILED'
+            [[ "${PROBE_RESULT}" == 'PASS' ]] && STATUS='DEV_VERIFIED'
+            jq -n \
+              --arg candidateSha "${CANDIDATE_SHA}" \
+              --arg sourceTreeHash "${SOURCE_TREE_HASH}" \
+              --arg artifactHash "${ARTIFACT_HASH}" \
+              --arg sourceRunId "${SOURCE_RUN_ID}" \
+              --arg deployRunId "${DEPLOY_RUN_ID}" \
+              --arg deploymentMode 'ROADMAP_EXACT_CANDIDATE' \
+              --arg status "${STATUS}" \
+              --arg reasonCode "${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}" \
+              --argjson latencyMs "${LATENCY_MS:-0}" \
+              '{candidateSha:$candidateSha,sourceTreeHash:$sourceTreeHash,artifactHash:$artifactHash,sourceRunId:$sourceRunId,deployRunId:$deployRunId,deploymentMode:$deploymentMode,status:$status,reasonCode:$reasonCode,latencyMs:$latencyMs,notProductE2e:true}' \
+              > trusted-runtime-health-evidence/evidence.json
+          else
+            echo '::error::Cannot record runtime evidence for unknown deployment mode.'
+            exit 1
+          fi
+
+      - name: Upload trusted runtime health evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-runtime-health-${{ steps.candidate.outputs.candidate_sha }}
+          path: trusted-runtime-health-evidence/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish machine-visible runtime status
+        if: always() && steps.candidate.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          DEPLOYMENT_MODE: ${{ steps.candidate.outputs.deployment_mode }}
+          PROBE_RESULT: ${{ steps.probe.outputs.result }}
+          REASON_CODE: ${{ steps.probe.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON="${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
+          DESCRIPTION="CI-002 ${REASON}"
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            STATE='success'
+            REASON='NOT_APPLICABLE_NON_ROADMAP'
+            DESCRIPTION='CI-002 NOT_APPLICABLE_NON_ROADMAP'
+          elif [[ "${DEPLOYMENT_MODE}" == 'ROADMAP_EXACT_CANDIDATE' && "${PROBE_RESULT}" == 'PASS' ]]; then
+            STATE='success'
+            REASON='OK'
+            DESCRIPTION='CI-002 DEV_VERIFIED'
+          elif [[ "${DEPLOYMENT_MODE}" != 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            REASON='DEPLOYMENT_MODE_INVALID'
+            DESCRIPTION='CI-002 DEPLOYMENT_MODE_INVALID'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='trusted-runtime-health' \
+            -f description="${DESCRIPTION}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context="trusted-runtime-health-reason:${REASON}" \
+            -f description='CI-002 technical reason' >/dev/null
+
+      - name: Resolve autonomous roadmap merge eligibility
+        id: autonomy
+        if: steps.candidate.outputs.deployment_mode == 'ROADMAP_EXACT_CANDIDATE' && steps.probe.outputs.result == 'PASS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'eligible=false' >> "$GITHUB_OUTPUT"
+          echo 'ready=false' >> "$GITHUB_OUTPUT"
+          echo 'reason=NOT_ROADMAP_PR' >> "$GITHUB_OUTPUT"
+
+          ASSOCIATED_PRS="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/pulls")"
+          PR_NUMBER="$(jq -r \
+            --arg sha "${CANDIDATE_SHA}" \
+            --arg repo "${GITHUB_REPOSITORY}" \
+            --arg base "${DEFAULT_BRANCH}" \
+            '[.[] | select(.head.sha == $sha and .head.repo.full_name == $repo and .base.ref == $base)] | if length == 1 then .[0].number else empty end' \
+            <<<"${ASSOCIATED_PRS}")"
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=SOURCE_PR_NOT_UNIQUE' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.state' <<<"${PR_JSON}")" != 'open' ]]; then
+            echo 'reason=PR_NOT_OPEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(jq -r '.draft // false' <<<"${PR_JSON}")" == 'true' ]]; then
+            echo 'reason=PR_IS_DRAFT' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(jq -r '.head.sha' <<<"${PR_JSON}")" != "${CANDIDATE_SHA}" || \
+                "$(jq -r '.head.repo.full_name' <<<"${PR_JSON}")" != "${GITHUB_REPOSITORY}" || \
+                "$(jq -r '.base.ref' <<<"${PR_JSON}")" != "${DEFAULT_BRANCH}" ]]; then
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+            echo 'reason=SOURCE_PR_CHANGED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_BODY="$(jq -r '.body // ""' <<<"${PR_JSON}")"
+          mapfile -t ISSUE_REFS < <(printf '%s\n' "${PR_BODY}" | grep -Eio '^[[:space:]]*Closes[[:space:]]+#[0-9]+[[:space:]]*$' | grep -Eo '[0-9]+' || true)
+          if [[ "${#ISSUE_REFS[@]}" -eq 0 ]]; then
+            exit 0
+          fi
+          echo 'eligible=true' >> "$GITHUB_OUTPUT"
+          if [[ "${#ISSUE_REFS[@]}" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_REFERENCE_AMBIGUOUS' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ISSUE_NUMBER="${ISSUE_REFS[0]}"
+          ISSUE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          ISSUE_BODY="$(jq -r '.body // ""' <<<"${ISSUE_JSON}")"
+          if [[ "$(jq -r '.state' <<<"${ISSUE_JSON}")" != 'open' || "$(jq -r 'has("pull_request")' <<<"${ISSUE_JSON}")" == 'true' ]]; then
+            echo 'reason=ROADMAP_ISSUE_NOT_OPEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! grep -Eq '^roadmap_id:[[:space:]]*[A-Z0-9-]+[[:space:]]*$' <<<"${ISSUE_BODY}" || \
+             [[ "$(grep -Ec '^status:[[:space:]]*IN_PROGRESS[[:space:]]*$' <<<"${ISSUE_BODY}" || true)" -ne 1 ]]; then
+            echo 'reason=ROADMAP_ISSUE_STATE_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          WORK_CLASS="$(sed -nE 's/^work_class:[[:space:]]*(engineering|user_facing)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          TARGET_STAGE="$(sed -nE 's/^target_stage:[[:space:]]*(DONE_ENGINEERING|DONE)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          ENGINEERING_STATUS="$(sed -nE 's/^engineering_status:[[:space:]]*(BACKLOG|IN_PROGRESS|CODE_COMPLETE|DONE_ENGINEERING)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          PRODUCT_STAGE="$(sed -nE 's/^product_stage:[[:space:]]*(NOT_APPLICABLE|NOT_STARTED|CODE_COMPLETE|RUNTIME_INTEGRATED|REAL_E2E_VERIFIED|PRODUCT_READY|DONE)[[:space:]]*$/\1/p' <<<"${ISSUE_BODY}")"
+          if [[ -z "${WORK_CLASS}" || -z "${TARGET_STAGE}" || -z "${ENGINEERING_STATUS}" || -z "${PRODUCT_STAGE}" ]]; then
+            echo 'reason=ROADMAP_STAGE_METADATA_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${WORK_CLASS}" == 'engineering' ]]; then
+            if [[ "${TARGET_STAGE}" != 'DONE_ENGINEERING' || "${ENGINEERING_STATUS}" != 'CODE_COMPLETE' || \
+                  "${PRODUCT_STAGE}" != 'CODE_COMPLETE' ]]; then
+              echo 'reason=ENGINEERING_STAGE_NOT_COMPLETE' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+            PRODUCT_E2E_STATE="$(jq -r '[.statuses[] | select(.context == "product-ready-e2e")][0].state // empty' <<<"${STATUS_JSON}")"
+            if [[ "${TARGET_STAGE}" != 'DONE' || "${ENGINEERING_STATUS}" != 'CODE_COMPLETE' || \
+                  "${PRODUCT_STAGE}" != 'PRODUCT_READY' || "${PRODUCT_E2E_STATE}" != 'success' ]]; then
+              echo 'reason=PRODUCT_READY_E2E_NOT_PROVEN' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+          echo 'reason=READY' >> "$GITHUB_OUTPUT"
+          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "work_class=${WORK_CLASS}" >> "$GITHUB_OUTPUT"
+
+      - name: Autonomous exact-head squash merge
+        id: merge
+        if: steps.autonomy.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          PR_NUMBER: ${{ steps.autonomy.outputs.pr_number }}
+          WORK_CLASS: ${{ steps.autonomy.outputs.work_class }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=MERGE_NOT_COMPLETED' >> "$GITHUB_OUTPUT"
+
+          STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+          DEPLOY_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-dev-deploy")][0].state // empty' <<<"${STATUS_JSON}")"
+          HEALTH_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-runtime-health")][0].state // empty' <<<"${STATUS_JSON}")"
+          if [[ "${DEPLOY_STATE}" != 'success' || "${HEALTH_STATE}" != 'success' ]]; then
+            echo 'reason=REQUIRED_GATES_NOT_GREEN' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${WORK_CLASS}" == 'user_facing' ]]; then
+            PRODUCT_E2E_STATE="$(jq -r '[.statuses[] | select(.context == "product-ready-e2e")][0].state // empty' <<<"${STATUS_JSON}")"
+            if [[ "${PRODUCT_E2E_STATE}" != 'success' ]]; then
+              echo 'reason=PRODUCT_READY_E2E_NOT_PROVEN' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          PR_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          if [[ "$(jq -r '.state' <<<"${PR_JSON}")" != 'open' || \
+                "$(jq -r '.head.sha' <<<"${PR_JSON}")" != "${CANDIDATE_SHA}" || \
+                "$(jq -r '.head.repo.full_name' <<<"${PR_JSON}")" != "${GITHUB_REPOSITORY}" || \
+                "$(jq -r '.base.ref' <<<"${PR_JSON}")" != "${DEFAULT_BRANCH}" ]]; then
+            echo 'reason=EXACT_HEAD_CHANGED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          set +e
+          MERGE_JSON="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method='squash' \
+            -f sha="${CANDIDATE_SHA}" 2>/dev/null)"
+          MERGE_STATUS=$?
+          set -e
+          if [[ "${MERGE_STATUS}" -ne 0 || "$(jq -r '.merged // false' <<<"${MERGE_JSON}" 2>/dev/null || true)" != 'true' ]]; then
+            echo 'reason=EXACT_HEAD_SQUASH_MERGE_FAILED' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MERGE_SHA="$(jq -r '.sha // empty' <<<"${MERGE_JSON}")"
+          if [[ ! "${MERGE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'reason=MERGE_SHA_INVALID' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+          echo "merge_sha=${MERGE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish autonomous merge status
+        if: always() && steps.autonomy.outputs.eligible == 'true' && steps.candidate.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          AUTONOMY_READY: ${{ steps.autonomy.outputs.ready }}
+          AUTONOMY_REASON: ${{ steps.autonomy.outputs.reason }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+          MERGE_REASON: ${{ steps.merge.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON="${AUTONOMY_REASON:-AUTONOMY_NOT_RESOLVED}"
+          if [[ "${AUTONOMY_READY}" == 'true' ]]; then
+            REASON="${MERGE_REASON:-MERGE_NOT_COMPLETED}"
+            if [[ "${MERGE_RESULT}" == 'PASS' ]]; then
+              STATE='success'
+              REASON='OK'
+            fi
+          fi
+          [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='AUTONOMOUS_MERGE_FAILED'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='autonomous-merge' \
+            -f description="CI-003 ${REASON}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context="autonomous-merge-reason:${REASON}" \
+            -f description='CI-003 technical reason' >/dev/null
+
+      - name: Dispatch main verification
+        id: dispatch
+        if: steps.merge.outputs.result == 'PASS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
+          PR_NUMBER: ${{ steps.autonomy.outputs.pr_number }}
+          ISSUE_NUMBER: ${{ steps.autonomy.outputs.issue_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'result=FAIL' >> "$GITHUB_OUTPUT"
+          echo 'reason=MAIN_VERIFICATION_DISPATCH_FAILED' >> "$GITHUB_OUTPUT"
+          PAYLOAD="$(jq -nc \
+            --arg merge_sha "${MERGE_SHA}" \
+            --arg candidate_sha "${CANDIDATE_SHA}" \
+            --argjson pr_number "${PR_NUMBER}" \
+            --argjson issue_number "${ISSUE_NUMBER}" \
+            '{event_type:"ci003-main-verification",client_payload:{merge_sha:$merge_sha,candidate_sha:$candidate_sha,pr_number:$pr_number,issue_number:$issue_number}}')"
+          set +e
+          printf '%s' "${PAYLOAD}" | gh api --method POST "repos/${GITHUB_REPOSITORY}/dispatches" --input - >/dev/null 2>&1
+          DISPATCH_STATUS=$?
+          set -e
+          if [[ "${DISPATCH_STATUS}" -ne 0 ]]; then
+            exit 0
+          fi
+          echo 'result=PASS' >> "$GITHUB_OUTPUT"
+          echo 'reason=OK' >> "$GITHUB_OUTPUT"
+
+      - name: Publish main verification dispatch status
+        if: always() && steps.autonomy.outputs.eligible == 'true' && steps.candidate.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+          DISPATCH_RESULT: ${{ steps.dispatch.outputs.result }}
+          DISPATCH_REASON: ${{ steps.dispatch.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          REASON='MERGE_NOT_COMPLETED'
+          if [[ "${MERGE_RESULT}" == 'PASS' ]]; then
+            REASON="${DISPATCH_REASON:-MAIN_VERIFICATION_DISPATCH_FAILED}"
+            if [[ "${DISPATCH_RESULT}" == 'PASS' ]]; then
+              STATE='success'
+              REASON='OK'
+            fi
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='main-verification-dispatch' \
+            -f description="CI-003 ${REASON}" >/dev/null
+
+      - name: Enforce authenticated runtime health and autonomous merge
+        if: always()
+        env:
+          DEPLOYMENT_MODE: ${{ steps.candidate.outputs.deployment_mode }}
+          PROBE_RESULT: ${{ steps.probe.outputs.result }}
+          REASON_CODE: ${{ steps.probe.outputs.reason }}
+          AUTONOMY_ELIGIBLE: ${{ steps.autonomy.outputs.eligible }}
+          AUTONOMY_READY: ${{ steps.autonomy.outputs.ready }}
+          AUTONOMY_REASON: ${{ steps.autonomy.outputs.reason }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+          MERGE_REASON: ${{ steps.merge.outputs.reason }}
+          DISPATCH_RESULT: ${{ steps.dispatch.outputs.result }}
+          DISPATCH_REASON: ${{ steps.dispatch.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${DEPLOYMENT_MODE}" == 'NOT_APPLICABLE_NON_ROADMAP' ]]; then
+            echo 'trusted-runtime-health: PASS (NOT_APPLICABLE_NON_ROADMAP; no runtime mutation/probe)'
+            echo 'CI-003 autonomous merge: SKIP non-roadmap PR'
+            exit 0
+          fi
+          if [[ "${DEPLOYMENT_MODE}" != 'ROADMAP_EXACT_CANDIDATE' ]]; then
+            echo '::error::trusted-runtime-health failed closed: DEPLOYMENT_MODE_INVALID'
+            exit 1
+          fi
+          if [[ "${PROBE_RESULT}" != 'PASS' ]]; then
+            echo "::error::trusted-runtime-health failed closed: ${REASON_CODE:-HEALTH_STEP_NOT_COMPLETED}"
+            exit 1
+          fi
+          if [[ "${AUTONOMY_ELIGIBLE}" == 'true' ]]; then
+            if [[ "${AUTONOMY_READY}" != 'true' ]]; then
+              echo "::error::CI-003 roadmap PR blocked: ${AUTONOMY_REASON:-AUTONOMY_NOT_READY}"
+              exit 1
+            fi
+            if [[ "${MERGE_RESULT}" != 'PASS' ]]; then
+              echo "::error::CI-003 autonomous merge failed: ${MERGE_REASON:-MERGE_NOT_COMPLETED}"
+              exit 1
+            fi
+            if [[ "${DISPATCH_RESULT}" != 'PASS' ]]; then
+              echo "::error::CI-003 main verification dispatch failed: ${DISPATCH_REASON:-MAIN_VERIFICATION_DISPATCH_FAILED}"
+              exit 1
+            fi
+          fi
+          echo 'trusted-runtime-health: PASS'
+          [[ "${AUTONOMY_ELIGIBLE}" == 'true' ]] && echo 'CI-003 autonomous merge: PASS' || echo 'CI-003 autonomous merge: SKIP non-roadmap PR'

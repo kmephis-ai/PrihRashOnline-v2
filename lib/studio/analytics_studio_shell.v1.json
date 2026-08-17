@@ -1,0 +1,93 @@
+{
+  "schema": "PRH_ANALYTICS_STUDIO_SHELL_V1",
+  "version": "1.0.0",
+  "roadmap_id": "STUDIO-080",
+  "language": "ru",
+  "upstream": {
+    "design_system": "PRH_DESIGN_SYSTEM_V1@1.0.0",
+    "analytics_contract": "PRH_ANALYTICS_CONTRACT_V1@1.0.0",
+    "exploration_state": "PRH_EXPLORATION_STATE_V1@1.0.0",
+    "visualization_registry": "PRH_VISUALIZATION_REGISTRY_V2@2.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "schemas": {
+    "preference": "PRH_ANALYTICS_STUDIO_MODE_PREFERENCE_V1",
+    "state": "PRH_ANALYTICS_STUDIO_STATE_V1",
+    "telemetry": "PRH_ANALYTICS_STUDIO_TELEMETRY_V1"
+  },
+  "default_mode": "DAILY",
+  "modes": {
+    "DAILY": {
+      "rank": 0,
+      "surface": "home",
+      "label": "Daily",
+      "title": "Ежедневный режим",
+      "description": "Готовый финансовый центр без настройки аналитики.",
+      "capabilities": ["CURATED_HOME"]
+    },
+    "EXPLORE": {
+      "rank": 1,
+      "surface": "studio",
+      "label": "Explore",
+      "title": "Исследование",
+      "description": "Semantic analytics controls поверх canonical AnalyticsQuery без собственной финансовой логики.",
+      "capabilities": ["CURATED_HOME", "PERIOD", "MEASURE", "DIMENSION", "FILTER", "COMPARISON", "CHART_RETYPE", "DRILL"]
+    },
+    "STUDIO": {
+      "rank": 2,
+      "surface": "studio",
+      "label": "Studio",
+      "title": "Analytics Studio",
+      "description": "Экспертная оболочка и будущие dashboard affordances без преждевременной реализации composer.",
+      "capabilities": ["CURATED_HOME", "PERIOD", "MEASURE", "DIMENSION", "FILTER", "COMPARISON", "CHART_RETYPE", "DRILL", "DASHBOARD_COMPOSER_AFFORDANCE", "WIDGET_FACTORY_AFFORDANCE", "LAYOUT_AFFORDANCE", "SAVED_VIEWS_AFFORDANCE"]
+    }
+  },
+  "future_affordances": {
+    "DASHBOARD_COMPOSER_AFFORDANCE": {"dependency":"DASH-080","status":"UPCOMING"},
+    "WIDGET_FACTORY_AFFORDANCE": {"dependency":"DASH-081","status":"UPCOMING"},
+    "LAYOUT_AFFORDANCE": {"dependency":"DASH-080","status":"UPCOMING"},
+    "SAVED_VIEWS_AFFORDANCE": {"dependency":"DASH-084","status":"UPCOMING"}
+  },
+  "preference": {
+    "storage_key": "prh.analyticsStudio.mode.v1",
+    "stored_fields": ["schema", "version", "mode"],
+    "url_parameter": "mode",
+    "url_override_priority": true,
+    "invalid_explicit_mode_behavior": "DAILY_FAIL_SAFE",
+    "financial_payload_allowed": false,
+    "query_payload_allowed": false,
+    "filter_payload_allowed": false,
+    "private_identifier_allowed": false
+  },
+  "responsive": {
+    "mobile_max_width_px": 760,
+    "tablet_max_width_px": 1250,
+    "minimum_width_px": 320,
+    "maximum_tested_width_px": 1920
+  },
+  "keyboard": {
+    "tablist": true,
+    "keys": ["ArrowLeft", "ArrowRight", "Home", "End"],
+    "focus_visible_required": true,
+    "reduced_motion_required": true
+  },
+  "telemetry_allowlist": ["schema", "version", "mode", "previous_mode", "source", "viewport_class", "decision", "reason"],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "canonical_mutation": false,
+    "storage": false,
+    "network": false,
+    "deployment": false
+  },
+  "runtime": {
+    "private_exposure": "MYSELF",
+    "studio_financial_runtime_fetch": false,
+    "synthetic_financial_preview_allowed": false,
+    "default_route_changes": false,
+    "paid_dependency_required": false,
+    "free_only": true
+  }
+}

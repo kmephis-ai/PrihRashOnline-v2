@@ -1,0 +1,206 @@
+name: Owner Product UAT Attestation
+
+on:
+  issues:
+    types: [edited]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: write
+  actions: write
+
+concurrency:
+  group: owner-product-uat-attestation-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    if: ${{ github.event.issue.state == 'open' && github.actor == github.repository_owner }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      REPOSITORY_OWNER: ${{ github.repository_owner }}
+    steps:
+      - name: Validate exact owner UAT declaration
+        id: uat
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          value() {
+            local key="$1"
+            local count
+            count="$(grep -Ec "^${key}:[[:space:]]*[^[:space:]].*$" <<<"${ISSUE_BODY}" || true)"
+            [[ "${count}" -eq 1 ]] || return 1
+            sed -nE "s/^${key}:[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\\1/p" <<<"${ISSUE_BODY}"
+          }
+          optional_value() {
+            local key="$1"
+            local count
+            count="$(grep -Ec "^${key}:[[:space:]]*[^[:space:]].*$" <<<"${ISSUE_BODY}" || true)"
+            [[ "${count}" -le 1 ]] || return 1
+            [[ "${count}" -eq 1 ]] || return 0
+            sed -nE "s/^${key}:[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\\1/p" <<<"${ISSUE_BODY}"
+          }
+          positive_number_leq() {
+            local value="$1"
+            local threshold="$2"
+            [[ "${value}" =~ ^[0-9]+([.][0-9]+)?$ ]] || return 1
+            awk -v value="${value}" -v threshold="${threshold}" 'BEGIN { exit !(value > 0 && value <= threshold) }'
+          }
+          zero_number() {
+            [[ "$1" =~ ^0+([.]0+)?$ ]]
+          }
+
+          ROADMAP_ID="$(value roadmap_id)" || exit 0
+          STATUS="$(value status)" || exit 0
+          WORK_CLASS="$(value work_class)" || exit 0
+          ENGINEERING_STATUS="$(value engineering_status)" || exit 0
+          PRODUCT_STAGE="$(value product_stage)" || exit 0
+          TARGET_STAGE="$(value target_stage)" || exit 0
+          WRITER_BRANCH="$(value writer_branch)" || exit 0
+          UAT_PROFILE="$(optional_value owner_uat_profile)" || exit 0
+          [[ -n "${UAT_PROFILE}" ]] || UAT_PROFILE='GENERIC_V1'
+          CANDIDATE_SHA="$(value owner_uat_candidate_sha)" || exit 0
+          UAT_RESULT="$(value owner_uat_result)" || exit 0
+          UAT_DESKTOP="$(value owner_uat_desktop)" || exit 0
+          ROUTE_P95="$(value owner_uat_route_switch_p95_ms)" || exit 0
+          HEALTH_RUN_ID="$(value owner_uat_health_run_id)" || exit 0
+
+          [[ "${ROADMAP_ID}" =~ ^[A-Z0-9-]+$ ]] || exit 0
+          [[ "${STATUS}" == 'IN_PROGRESS' ]] || exit 0
+          [[ "${WORK_CLASS}" == 'user_facing' ]] || exit 0
+          [[ "${ENGINEERING_STATUS}" == 'CODE_COMPLETE' ]] || exit 0
+          [[ "${PRODUCT_STAGE}" == 'PRODUCT_READY' ]] || exit 0
+          [[ "${TARGET_STAGE}" == 'DONE' ]] || exit 0
+          [[ "${WRITER_BRANCH}" =~ ^agent/[A-Za-z0-9._/-]+$ ]] || exit 0
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || exit 0
+          [[ "${UAT_RESULT}" == 'PASS' && "${UAT_DESKTOP}" == 'PASS' ]] || exit 0
+          [[ "${HEALTH_RUN_ID}" =~ ^[0-9]+$ ]] || exit 0
+
+          STATUS_DESCRIPTION='Owner-authenticated deployed Product UAT PASS'
+          REASON_CODE='OWNER_UAT_EXACT_SHA_PASS'
+
+          case "${UAT_PROFILE}" in
+            GENERIC_V1)
+              UAT_MOBILE="$(value owner_uat_mobile)" || exit 0
+              UAT_ACTIONS="$(value owner_uat_visible_actions)" || exit 0
+              UAT_RU="$(value owner_uat_russian_ui)" || exit 0
+              UAT_MARKERS="$(value owner_uat_no_developer_markers)" || exit 0
+              UAT_VISUAL_TRUTH="$(value owner_uat_visual_truth)" || exit 0
+              UAT_VISUAL_ACCEPTANCE="$(value owner_uat_visual_acceptance)" || exit 0
+              UAT_BACK_FORWARD="$(value owner_uat_back_forward)" || exit 0
+              UAT_LOADING="$(value owner_uat_loading_error_states)" || exit 0
+
+              [[ "${UAT_MOBILE}" == 'PASS' ]] || exit 0
+              [[ "${UAT_ACTIONS}" == 'PASS' && "${UAT_RU}" == 'PASS' && "${UAT_MARKERS}" == 'PASS' ]] || exit 0
+              [[ "${UAT_VISUAL_TRUTH}" == 'PASS' && "${UAT_VISUAL_ACCEPTANCE}" == 'PASS' ]] || exit 0
+              [[ "${UAT_BACK_FORWARD}" == 'PASS' && "${UAT_LOADING}" == 'PASS' ]] || exit 0
+              [[ "${ROUTE_P95}" =~ ^[0-9]+$ && "${ROUTE_P95}" -gt 0 && "${ROUTE_P95}" -le 2000 ]] || exit 0
+              ;;
+            PERF_LF_V1)
+              [[ "${ROADMAP_ID}" == 'PERF-LF-001' ]] || exit 0
+              UAT_MOBILE="$(value owner_uat_mobile)" || exit 0
+              UAT_BACK_FORWARD="$(value owner_uat_back_forward)" || exit 0
+              FILTER_KPI_P95="$(value owner_uat_filter_kpi_p95_ms)" || exit 0
+              CHART_DESKTOP_P95="$(value owner_uat_chart_desktop_p95_ms)" || exit 0
+              BACK_FORWARD_P95="$(value owner_uat_back_forward_p95_ms)" || exit 0
+              CACHED_FMP_P95="$(value owner_uat_cached_fmp_p95_ms)" || exit 0
+              NETWORK_REQUESTS="$(value owner_uat_mandatory_network_requests)" || exit 0
+              SHEETS_READS="$(value owner_uat_google_sheets_reads)" || exit 0
+              OBSERVED_RESOURCES="$(value owner_uat_observed_resources)" || exit 0
+
+              [[ "${UAT_MOBILE}" == 'MACHINE_DERIVED' ]] || exit 0
+              [[ "${UAT_BACK_FORWARD}" == 'PASS' ]] || exit 0
+              positive_number_leq "${ROUTE_P95}" 100 || exit 0
+              positive_number_leq "${FILTER_KPI_P95}" 200 || exit 0
+              positive_number_leq "${CHART_DESKTOP_P95}" 300 || exit 0
+              positive_number_leq "${BACK_FORWARD_P95}" 100 || exit 0
+              positive_number_leq "${CACHED_FMP_P95}" 800 || exit 0
+              zero_number "${NETWORK_REQUESTS}" || exit 0
+              zero_number "${SHEETS_READS}" || exit 0
+              zero_number "${OBSERVED_RESOURCES}" || exit 0
+
+              VALIDATION_RUNS="$(gh api --method GET \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/pr-validation.yml/runs" \
+                -f branch="${WRITER_BRANCH}" \
+                -f event='pull_request' \
+                -f status='success' \
+                -f per_page='50')"
+              VALIDATION_COUNT="$(jq --arg sha "${CANDIDATE_SHA}" \
+                '[.workflow_runs[] | select(.head_sha == $sha and .conclusion == "success")] | length' \
+                <<<"${VALIDATION_RUNS}")"
+              [[ "${VALIDATION_COUNT}" -ge 1 ]] || {
+                echo '::error::PERF_LF_V1 requires exact-head successful PR Validation for representative-mobile machine evidence.'
+                exit 1
+              }
+
+              STATUS_DESCRIPTION="Owner PERF UAT + exact-head mobile CI PASS; route p95 ${ROUTE_P95}ms"
+              REASON_CODE='OWNER_PERF_UAT_EXACT_SHA_PASS'
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+
+          PRS="$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=${DEFAULT_BRANCH}&head=${REPOSITORY_OWNER}:${WRITER_BRANCH}")"
+          [[ "$(jq 'length' <<<"${PRS}")" -eq 1 ]] || { echo '::error::Owner UAT writer must resolve to one open PR.'; exit 1; }
+          PR_HEAD="$(jq -r '.[0].head.sha // empty' <<<"${PRS}")"
+          PR_NUMBER="$(jq -r '.[0].number // 0' <<<"${PRS}")"
+          [[ "${PR_HEAD}" == "${CANDIDATE_SHA}" && "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]] || {
+            echo '::error::Owner UAT candidate does not match exact open PR head.'
+            exit 1
+          }
+
+          STATUS_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status")"
+          DEPLOY_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-dev-deploy")][0].state // empty' <<<"${STATUS_JSON}")"
+          HEALTH_STATE="$(jq -r '[.statuses[] | select(.context == "trusted-runtime-health")][0].state // empty' <<<"${STATUS_JSON}")"
+          [[ "${DEPLOY_STATE}" == 'success' && "${HEALTH_STATE}" == 'success' ]] || {
+            echo '::error::Owner UAT cannot attest an undeployed or unhealthy candidate.'
+            exit 1
+          }
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "health_run_id=${HEALTH_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "route_p95_ms=${ROUTE_P95}" >> "$GITHUB_OUTPUT"
+          echo "profile=${UAT_PROFILE}" >> "$GITHUB_OUTPUT"
+          echo "reason_code=${REASON_CODE}" >> "$GITHUB_OUTPUT"
+          echo "status_description=${STATUS_DESCRIPTION}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish exact-SHA Product Ready E2E status
+        if: steps.uat.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.uat.outputs.candidate_sha }}
+          REASON_CODE: ${{ steps.uat.outputs.reason_code }}
+          STATUS_DESCRIPTION: ${{ steps.uat.outputs.status_description }}
+          UAT_PROFILE: ${{ steps.uat.outputs.profile }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state='success' \
+            -f context='product-ready-e2e' \
+            -f description="${STATUS_DESCRIPTION}" >/dev/null
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state='success' \
+            -f context="product-ready-e2e-reason:${REASON_CODE}" \
+            -f description="Owner-authenticated profile ${UAT_PROFILE} PASS" >/dev/null
+
+      - name: Re-run autonomous merge gate
+        if: steps.uat.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEALTH_RUN_ID: ${{ steps.uat.outputs.health_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run rerun "${HEALTH_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --failed
+          echo 'Exact Product Ready status published; trusted merge gate re-run requested.'

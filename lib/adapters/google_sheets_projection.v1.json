@@ -1,0 +1,52 @@
+{
+  "schema": "PRH_GOOGLE_QUERY_PROJECTION_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PERF-010",
+  "mapping_schema": "PRH_GOOGLE_OPERATIONS_MAPPING_V1@1.0.0",
+  "base_query_headers": ["ID", "Дата и время"],
+  "query_filter_headers": {
+    "transaction_ids": ["ID"],
+    "types": ["Тип"],
+    "statuses": ["Статус"],
+    "currency": [],
+    "account_id": ["Счёт", "Счёт назначения"],
+    "category_id": ["Категория"],
+    "member_id": ["Член семьи"],
+    "project_id": ["Проект"],
+    "tags_any": ["Теги"],
+    "period_start": ["Дата и время"],
+    "period_end": ["Дата и время"]
+  },
+  "read_request": {
+    "allowed_fields": ["required_headers", "start_row", "row_count"],
+    "header_discovery": "FULL_HEADER_ROW_ONLY",
+    "data_columns": "REQUESTED_HEADERS_CONTIGUOUS_SPANS_ONLY",
+    "row_interval": "BOUNDED_CONTIGUOUS",
+    "unknown_header": "FAIL",
+    "unknown_request_field": "FAIL"
+  },
+  "query_execution": {
+    "phase_1": "PROJECTED_FILTER_SORT_SCAN",
+    "phase_2": "FULL_MAPPED_ROWS_FOR_SELECTED_PAGE_ONLY",
+    "selected_rows": "CONTIGUOUS_ROW_GROUPS",
+    "semantic_authority": "PRH_TRANSACTION_REPOSITORY_V1"
+  },
+  "telemetry": {
+    "financial_payload_allowed": false,
+    "fields": [
+      "projection_id",
+      "requested_header_count",
+      "projected_column_count",
+      "column_span_count",
+      "row_count",
+      "range_read_count",
+      "cell_read_count"
+    ]
+  },
+  "authority": {
+    "financial_semantics": false,
+    "financial_write": false,
+    "network": false,
+    "paid_dependency_required": false
+  }
+}

@@ -1,0 +1,306 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '*.js'
+      - '*.html'
+      - 'AGENTS.md'
+      - 'llms.txt'
+      - '.ai-context/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
+      - 'appsscript.json'
+      - '.claspignore'
+      - '.clasp.json.example'
+      - '.gitignore'
+      - 'lib/**'
+      - 'pwa/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'docs/**'
+      - '.github/workflows/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Supply-chain policy
+        run: node tools/supply-chain-scan.js
+      - name: CI trust-boundary policy
+        run: node tools/ci-trust-boundary-scan.js
+      - name: Secret scan
+        run: node tools/secret-scan.js
+      - name: Privacy public-data scan
+        run: node tools/privacy-public-data-scan.js
+      - name: Free-only policy
+        run: node tools/free-only-scan.js
+      - name: Documentation truth
+        run: node tools/docs-drift-scan.js
+      - name: Language policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/language-policy-scan.js
+          node tests/language_policy_contract_test.js
+      - name: AI model/cost routing
+        run: node tests/ai_model_cost_routing_contract_test.js
+      - name: AI playbooks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/ai-playbook-scan.js
+          node tests/ai_playbook_contract_test.js
+      - name: AI regression eval
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/ai-eval-runner.js
+          node tests/ai_eval_suite_contract_test.js
+      - name: R1 documentation contract
+        run: node tests/r1_documentation_contract_test.js
+      - name: Design system
+        run: node tests/design_system_contract_test.js
+      - name: Household preferences
+        run: node tests/household_preferences_contract_test.js
+      - name: Visualization foundation
+        run: node tests/visualization_foundation_contract_test.js
+      - name: Visualization registry v2
+        run: node tests/visualization_registry_v2_contract_test.js
+      - name: Advanced visualization pack
+        run: node tests/advanced_visualization_pack_contract_test.js
+      - name: Analytics Studio shell
+        run: node tests/analytics_studio_shell_contract_test.js
+      - name: Privacy presentation modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/privacy_presentation_modes_contract_test.js
+          node tests/privacy_presentation_runtime_contract_test.js
+      - name: Dashboard composer
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/dashboard_composer_contract_test.js
+          node tests/dashboard_composer_runtime_contract_test.js
+      - name: Widget factory semantic bindings
+        run: node tests/widget_factory_semantic_bindings_contract_test.js
+      - name: Dashboard interaction bus
+        run: node tests/dashboard_interaction_bus_contract_test.js
+      - name: Dashboard drill-through
+        run: node tests/dashboard_drill_through_contract_test.js
+      - name: Dashboard saved views
+        run: node tests/dashboard_saved_views_contract_test.js
+      - name: Expert dashboard gallery
+        run: node tests/expert_dashboard_gallery_contract_test.js
+      - name: Dashboard visual customization
+        run: node tests/dashboard_visual_customization_contract_test.js
+      - name: Dashboard safe import/export
+        run: node tests/dashboard_safe_import_export_contract_test.js
+      - name: Financial Home
+        run: node tests/financial_home_contract_test.js
+      - name: R2 Financial runtime parity
+        run: node tests/r2_financial_runtime_parity_contract_test.js
+      - name: Canonical R2 cutover
+        run: node tests/canonical_r2_web_app_contract_test.js
+      - name: Transaction Explorer
+        run: node tests/transaction_explorer_contract_test.js
+      - name: Expense Analytics
+        run: node tests/expense_analytics_contract_test.js
+      - name: Income Analytics
+        run: node tests/income_analytics_contract_test.js
+      - name: Cash Flow
+        run: node tests/cash_flow_dashboard_contract_test.js
+      - name: Budget Control
+        run: node tests/budget_control_contract_test.js
+      - name: Obligations
+        run: node tests/obligations_contract_test.js
+      - name: Subscription detection
+        run: node tests/subscription_detection_contract_test.js
+      - name: Data Quality
+        run: node tests/data_quality_center_contract_test.js
+      - name: PWA baseline
+        run: node tests/pwa_baseline_contract_test.js
+      - name: YDB Serverless PoC
+        run: node tests/ydb_serverless_poc_contract_test.js
+      - name: Family Auth
+        run: node tests/family_auth_contract_test.js
+      - name: Apps Script version retention
+        run: node tests/apps_script_version_retention_contract_test.js
+      - name: AI contract
+        run: node tools/ai-contract-scan.js
+      - name: ADWF Local Git Mirror vendor lock
+        run: node tools/verify-adwf-local-git-mirror.js
+      - name: Roadmap task protocol
+        run: node tests/roadmap_task_protocol_contract_test.js
+      - name: Multi-AI review protocol
+        run: node tests/multi_ai_review_protocol_contract_test.js
+      - name: Layered test architecture
+        run: node tests/test_architecture_contract_test.js
+      - name: SLO error budget
+        run: node tests/slo_error_budget_policy_contract_test.js
+      - name: Financial reconcile synthetic
+        run: node tests/financial_reconciliation_contract_test.js
+      - name: KPI Dictionary
+        run: node tests/kpi_dictionary_contract_test.js
+      - name: Canonical transaction schema
+        run: node tests/canonical_transaction_schema_contract_test.js
+      - name: Pure domain/application core
+        run: node tests/pure_domain_application_core_contract_test.js
+      - name: Transaction repository adapter
+        run: node tests/repository_adapter_contract_test.js
+      - name: Query projection minimal ranges
+        run: node tests/repository_projection_adapter_contract_test.js
+      - name: Revision-aware read cache
+        run: node tests/repository_cache_adapter_contract_test.js
+      - name: Single-scan refresh pipeline
+        run: node tests/repository_refresh_pipeline_adapter_contract_test.js
+      - name: Incremental analytics aggregates
+        run: node tests/incremental_analytics_aggregates_contract_test.js
+      - name: Synthetic scale performance
+        run: node tests/synthetic_scale_performance_contract_test.js
+      - name: Analytics extension contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/analytics_extension_contract_test.js
+          node tests/analytics_query_edge_contract_test.js
+          node tests/analytics_documentation_contract_test.js
+      - name: Semantic analytics registry
+        run: node tests/semantic_analytics_registry_contract_test.js
+      - name: Analytics scopes
+        run: node tests/analytics_scope_contract_test.js
+      - name: Period/comparison engine
+        run: node tests/period_comparison_engine_contract_test.js
+      - name: Calculated/window metrics
+        run: node tests/calculated_metrics_contract_test.js
+      - name: Personal benchmark comparisons
+        run: node tests/personal_benchmark_contract_test.js
+      - name: Pivot/OLAP engine
+        run: node tests/pivot_olap_contract_test.js
+      - name: Analytics query planner/cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/analytics_query_planner_cache_contract_test.js
+          node tests/analytics_query_planner_performance_contract_test.js
+      - name: Studio-scale performance
+        run: node tests/studio_scale_performance_contract_test.js
+      - name: Combinatorial analytics regression
+        run: node tests/combinatorial_analytics_regression_contract_test.js
+      - name: Long-term trends
+        run: node tests/long_term_trends_contract_test.js
+      - name: Cash-flow projection
+        run: node tests/cash_flow_projection_contract_test.js
+      - name: Goals and wish-list
+        run: node tests/goal_planning_contract_test.js
+      - name: Balance reconciliation
+        run: node tests/balance_reconciliation_contract_test.js
+      - name: Net Worth
+        run: node tests/net_worth_contract_test.js
+      - name: Liquidity & financial risk
+        run: node tests/liquidity_financial_risk_contract_test.js
+      - name: Financial Health X-Ray
+        run: node tests/financial_health_xray_contract_test.js
+      - name: Exploration state model
+        run: node tests/exploration_state_contract_test.js
+      - name: Migration reconcile synthetic
+        run: node tests/migration_reconciliation_contract_test.js
+      - name: Full-history migration protocol
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/full_history_migration_contract_test.js
+          node tests/mig010_plan_privacy_contract_test.js
+          node tests/mig010_existing_target_preflight_contract_test.js
+          node tests/mig010_private_mapper_example_contract_test.js
+          node tests/mig010_leading_columns_mapper_contract_test.js
+          node tests/mig010_target_blank_date_contract_test.js
+          node tests/mig010_owner_tool_contract_test.js
+          node tests/mig010_owner_diagnostics_contract_test.js
+          node tests/mig010_occurrence_identity_contract_test.js
+          node tests/mig010_repair_policy_contract_test.js
+          node tests/mig010_repair_policy_compatibility_contract_test.js
+          node tests/mig010_repair_tool_contract_test.js
+          node tests/mig010_rebuild_dry_run_contract_test.js
+          node tests/mig010_documentation_contract_test.js
+      - name: Prepare dashboard bundle
+        run: npm run prepare:web
+      - name: Install Playwright browser
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run all contract tests
+        run: node tools/run-layered-tests.js full
+      - name: Responsive visual gate
+        run: node tests/dashboard_web_visual_test.js
+      - name: Financial Home visual gate
+        run: node tests/financial_home_visual_test.js
+      - name: Canonical R2 navigation visual gate
+        run: node tests/canonical_r2_navigation_visual_test.js
+      - name: Analytics Studio visual gate
+        run: node tests/analytics_studio_shell_visual_test.js
+      - name: Privacy modes visual gate
+        run: node tests/privacy_presentation_modes_visual_test.js
+      - name: Dashboard composer visual gate
+        run: node tests/dashboard_composer_visual_test.js
+      - name: Expert dashboard gallery visual gate
+        run: node tests/expert_dashboard_gallery_visual_test.js
+      - name: Transaction Explorer visual gate
+        run: node tests/transaction_explorer_visual_test.js
+      - name: Expense Analytics visual gate
+        run: node tests/expense_analytics_visual_test.js
+      - name: Income Analytics visual gate
+        run: node tests/income_analytics_visual_test.js
+      - name: Cash Flow visual gate
+        run: node tests/cash_flow_visual_test.js
+      - name: Budget Control visual gate
+        run: node tests/budget_control_visual_test.js
+      - name: Obligations visual gate
+        run: node tests/obligations_visual_test.js
+      - name: Data Quality visual gate
+        run: node tests/data_quality_visual_test.js
+      - name: PWA offline visual gate
+        run: node tests/pwa_offline_visual_test.js
+      - name: Build immutable Apps Script candidate
+        run: |
+          node tools/build-apps-script-candidate.js \
+            --source . \
+            --out candidate-artifact \
+            --sha "${{ github.event.pull_request.head.sha }}"
+      - name: Upload immutable Apps Script candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: apps-script-candidate-${{ github.event.pull_request.head.sha }}
+          path: candidate-artifact/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pr-${{ github.event.pull_request.number }}-dashboard-validation
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14

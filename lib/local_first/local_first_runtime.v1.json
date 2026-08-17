@@ -1,0 +1,138 @@
+{
+  "schema": "PRH_LOCAL_FIRST_RUNTIME_V1",
+  "version": "1.0.0",
+  "roadmap_id": "ARCH-LF-001",
+  "cost_class": "FREE_ONLY",
+  "authorities": {
+    "financial_truth": false,
+    "canonical_write": false,
+    "renderer_financial_authority": false,
+    "google_authoritative_source_during_transition": true,
+    "future_ydb_write_authority": false
+  },
+  "local_read_model": {
+    "schema": "PRH_LOCAL_READ_MODEL_V1",
+    "canonical_revision_format": "SHA256_HEX_64",
+    "immutable_generation": true,
+    "partial_generation_visible": false,
+    "storage": "INDEXEDDB",
+    "private_browser_storage": true,
+    "stores": [
+      "meta",
+      "transactions",
+      "dimensions",
+      "aggregates",
+      "sync_journal"
+    ],
+    "transaction_key": "transaction_id",
+    "incompatible_schema_action": "REBUILD",
+    "corruption_action": "REBUILD",
+    "explicit_wipe_supported": true
+  },
+  "spa": {
+    "single_document_shell": true,
+    "client_side_history": true,
+    "warm_route_requires_network": false,
+    "warm_filter_requires_network": false,
+    "warm_chart_requires_network": false,
+    "warm_google_sheets_reads": 0,
+    "renderer_runtime_reused": true
+  },
+  "worker": {
+    "schema": "PRH_LOCAL_ANALYTICS_WORKER_V1",
+    "off_main_thread": true,
+    "network_authority": false,
+    "storage_authority": false,
+    "financial_write_authority": false,
+    "revision_bound": true,
+    "generation_bound": true,
+    "dataset_bound_once_per_revision": true,
+    "query_payload_contains_dataset": false,
+    "revision_scoped_query_cache": true,
+    "stale_completion": "DISCARD",
+    "messages_in": [
+      "INIT",
+      "SET_REVISION",
+      "BIND_DATASET",
+      "ANALYTICS_QUERY",
+      "PLANNING_QUERY",
+      "CANCEL_GENERATION"
+    ],
+    "messages_out": [
+      "READY",
+      "DATASET_BOUND",
+      "ANALYTICS_RESULT",
+      "PLANNING_RESULT",
+      "STALE_DISCARDED",
+      "ERROR"
+    ]
+  },
+  "sync": {
+    "schema": "PRH_BACKGROUND_SYNC_V1",
+    "blocking_ready_ui": false,
+    "states": [
+      "UNINITIALIZED",
+      "BOOTSTRAPPING",
+      "READY",
+      "CHECKING_REVISION",
+      "APPLYING_DELTA",
+      "REBUILDING",
+      "DEGRADED_LOCAL",
+      "REBUILD_REQUIRED"
+    ],
+    "same_revision": "NOOP",
+    "partial_bootstrap_commit": false,
+    "atomic_generation_switch": true,
+    "delta_requires_exact_base_revision": true,
+    "delta_apply_idempotent": true,
+    "delta_chain_unproven": "FULL_REBUILD",
+    "source_change_during_apply": "DISCARD_AND_RETRY",
+    "network_failure_with_verified_local": "DEGRADED_LOCAL"
+  },
+  "product_slo_targets_ms": {
+    "warm_route_switch_p95": 100,
+    "filter_kpi_update_p95": 200,
+    "chart_repaint_desktop_p95": 300,
+    "chart_repaint_mobile_p95": 500,
+    "back_forward_p95": 100,
+    "cached_first_meaningful_paint_p95": 800
+  },
+  "measurement_rules": {
+    "server_health_latency_is_product_sla": false,
+    "cold_bootstrap_is_warm_interaction_sla": false,
+    "warm_route_slo_excludes_cold_query_cache": true,
+    "warm_route_diagnostic_requires_route_cache_warmup": true,
+    "warm_interaction_must_prove_zero_required_network": true,
+    "warm_interaction_must_prove_zero_google_sheet_reads": true
+  },
+  "privacy": {
+    "financial_payload_in_public_telemetry": false,
+    "financial_payload_in_url_history": false,
+    "indexeddb_synced_to_public_artifacts": false,
+    "allowed_public_observability": [
+      "schema",
+      "version",
+      "revision_hash_prefix",
+      "generation_hash_prefix",
+      "sync_state",
+      "status",
+      "reason",
+      "count",
+      "duration_ms"
+    ]
+  },
+  "ydb_ladder": {
+    "required_for_local_first_product_ready": false,
+    "stages": [
+      "GOOGLE_AUTHORITATIVE_LOCAL_FIRST",
+      "YDB_SHADOW_REPLICA",
+      "DUAL_READ_COMPARE",
+      "YDB_READ_CANARY",
+      "YDB_READ_AUTHORITY",
+      "FUTURE_SEPARATE_WRITE_CUTOVER"
+    ],
+    "big_bang_cutover_allowed": false,
+    "paid_overage_allowed": false,
+    "unknown_billing_state": "BLOCKED"
+  }
+}

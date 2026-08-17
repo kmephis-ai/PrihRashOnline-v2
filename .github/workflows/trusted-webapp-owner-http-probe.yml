@@ -1,0 +1,164 @@
+name: Trusted WebApp Owner HTTP Probe
+
+on:
+  workflow_run:
+    workflows: [Trusted Runtime Health]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  statuses: write
+
+concurrency:
+  group: trusted-webapp-owner-http-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: DEV
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CLASP_USER: prihrash-ci
+      HEALTH_RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - name: Checkout trusted default-branch policy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+
+      - name: Resolve authenticated health evidence
+        id: health
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${GITHUB_REF}" == "refs/heads/${DEFAULT_BRANCH}" ]] || { echo '::error::Trusted probe must execute from default branch.'; exit 1; }
+          [[ "${HEALTH_RUN_ID}" =~ ^[0-9]+$ ]] || { echo '::error::Health run ID invalid.'; exit 1; }
+          rm -rf "${RUNNER_TEMP}/health-evidence"
+          mkdir -p "${RUNNER_TEMP}/health-evidence"
+          gh run download "${HEALTH_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --dir "${RUNNER_TEMP}/health-evidence"
+          EVIDENCE_FILE="$(find "${RUNNER_TEMP}/health-evidence" -type f -name evidence.json -print -quit)"
+          [[ -n "${EVIDENCE_FILE}" ]] || { echo '::error::Authenticated health evidence missing.'; exit 1; }
+          CANDIDATE_SHA="$(jq -r '.candidateSha // empty' "${EVIDENCE_FILE}")"
+          HEALTH_STATUS="$(jq -r '.status // empty' "${EVIDENCE_FILE}")"
+          HEALTH_REASON="$(jq -r '.reasonCode // empty' "${EVIDENCE_FILE}")"
+          [[ "${CANDIDATE_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::Candidate SHA invalid.'; exit 1; }
+          [[ "${HEALTH_STATUS}" == 'DEV_VERIFIED' && "${HEALTH_REASON}" == 'OK' ]] || { echo '::error::Authenticated runtime health was not verified.'; exit 1; }
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure owner OAuth
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${CLASPRC_JSON}" ]] || { echo '::error::Missing CLASPRC_JSON'; exit 1; }
+          [[ -n "${APPS_SCRIPT_ID}" ]] || { echo '::error::Missing APPS_SCRIPT_ID'; exit 1; }
+          printf '%s' "${CLASPRC_JSON}" > "${HOME}/.clasprc.json"
+          chmod 600 "${HOME}/.clasprc.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.clasprc.json','utf8'));"
+
+      - name: Probe private Web App with owner OAuth
+        id: owner_http
+        env:
+          APPS_SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROBE_JSON="$(node tools/trusted-webapp-owner-http-probe.js)"
+          PROBE_OK="$(jq -r '.ok // false' <<<"${PROBE_JSON}" 2>/dev/null || printf 'false')"
+          REASON="$(jq -r '.reason // "OWNER_HTTP_PROBE_RESULT_INVALID"' <<<"${PROBE_JSON}" 2>/dev/null || printf 'OWNER_HTTP_PROBE_RESULT_INVALID')"
+          HTTP_STATUS="$(jq -r '.http_status // 0' <<<"${PROBE_JSON}" 2>/dev/null || printf '0')"
+          LATENCY_MS="$(jq -r '.latency_ms // 0' <<<"${PROBE_JSON}" 2>/dev/null || printf '0')"
+          REDIRECT_COUNT="$(jq -r '.redirect_count // 0' <<<"${PROBE_JSON}" 2>/dev/null || printf '0')"
+          CANONICAL_SHELL="$(jq -r '.canonical_shell // false' <<<"${PROBE_JSON}" 2>/dev/null || printf 'false')"
+          RUSSIAN_HOME_SOURCE="$(jq -r '.russian_home_source // false' <<<"${PROBE_JSON}" 2>/dev/null || printf 'false')"
+          [[ "${REASON}" =~ ^[A-Z0-9_]+$ ]] || REASON='OWNER_HTTP_PROBE_RESULT_INVALID'
+          [[ "${HTTP_STATUS}" =~ ^[0-9]{1,3}$ ]] || HTTP_STATUS='0'
+          [[ "${LATENCY_MS}" =~ ^[0-9]+$ ]] || LATENCY_MS='0'
+          [[ "${REDIRECT_COUNT}" =~ ^[0-9]+$ ]] || REDIRECT_COUNT='0'
+          echo "ok=${PROBE_OK}" >> "$GITHUB_OUTPUT"
+          echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+          echo "http_status=${HTTP_STATUS}" >> "$GITHUB_OUTPUT"
+          echo "latency_ms=${LATENCY_MS}" >> "$GITHUB_OUTPUT"
+          echo "redirect_count=${REDIRECT_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "canonical_shell=${CANONICAL_SHELL}" >> "$GITHUB_OUTPUT"
+          echo "russian_home_source=${RUSSIAN_HOME_SOURCE}" >> "$GITHUB_OUTPUT"
+
+      - name: Record privacy-safe probe evidence
+        if: always() && steps.health.outputs.candidate_sha != ''
+        env:
+          CANDIDATE_SHA: ${{ steps.health.outputs.candidate_sha }}
+          PROBE_OK: ${{ steps.owner_http.outputs.ok }}
+          REASON: ${{ steps.owner_http.outputs.reason }}
+          HTTP_STATUS: ${{ steps.owner_http.outputs.http_status }}
+          LATENCY_MS: ${{ steps.owner_http.outputs.latency_ms }}
+          REDIRECT_COUNT: ${{ steps.owner_http.outputs.redirect_count }}
+          CANONICAL_SHELL: ${{ steps.owner_http.outputs.canonical_shell }}
+          RUSSIAN_HOME_SOURCE: ${{ steps.owner_http.outputs.russian_home_source }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p trusted-webapp-owner-http-evidence
+          jq -n \
+            --arg candidateSha "${CANDIDATE_SHA}" \
+            --arg result "$([[ "${PROBE_OK}" == 'true' ]] && printf 'PASS' || printf 'NOT_AUTOMATABLE')" \
+            --arg reasonCode "${REASON:-PROBE_NOT_COMPLETED}" \
+            --argjson httpStatus "${HTTP_STATUS:-0}" \
+            --argjson latencyMs "${LATENCY_MS:-0}" \
+            --argjson redirectCount "${REDIRECT_COUNT:-0}" \
+            --argjson canonicalShell "$([[ "${CANONICAL_SHELL}" == 'true' ]] && printf 'true' || printf 'false')" \
+            --argjson russianHomeSource "$([[ "${RUSSIAN_HOME_SOURCE}" == 'true' ]] && printf 'true' || printf 'false')" \
+            '{candidateSha:$candidateSha,result:$result,reasonCode:$reasonCode,httpStatus:$httpStatus,latencyMs:$latencyMs,redirectCount:$redirectCount,canonicalShell:$canonicalShell,russianHomeSource:$russianHomeSource,privateUrlPublished:false,financialPayloadPublished:false,productReadyAuthority:false}' \
+            > trusted-webapp-owner-http-evidence/evidence.json
+
+      - name: Upload probe evidence
+        if: always() && steps.health.outputs.candidate_sha != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trusted-webapp-owner-http-${{ steps.health.outputs.candidate_sha }}
+          path: trusted-webapp-owner-http-evidence/evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish machine-visible diagnostic status
+        if: always() && steps.health.outputs.candidate_sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.health.outputs.candidate_sha }}
+          PROBE_OK: ${{ steps.owner_http.outputs.ok }}
+          REASON: ${{ steps.owner_http.outputs.reason }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE='failure'
+          DESCRIPTION="Owner WebApp HTTP ${REASON:-PROBE_NOT_COMPLETED}"
+          if [[ "${PROBE_OK}" == 'true' ]]; then
+            STATE='success'
+            DESCRIPTION='Owner WebApp HTTP authenticated'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${CANDIDATE_SHA}" \
+            -f state="${STATE}" \
+            -f context='trusted-webapp-owner-http' \
+            -f description="${DESCRIPTION:0:140}" >/dev/null
+          echo "trusted-webapp-owner-http: ${STATE} ${REASON:-PROBE_NOT_COMPLETED}"
+
+      - name: Diagnostic only
+        if: always()
+        shell: bash
+        run: |
+          echo 'This workflow diagnoses whether owner OAuth can open the private MYSELF Web App over HTTP.'
+          echo 'It never grants product-ready-e2e and never publishes a Web App URL or financial payload.'
