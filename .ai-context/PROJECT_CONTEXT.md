@@ -97,6 +97,7 @@ Lifecycle user-facing: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED
 `ARCH-010` — **DONE / Main Verification PASS**, Issue #89.
 `ARCH-011` — **DONE / Main Verification PASS**, Issue #91.
 `MIG-010` — **DONE / Main Verification PASS**, Issue #96; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
+`MIG010_EXECUTION_POLICY_V1@1.0.0` — canonical MIG-010 execution policy; finalize boundary сохраняет `FINALIZED_PENDING_RECONCILIATION` / post-write reconciliation, а generic Google repository write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 `ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE / Main Verification PASS**. `ANL-010` authority = `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 
 Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после Local-first/Product Recovery rebaseline и не означает возврат к request-per-view architecture.
