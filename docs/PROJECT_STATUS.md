@@ -35,14 +35,15 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. Основная adoption PR #289 и control-plane main-verify follow-up PR #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation Record/gates/fresh-session rebind VERIFIED, operating mode `CONSUMER_NATIVE`, native `validate` / `verify` / `probe` binding сохранён, `ADWF Main` PASS, `ADWF Control` выполняет read-only `consumer-observer`, privileged `trusted-controller` SKIPPED, framework upgrade dry-run `READY` с blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала; writer authority завершена.
 - `ANL-091` — **DONE_ENGINEERING / Main Verification PASS**, Issue #292, PR #300, candidate `4e4c0984518a1acf84542fc62252045697748b95`, merge `59480686dd92fd295d42c887c9003f6882758ff6`; writer authority завершена.
 - `PERF-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #301, PR #302, candidate `978c960458d2fc62c6303c63a7ce57d6da22c341`, merge `2f9753d609b7ef05ec1993f7e36628b60de545db`; writer authority завершена.
-- `RISK-030` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` DONE/Main Verification PASS; это единственный текущий PrihRash writer.
+- `RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.
+- `XRAY-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий PrihRash writer.
 - `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена.
 
 PrihRash подключён к ADWF как consumer-managed development project: ADWF остаётся отдельным верхним инженерным слоем, а `docs/ROADMAP.md` + live GitHub Issues остаются product/work SSOT PrihRash. Consumer control authority read-only/reference-only; `FREE_ONLY`, FIN-TRUTH, privacy и business/runtime semantics не ослаблены.
 
-Текущий scope `RISK-030`: versioned deterministic emergency runway + scenario liquidity поверх explicit NW positions и PROJ-030 future deltas. Cash Flow не используется как current balance proxy; projection currency binding explicit; missing data fail closed; public evidence synthetic-only; financial write authority отсутствует.
+Текущий R9 scope `XRAY-090`: versioned deterministic rule registry и typed explainable findings поверх RISK/ANL/BAL/SCOPE upstream evidence. Missing/incompatible/review состояния не маскируются как CLEAR; diagnostic score не является financial truth; UI/LLM evaluation и financial write authority отсутствуют.
 
-`XRAY-090` остаётся BACKLOG до Main Verification `RISK-030`. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `RISK-030`.
+`XRAY-090` — текущий single writer. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно до Main Verification `XRAY-090`.
 
 ## R0 — завершён
 
@@ -97,7 +98,7 @@ R2 engineering contracts остаются reusable, но product credit даёт
 
 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. Studio/dashboard configuration contracts R8 остаются reusable.
 
-`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091` и `PERF-090` завершены как **DONE_ENGINEERING / Main Verification PASS**. `RISK-030` Issue #303 — текущий dependency-closing writer; `XRAY-090` остаётся BACKLOG до его Main Verification.
+`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` завершены как **DONE_ENGINEERING / Main Verification PASS**. `XRAY-090` Issue #78 — текущий dependency-ready R9 writer.
 
 ## R4 / YDB future backend
 
