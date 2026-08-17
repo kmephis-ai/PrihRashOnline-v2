@@ -236,6 +236,18 @@ function prhLocalFirstSpaRender_(params) {
       throw new Error('LF_SPA_ROLLBACK_MARKER_MISSING');
     }
     html = html.replace('href="?surface=home"', 'href="' + rollbackHref + '"');
+
+    // HtmlService pages run in a sandbox. A query-only href can resolve against
+    // the sandbox document instead of the deployed Web App and produce a blank
+    // page. Keep the DASH-090 launcher on the authoritative Web App self URL,
+    // matching the existing fail-closed rollback routing boundary.
+    var galleryLauncher = '<a class="lf-studio-gallery-link" href="?surface=gallery">';
+    if (html.indexOf(galleryLauncher) < 0) throw new Error('LF_SPA_GALLERY_LAUNCHER_MARKER_MISSING');
+    var galleryHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=gallery');
+    html = html.replace(
+      galleryLauncher,
+      '<a class="lf-studio-gallery-link" href="' + galleryHref + '">'
+    );
   }
 
   var appScriptMarker = '<script>\n(function(){';
