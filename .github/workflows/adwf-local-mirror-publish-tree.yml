@@ -1,0 +1,67 @@
+name: ADWF Local Mirror Build DASH-090 Target Tree
+
+on:
+  push:
+    branches:
+      - agent/local-mirror-DASH-090-20260818-ux3
+    paths:
+      - .github/workflows/adwf-local-mirror-publish-tree.yml
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_SHA: be5a4a1a7b216b861de9afabf830614c451856d5
+  OUTPUT_BRANCH: agent/local-mirror-DASH-090-20260818-ux3-output
+  ARCHIVE_SHA256: 36d746a3277303dc589a1fef34c393aa2a1265f4723daedc62af5f79ecbf1059
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Assemble exact archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .adwf-local-mirror-upload/target.*.b64 > /tmp/target.b64
+          base64 -d /tmp/target.b64 > /tmp/target.tgz
+          echo "${ARCHIVE_SHA256}  /tmp/target.tgz" | sha256sum -c -
+
+      - name: Build and verify exact candidate tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git checkout --detach "${SOURCE_SHA}"
+          tar -xzf /tmp/target.tgz -C .
+
+          expected="$(printf '%s\n' \
+            ExpertDashboardGalleryWebApp.html \
+            docs/dashboard/EXPERT_DASHBOARD_GALLERY.md \
+            docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md \
+            lib/documentation/language_policy.v1.json | sort)"
+          actual="$(git status --porcelain=v1 | cut -c4- | sort)"
+          printf '%s\n' "${actual}"
+          test "${actual}" = "${expected}"
+
+          node tests/expert_dashboard_gallery_contract_test.js
+          node tests/dashboard_gallery_navigation_test.js
+          node tests/language_policy_contract_test.js
+          node tests/test_architecture_contract_test.js
+
+          test "$(sha256sum ExpertDashboardGalleryWebApp.html | awk '{print $1}')" = "b5a496a60eb622f6907935348d52c631c5e13ab55d5bc0a6f3e6f79120a52ce1"
+          test "$(sha256sum docs/dashboard/EXPERT_DASHBOARD_GALLERY.md | awk '{print $1}')" = "f730b3caf1630ee28d1b5f4eec716e0f7cee30c5baae55384567077a5df6178d"
+          test "$(sha256sum docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md | awk '{print $1}')" = "46318c5919b3becfdc596123af8ce275b7bd882921258bb0bcd56627a44e2108"
+          test "$(sha256sum lib/documentation/language_policy.v1.json | awk '{print $1}')" = "c00f4d27816bdbf68ea775e91a5f386aa9bdc6b3a5cec7a28dcda37c1ded7049"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ExpertDashboardGalleryWebApp.html docs/dashboard/EXPERT_DASHBOARD_GALLERY.md docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md lib/documentation/language_policy.v1.json
+          git commit -m 'chore: собрать точное дерево целевой модели DASH-090'
+          git push --force origin "HEAD:refs/heads/${OUTPUT_BRANCH}"
