@@ -1,0 +1,36 @@
+{
+  "$schema": ".adwf/schemas/consumer-gates.schema.json",
+  "schema_version": 1,
+  "role": "CONSUMER_NATIVE_GATE_BINDING",
+  "consumer_repository": "kmephis-ai/PrihRashOnline-v2",
+  "consumer_profile_sha256": "d04ea9efcba86a95d85f720fc14a1db319ac1150932e5111ea2422b9f734f4a5",
+  "installation_record_sha256": "384b15df8d398ea3eca1401d4b3aa4d7a974e50de25396b3fbb5bd8564319b07",
+  "operational_binding_sha256": "33dec31a628c4eaf66e44583f688755c7bdadd46fecda11b4a051e243202ef32",
+  "phases": {
+    "pr": [
+      {
+        "check_name": "validate",
+        "app_slug": "github-actions",
+        "app_id": 15368
+      }
+    ],
+    "main": [
+      {
+        "check_name": "verify",
+        "app_slug": "github-actions",
+        "app_id": 15368
+      }
+    ],
+    "runtime": []
+  },
+  "required_phases": [
+    "pr",
+    "main"
+  ],
+  "safety": {
+    "monetary_budget_usd": 0,
+    "secrets": "FORBIDDEN"
+  },
+  "mutation_authority": "NONE_BINDING_IS_REFERENCE_ONLY",
+  "binding_sha256": "7fe1ad94d80dd64e8c17d702a7783302804a2f559fb25cc10d49b3b92f0e05d0"
+}

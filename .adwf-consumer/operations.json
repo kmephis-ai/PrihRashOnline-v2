@@ -1,0 +1,26 @@
+{
+  "$schema": ".adwf/schemas/consumer-operational-binding.schema.json",
+  "schema_version": 1,
+  "role": "CONSUMER_OPERATIONAL_BINDING",
+  "mode": "CONSUMER_NATIVE",
+  "consumer_repository": "kmephis-ai/PrihRashOnline-v2",
+  "consumer_profile_sha256": "d04ea9efcba86a95d85f720fc14a1db319ac1150932e5111ea2422b9f734f4a5",
+  "installation_record_sha256": "384b15df8d398ea3eca1401d4b3aa4d7a974e50de25396b3fbb5bd8564319b07",
+  "roadmap": {
+    "kind": "MARKDOWN_FILE",
+    "path": "docs/ROADMAP.md"
+  },
+  "work_items": {
+    "provider": "GITHUB_ISSUES",
+    "repository": "kmephis-ai/PrihRashOnline-v2"
+  },
+  "project_state": {
+    "kind": "PROVIDER_NATIVE_NOT_MATERIALIZED"
+  },
+  "safety": {
+    "monetary_budget_usd": 0,
+    "secrets": "FORBIDDEN"
+  },
+  "mutation_authority": "NONE_BINDING_IS_REFERENCE_ONLY",
+  "binding_sha256": "1c3b7c579bb8d3c84597edfe4162d6fb819b86064707fd3e81c78a3bf31e2f7d"
+}
