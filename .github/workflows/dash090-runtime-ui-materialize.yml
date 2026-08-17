@@ -1,0 +1,39 @@
+name: DASH-090 Runtime UI Materializer
+
+on:
+  push:
+    branches:
+      - agent/materialize-DASH-090-runtime-ui-20260817-a
+    paths:
+      - '.github/workflows/dash090-runtime-ui-materialize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+
+      - name: Apply exact candidate patch
+        shell: bash
+        env:
+          EXPECTED_TREE: 01f1a89315b750d9853359107604d2f2b17dcb8e
+        run: |
+          set -euo pipefail
+          cat .dash090-materialize/part-*.b64 | tr -d '\n' | base64 -d | gunzip > "${RUNNER_TEMP}/candidate.patch"
+          git apply --check "${RUNNER_TEMP}/candidate.patch"
+          git apply "${RUNNER_TEMP}/candidate.patch"
+          rm -rf .dash090-materialize
+          rm -f .github/workflows/dash090-runtime-ui-materialize.yml
+          git add -A
+          TREE="$(git write-tree)"
+          test "${TREE}" = "${EXPECTED_TREE}"
+          git config user.name dash090-materializer
+          git config user.email dash090-materializer@users.noreply.github.com
+          git commit -m "chore(DASH-090): materialize exact runtime UI candidate"
+          git push origin HEAD:agent/materialize-DASH-090-runtime-ui-20260817-a
