@@ -1,0 +1,103 @@
+name: ADWF ADOPT Doc Truth Repair
+
+on:
+  push:
+    branches:
+      - agent/repair-ADWF-ADOPT-001-doc-truth-20260817-a1
+
+permissions:
+  contents: write
+
+env:
+  TARGET_BRANCH: agent/ADWF-ADOPT-001-real-adoption-e3bd9fb
+  TARGET_SHA: c15e9cdde99781b899c4a5938b37bfbb50ad7079
+  PRIHRASH_BASE: 19dc9f653131715233da91a28598e012af64f36f
+  ADWF_SOURCE: e3bd9fb33f699ae227521f7ed5866c8f11589ed4
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+
+      - name: Repair current-writer documentation truth on exact candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /mnt/data
+          sudo chown "$USER":"$USER" /mnt/data
+          rm -rf /mnt/data/prihrash-doc-repair /mnt/data/adwf-e3bd-docverify
+          git clone -q "https://github.com/${GITHUB_REPOSITORY}.git" /mnt/data/prihrash-doc-repair
+          git clone -q "https://github.com/kmephis-ai/AI-Development-Framework.git" /mnt/data/adwf-e3bd-docverify
+          git -C /mnt/data/prihrash-doc-repair checkout -q --detach "$TARGET_SHA"
+          git -C /mnt/data/adwf-e3bd-docverify checkout -q --detach "$ADWF_SOURCE"
+          cd /mnt/data/prihrash-doc-repair
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          remote_target="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_target" = "$TARGET_SHA"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          status = Path('docs/PROJECT_STATUS.md')
+          text = status.read_text(encoding='utf-8')
+          start = text.index('Текущая единственная writer-транзакция:')
+          end = text.index('## R0 — завершён')
+          replacement = '''Текущая единственная writer-транзакция:\n\n- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`. Это bounded engineering/integration transaction: установка ADWF consumer-managed surfaces и sealed consumer bindings без product/runtime/data/FIN-TRUTH write authority.\n- `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена и не переносится на текущую транзакцию.\n\nТекущий bounded scope `ADWF-ADOPT-001`: подключить PrihRash к ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` в режиме `CONSUMER_NATIVE`; сохранить `docs/ROADMAP.md` + live GitHub Issues как product/work SSOT; делегировать PR/main/runtime evidence нативным `validate` / `verify` / `probe`; разрешить в PrihRash только read-only `consumer-observer`, без self-host mutation authority. `FREE_ONLY`, FIN-TRUTH и текущая business/runtime semantics не изменяются.\n\nТекущая последовательность: `ADWF-ADOPT-001 PR #289 -> native PR Validation/validate + ADWF PR consumer delegation -> existing protected/autonomous merge contract -> Main Verification/verify + ADWF Main delegation -> consumer-observer + fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed.\n\n`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Следующие product/R9 writer-транзакции не стартуют параллельно с текущим integration writer.\n\n'''
+          text = text[:start] + replacement + text[end:]
+          text = text.replace('`MASTER-GSTUDIO` теперь PASS, поэтому R9 разрешён только через отдельный dependency-ready resolver. Первым выбран `ANL-090`; последующие `ANL-091`, `XRAY-090`, `PERF-090` и другие R9 items не получают writer authority, пока текущая транзакция не завершена.', '`MASTER-GSTUDIO` PASS. `ANL-090` завершён как **DONE_ENGINEERING / Main Verification PASS** через PR #288 и больше не является writer. `ANL-091`, `XRAY-090`, `PERF-090` и другие R9 items не получают writer authority, пока текущая интеграционная транзакция `ADWF-ADOPT-001` не завершена.')
+          status.write_text(text, encoding='utf-8')
+
+          ctx = Path('.ai-context/PROJECT_CONTEXT.md')
+          text = ctx.read_text(encoding='utf-8')
+          start = text.index('`ANL-090` — **IN_PROGRESS / current writer / текущий writer**')
+          end = text.index('## Local-first architecture boundary')
+          replacement = '''`ADWF-ADOPT-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`.\n\nТекущая транзакция имеет `work_class=engineering/integration`: устанавливает ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` как consumer-managed development layer, но не добавляет product/runtime/data/financial write authority. Canonical product Roadmap остаётся `docs/ROADMAP.md` + live GitHub Issues; operating mode = `CONSUMER_NATIVE`; native provider gates = `validate` / `verify` / `probe`; consumer control path = read-only `consumer-observer`. `FREE_ONLY`, privacy и FIN-TRUTH не ослабляются.\n\n`ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288; canonical result включён в `main@19dc9f653131715233da91a28598e012af64f36f`. Его writer authority завершена. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` остаётся historical engineering capital без current authority.\n\nДо fresh exact-head `PR Validation/validate` + `ADWF PR` consumer delegation, existing protected delivery chain, `Main Verification/verify`, `ADWF Main`, read-only consumer-observer и fresh-session readback нельзя объявлять PrihRash подключённым к ADWF.\n\n'''
+          text = text[:start] + replacement + text[end:]
+          text = text.replace('После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. Сейчас authority имеет только ANL-090; ANL-091/XRAY-090/PERF-090 и другие R9 items не стартуют параллельно.', 'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ANL-090` уже завершён/Main Verification PASS; `ANL-091`/`XRAY-090`/`PERF-090` и другие R9 items не получают writer authority, пока текущая интеграционная транзакция `ADWF-ADOPT-001` не завершена.')
+          ctx.write_text(text, encoding='utf-8')
+          PY
+
+          changed="$(git diff --name-only)"
+          test "$changed" = $'.ai-context/PROJECT_CONTEXT.md\ndocs/PROJECT_STATUS.md'
+
+          node tools/docs-drift-scan.js
+          node tools/language-policy-scan.js
+          node tools/supply-chain-scan.js
+          node tools/ci-trust-boundary-scan.js
+          node tools/secret-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/verify-adwf-local-git-mirror.js
+          python .adwf/scripts/consumer_installation.py --consumer-root . --framework-root /mnt/data/adwf-e3bd-docverify --repository kmephis-ai/PrihRashOnline-v2
+          python .adwf/scripts/consumer_gates.py --project-root .
+          python .adwf/scripts/consumer_ci.py classify-current --repository kmephis-ai/PrihRashOnline-v2
+
+          rm -rf .adwf-runtime
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          find . -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          test "$(git diff --name-only)" = $'.ai-context/PROJECT_CONTEXT.md\ndocs/PROJECT_STATUS.md'
+
+          git config user.name adwf-adoption-doc-repair
+          git config user.email adwf-adoption-doc-repair@users.noreply.github.com
+          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md
+          git commit -q -m "ADWF-ADOPT-001: align current writer documentation truth"
+          new_tree="$(git rev-parse HEAD^{tree})"
+          echo "NEW_TREE=${new_tree}"
+
+          remote_target="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_target" = "$TARGET_SHA"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -q origin "HEAD:refs/heads/${TARGET_BRANCH}"
