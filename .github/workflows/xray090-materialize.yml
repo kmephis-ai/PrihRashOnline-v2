@@ -76,77 +76,29 @@ jobs:
           ta = load_json('lib/testing/test_architecture.v1.json')
           if 'financial_health_xray_contract_test.js' in ta['exact_overrides']:
               raise SystemExit('XRAY_TEST_OVERRIDE_ALREADY_PRESENT')
-          replace_once(
-              'lib/testing/test_architecture.v1.json',
-              '"liquidity_financial_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","canonical_r2_web_app_contract_test.js":"RUNTIME_INTEGRATION"',
-              '"liquidity_financial_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","financial_health_xray_contract_test.js":"PURE_DOMAIN_APPLICATION","canonical_r2_web_app_contract_test.js":"RUNTIME_INTEGRATION"'
-          )
-          replace_once(
-              'lib/testing/test_architecture.v1.json',
-              '{"name":"Liquidity & financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Exploration state model","layer":"PURE_DOMAIN_APPLICATION"}',
-              '{"name":"Liquidity & financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Financial Health X-Ray","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Exploration state model","layer":"PURE_DOMAIN_APPLICATION"}'
-          )
+          replace_once('lib/testing/test_architecture.v1.json', '"liquidity_financial_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","canonical_r2_web_app_contract_test.js":"RUNTIME_INTEGRATION"', '"liquidity_financial_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","financial_health_xray_contract_test.js":"PURE_DOMAIN_APPLICATION","canonical_r2_web_app_contract_test.js":"RUNTIME_INTEGRATION"')
+          replace_once('lib/testing/test_architecture.v1.json', '{"name":"Liquidity & financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Exploration state model","layer":"PURE_DOMAIN_APPLICATION"}', '{"name":"Liquidity & financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Financial Health X-Ray","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Exploration state model","layer":"PURE_DOMAIN_APPLICATION"}')
           ta2 = load_json('lib/testing/test_architecture.v1.json')
-          if ta2['exact_overrides'].get('financial_health_xray_contract_test.js') != 'PURE_DOMAIN_APPLICATION':
-              raise SystemExit('XRAY_TEST_OVERRIDE_NOT_MATERIALIZED')
-          if sum(g.get('name') == 'Financial Health X-Ray' for g in ta2['workflow_required_gates']) != 1:
-              raise SystemExit('XRAY_GATE_INVENTORY_NOT_MATERIALIZED')
+          if ta2['exact_overrides'].get('financial_health_xray_contract_test.js') != 'PURE_DOMAIN_APPLICATION' or sum(g.get('name') == 'Financial Health X-Ray' for g in ta2['workflow_required_gates']) != 1:
+              raise SystemExit('XRAY_TEST_INVENTORY_NOT_MATERIALIZED')
 
           lp = load_json('lib/documentation/language_policy.v1.json')
           if any(i.get('path') == 'docs/analytics/FINANCIAL_HEALTH_XRAY.md' for i in lp['normative_inventory']):
               raise SystemExit('XRAY_LANG_INVENTORY_ALREADY_PRESENT')
-          replace_once(
-              'lib/documentation/language_policy.v1.json',
-              '    {"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},\n',
-              '    {"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},\n    {"path":"docs/analytics/FINANCIAL_HEALTH_XRAY.md","kind":"ANALYTICS","min_cyrillic_letters":500},\n'
-          )
-          replace_once(
-              'lib/documentation/language_policy.v1.json',
-              '    ".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],\n',
-              '    ".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],\n    "docs/analytics/FINANCIAL_HEALTH_XRAY.md": ["XRAY-090", "PRH_FINANCIAL_HEALTH_XRAY_V1"],\n'
-          )
-          replace_once(
-              'lib/documentation/language_policy.v1.json',
-              '    "PRH_LIQUIDITY_RISK_EVIDENCE_V1", "PRH_LIQUIDITY_RISK_TELEMETRY_V1",\n',
-              '    "PRH_LIQUIDITY_RISK_EVIDENCE_V1", "PRH_LIQUIDITY_RISK_TELEMETRY_V1",\n    "PRH_FINANCIAL_HEALTH_XRAY_V1", "PRH_FINANCIAL_HEALTH_XRAY_INPUT_V1", "PRH_XRAY_SIGNAL_V1", "PRH_XRAY_RULE_REGISTRY_V1", "PRH_XRAY_FINDING_V1",\n    "PRH_FINANCIAL_HEALTH_XRAY_RESULT_V1", "PRH_XRAY_EVIDENCE_V1", "PRH_XRAY_DRILL_V1", "PRH_XRAY_TELEMETRY_V1", "PRH_XRAY_FINDING_TELEMETRY_V1",\n    "TRIGGERED", "CLEAR", "INSUFFICIENT", "INCOMPATIBLE", "REVIEW_REQUIRED",\n'
-          )
+          replace_once('lib/documentation/language_policy.v1.json', '    {"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},\n', '    {"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},\n    {"path":"docs/analytics/FINANCIAL_HEALTH_XRAY.md","kind":"ANALYTICS","min_cyrillic_letters":500},\n')
+          replace_once('lib/documentation/language_policy.v1.json', '    ".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],\n', '    ".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],\n    "docs/analytics/FINANCIAL_HEALTH_XRAY.md": ["XRAY-090", "PRH_FINANCIAL_HEALTH_XRAY_V1"],\n')
+          replace_once('lib/documentation/language_policy.v1.json', '    "PRH_LIQUIDITY_RISK_EVIDENCE_V1", "PRH_LIQUIDITY_RISK_TELEMETRY_V1",\n', '    "PRH_LIQUIDITY_RISK_EVIDENCE_V1", "PRH_LIQUIDITY_RISK_TELEMETRY_V1",\n    "PRH_FINANCIAL_HEALTH_XRAY_V1", "PRH_FINANCIAL_HEALTH_XRAY_INPUT_V1", "PRH_XRAY_SIGNAL_V1", "PRH_XRAY_RULE_REGISTRY_V1", "PRH_XRAY_FINDING_V1",\n    "PRH_FINANCIAL_HEALTH_XRAY_RESULT_V1", "PRH_XRAY_EVIDENCE_V1", "PRH_XRAY_DRILL_V1", "PRH_XRAY_TELEMETRY_V1", "PRH_XRAY_FINDING_TELEMETRY_V1",\n    "TRIGGERED", "CLEAR", "INSUFFICIENT", "INCOMPATIBLE", "REVIEW_REQUIRED",\n')
           lp2 = load_json('lib/documentation/language_policy.v1.json')
-          if sum(i.get('path') == 'docs/analytics/FINANCIAL_HEALTH_XRAY.md' for i in lp2['normative_inventory']) != 1:
-              raise SystemExit('XRAY_LANG_INVENTORY_NOT_MATERIALIZED')
-          if lp2['required_markers'].get('docs/analytics/FINANCIAL_HEALTH_XRAY.md') != ['XRAY-090', 'PRH_FINANCIAL_HEALTH_XRAY_V1']:
-              raise SystemExit('XRAY_MARKERS_NOT_MATERIALIZED')
+          if sum(i.get('path') == 'docs/analytics/FINANCIAL_HEALTH_XRAY.md' for i in lp2['normative_inventory']) != 1 or lp2['required_markers'].get('docs/analytics/FINANCIAL_HEALTH_XRAY.md') != ['XRAY-090', 'PRH_FINANCIAL_HEALTH_XRAY_V1']:
+              raise SystemExit('XRAY_LANG_POLICY_NOT_MATERIALIZED')
 
-          replace_once(
-              '.ai-context/PROJECT_CONTEXT.md',
-              '''`RISK-030` — **IN_PROGRESS / current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` DONE/Main Verification PASS; `XRAY-090` остаётся BACKLOG до завершения этой dependency.\n\nТекущая engineering цель RISK-030: versioned deterministic emergency runway + scenario liquidity поверх explicit selected NW positions и PROJ-030 future deltas. Cash Flow не является current balance proxy; projection currency context explicit; missing/incompatible state не превращается в numeric PASS; FIN-TRUTH/storage/write authority не меняются; FREE_ONLY обязателен.''',
-              '''`RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.\n\n`XRAY-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий writer.\n\nТекущая engineering цель XRAY-090: versioned deterministic Financial Health X-Ray rule registry + typed explainable findings поверх доказанных upstream contracts без альтернативной FIN-TRUTH. UI/LLM evaluation/write authority в bounded unit отсутствуют; public evidence synthetic-only; FREE_ONLY обязателен.'''
-          )
-          replace_once(
-              '.ai-context/PROJECT_CONTEXT.md',
-              'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ADWF-ADOPT-001`, `ANL-090`, `ANL-091` и `PERF-090` уже завершены/Main Verification PASS. Текущий dependency-closing writer — `RISK-030` #303; `XRAY-090` не получает writer authority до его завершения.',
-              'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ADWF-ADOPT-001`, `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` уже завершены/Main Verification PASS. Текущий single writer — `XRAY-090` #78; другие product/R9 writers не получают authority параллельно.'
-          )
+          replace_once('.ai-context/PROJECT_CONTEXT.md', '''`RISK-030` — **IN_PROGRESS / current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` DONE/Main Verification PASS; `XRAY-090` остаётся BACKLOG до завершения этой dependency.\n\nТекущая engineering цель RISK-030: versioned deterministic emergency runway + scenario liquidity поверх explicit selected NW positions и PROJ-030 future deltas. Cash Flow не является current balance proxy; projection currency context explicit; missing/incompatible state не превращается в numeric PASS; FIN-TRUTH/storage/write authority не меняются; FREE_ONLY обязателен.''', '''`RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.\n\n`XRAY-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий writer.\n\nТекущая engineering цель XRAY-090: versioned deterministic Financial Health X-Ray rule registry + typed explainable findings поверх доказанных upstream contracts без альтернативной FIN-TRUTH. UI/LLM evaluation/write authority в bounded unit отсутствуют; public evidence synthetic-only; FREE_ONLY обязателен.''')
+          replace_once('.ai-context/PROJECT_CONTEXT.md', 'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ADWF-ADOPT-001`, `ANL-090`, `ANL-091` и `PERF-090` уже завершены/Main Verification PASS. Текущий dependency-closing writer — `RISK-030` #303; `XRAY-090` не получает writer authority до его завершения.', 'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ADWF-ADOPT-001`, `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` уже завершены/Main Verification PASS. Текущий single writer — `XRAY-090` #78; другие product/R9 writers не получают authority параллельно.')
 
-          replace_once(
-              'docs/PROJECT_STATUS.md',
-              '- `RISK-030` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` DONE/Main Verification PASS; это единственный текущий PrihRash writer.',
-              '- `RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.\n- `XRAY-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий PrihRash writer.'
-          )
-          replace_once(
-              'docs/PROJECT_STATUS.md',
-              'Текущий scope `RISK-030`: versioned deterministic emergency runway + scenario liquidity поверх explicit NW positions и PROJ-030 future deltas. Cash Flow не используется как current balance proxy; projection currency binding explicit; missing data fail closed; public evidence synthetic-only; financial write authority отсутствует.',
-              'Текущий R9 scope `XRAY-090`: versioned deterministic rule registry и typed explainable findings поверх RISK/ANL/BAL/SCOPE upstream evidence. Missing/incompatible/review состояния не маскируются как CLEAR; diagnostic score не является financial truth; UI/LLM evaluation и financial write authority отсутствуют.'
-          )
-          replace_once(
-              'docs/PROJECT_STATUS.md',
-              '`XRAY-090` остаётся BACKLOG до Main Verification `RISK-030`. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `RISK-030`.',
-              '`XRAY-090` — текущий single writer. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно до Main Verification `XRAY-090`.'
-          )
-          replace_once(
-              'docs/PROJECT_STATUS.md',
-              '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091` и `PERF-090` завершены как **DONE_ENGINEERING / Main Verification PASS**. `RISK-030` Issue #303 — текущий dependency-closing writer; `XRAY-090` остаётся BACKLOG до его Main Verification.',
-              '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` завершены как **DONE_ENGINEERING / Main Verification PASS**. `XRAY-090` Issue #78 — текущий dependency-ready R9 writer.'
-          )
+          replace_once('docs/PROJECT_STATUS.md', '- `RISK-030` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` DONE/Main Verification PASS; это единственный текущий PrihRash writer.', '- `RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.\n- `XRAY-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий PrihRash writer.')
+          replace_once('docs/PROJECT_STATUS.md', 'Текущий scope `RISK-030`: versioned deterministic emergency runway + scenario liquidity поверх explicit NW positions и PROJ-030 future deltas. Cash Flow не используется как current balance proxy; projection currency binding explicit; missing data fail closed; public evidence synthetic-only; financial write authority отсутствует.', 'Текущий R9 scope `XRAY-090`: versioned deterministic rule registry и typed explainable findings поверх RISK/ANL/BAL/SCOPE upstream evidence. Missing/incompatible/review состояния не маскируются как CLEAR; diagnostic score не является financial truth; UI/LLM evaluation и financial write authority отсутствуют.')
+          replace_once('docs/PROJECT_STATUS.md', '`XRAY-090` остаётся BACKLOG до Main Verification `RISK-030`. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `RISK-030`.', '`XRAY-090` — текущий single writer. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно до Main Verification `XRAY-090`.')
+          replace_once('docs/PROJECT_STATUS.md', '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091` и `PERF-090` завершены как **DONE_ENGINEERING / Main Verification PASS**. `RISK-030` Issue #303 — текущий dependency-closing writer; `XRAY-090` остаётся BACKLOG до его Main Verification.', '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` завершены как **DONE_ENGINEERING / Main Verification PASS**. `XRAY-090` Issue #78 — текущий dependency-ready R9 writer.')
 
           wf = Path('.github/workflows/pr-validation.yml')
           wt = wf.read_text(encoding='utf-8')
@@ -164,7 +116,7 @@ jobs:
           set -euo pipefail
           node tests/financial_health_xray_contract_test.js
           node tests/liquidity_financial_risk_contract_test.js
-          node tests/contribution_decomposition_contract_test.js
+          node tests/analytics_query_edge_contract_test.js
           node tests/analytics_seasonality_distribution_concentration_contract_test.js
           node tests/balance_reconciliation_contract_test.js
           node tests/analytics_scope_contract_test.js
@@ -191,9 +143,7 @@ jobs:
           test "$(git hash-object lib/xray/financial_health_xray.js)" = b4ddc337c9f515ada94045cedd381116fa63bbe2
           test "$(git hash-object tests/financial_health_xray_contract_test.js)" = 183d08511f0c2f53a887868c0e7b5c1eb71d2e80
           test "$(git hash-object docs/analytics/FINANCIAL_HEALTH_XRAY.md)" = 903164ea62248d10ac83d8c1415d8f4e8ccac3ec
-          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md docs/analytics/FINANCIAL_HEALTH_XRAY.md \
-            lib/documentation/language_policy.v1.json lib/testing/test_architecture.v1.json \
-            lib/xray/financial_health_xray.js lib/xray/financial_health_xray.v1.json tests/financial_health_xray_contract_test.js
+          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md docs/analytics/FINANCIAL_HEALTH_XRAY.md lib/documentation/language_policy.v1.json lib/testing/test_architecture.v1.json lib/xray/financial_health_xray.js lib/xray/financial_health_xray.v1.json tests/financial_health_xray_contract_test.js
           git diff --cached --check
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$BASE_SHA"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')" = "$BASE_SHA"
