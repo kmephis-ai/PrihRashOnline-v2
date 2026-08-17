@@ -1,0 +1,57 @@
+{
+  "schema": "PRH_STUDIO_SCALE_PERFORMANCE_V1",
+  "version": "1.0.0",
+  "roadmap_id": "PERF-090",
+  "upstream": {
+    "query_planner_cache": "PRH_ANALYTICS_QUERY_PLANNER_CACHE_V1@1.0.0",
+    "analytics_studio_shell": "PRH_ANALYTICS_STUDIO_SHELL_V1@1.0.0",
+    "advanced_visualization_pack": "PRH_ADVANCED_VISUALIZATION_PACK_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "visibility": {
+    "eligible": ["VISIBLE"],
+    "deferred": ["HIDDEN", "OFFSCREEN"],
+    "deferred_query_requests": 0,
+    "deferred_render_commits": 0
+  },
+  "scheduler": {
+    "max_concurrency_default": 4,
+    "max_concurrency_limit": 8,
+    "same_query": "DELEGATE_TO_PERF_070_COALESCE_INFLIGHT",
+    "generation_change": "DISCARD_STALE",
+    "revision_change": "DISCARD_STALE",
+    "stale_render_commit": false
+  },
+  "presentation": {
+    "direct_render_row_limit": 1200,
+    "virtualized_table_window_rows": 200,
+    "high_density_modes": ["VIEW_ONLY_DOWNSAMPLE", "VIRTUALIZED_ACCESSIBLE_TABLE"],
+    "downsampling_requires_explicit_semantic_safety": true,
+    "downsampling_query_hash_mutation": false,
+    "downsampling_canonical_result_mutation": false,
+    "accessible_fallback_required": true
+  },
+  "budgets": {
+    "wall_clock_is_user_sla": false,
+    "financial_writes": 0,
+    "profiles": [
+      {"operations": 20000, "visible_widgets": 12, "deferred_widgets": 12, "max_query_requests": 12, "max_render_commits": 12, "max_elapsed_ms": 500},
+      {"operations": 50000, "visible_widgets": 24, "deferred_widgets": 24, "max_query_requests": 24, "max_render_commits": 24, "max_elapsed_ms": 1000}
+    ]
+  },
+  "telemetry_allowlist": [
+    "schema", "version", "status", "reason", "profile", "generation", "revision_hash_prefix",
+    "widget_count", "visible_widgets", "deferred_widgets", "query_requests", "render_commits",
+    "stale_discards", "high_water_concurrency", "downsample_plans", "virtualized_plans", "elapsed_ms"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_semantics": false,
+    "canonical_result_mutation": false,
+    "storage": false,
+    "network": false,
+    "deployment": false,
+    "paid_dependency_required": false
+  }
+}

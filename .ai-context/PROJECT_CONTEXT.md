@@ -35,11 +35,13 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. PR #289 + #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation/gates/fresh-session verification PASS; `CONSUMER_NATIVE`; `ADWF Main` delegates to native `verify`; ADWF Control runs read-only `consumer-observer` and skips privileged `trusted-controller`; upgrade dry-run `READY`, blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала.
 
-`ANL-091` — **IN_PROGRESS / current writer / текущий writer**, Issue #292. Dependencies `MASTER-GSTUDIO` + `VIZ-090` provider-complete; `ANL-090` DONE/Main Verification PASS. Writer authority transferred after ADWF adoption; no second writer is authorized. First bounded unit is lifecycle handoff, then implementation starts from fresh post-handoff main.
+`ANL-091` — **DONE_ENGINEERING / Main Verification PASS**, Issue #292, PR #300, candidate `4e4c0984518a1acf84542fc62252045697748b95`, merge `59480686dd92fd295d42c887c9003f6882758ff6`; writer authority завершена.
 
-Текущая engineering цель ANL-091: versioned deterministic seasonality/distribution/concentration поверх canonical AnalyticsQuery/Result с explicit sparse/missing-data semantics. FIN-TRUTH, storage ownership, runtime/data write authority и public privacy boundary не меняются; public evidence synthetic-only; FREE_ONLY обязателен.
+`PERF-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #301, branch `agent/PERF-090-studio-scale-rendering-performance`, trust anchor `main@59480686dd92fd295d42c887c9003f6882758ff6`. Dependencies `PERF-070`, `MASTER-GSTUDIO`, `VIZ-090` provider-complete; это единственный текущий writer.
 
-PrihRash теперь управляется ADWF как `CONSUMER_NATIVE`, но product authority остаётся у PrihRash: canonical Roadmap — `docs/ROADMAP.md`, lifecycle — live GitHub Issues, native provider gates — `validate` / `verify` / `probe`. ADWF self-host Roadmap/control mutation authority не переносится в consumer.
+Текущая engineering цель PERF-090: versioned deterministic Studio-scale performance gate поверх PERF-070 — lazy hidden/offscreen execution, bounded concurrency, stale generation/revision discard, presentation-only virtualization/downsampling и synthetic 20k/50k budgets. FIN-TRUTH, canonical AnalyticsResult/query semantics, storage ownership, runtime/data write authority и public privacy boundary не меняются; FREE_ONLY обязателен.
+
+PrihRash управляется ADWF как `CONSUMER_NATIVE`, но product authority остаётся у PrihRash: canonical Roadmap — `docs/ROADMAP.md`, lifecycle — live GitHub Issues, native provider gates — `validate` / `verify` / `probe`. ADWF self-host Roadmap/control mutation authority не переносится в consumer.
 
 `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288; canonical result включён в `main@19dc9f653131715233da91a28598e012af64f36f`. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` остаётся historical engineering capital без current authority.
 

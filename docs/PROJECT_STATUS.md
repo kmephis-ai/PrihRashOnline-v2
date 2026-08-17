@@ -33,14 +33,15 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 Текущая единственная writer-транзакция:
 
 - `ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. Основная adoption PR #289 и control-plane main-verify follow-up PR #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation Record/gates/fresh-session rebind VERIFIED, operating mode `CONSUMER_NATIVE`, native `validate` / `verify` / `probe` binding сохранён, `ADWF Main` PASS, `ADWF Control` выполняет read-only `consumer-observer`, privileged `trusted-controller` SKIPPED, framework upgrade dry-run `READY` с blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала; writer authority завершена.
-- `ANL-091` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #292. Provider dependencies `MASTER-GSTUDIO` и `VIZ-090` завершены; `ANL-090` также DONE/Main Verification PASS. Writer authority атомарно передана после технического завершения ADWF adoption. Первый bounded unit — lifecycle handoff; analytics implementation начинается только от fresh post-handoff main.
+- `ANL-091` — **DONE_ENGINEERING / Main Verification PASS**, Issue #292, PR #300, candidate `4e4c0984518a1acf84542fc62252045697748b95`, merge `59480686dd92fd295d42c887c9003f6882758ff6`; writer authority завершена.
+- `PERF-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #301, branch `agent/PERF-090-studio-scale-rendering-performance`, trust anchor `main@59480686dd92fd295d42c887c9003f6882758ff6`. Dependencies `PERF-070`, `MASTER-GSTUDIO`, `VIZ-090` provider-complete; bounded scope — Studio-scale lazy execution/bounded concurrency/stale discard/presentation-only high-density gate поверх PERF-070 без новой financial/query authority.
 - `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена.
 
-PrihRash теперь подключён к ADWF как consumer-managed development project: ADWF остаётся отдельным верхним инженерным слоем, а `docs/ROADMAP.md` + live GitHub Issues остаются product/work SSOT PrihRash. Consumer control authority read-only/reference-only; `FREE_ONLY`, FIN-TRUTH, privacy и business/runtime semantics не ослаблены.
+PrihRash подключён к ADWF как consumer-managed development project: ADWF остаётся отдельным верхним инженерным слоем, а `docs/ROADMAP.md` + live GitHub Issues остаются product/work SSOT PrihRash. Consumer control authority read-only/reference-only; `FREE_ONLY`, FIN-TRUTH, privacy и business/runtime semantics не ослаблены.
 
-Текущий R9 scope `ANL-091`: versioned deterministic seasonality/distribution/concentration поверх canonical analytics — calendar/weekday/month seasonality, percentiles/distribution, Pareto/ABC/concentration metrics с explicit sparse/missing-data semantics, synthetic/public-safe evidence и без financial write authority.
+Текущий R9 scope `PERF-090`: bounded Studio workload, zero-query hidden/offscreen widgets, PERF-070 coalescing/cache delegation, generation/revision stale discard и presentation-only virtualization/downsampling с immutable canonical result/query identity. Public evidence synthetic-only; financial write authority отсутствует.
 
-`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `ANL-091`.
+`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `PERF-090`.
 
 ## R0 — завершён
 
@@ -95,7 +96,7 @@ R2 engineering contracts остаются reusable, но product credit даёт
 
 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. Studio/dashboard configuration contracts R8 остаются reusable.
 
-`MASTER-GSTUDIO` PASS. `ANL-090` завершён как **DONE_ENGINEERING / Main Verification PASS** через PR #288 и больше не является writer. `ANL-091`, `XRAY-090`, `PERF-090` и другие R9 items не получают writer authority, пока текущая интеграционная транзакция `ADWF-ADOPT-001` не завершена.
+`MASTER-GSTUDIO` PASS. `ANL-090` и `ANL-091` завершены как **DONE_ENGINEERING / Main Verification PASS**. `PERF-090` — текущий dependency-ready P1 writer; `XRAY-090` остаётся BACKLOG до выполнения `RISK-030`.
 
 ## R4 / YDB future backend
 
