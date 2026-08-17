@@ -1,0 +1,69 @@
+name: ADWF Consumer Main Verify Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/diag-ADWF-ADOPT-001-main-verify-47a3-a1
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  BEFORE_SHA: 29aeacc273b5562b4335f908fb8cd081d725fb87
+  SUBJECT_SHA: 47a3f8c66b45e29901ee6d3e6a0525f74b4a6181
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 47a3f8c66b45e29901ee6d3e6a0525f74b4a6181
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Simulate exact post-merge control-plane classification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          before=os.environ['BEFORE_SHA']; subject=os.environ['SUBJECT_SHA']
+          current=json.loads(Path('.adwf-consumer/installation.json').read_text(encoding='utf-8'))
+          managed={str(e.get('path','')).strip() for e in current.get('managed_surface',{}).get('entries',[]) if e.get('managed_by_adwf') is True and str(e.get('path','')).strip()}
+          old=subprocess.run(['git','show',f'{before}:.adwf-consumer/installation.json'],capture_output=True,text=True,check=False)
+          if old.returncode == 0 and old.stdout.strip():
+              previous=json.loads(old.stdout)
+              managed.update(str(e.get('path','')).strip() for e in previous.get('managed_surface',{}).get('entries',[]) if e.get('managed_by_adwf') is True and str(e.get('path','')).strip())
+          changed=[p.strip() for p in subprocess.check_output(['git','diff','--name-only','--diff-filter=ACDMRT',before,subject],text=True).splitlines() if p.strip()]
+          explicit={'.github/workflows/adwf-consumer-main-verification.yml','.ai-context/PROJECT_CONTEXT.md','docs/PROJECT_STATUS.md'}
+          forbidden=[p for p in changed if p not in managed and not p.startswith('.adwf-consumer/') and p not in explicit]
+          print(json.dumps({'changed_paths':changed,'forbidden_paths':forbidden,'managed_path_union_count':len(managed)},ensure_ascii=False,sort_keys=True))
+          if not changed: raise SystemExit('ADWF_CONSUMER_MAIN_EMPTY_CHANGESET')
+          if forbidden: raise SystemExit('ADWF_CONSUMER_MAIN_NON_CONTROL_PLANE_DIFF')
+          PY
+      - name: Simulate sealed consumer verification
+        run: |
+          python .adwf/scripts/consumer_ci.py classify-current --repository "${{ github.repository }}"
+          python .adwf/scripts/consumer_gates.py --project-root .
+          python .adwf/adwf.py roadmap-view
+      - name: Simulate native safety contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/supply-chain-scan.js
+          node tools/ci-trust-boundary-scan.js
+          node tools/secret-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/docs-drift-scan.js
+          node tools/language-policy-scan.js
+          node tools/verify-adwf-local-git-mirror.js
