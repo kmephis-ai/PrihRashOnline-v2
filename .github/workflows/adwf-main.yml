@@ -11,7 +11,7 @@ permissions:
   contents: read
   checks: read
 env:
-  PYTHONDWRITEBYTECODE: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
 concurrency:
   group: adwf-main-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
