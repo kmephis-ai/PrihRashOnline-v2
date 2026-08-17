@@ -1,0 +1,80 @@
+name: ANL091 ADWF Handoff Materializer
+
+on:
+  push:
+    branches:
+      - agent/materialize-ANL-091-adwf-handoff-a1
+
+permissions:
+  contents: write
+
+env:
+  TARGET_BRANCH: agent/ANL-091-activate-after-adwf
+  TARGET_SHA: cef64cfb0c7e082b90bb096f0829e5fa0b1906ae
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Materialize exact lifecycle handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /mnt/data
+          sudo chown "$USER":"$USER" /mnt/data
+          rm -rf /mnt/data/prihrash-anl091-handoff
+          git clone -q "https://github.com/${GITHUB_REPOSITORY}.git" /mnt/data/prihrash-anl091-handoff
+          cd /mnt/data/prihrash-anl091-handoff
+          git checkout -q --detach "$TARGET_SHA"
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          remote_target="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_target" = "$TARGET_SHA"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          status = Path('docs/PROJECT_STATUS.md')
+          text = status.read_text(encoding='utf-8')
+          start = text.index('Текущая единственная writer-транзакция:')
+          end = text.index('## R0 — завершён')
+          replacement = '''Текущая единственная writer-транзакция:\n\n- `ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. Основная adoption PR #289 и control-plane main-verify follow-up PR #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation Record/gates/fresh-session rebind VERIFIED, operating mode `CONSUMER_NATIVE`, native `validate` / `verify` / `probe` binding сохранён, `ADWF Main` PASS, `ADWF Control` выполняет read-only `consumer-observer`, privileged `trusted-controller` SKIPPED, framework upgrade dry-run `READY` с blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала; writer authority завершена.\n- `ANL-091` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #292. Provider dependencies `MASTER-GSTUDIO` и `VIZ-090` завершены; `ANL-090` также DONE/Main Verification PASS. Writer authority атомарно передана после технического завершения ADWF adoption. Первый bounded unit — lifecycle handoff; analytics implementation начинается только от fresh post-handoff main.\n- `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена.\n\nPrihRash теперь подключён к ADWF как consumer-managed development project: ADWF остаётся отдельным верхним инженерным слоем, а `docs/ROADMAP.md` + live GitHub Issues остаются product/work SSOT PrihRash. Consumer control authority read-only/reference-only; `FREE_ONLY`, FIN-TRUTH, privacy и business/runtime semantics не ослаблены.\n\nТекущий R9 scope `ANL-091`: versioned deterministic seasonality/distribution/concentration поверх canonical analytics — calendar/weekday/month seasonality, percentiles/distribution, Pareto/ABC/concentration metrics с explicit sparse/missing-data semantics, synthetic/public-safe evidence и без financial write authority.\n\n`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `ANL-091`.\n\n'''
+          text = text[:start] + replacement + text[end:]
+          status.write_text(text, encoding='utf-8')
+
+          ctx = Path('.ai-context/PROJECT_CONTEXT.md')
+          text = ctx.read_text(encoding='utf-8')
+          start = text.index('`ADWF-ADOPT-001` —')
+          end = text.index('## Local-first architecture boundary')
+          replacement = '''`ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. PR #289 + #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation/gates/fresh-session verification PASS; `CONSUMER_NATIVE`; `ADWF Main` delegates to native `verify`; ADWF Control runs read-only `consumer-observer` and skips privileged `trusted-controller`; upgrade dry-run `READY`, blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала.\n\n`ANL-091` — **IN_PROGRESS / current writer / текущий writer**, Issue #292. Dependencies `MASTER-GSTUDIO` + `VIZ-090` provider-complete; `ANL-090` DONE/Main Verification PASS. Writer authority transferred after ADWF adoption; no second writer is authorized. First bounded unit is lifecycle handoff, then implementation starts from fresh post-handoff main.\n\nТекущая engineering цель ANL-091: versioned deterministic seasonality/distribution/concentration поверх canonical AnalyticsQuery/Result с explicit sparse/missing-data semantics. FIN-TRUTH, storage ownership, runtime/data write authority и public privacy boundary не меняются; public evidence synthetic-only; FREE_ONLY обязателен.\n\nPrihRash теперь управляется ADWF как `CONSUMER_NATIVE`, но product authority остаётся у PrihRash: canonical Roadmap — `docs/ROADMAP.md`, lifecycle — live GitHub Issues, native provider gates — `validate` / `verify` / `probe`. ADWF self-host Roadmap/control mutation authority не переносится в consumer.\n\n`ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288; canonical result включён в `main@19dc9f653131715233da91a28598e012af64f36f`. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` остаётся historical engineering capital без current authority.\n\n'''
+          text = text[:start] + replacement + text[end:]
+          ctx.write_text(text, encoding='utf-8')
+          PY
+
+          test "$(git diff --name-only)" = $'.ai-context/PROJECT_CONTEXT.md\ndocs/PROJECT_STATUS.md'
+          GITHUB_HEAD_REF="$TARGET_BRANCH" node tools/docs-drift-scan.js
+          node tools/language-policy-scan.js
+          node tools/secret-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/supply-chain-scan.js
+          node tools/ci-trust-boundary-scan.js
+
+          git config user.name prihrash-lifecycle-materializer
+          git config user.email prihrash-lifecycle-materializer@users.noreply.github.com
+          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md
+          git commit -q -m "ANL-091: hand off writer after ADWF adoption"
+
+          remote_target="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_target" = "$TARGET_SHA"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -q origin "HEAD:refs/heads/${TARGET_BRANCH}"
