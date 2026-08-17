@@ -33,13 +33,15 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `STUDIO-REC-001` Issue #228 / PR #286 — **DONE / Main Verification PASS**, candidate `92c4139e552428a1726640487834952d523dab64`, Apps Script v263, merge `e62b3283927ffe0d564ec7f10d2671760a03ceec`; Owner Product UAT v263, Product Ready E2E и `MASTER-GSTUDIO / STUDIO-READY` PASS.
 
-`ADWF-ADOPT-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #287, follow-up PR #291, branch `agent/ADWF-ADOPT-001-control-plane-main-verify`, trust anchor `main@29aeacc273b5562b4335f908fb8cd081d725fb87`. PR #289 уже merged; текущий follow-up закрывает post-merge native `verify` gap для ADWF/control-plane changes.
+`ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. PR #289 + #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation/gates/fresh-session verification PASS; `CONSUMER_NATIVE`; `ADWF Main` delegates to native `verify`; ADWF Control runs read-only `consumer-observer` and skips privileged `trusted-controller`; upgrade dry-run `READY`, blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала.
 
-Текущая транзакция имеет `work_class=engineering/integration`: устанавливает ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` как consumer-managed development layer, но не добавляет product/runtime/data/financial write authority. Canonical product Roadmap остаётся `docs/ROADMAP.md` + live GitHub Issues; operating mode = `CONSUMER_NATIVE`; native provider gates = `validate` / `verify` / `probe`; consumer control path = read-only `consumer-observer`. `FREE_ONLY`, privacy и FIN-TRUTH не ослабляются.
+`ANL-091` — **IN_PROGRESS / current writer / текущий writer**, Issue #292. Dependencies `MASTER-GSTUDIO` + `VIZ-090` provider-complete; `ANL-090` DONE/Main Verification PASS. Writer authority transferred after ADWF adoption; no second writer is authorized. First bounded unit is lifecycle handoff, then implementation starts from fresh post-handoff main.
 
-`ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288; canonical result включён в `main@19dc9f653131715233da91a28598e012af64f36f`. Его writer authority завершена. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` остаётся historical engineering capital без current authority.
+Текущая engineering цель ANL-091: versioned deterministic seasonality/distribution/concentration поверх canonical AnalyticsQuery/Result с explicit sparse/missing-data semantics. FIN-TRUTH, storage ownership, runtime/data write authority и public privacy boundary не меняются; public evidence synthetic-only; FREE_ONLY обязателен.
 
-До fresh exact-head `PR Validation/validate` + `ADWF PR` consumer delegation, trusted N/A без Apps Script mutation, protected merge, ADWF control-plane `verify`, `ADWF Main`, read-only consumer-observer, fresh-session readback и framework upgrade dry-run нельзя объявлять PrihRash подключённым к ADWF.
+PrihRash теперь управляется ADWF как `CONSUMER_NATIVE`, но product authority остаётся у PrihRash: canonical Roadmap — `docs/ROADMAP.md`, lifecycle — live GitHub Issues, native provider gates — `validate` / `verify` / `probe`. ADWF self-host Roadmap/control mutation authority не переносится в consumer.
+
+`ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288; canonical result включён в `main@19dc9f653131715233da91a28598e012af64f36f`. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` остаётся historical engineering capital без current authority.
 
 ## Local-first architecture boundary
 
