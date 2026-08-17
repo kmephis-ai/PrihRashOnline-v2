@@ -20,17 +20,47 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Diagnose uploaded chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum .adwf-local-mirror-upload/*.b64
+          python3 - <<'PY'
+          import base64, glob, hashlib, pathlib
+          alphabet=set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r\t ')
+          for n in range(5):
+              parts=sorted(glob.glob(f'.adwf-local-mirror-upload/f{n}.*.b64'))
+              text=''.join(pathlib.Path(p).read_text() for p in parts)
+              bad=[(i, repr(c)) for i,c in enumerate(text) if c not in alphabet]
+              compact=''.join(text.split())
+              print(f'f{n}: parts={len(parts)} chars={len(text)} compact={len(compact)} bad={bad[:8]}')
+              try:
+                  data=base64.b64decode(compact, validate=True)
+                  print(f'f{n}: decode=OK bytes={len(data)} sha256={hashlib.sha256(data).hexdigest()}')
+              except Exception as exc:
+                  print(f'f{n}: decode=FAIL error={exc}')
+          PY
+
       - name: Assemble exact local files
         shell: bash
         run: |
           set -euo pipefail
           OUT=.adwf-local-mirror-output
           mkdir -p "$OUT/docs/dashboard" "$OUT/tests" "$OUT/lib/documentation"
-          cat .adwf-local-mirror-upload/f0.*.b64 | base64 -d > "$OUT/ExpertDashboardGalleryWebApp.html"
-          cat .adwf-local-mirror-upload/f1.*.b64 | base64 -d > "$OUT/docs/dashboard/EXPERT_DASHBOARD_GALLERY.md"
-          cat .adwf-local-mirror-upload/f2.*.b64 | base64 -d > "$OUT/docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md"
-          cat .adwf-local-mirror-upload/f3.*.b64 | base64 -d > "$OUT/tests/expert_dashboard_gallery_visual_test.js"
-          cat .adwf-local-mirror-upload/f4.*.b64 | base64 -d > "$OUT/lib/documentation/language_policy.v1.json"
+          python3 - <<'PY'
+          import base64, glob, pathlib
+          targets={
+            0:'.adwf-local-mirror-output/ExpertDashboardGalleryWebApp.html',
+            1:'.adwf-local-mirror-output/docs/dashboard/EXPERT_DASHBOARD_GALLERY.md',
+            2:'.adwf-local-mirror-output/docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md',
+            3:'.adwf-local-mirror-output/tests/expert_dashboard_gallery_visual_test.js',
+            4:'.adwf-local-mirror-output/lib/documentation/language_policy.v1.json',
+          }
+          for n,target in targets.items():
+              text=''.join(pathlib.Path(p).read_text() for p in sorted(glob.glob(f'.adwf-local-mirror-upload/f{n}.*.b64')))
+              compact=''.join(text.split())
+              pathlib.Path(target).write_bytes(base64.b64decode(compact, validate=True))
+          PY
 
           printf '%s  %s\n' \
             '7188e39bd54d5b55777b04cae29c9c60d534434e6e739eb511149c4d079ffad3' "$OUT/ExpertDashboardGalleryWebApp.html" \
