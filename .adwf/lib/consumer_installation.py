@@ -19,6 +19,7 @@ import subprocess
 import tempfile
 
 from .contracts import validate
+from .github_auth import detect_repository
 from .consumer_profile import PROFILE_REL, ConsumerProfileError, load_consumer_profile
 from .managed_surface import SHA256, _validate_snapshot, load_source_inventory
 from .strict_json import loads as strict_loads
@@ -235,6 +236,21 @@ def load_record(consumer_root: str | Path, framework_root: str | Path) -> dict[s
         raise ConsumerInstallationError("INSTALLATION_RECORD_OBJECT_REQUIRED")
     validate_record_schema(value, framework)
     return value
+
+
+def rebind_snapshot_for_fresh_session(consumer_root: str | Path, framework_root: str | Path) -> dict[str, Any]:
+    """Reconstruct the exact adopted snapshot after revalidating durable installation proof."""
+    consumer = Path(consumer_root).resolve()
+    framework = Path(framework_root).resolve()
+    repository = detect_repository(consumer)
+    if repository is None:
+        raise ConsumerInstallationError("INSTALLATION_CONSUMER_REPOSITORY_NOT_VERIFIABLE")
+    validate_fresh_session(consumer, framework, expected_repository=repository)
+    snapshot = _snapshot_from_record(load_record(consumer, framework))
+    # The absolute checkout path is session-local, not durable installation identity.
+    # Rebind only after every durable proof/managed byte/profile check above passed.
+    snapshot["consumer_root_sha256"] = hashlib.sha256(str(consumer).encode("utf-8")).hexdigest()
+    return snapshot
 
 
 def validate_fresh_session(

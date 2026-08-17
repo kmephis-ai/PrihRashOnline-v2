@@ -6,8 +6,12 @@ import argparse, json, sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / ".adwf"))
+from lib.consumer_installation import ConsumerInstallationError, rebind_snapshot_for_fresh_session  # noqa: E402
 from lib.consumer_upgrade import ConsumerUpgradeError  # noqa: E402
-from lib.consumer_upgrade_transaction import apply_upgrade, recover_upgrade, rollback_upgrade  # noqa: E402
+from lib.consumer_upgrade_projection import (
+    apply_connected_upgrade, probe_connected_upgrade_committed,
+    recover_connected_upgrade, rollback_connected_upgrade,
+)  # noqa: E402
 from lib.strict_json import load as strict_load  # noqa: E402
 
 
@@ -21,8 +25,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="ADWF transactional consumer framework upgrade")
     sub = parser.add_subparsers(dest="operation", required=True)
     apply_p = sub.add_parser("apply")
-    for name in ("source-root", "target-root", "consumer-root", "compatibility", "plan", "source-snapshot"):
+    for name in ("source-root", "target-root", "consumer-root", "compatibility", "plan"):
         apply_p.add_argument("--" + name, required=True)
+    apply_p.add_argument("--source-snapshot")
     for op in ("recover", "rollback"):
         p = sub.add_parser(op)
         for name in ("source-root", "target-root", "consumer-root", "transaction-id"):
@@ -30,17 +35,23 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.operation == "apply":
-            result = apply_upgrade(
+            compatibility = _obj(args.compatibility, "COMPATIBILITY")
+            plan = _obj(args.plan, "PLAN")
+            completed = None if args.source_snapshot else probe_connected_upgrade_committed(
+                args.source_root, args.target_root, args.consumer_root, compatibility, plan,
+            )
+            result = completed if completed is not None else apply_connected_upgrade(
                 args.source_root, args.target_root, args.consumer_root,
-                _obj(args.compatibility, "COMPATIBILITY"), _obj(args.plan, "PLAN"), _obj(args.source_snapshot, "SOURCE_SNAPSHOT"),
+                compatibility, plan,
+                _obj(args.source_snapshot, "SOURCE_SNAPSHOT") if args.source_snapshot else rebind_snapshot_for_fresh_session(args.consumer_root, args.source_root),
             )
         elif args.operation == "recover":
-            result = recover_upgrade(args.source_root, args.target_root, args.consumer_root, args.transaction_id)
+            result = recover_connected_upgrade(args.source_root, args.target_root, args.consumer_root, args.transaction_id)
         else:
-            result = rollback_upgrade(args.source_root, args.target_root, args.consumer_root, args.transaction_id)
+            result = rollback_connected_upgrade(args.source_root, args.target_root, args.consumer_root, args.transaction_id)
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         return 0 if result.get("status") in {"COMMITTED", "ALREADY_COMMITTED", "ROLLED_BACK"} else 2
-    except ConsumerUpgradeError as exc:
+    except (ConsumerInstallationError, ConsumerUpgradeError) as exc:
         print(json.dumps({"status": "BLOCK", "reason": str(exc), "write_performed": False}, ensure_ascii=False, sort_keys=True))
         return 2
 

@@ -17,6 +17,15 @@ import stat
 import tempfile
 
 from .consumer_profile import PROFILE_REL, ConsumerProfileError, build_consumer_profile, load_consumer_profile
+from .consumer_instructions import (
+    ConsumerInstructionError, legacy_preexisting_router_transition_allowed,
+    load_consumer_instruction_policy, validate_consumer_instruction_state,
+)
+from .consumer_installation import (
+    ConsumerInstallationError, _snapshot_from_record, load_record as load_installation_record,
+    validate_fresh_session as validate_installation_fresh_session,
+)
+from .github_auth import detect_repository
 from .consumer_upgrade import (
     ConsumerUpgradeError, _canonical, _file_sha, _path_state, _root_sha, _safe_rel, _verify_revision,
     validate_upgrade_compatibility, validate_upgrade_plan,
@@ -233,26 +242,49 @@ def _trusted_source_snapshot(source_root: Path, target_root: Path, consumer: Pat
             raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_UPGRADE_SNAPSHOT_PROVENANCE_MISMATCH")
         return
 
-    # Initial adoption provenance.
+    # Initial adoption provenance remains authoritative whenever its exact journal exists.
+    # A committed provider-durable installation record is only a fresh-session fallback
+    # when that ignored runtime journal is absent; it never overrides invalid runtime state.
     try:
         adoption_store = AdoptionTransactionStore(source_root, consumer, txid, create=False)
         adoption = adoption_store.load()
     except ManagedSurfaceError as exc:
         raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_PROVENANCE_INVALID:" + str(exc).split(":", 1)[0]) from exc
-    if adoption is None or adoption.get("status") != "COMMITTED":
-        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_NOT_COMMITTED")
-    if adoption.get("source_revision") != snapshot.get("source_revision"):
-        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_REVISION_MISMATCH")
-    if adoption.get("source_manifest_sha256") != snapshot.get("source_manifest_sha256"):
-        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_MANIFEST_MISMATCH")
-    if not adoption_store.snapshot.is_file() or adoption_store.snapshot.is_symlink():
-        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_SNAPSHOT_MISSING")
+    if adoption is not None:
+        if adoption.get("status") != "COMMITTED":
+            raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_NOT_COMMITTED")
+        if adoption.get("source_revision") != snapshot.get("source_revision"):
+            raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_REVISION_MISMATCH")
+        if adoption.get("source_manifest_sha256") != snapshot.get("source_manifest_sha256"):
+            raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_MANIFEST_MISMATCH")
+        if not adoption_store.snapshot.is_file() or adoption_store.snapshot.is_symlink():
+            raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_SNAPSHOT_MISSING")
+        try:
+            stored = strict_load(adoption_store.snapshot)
+        except Exception as exc:
+            raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_SNAPSHOT_INVALID:" + type(exc).__name__) from exc
+        if stored != snapshot or _bytes_sha(adoption_store.snapshot.read_bytes()) != adoption.get("snapshot_sha256"):
+            raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_SNAPSHOT_PROVENANCE_MISMATCH")
+        return
+
+    repository = detect_repository(consumer)
+    if repository is None:
+        raise ConsumerUpgradeError("UPGRADE_APPLY_INSTALLATION_REPOSITORY_NOT_VERIFIABLE")
     try:
-        stored = strict_load(adoption_store.snapshot)
-    except Exception as exc:
-        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_SNAPSHOT_INVALID:" + type(exc).__name__) from exc
-    if stored != snapshot or _bytes_sha(adoption_store.snapshot.read_bytes()) != adoption.get("snapshot_sha256"):
-        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_ADOPTION_SNAPSHOT_PROVENANCE_MISMATCH")
+        validate_installation_fresh_session(
+            consumer, source_root, expected_repository=repository,
+        )
+        installation = load_installation_record(consumer, source_root)
+    except ConsumerInstallationError as exc:
+        raise ConsumerUpgradeError(
+            "UPGRADE_APPLY_SOURCE_INSTALLATION_PROVENANCE_INVALID:" + str(exc).split(":", 1)[0]
+        ) from exc
+    installed_snapshot = _snapshot_from_record(installation)
+    # Durable installation identity carries the historical checkout locator.
+    # A fresh session may rebind only that locator after full proof validation.
+    installed_snapshot["consumer_root_sha256"] = _root_sha(consumer)
+    if installed_snapshot != snapshot:
+        raise ConsumerUpgradeError("UPGRADE_APPLY_SOURCE_INSTALLATION_SNAPSHOT_PROVENANCE_MISMATCH")
 
 
 def _build_target_profile(consumer: Path, source_root: Path, target_root: Path, compatibility: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
@@ -334,6 +366,11 @@ def _preflight(
     _validate_static_apply_bindings(source_root, target_root, consumer, compatibility, plan, snapshot)
     source_inventory = load_source_inventory(source_root)
     target_inventory = load_source_inventory(target_root)
+    try:
+        target_instruction_policy = load_consumer_instruction_policy(target_root, target_inventory)
+        validate_consumer_instruction_state(consumer, target_instruction_policy)
+    except ConsumerInstructionError as exc:
+        raise ConsumerUpgradeError("UPGRADE_APPLY_TARGET_INSTRUCTION_POLICY_INVALID:" + str(exc)) from exc
 
     snap = _source_snapshot_map(snapshot)
     by_path = {str(item["path"]): item for item in plan["entries"]}
@@ -376,7 +413,16 @@ def _preflight(
                 raise ConsumerUpgradeError("UPGRADE_APPLY_SHARED_PRESERVE_INVALID:" + rel)
         elif action == "PRESERVE_PREEXISTING":
             preserved = (source_snap or {}).get("preserved_sha256") or source_sha
-            if not (source_sha and target_sha == source_sha and source_snap and source_snap.get("managed_by_adwf") is False and current_state == "FILE" and current_sha == preserved):
+            exact_unchanged = target_sha == source_sha
+            router_transition = legacy_preexisting_router_transition_allowed(
+                target_instruction_policy, path=rel, source_ownership=str(item.get("source_ownership")),
+                target_ownership=str(item.get("target_ownership")), target_present=target_sha is not None,
+            )
+            if not (
+                source_sha and target_sha and source_snap and source_snap.get("managed_by_adwf") is False
+                and current_state == "FILE" and current_sha == preserved
+                and (exact_unchanged or router_transition)
+            ):
                 raise ConsumerUpgradeError("UPGRADE_APPLY_PREEXISTING_PRESERVE_INVALID:" + rel)
 
     rollback = plan["rollback_prerequisites"]
@@ -670,7 +716,9 @@ def _apply_entry(source_root: Path, target_root: Path, consumer: Path, journal: 
         expected = entry.get("preserved_sha256") if action == "PRESERVE_PREEXISTING" else source_sha
         _assert_existing_parent_chain(consumer, rel)
         state, digest = _path_state(consumer, rel)
-        if state != "FILE" or digest != expected or target_sha != source_sha:
+        if state != "FILE" or digest != expected:
+            raise ConsumerUpgradeError("UPGRADE_PRESERVED_PATH_DRIFT:" + rel)
+        if action != "PRESERVE_PREEXISTING" and target_sha != source_sha:
             raise ConsumerUpgradeError("UPGRADE_PRESERVED_PATH_DRIFT:" + rel)
         entry["state"] = "PRESERVED"; store.save(journal); return
     if entry["state"] == "VERIFIED":

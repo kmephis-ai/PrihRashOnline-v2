@@ -3,9 +3,9 @@
   "schema_version": 1,
   "role": "CONSUMER_INSTALLATION_RECORD",
   "framework": {
-    "source_sha": "e3bd9fb33f699ae227521f7ed5866c8f11589ed4",
-    "source_tree": "b86213004ea44085f0bc337f6e0212318d0a2f8f",
-    "manifest_sha256": "41e2a611f1342dda473cb0312c0e9830a28e8535347f64d0aab134c3e76a9ca0"
+    "source_sha": "278014b98f606705e7ccd89c6faa5c95df530cd8",
+    "source_tree": "1ab41e5a9b8b2241a523ed1b4c507bf41314d7bd",
+    "manifest_sha256": "85b6c1c5bb0e6ae4f6a8a0f242ffe8c9663cc1ad817ca221cf4c9512b22908f9"
   },
   "consumer": {
     "repository": "kmephis-ai/PrihRashOnline-v2",
@@ -13,15 +13,15 @@
     "base_tree": "7aaf96a4b9d8dbbb82acb76fcda2af73beb17b8e"
   },
   "adoption": {
-    "transaction_id": "83f11bd9555fd65888186ceb59706a4926f72336a76f3f4dd90aaa8df286c79f",
+    "transaction_id": "33a064a48a3e461d12d103dfe57f7a312b920026cf3cbc452e760e15d9835c70",
     "status": "COMMITTED",
-    "plan_sha256": "5c3db3f926a3d621a65cab46e606b1a18682b9dec41c02c40384b276ce7dbda2",
-    "snapshot_sha256": "35cc277a4c876684ede253c53ac19eb6b29c4343699e18824ff840067a9248e4"
+    "plan_sha256": "148343fee9d69f5842b0200b976abd3fe9498fa19e3def53bbd5ec0ac86de6c9",
+    "snapshot_sha256": "3a245b2d20be5e4d90edab1a19107901efff6a0d0e3e2c8bca61f496beebba5c"
   },
   "managed_surface": {
-    "source_revision": "e3bd9fb33f699ae227521f7ed5866c8f11589ed4",
-    "source_manifest_sha256": "41e2a611f1342dda473cb0312c0e9830a28e8535347f64d0aab134c3e76a9ca0",
-    "consumer_root_sha256": "bde8d7fbe9dddb76bb4003f761e772bab1eb1dbc4f08ad968a180da4e1c191c2",
+    "source_revision": "278014b98f606705e7ccd89c6faa5c95df530cd8",
+    "source_manifest_sha256": "85b6c1c5bb0e6ae4f6a8a0f242ffe8c9663cc1ad817ca221cf4c9512b22908f9",
+    "consumer_root_sha256": "79d91d871c23ffcfc77f3ba0cf24be18f330665b4997d462cf6a095ccb8c2011",
     "entries": [
       {
         "path": ".adwf/SETUP_CHECKLIST.md",
@@ -74,13 +74,19 @@
       {
         "path": ".adwf/capability-traceability.json",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "67fa61775586f90517b81e8f001b6de1eecab24d7cdcb0c4fb99eead29fea713",
+        "installed_sha256": "7d9c0dd34e59e43d508e2424869a05a00a9605fe2b498b17879233fa043f34e8",
         "managed_by_adwf": true
       },
       {
         "path": ".adwf/config.json",
         "ownership": "FRAMEWORK_PRIVATE",
         "installed_sha256": "e84871fc9cb6145f2ddadd34b2e122a1ef897688d10ecf92cc58a68d79c02f47",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/consumer-instruction-policy.json",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "fdf8af32f25a035398fe0348c92610ddf508ec54ff5aafbaab64a4bd6afcc3f6",
         "managed_by_adwf": true
       },
       {
@@ -116,7 +122,7 @@
       {
         "path": ".adwf/docs-registry.json",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "5f5523e983ccb3339c08ce35fa81f0b96526cf7d764c25c908c27cccece77b1e",
+        "installed_sha256": "6934efa6a50b26c3a4fd8fdb9969bfbfd66d7599e293fc94232bc811d1c813e9",
         "managed_by_adwf": true
       },
       {
@@ -171,6 +177,18 @@
         "path": ".adwf/healing-config.json",
         "ownership": "FRAMEWORK_PRIVATE",
         "installed_sha256": "c9baed0cd5effc4df52472165e09e222ac32d405f8f6bf0b9a78f46284e3a7b9",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/instructions/AGENTS_ROUTER.template.md",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "063b518865335d6c65cfb5705c71f33407cfedc966ecec0d712670e651d7d7ad",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/instructions/CORE.md",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "9744c5203078d443323a7acc2aea9f64e5aed1a0cc53f2d12de3efc62accec7a",
         "managed_by_adwf": true
       },
       {
@@ -254,7 +272,13 @@
       {
         "path": ".adwf/lib/consumer_installation.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "e41b02296df8ec76c5b6089a05fc52224d4dc3dace81ed43d26a5529e6db2acb",
+        "installed_sha256": "8310fddf0e42d1482ea1bfade9a961e89e84d145961c8710c389c09a1f041f6f",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/lib/consumer_instructions.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "fc935a12b56ef21680a96d5d8eb635ed4d0ce8919485c96d4598cc8ad9a0c53c",
         "managed_by_adwf": true
       },
       {
@@ -272,13 +296,19 @@
       {
         "path": ".adwf/lib/consumer_upgrade.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "74c7df2888a915ef34b540b7efabb4579125291414704ef7094755b2636df901",
+        "installed_sha256": "1359bd78e09505fe2dcbc08b6575cb489d5ae9d11b4f2a10f29a5c6439f55703",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/lib/consumer_upgrade_projection.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "0f99864ee5af65932fed686afe53d5a8d24d5e12a303b588a9fbced34ee42e54",
         "managed_by_adwf": true
       },
       {
         "path": ".adwf/lib/consumer_upgrade_transaction.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "6e4ef13a0908ec221570f5ff00abf4ec40718a59643fed21e5e45fe9a8da6c1c",
+        "installed_sha256": "4895bbe8103e0ed3c56a361dea55bfe9d13107730514c1612c4e5fa90612c014",
         "managed_by_adwf": true
       },
       {
@@ -392,13 +422,13 @@
       {
         "path": ".adwf/lib/github_provider.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "1346a5bf2f27ec874ca9ea5647252488675894a39429e0dedc42965d8f654a66",
+        "installed_sha256": "aa2260bf18f7250921149d5ab4c2e2b54cd5c33e50152c7d6eb111831eb17fc3",
         "managed_by_adwf": true
       },
       {
         "path": ".adwf/lib/github_readback.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "9342bbe29ca08711944afd63a1db1a174f88d40d5db567bd8c960e0ad9b261dd",
+        "installed_sha256": "81f5cc689e04dce6561be6496a0175176a676cba65cb7e516198fc1bba138075",
         "managed_by_adwf": true
       },
       {
@@ -1106,7 +1136,7 @@
       {
         "path": ".adwf/roadmap.json",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "cc4a1bd608c237d8bcea6f3c805bc2cc8501cef350d17f0d57d3be8989ebbf46",
+        "installed_sha256": "bd897a5f7eb9bcbe44bb37328d72696f5cc03d0f510e8d830ea8609a99b0a429",
         "managed_by_adwf": true
       },
       {
@@ -1179,6 +1209,12 @@
         "path": ".adwf/schemas/consumer-installation-record.schema.json",
         "ownership": "FRAMEWORK_PRIVATE",
         "installed_sha256": "14f17414367c39ad55732370551cd6dd2d3703384d15b8fabbc41ed69afc6f93",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/schemas/consumer-instruction-policy.schema.json",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "ab2c37e3520a2939976582fc0fb2b58f602fe704fd866635e24fb0d2c65bec44",
         "managed_by_adwf": true
       },
       {
@@ -1472,7 +1508,7 @@
       {
         "path": ".adwf/scripts/apply_consumer_upgrade.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "0874738d7f585e0b60236188a5258e2b1a9795bf3dbcc7af3aa722e24a7d19e4",
+        "installed_sha256": "0a8e2365639c72314aa57eeb2a1e16a60af2fadd077f2f4505332b73d569608e",
         "managed_by_adwf": true
       },
       {
@@ -1538,7 +1574,7 @@
       {
         "path": ".adwf/scripts/generate_pipeline.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "7648d6d45b89a9062267ad456b17a21df1b914ad0086487c9f18c53baee231c4",
+        "installed_sha256": "b3824f866ae905ffa5e83c4596550177b2bc4189b1e32e8adf26ccdff8b39e93",
         "managed_by_adwf": true
       },
       {
@@ -1556,13 +1592,13 @@
       {
         "path": ".adwf/scripts/github_metrics_collector.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "78fe6dabc009be69ca6b82dc256abd16c6fa930481dea34af15a2fec192a3f65",
+        "installed_sha256": "27f72950e8c08737cbd2b45ce5c0d5ad97792290eb97f277d7eb918ec089850d",
         "managed_by_adwf": true
       },
       {
         "path": ".adwf/scripts/github_reconcile.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "4cea50161f8917e75d254505a317d393f162211efc3b9a2c22f7400948234a4c",
+        "installed_sha256": "3f5519699a96a955f76e74b86fefe7005c4b5f7e516cef68e02f8a6328cf48c2",
         "managed_by_adwf": true
       },
       {
@@ -1592,7 +1628,7 @@
       {
         "path": ".adwf/scripts/plan_consumer_upgrade.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "1010183f874507a26f5f3e638919c67cd680800d99ec400e90e9b69dd749ec29",
+        "installed_sha256": "467853a3f25a5924f22b53ec88aaffb6ba77475701edb99849be657f22b48664",
         "managed_by_adwf": true
       },
       {
@@ -1622,7 +1658,7 @@
       {
         "path": ".adwf/scripts/publish_trusted_gate.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "dfaae8c31ea15cae5e0c5c2d287476bd12c0f941c0218aff9c70a704b8e586a7",
+        "installed_sha256": "d5d57d75640a67da374661170d883f80f75c21c964aaf44811eead055a1e3a48",
         "managed_by_adwf": true
       },
       {
@@ -1814,13 +1850,13 @@
       {
         "path": ".adwf/tests/consumer_upgrade_fixture.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "2084e3e131815bf0c1f65eeb901ddcdaa234f67405cb4b8d2d1426688caa1565",
+        "installed_sha256": "b90059ceda4e74096a0666f987d24f00657084f27fd8e58ded0f7e5e55f06057",
         "managed_by_adwf": true
       },
       {
         "path": ".adwf/tests/consumer_upgrade_transaction_fixture.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "37cd022512e43a790df969681b59b7257e901b02a06b6385098543b4e95d1dcb",
+        "installed_sha256": "9a98d8ffecc9d9b9f60e7a8a0439dba7a6afaf7190d139e680c242364665f715",
         "managed_by_adwf": true
       },
       {
@@ -1944,6 +1980,24 @@
         "managed_by_adwf": true
       },
       {
+        "path": ".adwf/tests/test_consumer_instruction_upgrade_transaction.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "9b868c1ea5aa55f04ad816ac991ff5f93dc25baa9e83e861965e8537351e65fd",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/tests/test_consumer_instructions.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "c28acdbf33fa2c69a890afab01feb2cff308b7263ecfa72f71e1f4346635c101",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/tests/test_consumer_main_trigger.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "4a342abb90d7c700d0944e58c81ae444204e91f72085e581ec72f45272c94827",
+        "managed_by_adwf": true
+      },
+      {
         "path": ".adwf/tests/test_consumer_operational.py",
         "ownership": "FRAMEWORK_PRIVATE",
         "installed_sha256": "91cf0dc068ce9b9845bdd880b6c8a8ff98bccd098e67a458384421e32e8d9f0c",
@@ -1962,15 +2016,21 @@
         "managed_by_adwf": true
       },
       {
+        "path": ".adwf/tests/test_consumer_upgrade_connected.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "8d4e00688968965099d2b566297e7198673e7e38f28bd2bf649ac373b29b32c6",
+        "managed_by_adwf": true
+      },
+      {
         "path": ".adwf/tests/test_consumer_upgrade_core.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "8bb43b353bf7352b7a4f3bc40c60766b21e99f1aaee381d04e3581a1dabf2c06",
+        "installed_sha256": "c44d692cdc1962716158c25283f4bd5a54a66909bc9995a14fa1f3f1411fa2d3",
         "managed_by_adwf": true
       },
       {
         "path": ".adwf/tests/test_consumer_upgrade_transaction.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "36661f07be993a43eb410b436c249f176c54b12a9176f92bb69c6037f331d55f",
+        "installed_sha256": "976e63efa55d720204d1cd0df6fa7875c1111f873f943fa435e37e79ade2a74d",
         "managed_by_adwf": true
       },
       {
@@ -2049,6 +2109,18 @@
         "path": ".adwf/tests/test_generated_projections.py",
         "ownership": "FRAMEWORK_PRIVATE",
         "installed_sha256": "df28210e51d3654cdfe30de3917d3e452b214a0d879584cc8f281242189ea42f",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/tests/test_github_metrics_collector.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "45ad5a59207f97ea85a990b84ab270bc6d8b2e202ddbab29658a03a634af36fa",
+        "managed_by_adwf": true
+      },
+      {
+        "path": ".adwf/tests/test_github_readback_recent_runs.py",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "ee099f4f086ad38127458ae561b1625908047c2145068bbb5900bf41296ec5e6",
         "managed_by_adwf": true
       },
       {
@@ -2234,7 +2306,7 @@
       {
         "path": ".adwf/tests/test_provider_http_mock.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "697ff77b7e455ed9ce265f2677a05c78922464fadc02089199ed7e8dffcaac9c",
+        "installed_sha256": "81aa12eb224081be1b0a40952922ce5c98524e965eb37f75c50b98c4d1e219b9",
         "managed_by_adwf": true
       },
       {
@@ -2294,7 +2366,7 @@
       {
         "path": ".adwf/tests/test_standing_owner_authorization.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "830a4f998d13cb4af66ac1d2c0ac2ef41792ee728d3601bb6e2b33f830199093",
+        "installed_sha256": "e84efedf6006c0392e79f747b736008f492c1c26c4d2edee29e51d54e1a25c8e",
         "managed_by_adwf": true
       },
       {
@@ -2312,7 +2384,7 @@
       {
         "path": ".adwf/tests/test_trusted_controller.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "8f18e7ef475865110678d7cbe443235e81bc1583b5c53dc0e9b11bfd86874783",
+        "installed_sha256": "019f2d2c3d58a06ab60c68911e954001b882a1cd8fbde55d51631dc028dffdc4",
         "managed_by_adwf": true
       },
       {
@@ -2336,7 +2408,7 @@
       {
         "path": ".adwf/tests/test_v16_remediation.py",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "f45b67f51dcba05c207f35581e88dfaa2a8c6dc956f5c10c61a8dfb8b1903f18",
+        "installed_sha256": "ccfc5199f941a4ad0f42ff7eb0c98a95f9ea5a4a9cd074e93bb24665122b9a24",
         "managed_by_adwf": true
       },
       {
@@ -2396,7 +2468,7 @@
       {
         "path": ".github/workflows/adwf-main.yml",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "2a88e06d9d2808827d8c1e350b7dd8e782457fe1377f2471a37e34e1cc13f20b",
+        "installed_sha256": "c6ed92b5059c3bbeed444263c8f1e0d7ebb6a5a53d6a16015a4bc871ed0182b7",
         "managed_by_adwf": true
       },
       {
@@ -2439,7 +2511,7 @@
       {
         "path": "AGENTS.md",
         "ownership": "SHARED_GUARDED",
-        "installed_sha256": "fa752570367081d3159e9536eaa8a29a77a368b721a05cdf52d8dda0244b2bde",
+        "installed_sha256": "17aeb0a9beb27527f7a925472f542ee70819ac8d5aed01398780ce2df269b417",
         "managed_by_adwf": false,
         "preserved_sha256": "a030f708a937c260894654d01ed504f9ef650cb8b083f7bb2ac027af0c31c1c3"
       },
@@ -2604,7 +2676,7 @@
       {
         "path": "docs/governance/CAPABILITY_LIVE_EVIDENCE.md",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "d817f8bbcc8071a67c2f0b0fb512ba584e7fc0af921c45af874e68f3998063ec",
+        "installed_sha256": "6df6b3ce63286e5c8378b3f0ebb265f9644049298c7a515303f7ee19a249bec9",
         "managed_by_adwf": true
       },
       {
@@ -2628,19 +2700,25 @@
       {
         "path": "docs/governance/CONSUMER_FRAMEWORK_UPGRADE_PLANNING.md",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "d1274eae80d41e4cd77050bc751768501b579c1d13fc2c726e0953f32bb6187d",
+        "installed_sha256": "0ec6f8c058b78ab81754f3e072a9b987ce84ea3366ea2bfc73b2aa0000342594",
         "managed_by_adwf": true
       },
       {
         "path": "docs/governance/CONSUMER_FRAMEWORK_UPGRADE_TRANSACTION.md",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "ef69f1675b79cf5171d4f91ab9293a88436f9ede4c71041143d0bfa7de70c44e",
+        "installed_sha256": "1860c9874277a9c545436a5b70ecb5acc0d5a9d04c07944e91f3d796380fece2",
         "managed_by_adwf": true
       },
       {
         "path": "docs/governance/CONSUMER_INSTALLATION_RECORD.md",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "d946f554f1d7edcc7bb7e85e0af07edd5ec3d66259aa0b9b8bb44728827c35f2",
+        "installed_sha256": "ed2ce03323a9157658bdbc2369e98e83d9c4040ab84d9521c9251a0f20168918",
+        "managed_by_adwf": true
+      },
+      {
+        "path": "docs/governance/CONSUMER_INSTRUCTION_CONTRACT.md",
+        "ownership": "FRAMEWORK_PRIVATE",
+        "installed_sha256": "c5b9dadfd6521289b13877f5321e6ad329d8fc04c64aa42043148e672fef84b5",
         "managed_by_adwf": true
       },
       {
@@ -2772,7 +2850,7 @@
       {
         "path": "docs/governance/TRUST_AND_SELF_AUDIT.md",
         "ownership": "FRAMEWORK_PRIVATE",
-        "installed_sha256": "6a6999088f218a992abbc24fe87cfd90f48504b0738ebf2eb070cb87a20f28e5",
+        "installed_sha256": "a3ebe4108bb44ef86cba999a15338fb21e697128af8ac7afdecbbaea6b70a3fd",
         "managed_by_adwf": true
       },
       {
@@ -3254,5 +3332,5 @@
     "secrets": "FORBIDDEN"
   },
   "mutation_authority": "NONE_RECORD_IS_PROOF_ONLY",
-  "record_sha256": "337985ca03de5af0e8949477cecee6e90799d0f29e59cabb5e4d4d96276cd383"
+  "record_sha256": "32f92ca735af9c1c91f66dfb472a96c66b5670a3ff4b80d1b51d8688f3288ade"
 }

@@ -17,3 +17,7 @@ Standing policy versioned и revocable. `status=REVOKED`, невалидная p
 ## Self-audit
 
 `adwf self-test` обязан содержать отрицательные canary fixtures. Если хотя бы один опасный fixture принят, Autopilot блокируется. Обязательны adversarial cases: self-policy modification, gate/permission weakening, stale/revoked standing policy, base drift, forged/stale exact-head evidence и попытка использовать standing authorization для абсолютного блока.
+
+## Bounded recent Actions telemetry
+
+Exact PR, ruleset, commit/check and governance facts remain on exact provider contracts because completeness is authority. Repository-wide Actions history used only for reconciliation CI summaries, performance telemetry, or bounded runner-provenance lookup is different: those callers use the explicit newest-first `GitHubClient.recent_runs(limit<=100, event=...)` single-page contract, never follow pagination, and never claim exhaustive history. For trusted reconciliation, the exact required gate truth still comes from the exact subject commit check-runs and exact ruleset readback; the bounded `ADWF PR` run lookup only proves runner labels (`ubuntu-24.04`, no `self-hosted`). If that exact-subject successful run is absent from the bounded recent window, runner provenance is `NOT_VERIFIED` and reconciliation fails closed. The existing `runs()` contract remains exhaustive and fail-closed for callers that actually require complete Actions history. A bounded recent window therefore cannot authorize merge, weaken exact-head governance, or substitute for provider truth.
