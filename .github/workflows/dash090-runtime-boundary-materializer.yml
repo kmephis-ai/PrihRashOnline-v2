@@ -18,12 +18,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Checkout bounded materializer source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: agent/dash090-runtime-boundary-materializer-20260817-a
+          path: materializer
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Checkout exact target writer
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ env.TARGET_BRANCH }}
+          path: target
           fetch-depth: 0
       - name: Verify exact writer state
         shell: bash
+        working-directory: target
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
@@ -32,9 +42,11 @@ jobs:
           git merge-base --is-ancestor "$EXPECTED_MAIN" "$EXPECTED_HEAD"
       - name: Apply bounded repair
         shell: bash
-        run: python "$GITHUB_WORKSPACE/tools/dash090-runtime-boundary-materializer.py"
+        working-directory: target
+        run: python "$GITHUB_WORKSPACE/materializer/tools/dash090-runtime-boundary-materializer.py"
       - name: Verify focused contracts and parser surface
         shell: bash
+        working-directory: target
         run: |
           set -euo pipefail
           node tests/expert_dashboard_gallery_contract_test.js
