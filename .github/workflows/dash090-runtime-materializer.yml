@@ -1,0 +1,48 @@
+name: DASH090 Runtime Materializer
+on:
+  push:
+    branches: [agent/materialize-DASH-090-runtime-20260817-f]
+permissions:
+  contents: write
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Verify raw patch and switch to exact writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp dash090-exact.patch /tmp/dash090-exact.patch
+          echo '1fbcebd87a6ca4c821f39df3e5efd40ec4f252360c8b002bd11f289a36ad37b5  /tmp/dash090-exact.patch' | sha256sum -c -
+          git checkout -B agent/DASH-090-expert-dashboard-gallery origin/agent/DASH-090-expert-dashboard-gallery
+          test "$(git rev-parse HEAD)" = "8e1f03f7fe5b7d9edc0aec7dd763bec70d317ca7"
+          git apply --check /tmp/dash090-exact.patch
+          git apply /tmp/dash090-exact.patch
+          git diff --check
+      - name: Verify bounded runtime slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/expert_dashboard_gallery_contract_test.js
+          node tests/expert_dashboard_gallery_runtime_contract_test.js
+          node tests/dashboard_saved_views_contract_test.js
+          node tests/analytics_studio_shell_contract_test.js
+          node tests/canonical_r2_web_app_contract_test.js
+          node tests/apps_script_candidate_contract_test.js
+          node tests/r2_financial_runtime_parity_contract_test.js
+          node tools/build-apps-script-runtime-bundle.js . >/tmp/R2CanonicalRuntimeBundle.js
+          node -c /tmp/R2CanonicalRuntimeBundle.js
+      - name: Publish exact writer commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name dash090-materializer
+          git config user.email dash090-materializer@users.noreply.github.com
+          git add AnalyticsStudioWebApp.html CanonicalR2WebAppService.js lib/dashboard/dashboard_saved_views.js tools/build-apps-script-runtime-bundle.js ExpertDashboardGalleryService.js ExpertDashboardGalleryWebApp.html tests/expert_dashboard_gallery_runtime_contract_test.js
+          git commit -m 'feat(DASH-090): integrate expert gallery runtime'
+          git push origin HEAD:refs/heads/agent/DASH-090-expert-dashboard-gallery
+          git rev-parse HEAD
