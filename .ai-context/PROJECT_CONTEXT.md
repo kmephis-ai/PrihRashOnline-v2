@@ -17,29 +17,33 @@
 
 Security/privacy/cost/irreversible boundaries всегда выше Roadmap amendment. Красный machine gate нельзя отменить human summary.
 
-Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> CI-003 autonomous squash merge -> Main Verification`. Красный этап не обходится и не заменяется human summary.
+Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> CI-003 autonomous squash merge -> Main Verification`. Для `work_class=user_facing` перед merge дополнительно обязателен Product Ready E2E exact candidate. Красный этап не обходится.
 
 ## Текущая инженерная задача
 
 `MASTER-LF-PRODUCT` завершён. `E2E-LF-001` Issue #273 / PR #274 — DONE / Main Verification PASS; Local-first Product Ready desktop+mobile доказан.
 
-`PLAN-REC-001` Issue #225 / PR #277 — **DONE / Main Verification PASS**, candidate `e73e72a4429c079d9dd44ab406eb89ea52ad7dba`, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`. Owner Product UAT v259 и Product Ready E2E PASS. Budget/Obligations/Liquidity используют owner-approved explicit authorities, separate `planning_revision`, exact finance revision binding, Local-first read/cache/Worker path, zero warm planning network/Sheets reads и no financial write; Cash Flow не является balance proxy.
+`PLAN-REC-001` Issue #225 / PR #277 — **DONE / Main Verification PASS**, merge `d69f13f4842726ef893005fa1ebfbee1dc9e57bd`; Owner Product UAT v259 и Product Ready E2E PASS.
 
-`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, candidate `8e4cb6817e0a3f68c60f150e4fffd0bdf45ec66a`, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`. Trusted Apps Script candidate packager разрешает pinned Apache ECharts 6.1.0 / `dist/echarts.simple.min.js` для canonical `LocalFirstSpaWebApp.html` без self-attestation.
+`PACK-VIZ-LF-001` Issue #280 / PR #281 — **DONE_ENGINEERING / Main Verification PASS**, merge `5306d0e9593d0e5398b69c1fb03bf31bd50a8eda`.
 
-`PACK-VIZ-LF-002` Issue #283 / PR #284 — **DONE_ENGINEERING / Main Verification PASS**, merge `00659d0e423e4baf222b056e732b576887200891`. Trusted main разрешает `pwa/local_visualization_adapter.js` packaging без feature self-authorization.
+`PACK-VIZ-LF-002` Issue #283 / PR #284 — **DONE_ENGINEERING / Main Verification PASS**, merge `00659d0e423e4baf222b056e732b576887200891`.
 
-`VIZ-REC-001` Issue #226 / PR #285 — **DONE / Main Verification PASS**, candidate `d5865247506d59c91b33ca3265080e7b60a79dd1`, merge `011bb5e5a42f3ccab4d1e82f323bd304b2c89783`. Fresh Owner Product UAT и Product Ready evidence подтверждают Local-first household visualization, privacy и mobile behavior.
+`VIZ-REC-001` Issue #226 / PR #285 — **DONE / Main Verification PASS**, candidate `d5865247506d59c91b33ca3265080e7b60a79dd1`, merge `011bb5e5a42f3ccab4d1e82f323bd304b2c89783`; fresh Owner Product UAT + Product Ready evidence PASS.
 
-`STUDIO-REC-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #228, PR #286, branch `agent/STUDIO-REC-001-local-first-analytics-studio`, trust anchor `main@011bb5e5a42f3ccab4d1e82f323bd304b2c89783`.
+`STUDIO-REC-001` Issue #228 / PR #286 — **DONE / Main Verification PASS**, candidate `92c4139e552428a1726640487834952d523dab64`, Apps Script v263, merge `e62b3283927ffe0d564ec7f10d2671760a03ceec`; Owner Product UAT v263, Product Ready E2E и `MASTER-GSTUDIO / STUDIO-READY` PASS.
 
-Current bounded Studio recovery не создаёт отдельный analytics engine: он использует existing `PRH_LOCAL_FINANCE_RUNTIME_V1` + canonical Web Worker / `PRH_ANALYTICS_QUERY_V1`. Supported product scope ограничен semantic-bound `EXPENSE/category_id`, `INCOME/category_id` и `CASH_FLOW/MONTH`; unknown/UNBOUND template fail-closed. Result обязан быть `PRH_ANALYTICS_RESULT_V1`, `FIN-TRUTH-v1` и exact input revision bound.
+`ANL-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #217, branch `agent/ANL-090-contribution-decomposition-post-gstudio`, trust anchor `main@e62b3283927ffe0d564ec7f10d2671760a03ceec`.
 
-Studio работает как same-document `#studio` mode внутри canonical Local-first SPA. Save/reload хранит только configuration + exact query hash и не сохраняет financial values/result rows/labels/private IDs. Restore повторно исполняет canonical query и требует ту же query identity. Category/month drill выполняется через тот же Local-first runtime; parent query hash сохраняется в lineage, private drill IDs остаются ephemeral. Privacy != NORMAL скрывает Studio values fail-closed; ECharts остаётся local-only renderer, semantic table остаётся доступным fallback. Fresh exact-SHA trusted runtime evidence и Owner Product UAT desktop + physical mobile обязательны до Product Ready.
+ANL-090 — fresh post-GSTUDIO rebaseline сохранённого engineering capital. Он добавляет `PRH_CONTRIBUTION_DECOMPOSITION_V1@1.0.0` как pure read-only deterministic layer поверх existing `PRH_ANALYTICS_QUERY_V1`, semantic registry и VIZ-090. Arithmetic всегда `current-reference`; causality не утверждается; renderer/financial-write/query-execution/storage/network authority не добавляются.
+
+Supported V1 measures: `INCOME`, `EXPENSE`, `CASH_FLOW`. Driver dimensions ограничены текущими canonical groupable/filterable IDs: `category_id`, `account_id`, `member_id`, `project_id`. `tag` остаётся filter-only; ANL-090 не создаёт synthetic `tag_id` и не расширяет upstream semantic authority. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` — только engineering capital и не имеет current authority.
+
+ANL-090 имеет `work_class=engineering`; Owner Product UAT/Product Ready не требуются. До fresh exact-head PR Validation/trusted chain `CODE_COMPLETE` и `DONE_ENGINEERING` не объявляются.
 
 ## Local-first architecture boundary
 
-Owner decision 2026-08-14: стратегический user-facing read path — **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` больше не является целевой UX architecture. Google Sheets пока canonical source; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
+Стратегический user-facing read path — **Local-first SPA + IndexedDB + Web Worker + background revision/delta synchronization**. Request-per-view `Apps Script -> Google Sheets -> server analytics -> HtmlService iframe` не является целевой UX architecture. Google Sheets пока canonical source; YDB — future remote read backend через shadow/dual-read/compare/canary/strangler.
 
 Обычный warm interaction path:
 
@@ -52,33 +56,33 @@ SPA state
 
 Warm route/filter/chart обязан работать без mandatory network request и без Google Sheets read. Background sync не блокирует уже готовую verified local revision.
 
-`PRH_LOCAL_READ_MODEL_V1@1.0.0`: immutable generation-scoped derived store. Только `ACTIVE + VERIFIED` manifest выдаётся consumer; partial/failed generation не заменяет current verified generation. Derived local DB можно wipe/rebuild без canonical mutation.
+`PRH_LOCAL_READ_MODEL_V1@1.0.0`: immutable generation-scoped derived store; только `ACTIVE + VERIFIED` manifest выдаётся consumer.
 
-`PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0`: browser Worker исполняет tracked canonical evaluator, не получает network/storage/financial-write authority и discard-ит stale generation/revision result до UI commit.
+`PRH_LOCAL_ANALYTICS_WORKER_V1@1.0.0`: browser Worker исполняет tracked canonical evaluator без network/storage/financial-write authority.
 
-`PRH_LOCAL_FIRST_SYNC_V1@1.0.0`: same canonical revision -> `NOOP`; новая revision -> STAGING bootstrap -> verification -> atomic finalize. Remote/network failure сохраняет предыдущую verified generation.
+`PRH_LOCAL_FIRST_SYNC_V1@1.0.0`: same revision -> `NOOP`; новая revision -> STAGING bootstrap -> verification -> atomic finalize.
 
-`PRH_LOCAL_FIRST_DELTA_V1@1.0.0`: exact `base_revision`, idempotent replay, target canonical revision verification. Недоказанная/corrupt/excessive delta fail-closed переходит в full rebuild; active generation in-place не мутируется.
+`PRH_LOCAL_FIRST_DELTA_V1@1.0.0`: exact `base_revision`, idempotent replay, target revision verification; недоказанная/corrupt/excessive delta переходит в full rebuild.
 
-`PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0`: UI формирует canonical queries; Worker возвращает `PRH_ANALYTICS_RESULT_V1` с `FIN-TRUTH-v1` и exact `provenance.input_revision`. UI не получает отдельную financial-formula authority.
+`PRH_LOCAL_FINANCE_RUNTIME_V1@1.0.0`: UI формирует canonical queries; Worker возвращает `PRH_ANALYTICS_RESULT_V1` с `FIN-TRUTH-v1` и exact `provenance.input_revision`; UI не получает financial-formula authority.
 
-`PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0`: Operations/Data Quality читают тот же verified snapshot локально. Autofix/canonical write authority отсутствует.
+`PRH_LOCAL_FIRST_DATA_RUNTIME_CONTRACT_V1@1.0.0`: Data/Operations читают тот же verified snapshot локально; canonical write authority отсутствует.
 
-`PRH_LOCAL_PLANNING_RUNTIME_V1@1.0.0`: Budget/Obligations/Liquidity используют separate planning snapshot exact-bound к active finance revision. Budget scalar — только explicit period total; recurrence — только lossless; obligations recurrence не inferred; Liquidity — explicit balance observations only; Cash Flow never balance proxy.
+`PRH_LOCAL_PLANNING_RUNTIME_V1@1.0.0`: Budget/Obligations/Liquidity используют separate planning snapshot exact-bound к active finance revision; Cash Flow не является balance proxy.
 
-`PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0`: warm route p95 <=100 ms; filter/KPI <=200 ms; chart desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms. Cold bootstrap/background sync/server technical health не подменяют warm Product SLA.
+`PRH_LOCAL_FIRST_PERFORMANCE_CONTRACT_V1@1.0.0`: warm route p95 <=100 ms; filter/KPI <=200 ms; chart desktop <=300 ms; representative mobile <=500 ms; Back/Forward <=100 ms; cached first meaningful paint <=800 ms.
 
-## Visualization post-LF boundary
+## Visualization/Studio boundary
 
-`VIZ-REC-001` завершён на Local-first canonical read model / approved display-only ChartSpec. Renderer не вычисляет financial truth, не меняет FIN/query/write authority и не добавляет synthetic/demo household series под видом real data.
+`VIZ-REC-001` завершён на Local-first canonical read model / display-only ChartSpec. Renderer не вычисляет financial truth и не меняет FIN/query/write authority. Renderer: pinned local Apache ECharts 6.1.0, external CDN/runtime fetch forbidden, semantic fallback required.
 
-Renderer: Apache ECharts 6.1.0, `dist/echarts.simple.min.js`, pinned upstream commit/blob identity, `LOCAL_ONLY`, external CDN/runtime fetch forbidden, semantic fallback required. Cash Flow показывает meaningful multi-period series либо честный insufficient-data state; Expense composition — Top-N + «Прочее»; mobile/tablet/dark mode обязаны оставаться читаемыми.
+`STUDIO-REC-001` завершил working private bound query -> widget -> save/reload -> drill product. Supported product scope использует canonical Local-first runtime; UNBOUND widgets denied. Save/reload хранит configuration + query identity без financial values/private IDs; private drill IDs ephemeral.
 
-Любой новый user-facing visualization/Studio candidate требует fresh exact-SHA rendered evidence, responsive/a11y/interaction tests, Local-first performance/parity evidence, zero mandatory warm network/Sheets reads и fresh Owner Product UAT desktop + physical mobile. Старые performance/UAT evidence не переносятся как Product Ready authority.
+Любой новый user-facing visualization/Studio scope требует fresh exact-SHA rendered/runtime evidence и fresh Owner Product UAT. Завершённые UAT нельзя переносить на новый candidate.
 
 ## Product lifecycle
 
-Lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. User-facing `DONE` запрещён без exact-candidate Product Ready evidence. Engineering-only trust bootstrap не может self-attest Product Ready и не требует Owner UAT, если Product behavior не меняется.
+Lifecycle user-facing: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_READY -> DONE`. Engineering: `IN_PROGRESS -> CODE_COMPLETE -> DONE_ENGINEERING` через trusted exact-head chain.
 
 Одна конфликтующая writer-транзакция одновременно. Read-only audits допустимы параллельно. GitHub/provider state — source of truth. Не переходить к следующему writer до Main Verification текущего item.
 
@@ -86,53 +90,55 @@ Lifecycle: `CODE_COMPLETE -> RUNTIME_INTEGRATED -> REAL_E2E_VERIFIED -> PRODUCT_
 
 `MASTER-G0`, `MASTER-G1`, `MASTER-G2` — complete. `AIENG-001 = DONE -> AIENG-002 = DONE -> AIENG-003 = DONE`; `AIENG-004`, `AIENG-005`, `AIENG-006` также DONE/Main Verification PASS.
 
-Read-only multi-AI review остаётся supplementary evidence без writer authority. Обязательная карта ролей: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`; P0/P1 блокируют продвижение до решения, P2/P3 advisory и не заменяют machine gates.
-
 ## Current R1 truth
 
-`FIN-010` — **DONE**, Issue #85 Main Verification PASS. `DATA-010` — **DONE**, Issue #87 Main Verification PASS.
+`FIN-010` — **DONE / Main Verification PASS**, Issue #85.
+`DATA-010` — **DONE / Main Verification PASS**, Issue #87.
+`ARCH-010` — **DONE / Main Verification PASS**, Issue #89.
+`ARCH-011` — **DONE / Main Verification PASS**, Issue #91.
+`MIG-010` — **DONE / Main Verification PASS**, Issue #96; private stage `OWNER_VERIFIED`, owner-private full-history reconciliation PASS.
+`MIG010_EXECUTION_POLICY_V1@1.0.0` — canonical MIG-010 execution policy; finalize boundary сохраняет `FINALIZED_PENDING_RECONCILIATION` / post-write reconciliation, а generic Google repository write остаётся fail-closed с `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
+`ANL-010`, `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — **DONE / Main Verification PASS**. `ANL-010` authority = `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 
-`ARCH-010` — **DONE / Main Verification PASS**, Issue #89. `ARCH-011` — **DONE / Main Verification PASS**, Issue #91. `MIG-010` — **DONE / Main Verification PASS**, Issue #96, private `OWNER_VERIFIED`. `ANL-010` — **DONE / Main Verification PASS**, `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`. `TEST-010`, `OBS-010`, `PERF-010..014`, `DOC-010` — DONE / Main Verification PASS.
+Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется после Local-first/Product Recovery rebaseline и не означает возврат к request-per-view architecture.
 
-MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Execution policy остаётся `MIG010_EXECUTION_POLICY_V1@1.0.0`; `FINALIZED_PENDING_RECONCILIATION` не являлся завершением до отдельного private post-write reconciliation PASS. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI не может переиспользовать historical authorization. Любая новая irreversible financial mutation требует fresh exact-bound owner authorization. **Current write authority = false**.
+MIG-010 owner-confirmed duplicate-preservation identity = `CONTENT_FINGERPRINT_OCCURRENCE_V1`. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable. GitHub Actions cannot create `IRREVERSIBLE_ACTION_AUTHORIZED`; AI/CI cannot reuse it. Любой новый irreversible financial write требует fresh owner authorization. **Current write authority = false**.
 
-`MASTER-G3 / Canonical platform` complete; historical pre-close state: open. Post-R1 lifecycle handoff historically начинается с `DESIGN-020`; этот anchor сохраняется и при Local-first rebaseline.
+`MASTER-G3 / Canonical platform` — complete; historical pre-close state: open.
 
 FIN authority = `PRH_KPI_DICTIONARY_V1@1.0.0` / `FIN-TRUTH-v1`. DATA authority = `PRH_CANONICAL_TRANSACTION_V1`. Repository authority = `PRH_TRANSACTION_REPOSITORY_V1`; generic Google canonical write fail-closed: `GOOGLE_REPOSITORY_WRITE_POLICY_REQUIRED`.
 
-Real or real-derived household finance data stays private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence. `FREE_ONLY` обязателен; automatic paid overage запрещён.
+Real or real-derived household finance data stays private. Public repo содержит только public-safe contracts, independently generated synthetic finance fixtures и privacy-safe machine evidence. `FREE_ONLY` обязателен.
 
 ## Reusable engineering foundation
 
-R2 `DESIGN-020`, `VIZ-020`, R2 finance/data contracts, R3 planning/wealth contracts, R7 semantic analytics and R8 Studio/dashboard configuration contracts остаются reusable. Они не получают automatic Product Ready credit и подключаются через local-first read path постепенно.
+R2 finance/data/design/visual contracts, R3 planning/wealth contracts, R7 semantic analytics, VIZ-090 и R8 Studio/dashboard configuration contracts остаются reusable engineering capital. Product credit даётся только current exact-SHA evidence.
 
-PERF-010 projection, PERF-011 exact-revision cache, PERF-012 single-scan refresh, PERF-013 incremental aggregates и PERF-070 planner/cache сохраняются как validated building blocks для sync/reconciliation/local parity. Они не должны возвращать Google Sheets в warm click path.
+После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. Сейчас authority имеет только ANL-090; ANL-091/XRAY-090/PERF-090 и другие R9 items не стартуют параллельно.
 
 ## Future YDB boundary
 
-`YC-040` — DONE/Main Verification PASS. `YC-041`/`YC-042` остаются owner/cloud BLOCKED и не получают writer authority автоматически. Target ladder: `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> separate future owner-authorized write cutover`. Big-bang cutover запрещён. `paidOverageAllowed=false`; unknown billing state = BLOCKED.
+`YC-040` — DONE/Main Verification PASS. `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Target ladder: `GOOGLE_AUTHORITATIVE_LOCAL_FIRST -> YDB_SHADOW_REPLICA -> DUAL_READ_COMPARE -> YDB_READ_CANARY -> YDB_READ_AUTHORITY -> separate future owner-authorized write cutover`. Big-bang cutover запрещён. `paidOverageAllowed=false`; unknown billing state = BLOCKED.
 
 ## Delivery and autonomy
 
-Required trusted chain остаётся неизменной:
+Required trusted chain:
 
 `PR Validation -> Trusted DEV Deploy -> Trusted Runtime Health -> Product Ready E2E (user-facing only) -> CI-003 autonomous squash merge -> Main Verification`.
-
-Для `work_class=user_facing` перед merge обязательно требуется exact-SHA `PRODUCT_READY_E2E`. Manual merge для обхода Product Ready запрещён.
 
 One-writer rule: one Roadmap ID = one GitHub Issue = one active writer; branch `agent/<ROADMAP-ID>-<slug>`. Active issue lifecycle и exact candidate должны совпадать с machine evidence.
 
 ## FinOps / safety
 
-`FINOPS-001` остаётся обязательной cost boundary: required checks не требуют платного provider/API. Unknown/unproven cost fail-closed. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable; любой новый irreversible financial write требует fresh owner authorization.
+`FINOPS-001` остаётся обязательной cost boundary: required checks не требуют paid provider/API. Unknown/unproven cost fail-closed. Любой irreversible financial write требует fresh owner authorization.
 
 ## Read-only multi-AI review
 
-Read-only multi-AI review имеет `writer_authority=false` и является supplementary evidence. Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Review не голосует за merge и не может отменить PR Validation, Trusted Runtime Health, Product Ready или Main Verification.
+Read-only multi-AI review имеет `writer_authority=false`. Required roles: `ARCHITECTURE`, `SECURITY_PRIVACY`, `FINANCIAL_DATA`, `TEST_OPERATIONS`. Review не может отменить machine gates.
 
 ## TEST-010 boundary
 
-`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Local-first SPA, IndexedDB, Worker, Sync, Delta, Finance, Data, Planning, Performance, Visualization и Studio runtime/packager contracts должны входить в full layered suite. Red-gate bypass запрещён; synthetic-only proof не заменяет authenticated runtime Product UAT для user-facing items.
+`PRH_TEST_ARCHITECTURE_V1@1.0.0` классифицирует tracked tests fail-closed. Новые ANL-090 contract cases выполняются внутри существующего `analytics_query_edge_contract_test.js` PURE_DOMAIN_APPLICATION gate; отдельная ослабляющая test-classification authority не добавляется. Red-gate bypass запрещён.
 
 ## Source precedence
 

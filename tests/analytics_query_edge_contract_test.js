@@ -101,10 +101,16 @@ const reversed = evaluateAnalytics(fixture.slice().reverse(), query());
 assert.deepStrictEqual(reversed, forward,
   'analytics result and canonical input revision must be deterministic under input ordering');
 
+// ANL-090 adds pure contribution/change decomposition cases under the existing
+// PURE_DOMAIN_APPLICATION analytics edge authority instead of weakening TEST-010
+// classification rules for a one-off feature test filename.
+require('./analytics_contribution_decomposition_contract');
+
 console.log('analytics_query_edge_contract_test: OK', {
   comparisonWithGrain: 'FAIL_CLOSED',
   timeBucketSortWithoutGrain: 'FAIL_CLOSED',
   boundedResultTruncation: true,
   inputOrderDeterministic: true,
+  contributionDecomposition: 'PASS',
   financialWriteAuthority: false
 });
