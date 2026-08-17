@@ -53,7 +53,8 @@ assert.deepStrictEqual(unavailable.missing_capabilities, [GALLERY.CAP.XRAY]);
 assert.throws(() => GALLERY.cloneToSavedView(SAVED.emptyStore(), xray.preset_id, {view_id:'xray-copy'}, 0, degraded), /DASH090_PRESET_UNAVAILABLE/);
 assert.throws(() => GALLERY.availability('SEASONALITY', {[GALLERY.CAP.SDC]:'PASS'}), /DASH090_CAPABILITY_STATE_INVALID/);
 
-// Clone delegates storage/history to DASH-084 and never mutates the immutable catalog original.
+// Pure-domain prototype still demonstrates DASH-084 lifecycle reuse. It is not exposed by runtime
+// until every expert panel can be represented losslessly in canonical DASH-080/081 configuration.
 let store = SAVED.emptyStore();
 const sourceHash = GALLERY.presetById('SPENDING_DRIVERS').preset_hash;
 const clone = GALLERY.cloneToSavedView(store, 'SPENDING_DRIVERS', {view_id:'spending-drivers-copy'}, store.generation, capabilities);
@@ -67,7 +68,7 @@ assert.strictEqual(clone.view.origin_preset_id, null);
 assert.strictEqual(GALLERY.presetById('SPENDING_DRIVERS').preset_hash, sourceHash);
 store = clone.store;
 
-// Existing DASH-084 edit/version semantics remain canonical after gallery cloning.
+// Existing DASH-084 edit/version semantics remain canonical after the domain prototype clone.
 const cloned = store.views.find((view) => view.view_id === 'spending-drivers-copy');
 const cfg = cloned.revisions[0].configuration;
 const noChange = SAVED.saveVersion(store, cloned.view_id, cfg, store.generation);
@@ -119,19 +120,20 @@ vm.runInContext(serviceSource, sandbox);
 const runtimeCatalog = sandbox.prhDash090PublicCatalog();
 assert.strictEqual(runtimeCatalog.presets.length, 7);
 assert.strictEqual(runtimeCatalog.financial_payload, false);
-assert(runtimeCatalog.presets.every((preset) => preset.status === 'AVAILABLE'));
-const runtimeClone = sandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'dash090-spending-drivers-test',name:'Драйверы расходов'});
-assert.strictEqual(runtimeClone.decision, 'APPLIED');
-assert.strictEqual(runtimeClone.financial_payload, false);
-assert.strictEqual(writes, 1);
-assert(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'));
+assert(runtimeCatalog.presets.every((preset) => preset.status === 'UNAVAILABLE'));
+assert(runtimeCatalog.presets.every((preset) => preset.reason === 'LOSSLESS_EXPERT_PROJECTION_NOT_READY'));
+assert.throws(
+  () => sandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'dash090-spending-drivers-test',name:'Драйверы расходов'}),
+  /DASH090_LOSSLESS_EXPERT_PROJECTION_NOT_READY/
+);
+assert.strictEqual(writes, 0);
+assert.strictEqual(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'), null);
 assert.throws(() => sandbox.prhDash090ClonePreset({preset_id:'UNKNOWN',view_id:'bad',name:'Bad'}), /DASH090_PRESET_UNKNOWN/);
-assert.strictEqual(writes, 1);
+assert.strictEqual(writes, 0);
 
 console.log('expert_dashboard_gallery_contract_test: PASS', {
   presets: catalog.length,
-  clone_view: clone.view.view_id,
-  runtime_generation: runtimeClone.generation,
+  runtime_projection_status: 'UNAVAILABLE',
   user_properties_batch_writes: writes,
   xray_capability: GALLERY.CAP.XRAY,
   source_hash_prefix: sourceHash.slice(0,12),
