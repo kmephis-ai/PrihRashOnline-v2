@@ -1,0 +1,105 @@
+from pathlib import Path
+
+
+def replace_once(path, old, new):
+    p = Path(path)
+    text = p.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected exactly one replacement, got {count}")
+    p.write_text(text.replace(old, new), encoding="utf-8")
+
+
+saved = "lib/dashboard/dashboard_saved_views.js"
+replace_once(saved, "const FACTORY = require('./widget_factory');\n", "const WIDGET_FACTORY_CAPABILITY = 'PRH_WIDGET_FACTORY_V1@1.0.0';\nlet FACTORY_CACHE = null;\n")
+replace_once(saved,
+    "  COMPOSER.assertContract();\n  FACTORY.assertContract();\n  if (CONTRACT.upstream.dashboard_composer !== `${COMPOSER.SCHEMA}@${COMPOSER.VERSION}` ||\n      CONTRACT.upstream.widget_factory !== `${FACTORY.SCHEMA}@${FACTORY.VERSION}` ||\n",
+    "  COMPOSER.assertContract();\n  if (CONTRACT.upstream.dashboard_composer !== `${COMPOSER.SCHEMA}@${COMPOSER.VERSION}` ||\n      CONTRACT.upstream.widget_factory !== WIDGET_FACTORY_CAPABILITY ||\n")
+replace_once(saved,
+    "function normalizeBoundDescriptor(input) {\n  exactKeys(input,",
+    "function widgetFactory_() {\n  if (!FACTORY_CACHE) {\n    const factory = require('./' + 'widget_factory');\n    factory.assertContract();\n    if (`${factory.SCHEMA}@${factory.VERSION}` !== WIDGET_FACTORY_CAPABILITY) fail('DASH084_UPSTREAM_CONTRACT_INVALID');\n    FACTORY_CACHE = factory;\n  }\n  return FACTORY_CACHE;\n}\n\nfunction normalizeBoundDescriptor(input) {\n  const FACTORY = widgetFactory_();\n  exactKeys(input,")
+
+gallery = "lib/dashboard/expert_dashboard_gallery.js"
+replace_once(gallery,
+    "const FACTORY = require('./widget_factory');\nconst DECOMP = require('../analytics/contribution_decomposition');\nconst SDC = require('../analytics/seasonality_distribution_concentration');\nconst TRENDS = require('../analytics/long_term_trends');\nconst RISK = require('../risk/liquidity_financial_risk');\nconst XRAY = require('../xray/financial_health_xray');\nconst ADV_VIZ = require('../visualization/advanced_visualization_pack');\n",
+    "")
+replace_once(gallery,
+    "const CAP = deepFreeze({\n  SAVED: capability(SAVED.SCHEMA, SAVED.VERSION),\n  COMPOSER: capability(COMPOSER.SCHEMA, COMPOSER.VERSION),\n  WIDGET_FACTORY: capability(FACTORY.SCHEMA, FACTORY.VERSION),\n  DECOMP: capability(DECOMP.SCHEMA, DECOMP.VERSION),\n  SDC: capability(SDC.SCHEMA, SDC.VERSION),\n  TRENDS: capability(TRENDS.SCHEMA, TRENDS.VERSION),\n  RISK: capability(RISK.SCHEMA, RISK.VERSION),\n  XRAY: capability(XRAY.SCHEMA, XRAY.VERSION),\n  ADV_VIZ: capability(ADV_VIZ.SCHEMA, ADV_VIZ.VERSION)\n});",
+    "const CAP = deepFreeze({\n  SAVED: capability(SAVED.SCHEMA, SAVED.VERSION),\n  COMPOSER: capability(COMPOSER.SCHEMA, COMPOSER.VERSION),\n  WIDGET_FACTORY: String(CONTRACT.upstream.widget_factory),\n  DECOMP: String(CONTRACT.upstream.contribution_decomposition),\n  SDC: String(CONTRACT.upstream.seasonality_distribution_concentration),\n  TRENDS: String(CONTRACT.upstream.long_term_trends),\n  RISK: String(CONTRACT.upstream.liquidity_financial_risk),\n  XRAY: String(CONTRACT.upstream.financial_health_xray),\n  ADV_VIZ: String(CONTRACT.upstream.advanced_visualization_pack)\n});")
+replace_once(gallery,
+    "  SAVED.assertContract(); COMPOSER.assertContract(); FACTORY.assertContract(); DECOMP.assertContract(); SDC.assertContract(); TRENDS.assertContract(); RISK.assertContract(); XRAY.assertContract(); ADV_VIZ.assertContract();\n",
+    "  SAVED.assertContract(); COMPOSER.assertContract();\n")
+
+service = Path("ExpertDashboardGalleryService.js")
+text = service.read_text(encoding="utf-8")
+start = text.index("function prhDash090StoreFromStorage_() {")
+end = text.index("\nfunction prhDash090FindView_", start)
+text = text[:start] + """function prhDash090ProjectionFromSnapshot_(snapshot, viewId) {
+  var runtime = prhDash090Runtime_();
+  if (viewId == null) return runtime.dashboardSavedViews.hydrateStore(snapshot.generation, []);
+  var id = prhDash084StorageViewId_(viewId);
+  var text = snapshot.view_json_by_id[id];
+  if (!text) throw new Error('DASH090_STORAGE_VIEW_MISSING:' + id);
+  return runtime.dashboardSavedViews.hydrateStore(snapshot.generation, [JSON.parse(text)]);
+}
+""" + text[end:]
+start = text.index("function prhDash090CommitOperation_(")
+end = text.index("\nfunction prhDash090PublicCatalog", start)
+text = text[:start] + """function prhDash090CommitOperation_(snapshot, operation, viewId, createMode) {
+  if (operation.store.generation === snapshot.generation) return null;
+  if (operation.store.generation !== snapshot.generation + 1) throw new Error('DASH090_STORE_GENERATION_INVALID');
+  var runtime = prhDash090Runtime_();
+  var id = prhDash084StorageViewId_(viewId);
+  var ids = snapshot.index.view_ids.slice();
+  var present = ids.indexOf(id) >= 0;
+  if (createMode === true) {
+    if (present) throw new Error('DASH090_VIEW_ID_CONFLICT');
+    ids.push(id);
+  } else if (!present) {
+    throw new Error('DASH090_VIEW_NOT_FOUND');
+  }
+  ids.sort();
+  var view = prhDash090FindView_(operation.store, id);
+  return prhDash084StorageCommit_({
+    expected_generation: snapshot.generation,
+    view_id: id,
+    index_json: JSON.stringify({schema:'PRH_DASHBOARD_SAVED_VIEW_INDEX_V1',contract_version:'1.0.0',generation:operation.store.generation,view_ids:ids}),
+    view_json: runtime.dashboardSavedViews.serializeView(view)
+  });
+}
+""" + text[end:]
+replace_old = "  var store = prhDash090StoreFromStorage_();\n  var result = gallery.cloneToSavedView(store, presetId, {\n    view_id: request.view_id,\n    name: request.name\n  }, store.generation, gallery.allAvailableCapabilities());\n  prhDash090CommitOperation_(store, result, result.view_id);"
+replace_new = "  var snapshot = prhDash084StorageReadSnapshot_();\n  var id = prhDash084StorageViewId_(request.view_id);\n  if (snapshot.index.view_ids.indexOf(id) >= 0) throw new Error('DASH090_VIEW_ID_CONFLICT');\n  var store = prhDash090ProjectionFromSnapshot_(snapshot, null);\n  var result = gallery.cloneToSavedView(store, presetId, {\n    view_id: id,\n    name: request.name\n  }, store.generation, gallery.allAvailableCapabilities());\n  prhDash090CommitOperation_(snapshot, result, result.view_id, true);"
+if text.count(replace_old) != 1: raise SystemExit("clone block mismatch")
+text = text.replace(replace_old, replace_new)
+replace_old = "  var store = prhDash090StoreFromStorage_();\n  return prhDash090ViewSummary_(store, prhDash090FindView_(store, request.view_id));"
+replace_new = "  var snapshot = prhDash084StorageReadSnapshot_();\n  var store = prhDash090ProjectionFromSnapshot_(snapshot, request.view_id);\n  return prhDash090ViewSummary_(store, prhDash090FindView_(store, request.view_id));"
+if text.count(replace_old) != 1: raise SystemExit("read block mismatch")
+text = text.replace(replace_old, replace_new)
+replace_old = "  var store = prhDash090StoreFromStorage_();\n  if (!Number.isInteger(request.expected_generation) || request.expected_generation !== store.generation) throw new Error('DASH090_STORE_GENERATION_CONFLICT');"
+replace_new = "  var snapshot = prhDash084StorageReadSnapshot_();\n  var store = prhDash090ProjectionFromSnapshot_(snapshot, request.view_id);\n  if (!Number.isInteger(request.expected_generation) || request.expected_generation !== store.generation) throw new Error('DASH090_STORE_GENERATION_CONFLICT');"
+if text.count(replace_old) != 1: raise SystemExit("save block mismatch")
+text = text.replace(replace_old, replace_new)
+if text.count("  prhDash090CommitOperation_(store, operation, view.view_id);") != 1: raise SystemExit("save commit mismatch")
+text = text.replace("  prhDash090CommitOperation_(store, operation, view.view_id);", "  prhDash090CommitOperation_(snapshot, operation, view.view_id, false);")
+service.write_text(text, encoding="utf-8")
+
+test = Path("tests/expert_dashboard_gallery_contract_test.js")
+text = test.read_text(encoding="utf-8")
+imports = "const FACTORY = require('../lib/dashboard/widget_factory');\n"
+expanded = imports + "const DECOMP = require('../lib/analytics/contribution_decomposition');\nconst SDC = require('../lib/analytics/seasonality_distribution_concentration');\nconst TRENDS = require('../lib/analytics/long_term_trends');\nconst RISK = require('../lib/risk/liquidity_financial_risk');\nconst XRAY = require('../lib/xray/financial_health_xray');\nconst ADV_VIZ = require('../lib/visualization/advanced_visualization_pack');\n"
+if text.count(imports) != 1: raise SystemExit("test imports mismatch")
+text = text.replace(imports, expanded)
+anchor = "assert.strictEqual(GALLERY.CONTRACT.principles.free_only, true);\n"
+parity = "assert.strictEqual(GALLERY.CAP.WIDGET_FACTORY, `${FACTORY.SCHEMA}@${FACTORY.VERSION}`);\nassert.strictEqual(GALLERY.CAP.DECOMP, `${DECOMP.SCHEMA}@${DECOMP.VERSION}`);\nassert.strictEqual(GALLERY.CAP.SDC, `${SDC.SCHEMA}@${SDC.VERSION}`);\nassert.strictEqual(GALLERY.CAP.TRENDS, `${TRENDS.SCHEMA}@${TRENDS.VERSION}`);\nassert.strictEqual(GALLERY.CAP.RISK, `${RISK.SCHEMA}@${RISK.VERSION}`);\nassert.strictEqual(GALLERY.CAP.XRAY, `${XRAY.SCHEMA}@${XRAY.VERSION}`);\nassert.strictEqual(GALLERY.CAP.ADV_VIZ, `${ADV_VIZ.SCHEMA}@${ADV_VIZ.VERSION}`);\n"
+if text.count(anchor) != 1: raise SystemExit("test parity anchor mismatch")
+text = text.replace(anchor, anchor + parity)
+anchor = "const runtimeCatalog = sandbox.prhDash090PublicCatalog();\n"
+opaque = "const opaqueLegacy = JSON.stringify({schema:'PRH_DASHBOARD_SAVED_VIEW_V1',contract_version:'1.0.0',view_id:'legacy-bound',opaque_bound_marker:true});\nmap.set('PRH_DASH084_V1:INDEX', JSON.stringify({schema:'PRH_DASHBOARD_SAVED_VIEW_INDEX_V1',contract_version:'1.0.0',generation:7,view_ids:['legacy-bound']}));\nmap.set('PRH_DASH084_V1:VIEW:legacy-bound', opaqueLegacy);\n"
+if text.count(anchor) != 1: raise SystemExit("test opaque anchor mismatch")
+text = text.replace(anchor, anchor + opaque)
+anchor = "assert(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'));\n"
+preserve = "assert.strictEqual(map.get('PRH_DASH084_V1:VIEW:legacy-bound'), opaqueLegacy);\nassert.deepStrictEqual(Array.from(sandbox.prhDash084StorageReadIndex_().view_ids), ['dash090-spending-drivers-test','legacy-bound']);\n"
+if text.count(anchor) != 1: raise SystemExit("test preserve anchor mismatch")
+text = text.replace(anchor, anchor + preserve)
+test.write_text(text, encoding="utf-8")
