@@ -25,7 +25,18 @@ jobs:
           EXPECTED_TREE: 01f1a89315b750d9853359107604d2f2b17dcb8e
         run: |
           set -euo pipefail
-          cat .dash090-materialize/part-*.b64 | tr -d '\n' | base64 -d | gunzip > "${RUNNER_TEMP}/candidate.patch"
+          test "$(git hash-object .dash090-materialize/part-01.b64)" = "b1fed7d21477b6ed5956e2df68267853a2f83c6a"
+          test "$(git hash-object .dash090-materialize/part-02.b64)" = "cd58aedec017fb6ed1f173d57a9a7cc40a86614f"
+          test "$(git hash-object .dash090-materialize/part-03a.b64)" = "139252ebc268634c9200598c0bf563debf024670"
+          test "$(git hash-object .dash090-materialize/part-03b.b64)" = "7b78b04e740ecd1e3d8edb2d840f5df3485458cb"
+          test "$(git hash-object .dash090-materialize/part-04.b64)" = "e371943c43bcabde9d572bde73a26f721162bdb4"
+          cat \
+            .dash090-materialize/part-01.b64 \
+            .dash090-materialize/part-02.b64 \
+            .dash090-materialize/part-03a.b64 \
+            .dash090-materialize/part-03b.b64 \
+            .dash090-materialize/part-04.b64 \
+            | tr -d '\n' | base64 -d | gunzip > "${RUNNER_TEMP}/candidate.patch"
           git apply --check "${RUNNER_TEMP}/candidate.patch"
           git apply "${RUNNER_TEMP}/candidate.patch"
           rm -rf .dash090-materialize
