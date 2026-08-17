@@ -137,7 +137,7 @@ jobs:
           gates = build_gates(consumer, consumer, phases=phases, required_phases=["pr", "main"])
           write_gates(gates, consumer, consumer)
 
-          fresh = validate_fresh_session(consumer, consumer, expected_repository=repo)
+          fresh = validate_fresh_session(consumer, framework, expected_repository=repo)
           ops = load_operations(consumer, consumer)
           loaded_gates = load_gates(consumer, consumer)
           if ops.get("mode") != "CONSUMER_NATIVE":
