@@ -221,6 +221,8 @@ jobs:
         run: node tests/net_worth_contract_test.js
       - name: Liquidity & financial risk
         run: node tests/liquidity_financial_risk_contract_test.js
+      - name: Financial Health X-Ray
+        run: node tests/financial_health_xray_contract_test.js
       - name: Exploration state model
         run: node tests/exploration_state_contract_test.js
       - name: Migration reconcile synthetic
