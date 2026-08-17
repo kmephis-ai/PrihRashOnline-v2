@@ -1,0 +1,97 @@
+name: ADWF-UPGRADE-001 Split Publisher
+
+on:
+  push:
+    branches:
+      - agent/publisher-ADWF-UPGRADE-001-20260817-p1
+
+permissions:
+  contents: write
+
+env:
+  CONSUMER_SHA: c5fe7a6666dde24551f310198ba45dc3765dd735
+  CONSUMER_TREE: ccdf615967cba7f592ef295707794ea068c9bd8b
+  SOURCE_A: e3bd9fb33f699ae227521f7ed5866c8f11589ed4
+  TARGET_B: 278014b98f606705e7ccd89c6faa5c95df530cd8
+  EXPECTED_FULL_TREE: b07ff2538ca55582f56bb04af401cad9d8519802
+  TARGET_BRANCH: agent/ADWF-UPGRADE-001-consumer-framework-upgrade
+  GITHUB_REPOSITORY_EXPECTED: kmephis-ai/PrihRashOnline-v2
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.CONSUMER_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+          path: consumer
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.SOURCE_A }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: framework-a
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.TARGET_B }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: framework-b
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+
+      - name: Rebuild exact verified B state
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ env.GITHUB_REPOSITORY_EXPECTED }}
+        run: |
+          set -euo pipefail
+          test "$(git -C consumer rev-parse HEAD)" = "${CONSUMER_SHA}"
+          test "$(git -C consumer rev-parse HEAD^{tree})" = "${CONSUMER_TREE}"
+          python framework-b/.adwf/scripts/plan_consumer_upgrade.py \
+            --source-root framework-a --target-root framework-b --consumer-root consumer \
+            --source-revision "${SOURCE_A}" --target-revision "${TARGET_B}" > /tmp/bundle.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/bundle.json'))
+          assert d['compatibility']['status']=='PASS' and d['compatibility']['findings']==[]
+          assert d['plan']['status']=='READY' and d['plan']['findings']==[]
+          for k,p in [('compatibility','/tmp/compatibility.json'),('plan','/tmp/plan.json')]:
+              with open(p,'w') as f: json.dump(d[k],f,indent=2,sort_keys=True); f.write('\n')
+          PY
+          python framework-b/.adwf/scripts/apply_consumer_upgrade.py apply \
+            --source-root framework-a --target-root framework-b --consumer-root consumer \
+            --compatibility /tmp/compatibility.json --plan /tmp/plan.json > /tmp/apply.json
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/apply.json'))
+          assert d['status']=='COMMITTED' and d.get('projection_status')=='COMMITTED',d
+          PY
+          rm -rf consumer/.adwf-runtime
+          git -C consumer add -A
+          full_tree="$(git -C consumer write-tree)"
+          echo "full_tree=${full_tree}"
+          test "${full_tree}" = "${EXPECTED_FULL_TREE}"
+
+      - name: Publish non-workflow part with CAS
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_main="$(git -C consumer ls-remote origin refs/heads/main | awk '{print $1}')"
+          remote_writer="$(git -C consumer ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_main}" = "${CONSUMER_SHA}"
+          test "${remote_writer}" = "${CONSUMER_SHA}"
+          git -C consumer checkout "${CONSUMER_SHA}" -- .github/workflows/adwf-main.yml
+          git -C consumer add -A
+          test -z "$(git -C consumer status --porcelain | grep '^.. \.github/workflows/adwf-main.yml$' || true)"
+          git -C consumer config user.name 'ADWF Autonomous Writer'
+          git -C consumer config user.email 'adwf-writer@example.invalid'
+          git -C consumer commit -m 'ADWF-UPGRADE-001: stage connected framework upgrade'
+          git -C consumer push origin "HEAD:refs/heads/${TARGET_BRANCH}"
