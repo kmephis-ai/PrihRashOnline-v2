@@ -32,12 +32,12 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 
 Текущая единственная writer-транзакция:
 
-- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`. Это bounded engineering/integration transaction: установка ADWF consumer-managed surfaces и sealed consumer bindings без product/runtime/data/FIN-TRUTH write authority.
+- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, follow-up PR #291, branch `agent/ADWF-ADOPT-001-control-plane-main-verify`, trust anchor `main@29aeacc273b5562b4335f908fb8cd081d725fb87`. Основная adoption через PR #289 уже merged; текущий bounded follow-up закрывает post-merge native `verify` gap для ADWF/control-plane changes без product/runtime/data/FIN-TRUTH write authority.
 - `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена и не переносится на текущую транзакцию.
 
 Текущий bounded scope `ADWF-ADOPT-001`: подключить PrihRash к ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` в режиме `CONSUMER_NATIVE`; сохранить `docs/ROADMAP.md` + live GitHub Issues как product/work SSOT; делегировать PR/main/runtime evidence нативным `validate` / `verify` / `probe`; разрешить в PrihRash только read-only `consumer-observer`, без self-host mutation authority. `FREE_ONLY`, FIN-TRUTH и текущая business/runtime semantics не изменяются.
 
-Текущая последовательность: `ADWF-ADOPT-001 PR #289 -> native PR Validation/validate + ADWF PR consumer delegation -> existing protected/autonomous merge contract -> Main Verification/verify + ADWF Main delegation -> consumer-observer + fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed.
+Текущая последовательность: `PR #291 -> native PR Validation/validate + ADWF PR consumer delegation -> Trusted DEV/Runtime N/A без Apps Script mutation -> protected merge -> ADWF Consumer Main Verification/verify + ADWF Main delegation -> read-only consumer-observer -> fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed.
 
 `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Следующие product/R9 writer-транзакции не стартуют параллельно с текущим integration writer.
 
