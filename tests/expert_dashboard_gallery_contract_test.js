@@ -1,6 +1,9 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 const GALLERY = require('../lib/dashboard/expert_dashboard_gallery');
 const SAVED = require('../lib/dashboard/dashboard_saved_views');
 
@@ -90,9 +93,47 @@ assert(xray.panels.every((panel) => panel.source_contract === GALLERY.CAP.XRAY))
 assert.strictEqual(GALLERY.CONTRACT.authority.financial_truth, false);
 assert.strictEqual(GALLERY.CONTRACT.authority.query_execution, false);
 
+// Runtime proof stays in the named DASH-090 contract so test-layer budgets are not weakened.
+const root = path.join(__dirname, '..');
+const storageSource = fs.readFileSync(path.join(root, 'DashboardSavedViewsStorageService.js'), 'utf8');
+const serviceSource = fs.readFileSync(path.join(root, 'ExpertDashboardGalleryService.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'ExpertDashboardGalleryWebApp.html'), 'utf8');
+const router = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
+assert(html.includes('data-prh-dash090-gallery="1"'));
+assert(html.includes('data-financial-payload="false"'));
+assert(html.includes('data-query-execution="false"'));
+assert(html.includes('data-financial-write="false"'));
+assert(html.includes('RUNTIME_CAPABILITY_STATE_UNVERIFIED'));
+assert(html.includes('@media(max-width:620px)'));
+assert(!/amount_minor|income_minor|expense_minor|cash_flow_minor|balance_minor/i.test(html));
+assert(router.includes("gallery: Object.freeze({ file: 'ExpertDashboardGalleryWebApp'"));
+assert(router.includes("GALLERY_SURFACE: 'gallery'"));
+const map = new Map();
+let writes = 0;
+const props = {getProperty:k=>map.has(k)?map.get(k):null,setProperties:u=>{writes++;Object.entries(u).forEach(([k,v])=>map.set(k,String(v)));}};
+const lock = {held:false,tryLock(){if(this.held)return false;this.held=true;return true;},releaseLock(){this.held=false;}};
+const sandbox = {PRH_R2_CANONICAL_RUNTIME:{expertDashboardGallery:GALLERY,dashboardSavedViews:SAVED},PropertiesService:{getUserProperties:()=>props},LockService:{getUserLock:()=>lock},Utilities:{newBlob:v=>({getBytes:()=>Buffer.from(String(v),'utf8')})},JSON,Number,String,Object,Array,RegExp,Error,Buffer,unescape,encodeURIComponent};
+vm.createContext(sandbox);
+vm.runInContext(storageSource, sandbox);
+vm.runInContext(serviceSource, sandbox);
+const runtimeCatalog = sandbox.prhDash090PublicCatalog();
+assert.strictEqual(runtimeCatalog.presets.length, 7);
+assert.strictEqual(runtimeCatalog.financial_payload, false);
+assert(runtimeCatalog.presets.every((preset) => preset.status === 'AVAILABLE'));
+const runtimeClone = sandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'dash090-spending-drivers-test',name:'Драйверы расходов'});
+assert.strictEqual(runtimeClone.decision, 'APPLIED');
+assert.strictEqual(runtimeClone.financial_payload, false);
+assert.strictEqual(writes, 1);
+assert(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'));
+assert.throws(() => sandbox.prhDash090ClonePreset({preset_id:'UNKNOWN',view_id:'bad',name:'Bad'}), /DASH090_PRESET_UNKNOWN/);
+assert.strictEqual(writes, 1);
+
 console.log('expert_dashboard_gallery_contract_test: PASS', {
   presets: catalog.length,
   clone_view: clone.view.view_id,
+  runtime_generation: runtimeClone.generation,
+  user_properties_batch_writes: writes,
   xray_capability: GALLERY.CAP.XRAY,
-  source_hash_prefix: sourceHash.slice(0,12)
+  source_hash_prefix: sourceHash.slice(0,12),
+  financial_write: false
 });
