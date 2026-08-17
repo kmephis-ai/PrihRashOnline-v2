@@ -1,0 +1,239 @@
+diff --git a/AnalyticsStudioWebApp.html b/AnalyticsStudioWebApp.html
+index b5999a7..da8401b 100644
+--- a/AnalyticsStudioWebApp.html
++++ b/AnalyticsStudioWebApp.html
+@@ -84,7 +84,7 @@
+         <div class="cap future"><b>Dashboard composer</b><small>DASH-080</small><span class="status future">UPCOMING</span></div>
+         <div class="cap future"><b>Widget factory</b><small>DASH-081</small><span class="status future">UPCOMING</span></div>
+         <div class="cap future"><b>Responsive layout</b><small>DASH-080</small><span class="status future">UPCOMING</span></div>
+-        <div class="cap future"><b>Saved views</b><small>DASH-084</small><span class="status future">UPCOMING</span></div>
++        <div class="cap ready"><b>Saved views</b><small>DASH-084</small><span class="status ready">READY</span></div><div class="cap ready"><b>Expert dashboard gallery</b><small>DASH-090 · curated presets</small><span class="status ready">READY</span><a class="daily-link" href="?surface=gallery">Открыть галерею</a></div>
+       </div></article>
+     </section>
+ 
+diff --git a/CanonicalR2WebAppService.js b/CanonicalR2WebAppService.js
+index f90ab15..ad6e8bf 100644
+--- a/CanonicalR2WebAppService.js
++++ b/CanonicalR2WebAppService.js
+@@ -18,7 +18,8 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
+     transactions: Object.freeze({ file: 'TransactionExplorerWebApp', placeholder: null, title: 'Операции', financial_runtime: true, runtime_private_data: true }),
+     'data-quality': Object.freeze({ file: 'DataQualityWebApp', placeholder: null, title: 'Качество данных', financial_runtime: true, runtime_private_data: true }),
+     studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Студия аналитики', financial_runtime: false, runtime_private_data: false }),
+-    composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Конструктор', financial_runtime: false, runtime_private_data: false })
++    composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Конструктор', financial_runtime: false, runtime_private_data: false }),
++    gallery: Object.freeze({ file: 'ExpertDashboardGalleryWebApp', placeholder: null, title: 'Галерея экспертных дашбордов', financial_runtime: false, runtime_private_data: false })
+   }),
+   SAFE_UNBOUND_SURFACES: Object.freeze({
+     expenses: 'Расходы',
+@@ -30,6 +31,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
+   ROUTE_TRUTH: Object.freeze({
+     home: Object.freeze({ label: 'Главная', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
+     studio: Object.freeze({ label: 'Студия аналитики', runtime_private_data: false, navigation: 'SECONDARY', binding_state: 'CONFIGURATION_ONLY' }),
++    gallery: Object.freeze({ label: 'Галерея дашбордов', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'CONFIGURATION_ONLY' }),
+     legacy: Object.freeze({ label: 'Старый интерфейс', runtime_private_data: true, navigation: 'SECONDARY', binding_state: 'BOUND_READ_ONLY' }),
+     transactions: Object.freeze({ label: 'Операции', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
+     expenses: Object.freeze({ label: 'Расходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
+@@ -46,6 +48,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
+   ]),
+   STUDIO_SURFACE: 'studio',
+   COMPOSER_SURFACE: 'composer',
++  GALLERY_SURFACE: 'gallery',
+   LEGACY_SURFACE: 'legacy',
+   LOCAL_FIRST_SURFACE: 'local-first',
+   FINANCIAL_WRITE: false,
+@@ -252,6 +255,7 @@ function doGet(e) {
+     return prhDashboardComposerDecorateStudioOutput_(prhPrivacyDecorateStudioOutput_(prhR2RenderFile_('studio', null, params), params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]));
+   }
+   if (surface === PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE) return prhR2RenderFile_('composer', null, params);
++  if (surface === PRH_CANONICAL_R2_WEB.GALLERY_SURFACE) return prhR2RenderFile_('gallery', null, params);
+   return prhR2RenderUnavailable_(surface, params);
+ }
+ 
+diff --git a/lib/dashboard/dashboard_saved_views.js b/lib/dashboard/dashboard_saved_views.js
+index e7a58b3..219af2c 100644
+--- a/lib/dashboard/dashboard_saved_views.js
++++ b/lib/dashboard/dashboard_saved_views.js
+@@ -282,6 +282,10 @@ function emptyStore() {
+   return makeStore(0, []);
+ }
+ 
++function hydrateStore(generation, views) {
++  return makeStore(generation, views);
++}
++
+ function normalizeStore(input) {
+   exactKeys(input, ['schema','contract_version','generation','views','store_hash'], 'DASH084_STORE_SHAPE_INVALID');
+   if (input.schema !== STORE_SCHEMA || input.contract_version !== VERSION) fail('DASH084_STORE_VERSION_INVALID');
+@@ -578,6 +582,7 @@ module.exports = Object.freeze({
+   normalizeRevision,
+   normalizeView,
+   emptyStore,
++  hydrateStore,
+   normalizeStore,
+   createView,
+   createFromPreset,
+diff --git a/tools/build-apps-script-runtime-bundle.js b/tools/build-apps-script-runtime-bundle.js
+index fe21bd4..99dd493 100644
+--- a/tools/build-apps-script-runtime-bundle.js
++++ b/tools/build-apps-script-runtime-bundle.js
+@@ -33,6 +33,13 @@ const FIN_ENTRY_MODULES = Object.freeze({
+   cashFlowDashboard: 'lib/cashflow/cash_flow_dashboard.js'
+ });
+ 
++// DASH-090 adds configuration-only runtime entries. They reuse DASH-084 storage semantics
++// and carry no financial/query execution or financial write authority.
++const DASH_CONFIGURATION_ENTRY_MODULES = Object.freeze({
++  dashboardSavedViews: 'lib/dashboard/dashboard_saved_views.js',
++  expertDashboardGallery: 'lib/dashboard/expert_dashboard_gallery.js'
++});
++
+ const OPTIONAL_ENTRY_MODULES = Object.freeze({
+   recentMonthsProjection: 'lib/adapters/google_sheets_recent_months_projection.js'
+ });
+@@ -46,7 +53,7 @@ function normalizeId(value) {
+ function effectiveEntryModules(root, entryModules = ENTRY_MODULES) {
+   const result = Object.fromEntries(Object.entries(entryModules).map(([name, id]) => [name, normalizeId(id)]));
+   if (entryModules === ENTRY_MODULES) {
+-    for (const group of [DATA_ENTRY_MODULES, FIN_ENTRY_MODULES]) {
++    for (const group of [DATA_ENTRY_MODULES, FIN_ENTRY_MODULES, DASH_CONFIGURATION_ENTRY_MODULES]) {
+       for (const [name, id] of Object.entries(group)) result[name] = normalizeId(id);
+     }
+     for (const [name, id] of Object.entries(OPTIONAL_ENTRY_MODULES)) {
+@@ -173,6 +180,7 @@ module.exports = {
+   ENTRY_MODULES,
+   DATA_ENTRY_MODULES,
+   FIN_ENTRY_MODULES,
++  DASH_CONFIGURATION_ENTRY_MODULES,
+   OPTIONAL_ENTRY_MODULES,
+   effectiveEntryModules,
+   resolveLocalModule,
+diff --git a/ExpertDashboardGalleryService.js b/ExpertDashboardGalleryService.js
+new file mode 100644
+index 0000000..9a0cace
+--- /dev/null
++++ b/ExpertDashboardGalleryService.js
+@@ -0,0 +1,74 @@
++/** DASH-090 configuration-only Apps Script bridge. No financial/query authority. */
++var PRH_DASH090_RUNTIME_SCHEMA_ = 'PRH_EXPERT_DASHBOARD_GALLERY_RUNTIME_V1';
++
++function prhDash090Runtime_() {
++  if (typeof PRH_R2_CANONICAL_RUNTIME === 'undefined' || !PRH_R2_CANONICAL_RUNTIME ||
++      !PRH_R2_CANONICAL_RUNTIME.expertDashboardGallery || !PRH_R2_CANONICAL_RUNTIME.dashboardSavedViews) {
++    throw new Error('DASH090_CANONICAL_RUNTIME_UNAVAILABLE');
++  }
++  return PRH_R2_CANONICAL_RUNTIME;
++}
++
++function prhDash090StoreFromStorage_() {
++  var runtime = prhDash090Runtime_();
++  var snapshot = prhDash084StorageReadSnapshot_();
++  var views = snapshot.index.view_ids.map(function(viewId) {
++    var text = snapshot.view_json_by_id[viewId];
++    if (!text) throw new Error('DASH090_STORAGE_VIEW_MISSING:' + viewId);
++    return JSON.parse(text);
++  });
++  return runtime.dashboardSavedViews.hydrateStore(snapshot.generation, views);
++}
++
++function prhDash090PublicCatalog() {
++  var gallery = prhDash090Runtime_().expertDashboardGallery;
++  var capabilityState = gallery.allAvailableCapabilities();
++  return {
++    schema: PRH_DASH090_RUNTIME_SCHEMA_,
++    contract_version: gallery.VERSION,
++    financial_payload: false,
++    query_execution: false,
++    financial_write: false,
++    presets: gallery.catalog().map(function(preset) {
++      var available = gallery.availability(preset.preset_id, capabilityState);
++      return {
++        preset_id: preset.preset_id,
++        title: preset.title,
++        description: preset.description,
++        required_capabilities: preset.required_capabilities.slice(),
++        status: available.status,
++        reason: available.reason,
++        preset_hash: preset.preset_hash
++      };
++    })
++  };
++}
++
++function prhDash090ClonePreset(request) {
++  if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('DASH090_RUNTIME_REQUEST_INVALID');
++  var presetId = String(request.preset_id || '').trim().toUpperCase();
++  var viewId = String(request.view_id || '').trim().toLowerCase();
++  var name = String(request.name || '').trim();
++  var runtime = prhDash090Runtime_();
++  var saved = runtime.dashboardSavedViews;
++  var gallery = runtime.expertDashboardGallery;
++  var before = prhDash090StoreFromStorage_();
++  var result = gallery.cloneToSavedView(before, presetId, { view_id: viewId, name: name }, before.generation, gallery.allAvailableCapabilities());
++  var view = result.view;
++  var commit = prhDash084StorageCommit_({
++    expected_generation: before.generation,
++    index_json: saved.serializeIndex(result.store),
++    view_id: view.view_id,
++    view_json: saved.serializeView(view)
++  });
++  var readback = prhDash084StorageReadView_(view.view_id);
++  if (!readback || JSON.parse(readback).view_hash !== view.view_hash || commit.generation !== result.store.generation) {
++    throw new Error('DASH090_CLONE_READBACK_MISMATCH');
++  }
++  return {
++    schema: PRH_DASH090_RUNTIME_SCHEMA_, contract_version: gallery.VERSION,
++    decision: 'APPLIED', reason: 'OK', preset_id: presetId, view_id: view.view_id,
++    generation: commit.generation, preset_hash_prefix: result.preset_hash.slice(0, 12), view_hash_prefix: view.view_hash.slice(0, 12),
++    financial_payload: false, query_execution: false, financial_write: false
++  };
++}
+diff --git a/ExpertDashboardGalleryWebApp.html b/ExpertDashboardGalleryWebApp.html
+new file mode 100644
+index 0000000..c30c4c4
+--- /dev/null
++++ b/ExpertDashboardGalleryWebApp.html
+@@ -0,0 +1,19 @@
++<!doctype html>
++<html lang="ru"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark">
++<title>PrihRashOnline — Галерея экспертных дашбордов</title>
++<style>
++:root{--bg:#f4f7fb;--card:#fff;--text:#10233f;--muted:#52657d;--border:#d7e0ea;--brand:#0b6570;--on:#fff;--ok:#136c3b;--bad:#8a3b12}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,sans-serif}.wrap{max-width:1280px;margin:auto;padding:24px}.hero{display:flex;justify-content:space-between;gap:16px;align-items:end}.hero h1{margin:0;font-size:clamp(26px,4vw,40px)}.hero p{max-width:760px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:20px}.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;min-width:0}.card h2{font-size:17px;margin:0 0 6px}.card p{color:var(--muted);min-height:62px}.caps{font-size:11px;color:var(--muted);overflow-wrap:anywhere}.btn{border:0;border-radius:999px;padding:9px 12px;background:var(--brand);color:var(--on);font-weight:800;cursor:pointer}.btn[disabled]{opacity:.55;cursor:not-allowed}.status{font-size:12px;font-weight:800;color:var(--ok)}.result{margin-top:16px;min-height:24px}.back{color:var(--brand);font-weight:800;text-decoration:none}@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.hero{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.card p{min-height:0}}@media(prefers-color-scheme:dark){:root{--bg:#0b1220;--card:#111b2c;--text:#f3f7fc;--muted:#aebdd0;--border:#33445d;--brand:#34b5b0;--on:#06141a}}
++</style></head>
++<body data-prh-dash090-gallery="1" data-financial-payload="false" data-query-execution="false" data-financial-write="false"><main class="wrap">
++<div class="hero"><div><a class="back" href="?surface=studio&mode=studio">← Analytics Studio</a><h1>Галерея экспертных дашбордов</h1><p>Готовые конфигурации поверх canonical Dashboard Composer, Saved Views и аналитических контрактов. Галерея не хранит финансовые значения и не вычисляет финансовые формулы.</p></div><div class="status">FREE_ONLY · FIN-TRUTH unchanged</div></div>
++<section id="gallery" class="grid" aria-live="polite"></section><div id="result" class="result" role="status" aria-live="polite"></div>
++</main><script>
++(function(){'use strict';
++const fallback=[['CASH_FLOW_DECOMPOSITION','Декомпозиция денежного потока'],['SPENDING_DRIVERS','Драйверы расходов'],['SEASONALITY','Сезонность'],['CONCENTRATION','Концентрация'],['LONG_TERM_TRENDS','Долгосрочные тренды'],['WEALTH_RISK','Капитал и финансовая устойчивость'],['FINANCIAL_HEALTH_XRAY','Финансовый рентген семьи']];
++const gallery=document.getElementById('gallery'),result=document.getElementById('result');
++function safeId(id){return 'dash090-'+String(id).toLowerCase().replace(/_/g,'-')+'-'+Date.now().toString(36);}
++function render(data){gallery.textContent='';const presets=(data&&Array.isArray(data.presets)&&data.presets.length)?data.presets:fallback.map(x=>({preset_id:x[0],title:x[1],description:'Экспертная конфигурация',required_capabilities:[],status:'AVAILABLE'}));presets.forEach(p=>{const card=document.createElement('article');card.className='card';const h=document.createElement('h2');h.textContent=p.title;const d=document.createElement('p');d.textContent=p.description;const c=document.createElement('div');c.className='caps';c.textContent=(p.required_capabilities||[]).join(' · ');const b=document.createElement('button');b.className='btn';b.type='button';b.textContent=p.status==='AVAILABLE'?'Создать копию':'Недоступно';b.disabled=p.status!=='AVAILABLE';b.addEventListener('click',()=>clone(p,b));card.append(h,d,c,b);gallery.append(card);});}
++function clone(p,b){if(!(window.google&&google.script&&google.script.run)){result.textContent='Сохранение доступно только в опубликованном Apps Script Web App.';return;}b.disabled=true;result.textContent='Создаю приватную копию…';const id=safeId(p.preset_id);google.script.run.withSuccessHandler(r=>{result.textContent='Создан dashboard: '+r.view_id+'. Конфигурация сохранена приватно.';b.disabled=false;}).withFailureHandler(e=>{result.textContent='Не удалось создать копию: '+String(e&&e.message||e);b.disabled=false;}).prhDash090ClonePreset({preset_id:p.preset_id,view_id:id,name:p.title});}
++if(window.google&&google.script&&google.script.run){google.script.run.withSuccessHandler(render).withFailureHandler(()=>render(null)).prhDash090PublicCatalog();}else render(null);
++})();
++</script></body></html>
+\ No newline at end of file
+diff --git a/tests/expert_dashboard_gallery_runtime_contract_test.js b/tests/expert_dashboard_gallery_runtime_contract_test.js
+new file mode 100644
+index 0000000..a50a9e0
+--- /dev/null
++++ b/tests/expert_dashboard_gallery_runtime_contract_test.js
+@@ -0,0 +1,18 @@
++'use strict';
++const assert=require('assert');const fs=require('fs');const path=require('path');const vm=require('vm');
++const G=require('../lib/dashboard/expert_dashboard_gallery');const S=require('../lib/dashboard/dashboard_saved_views');
++const root=path.join(__dirname,'..');
++const storageSource=fs.readFileSync(path.join(root,'DashboardSavedViewsStorageService.js'),'utf8');
++const serviceSource=fs.readFileSync(path.join(root,'ExpertDashboardGalleryService.js'),'utf8');
++const html=fs.readFileSync(path.join(root,'ExpertDashboardGalleryWebApp.html'),'utf8');
++const router=fs.readFileSync(path.join(root,'CanonicalR2WebAppService.js'),'utf8');
++assert(html.includes('data-prh-dash090-gallery="1"'));assert(html.includes('data-financial-payload="false"'));assert(html.includes('data-query-execution="false"'));assert(html.includes('data-financial-write="false"'));assert(html.includes('Создать копию'));assert(html.includes('@media(max-width:620px)'));assert(!/amount_minor|income_minor|expense_minor|cash_flow_minor|balance_minor/i.test(html));
++assert(router.includes("gallery: Object.freeze({ file: 'ExpertDashboardGalleryWebApp'"));assert(router.includes("GALLERY_SURFACE: 'gallery'"));
++const map=new Map();let writes=0;const props={getProperty:k=>map.has(k)?map.get(k):null,setProperties:u=>{writes++;Object.entries(u).forEach(([k,v])=>map.set(k,String(v)));}};
++const lock={held:false,tryLock(){if(this.held)return false;this.held=true;return true;},releaseLock(){this.held=false;}};
++const sandbox={PRH_R2_CANONICAL_RUNTIME:{expertDashboardGallery:G,dashboardSavedViews:S},PropertiesService:{getUserProperties:()=>props},LockService:{getUserLock:()=>lock},Utilities:{newBlob:v=>({getBytes:()=>Buffer.from(String(v),'utf8')})},JSON,Number,String,Object,Array,RegExp,Error,Buffer,unescape,encodeURIComponent};
++vm.createContext(sandbox);vm.runInContext(storageSource,sandbox);vm.runInContext(serviceSource,sandbox);
++const catalog=sandbox.prhDash090PublicCatalog();assert.strictEqual(catalog.presets.length,7);assert.strictEqual(catalog.financial_payload,false);assert(catalog.presets.every(p=>p.status==='AVAILABLE'));
++const cloned=sandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'dash090-spending-drivers-test',name:'Драйверы расходов'});assert.strictEqual(cloned.decision,'APPLIED');assert.strictEqual(cloned.financial_payload,false);assert.strictEqual(writes,1);assert(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'));
++assert.throws(()=>sandbox.prhDash090ClonePreset({preset_id:'UNKNOWN',view_id:'bad',name:'Bad'}),/DASH090_PRESET_UNKNOWN/);assert.strictEqual(writes,1);
++console.log('expert_dashboard_gallery_runtime_contract_test: PASS',{presets:catalog.presets.length,generation:cloned.generation,userPropertiesBatchWrites:writes,financialWrite:false});
