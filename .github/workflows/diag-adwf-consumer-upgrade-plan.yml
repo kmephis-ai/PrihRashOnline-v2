@@ -1,0 +1,105 @@
+name: Diagnose ADWF consumer upgrade plan
+
+on:
+  push:
+    branches:
+      - agent/diag-adwf-upgrade-e3bd-to-9b7-20260817
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact PrihRash consumer
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 59480686dd92fd295d42c887c9003f6882758ff6
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Checkout installed ADWF source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: e3bd9fb33f699ae227521f7ed5866c8f11589ed4
+          path: adwf-source
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Checkout certified ADWF target
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: 9b7a6d897ef6c52b83cbab198e6582eeb908b310
+          path: adwf-target
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+      - name: Reconstruct sealed source snapshot
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          installation = json.loads(Path('.adwf-consumer/installation.json').read_text(encoding='utf-8'))
+          managed = installation['managed_surface']
+          snapshot = {
+              '$schema': '.adwf/schemas/managed-surface-snapshot.schema.json',
+              'schema_version': 1,
+              'role': 'MANAGED_SURFACE_SNAPSHOT',
+              'source_revision': managed['source_revision'],
+              'source_manifest_sha256': managed['source_manifest_sha256'],
+              'entries': managed['entries'],
+              'transaction_id': installation['adoption']['transaction_id'],
+              'plan_sha256': installation['adoption']['plan_sha256'],
+          }
+          Path('/tmp/source-snapshot.json').write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'source_revision': snapshot['source_revision'],
+              'entries': len(snapshot['entries']),
+              'transaction_id': snapshot['transaction_id'],
+          }, sort_keys=True))
+          PY
+      - name: Run canonical read-only upgrade planner
+        shell: bash
+        run: |
+          set +e
+          python adwf-target/.adwf/scripts/plan_consumer_upgrade.py \
+            --source-root adwf-source \
+            --target-root adwf-target \
+            --consumer-root . \
+            --source-revision e3bd9fb33f699ae227521f7ed5866c8f11589ed4 \
+            --target-revision 9b7a6d897ef6c52b83cbab198e6582eeb908b310 \
+            --snapshot /tmp/source-snapshot.json \
+            > /tmp/upgrade-bundle.json
+          rc=$?
+          set -e
+          cat /tmp/upgrade-bundle.json
+          python - <<'PY'
+          import collections, json
+          from pathlib import Path
+          data = json.loads(Path('/tmp/upgrade-bundle.json').read_text(encoding='utf-8'))
+          if 'plan' not in data:
+              print('UPGRADE_PLAN_SUMMARY=' + json.dumps(data, sort_keys=True))
+          else:
+              plan = data['plan']
+              compatibility = data['compatibility']
+              actions = collections.Counter(item.get('action') for item in plan.get('entries', []))
+              summary = {
+                  'compatibility_status': compatibility.get('status'),
+                  'plan_status': plan.get('status'),
+                  'findings': plan.get('findings'),
+                  'actions': dict(sorted(actions.items())),
+                  'source_revision': plan.get('source_revision'),
+                  'target_revision': plan.get('target_revision'),
+                  'path_count': len(plan.get('entries', [])),
+                  'rollback_restore': len((plan.get('rollback') or {}).get('restore', [])),
+                  'rollback_remove': len((plan.get('rollback') or {}).get('remove_on_rollback', [])),
+              }
+              print('UPGRADE_PLAN_SUMMARY=' + json.dumps(summary, sort_keys=True))
+          PY
+          exit "$rc"
