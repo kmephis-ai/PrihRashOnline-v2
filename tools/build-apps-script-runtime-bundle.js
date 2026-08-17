@@ -33,6 +33,13 @@ const FIN_ENTRY_MODULES = Object.freeze({
   cashFlowDashboard: 'lib/cashflow/cash_flow_dashboard.js'
 });
 
+// DASH-090 adds configuration-only runtime entries. They reuse DASH-084 storage semantics
+// and carry no financial/query execution or financial write authority.
+const DASH_CONFIGURATION_ENTRY_MODULES = Object.freeze({
+  dashboardSavedViews: 'lib/dashboard/dashboard_saved_views.js',
+  expertDashboardGallery: 'lib/dashboard/expert_dashboard_gallery.js'
+});
+
 const OPTIONAL_ENTRY_MODULES = Object.freeze({
   recentMonthsProjection: 'lib/adapters/google_sheets_recent_months_projection.js'
 });
@@ -46,7 +53,7 @@ function normalizeId(value) {
 function effectiveEntryModules(root, entryModules = ENTRY_MODULES) {
   const result = Object.fromEntries(Object.entries(entryModules).map(([name, id]) => [name, normalizeId(id)]));
   if (entryModules === ENTRY_MODULES) {
-    for (const group of [DATA_ENTRY_MODULES, FIN_ENTRY_MODULES]) {
+    for (const group of [DATA_ENTRY_MODULES, FIN_ENTRY_MODULES, DASH_CONFIGURATION_ENTRY_MODULES]) {
       for (const [name, id] of Object.entries(group)) result[name] = normalizeId(id);
     }
     for (const [name, id] of Object.entries(OPTIONAL_ENTRY_MODULES)) {
@@ -173,6 +180,7 @@ module.exports = {
   ENTRY_MODULES,
   DATA_ENTRY_MODULES,
   FIN_ENTRY_MODULES,
+  DASH_CONFIGURATION_ENTRY_MODULES,
   OPTIONAL_ENTRY_MODULES,
   effectiveEntryModules,
   resolveLocalModule,
