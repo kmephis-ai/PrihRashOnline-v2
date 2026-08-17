@@ -56,7 +56,7 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `ANL-010` — **DONE**, Issue #98 Main Verification PASS; `PRH_ANALYTICS_CONTRACT_V1@1.0.0`, `financial_write=false`.
 - `TEST-010`, `OBS-010`, `PERF-010`, `PERF-011`, `PERF-012`, `PERF-013`, `PERF-014`, `DOC-010` — **DONE** / Main Verification PASS.
 
-Public-safe MIG-010 evidence сохраняет machine result `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`: post-write reconciliation завершена, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
+Public-safe MIG-010 evidence сохраняет machine result `MIG010_OWNER_POST_RECONCILIATION_V1 = PASS`: post-write reconciliation PASS, `unexplainedMismatch=0`, `provenanceComplete=true`, `idempotentRerunNoop=true`, `rollbackCanBeReleased=true`.
 
 Owner-confirmed duplicate-preservation identity remains `CONTENT_FINGERPRINT_OCCURRENCE_V1`. **Current write authority = false**. Historical `IRREVERSIBLE_ACTION_AUTHORIZED` был exact-bound/non-reusable. GitHub Actions cannot create it; AI/CI cannot reuse it. Any future irreversible financial write requires fresh exact-bound owner authorization.
 
