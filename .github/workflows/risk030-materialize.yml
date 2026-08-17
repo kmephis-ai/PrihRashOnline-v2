@@ -1,0 +1,183 @@
+name: RISK-030 Exact Materializer
+
+on:
+  push:
+    branches:
+      - agent/risk030-materializer-20260817-a1
+
+permissions:
+  contents: write
+
+env:
+  BASE_SHA: 2f9753d609b7ef05ec1993f7e36628b60de545db
+  WRITER_BRANCH: agent/RISK-030-liquidity-financial-risk
+  BLOB_CONTRACT: 1ce68f46743c2c7f5eb3308295f247d454fc33d7
+  BLOB_SOURCE: f135998aeede32f18add24261e8bdfeb669f4397
+  BLOB_TEST: 5b58275b059e3d5cc1b7771e7649e0aff1fce8e3
+  BLOB_DOC: ad92773a6d228405551e49b5edabda764e13c2cf
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Bind exact writer base
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$BASE_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')" = "$BASE_SHA"
+          git fetch origin "${WRITER_BRANCH}" main
+          git checkout --detach "origin/${WRITER_BRANCH}"
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+
+      - name: Materialize exact RISK-030 files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          fetch_blob() {
+            local sha="$1" path="$2"
+            mkdir -p "$(dirname "$path")"
+            gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${sha}" --jq '.content' | tr -d '\n' | base64 -d > "$path"
+            test "$(git hash-object "$path")" = "$sha"
+          }
+          fetch_blob "$BLOB_CONTRACT" lib/risk/liquidity_risk.v1.json
+          fetch_blob "$BLOB_SOURCE" lib/risk/liquidity_risk.js
+          fetch_blob "$BLOB_TEST" tests/liquidity_risk_contract_test.js
+          fetch_blob "$BLOB_DOC" docs/finance/LIQUIDITY_RISK.md
+
+      - name: Update deterministic inventories and current truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'REPLACE_COUNT_INVALID:{path}:{text.count(old)}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          # Test architecture: the new contract is pure domain/application and has a named canonical gate.
+          replace_once(
+              'lib/testing/test_architecture.v1.json',
+              '"studio_scale_performance_contract_test.js":"PURE_DOMAIN_APPLICATION","combinatorial_analytics_regression_contract_test.js":"PURE_DOMAIN_APPLICATION"',
+              '"studio_scale_performance_contract_test.js":"PURE_DOMAIN_APPLICATION","liquidity_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","combinatorial_analytics_regression_contract_test.js":"PURE_DOMAIN_APPLICATION"'
+          )
+          replace_once(
+              'lib/testing/test_architecture.v1.json',
+              '{"name":"Cash-flow projection","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Goals and wish-list","layer":"PURE_DOMAIN_APPLICATION"}',
+              '{"name":"Cash-flow projection","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Liquidity and financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Goals and wish-list","layer":"PURE_DOMAIN_APPLICATION"}'
+          )
+
+          # Language policy: register the new Russian normative finance document and machine identifiers.
+          replace_once(
+              'lib/documentation/language_policy.v1.json',
+              '{"path":"docs/finance/NET_WORTH.md","kind":"FINANCE","min_cyrillic_letters":300},',
+              '{"path":"docs/finance/NET_WORTH.md","kind":"FINANCE","min_cyrillic_letters":300},\n    {"path":"docs/finance/LIQUIDITY_RISK.md","kind":"FINANCE","min_cyrillic_letters":420},'
+          )
+          replace_once(
+              'lib/documentation/language_policy.v1.json',
+              '".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],',
+              '".ai-context/PROJECT_CONTEXT.md": ["LANG-RU"],\n    "docs/finance/LIQUIDITY_RISK.md": ["RISK-030", "PRH_LIQUIDITY_RISK_V1"],'
+          )
+          replace_once(
+              'lib/documentation/language_policy.v1.json',
+              '"PRH_BALANCE_RECONCILIATION_V1", "PRH_BALANCE_OBSERVATION_V1", "PRH_NET_WORTH_V1",',
+              '"PRH_BALANCE_RECONCILIATION_V1", "PRH_BALANCE_OBSERVATION_V1", "PRH_NET_WORTH_V1", "PRH_LIQUIDITY_RISK_V1", "PRH_LIQUIDITY_RISK_RESULT_V1", "MONTH_MILLI",'
+          )
+
+          # AI context: close PERF-090 truth and transfer current writer authority to already-live Issue #303.
+          replace_once(
+              '.ai-context/PROJECT_CONTEXT.md',
+              '`PERF-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #301, branch `agent/PERF-090-studio-scale-rendering-performance`, trust anchor `main@59480686dd92fd295d42c887c9003f6882758ff6`. Dependencies `PERF-070`, `MASTER-GSTUDIO`, `VIZ-090` provider-complete; это единственный текущий writer.\n\nТекущая engineering цель PERF-090: versioned deterministic Studio-scale performance gate поверх PERF-070 — lazy hidden/offscreen execution, bounded concurrency, stale generation/revision discard, presentation-only virtualization/downsampling и synthetic 20k/50k budgets. FIN-TRUTH, canonical AnalyticsResult/query semantics, storage ownership, runtime/data write authority и public privacy boundary не меняются; FREE_ONLY обязателен.',
+              '`PERF-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #301, PR #302, merge `2f9753d609b7ef05ec1993f7e36628b60de545db`; writer authority завершена.\n\n`RISK-030` — **IN_PROGRESS / current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` provider-complete; это единственный текущий writer.\n\nТекущая engineering цель RISK-030: versioned deterministic liquidity/risk layer поверх Net Worth и Cash-flow Projection с explicit date/currency binding, missing/review states, runway/scenario indicators и privacy-safe telemetry. FIN-TRUTH, canonical data, balance/projection semantics, storage/write authority и FREE_ONLY не меняются.'
+          )
+          replace_once(
+              '.ai-context/PROJECT_CONTEXT.md',
+              'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ANL-090` уже завершён/Main Verification PASS; `ANL-091`/`XRAY-090`/`PERF-090` и другие R9 items не получают writer authority, пока текущая интеграционная транзакция `ADWF-ADOPT-001` не завершена.',
+              'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ANL-090`, `ANL-091` и `PERF-090` уже завершены/Main Verification PASS. `RISK-030` является текущей dependency-транзакцией для будущего `XRAY-090`; другие product/R9 writers не получают authority параллельно.'
+          )
+
+          # Human status: same live lifecycle truth.
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              '- `PERF-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #301, branch `agent/PERF-090-studio-scale-rendering-performance`, trust anchor `main@59480686dd92fd295d42c887c9003f6882758ff6`. Dependencies `PERF-070`, `MASTER-GSTUDIO`, `VIZ-090` provider-complete; bounded scope — Studio-scale lazy execution/bounded concurrency/stale discard/presentation-only high-density gate поверх PERF-070 без новой financial/query authority.',
+              '- `PERF-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #301, PR #302, merge `2f9753d609b7ef05ec1993f7e36628b60de545db`; writer authority завершена.\n- `RISK-030` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` provider-complete; bounded scope — deterministic liquidity/runway/scenario risk indicators без новой financial truth или write authority.'
+          )
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              'Текущий R9 scope `PERF-090`: bounded Studio workload, zero-query hidden/offscreen widgets, PERF-070 coalescing/cache delegation, generation/revision stale discard и presentation-only virtualization/downsampling с immutable canonical result/query identity. Public evidence synthetic-only; financial write authority отсутствует.',
+              'Текущий dependency scope `RISK-030`: explicit Net Worth + Projection date/currency binding, account-based liquidity proxy, deterministic runway/scenario risk bands, fail-closed missing/review states и privacy-safe evidence/telemetry. Cash Flow не становится balance proxy; financial write authority отсутствует.'
+          )
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              'Другие product/R9 writers не стартуют параллельно с `PERF-090`.',
+              'Другие product/R9 writers не стартуют параллельно с `RISK-030`.'
+          )
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              '`MASTER-GSTUDIO` PASS. `ANL-090` и `ANL-091` завершены как **DONE_ENGINEERING / Main Verification PASS**. `PERF-090` — текущий dependency-ready P1 writer; `XRAY-090` остаётся BACKLOG до выполнения `RISK-030`.',
+              '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091` и `PERF-090` завершены как **DONE_ENGINEERING / Main Verification PASS**. `RISK-030` — текущий dependency-ready P2 writer; `XRAY-090` остаётся BACKLOG до Main Verification RISK-030.'
+          )
+
+          # Stage the canonical named gate only for validation; Actions token will not publish workflow authority.
+          wf = Path('.github/workflows/pr-validation.yml')
+          text = wf.read_text(encoding='utf-8')
+          old = '      - name: Cash-flow projection\n        run: node tests/cash_flow_projection_contract_test.js\n'
+          new = old + '      - name: Liquidity and financial risk\n        run: node tests/liquidity_risk_contract_test.js\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'WORKFLOW_INSERT_COUNT_INVALID:{text.count(old)}')
+          wf.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Focused RISK-030 and safety evidence
+        shell: bash
+        env:
+          GITHUB_HEAD_REF: agent/RISK-030-liquidity-financial-risk
+        run: |
+          set -euo pipefail
+          node tests/liquidity_risk_contract_test.js
+          node tests/net_worth_contract_test.js
+          node tests/cash_flow_projection_contract_test.js
+          node tests/balance_reconciliation_contract_test.js
+          node tests/test_architecture_contract_test.js
+          node tests/language_policy_contract_test.js
+          node tools/docs-drift-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/ci-trust-boundary-scan.js
+          node tools/supply-chain-scan.js
+          node tools/run-layered-tests.js pure
+
+      - name: Commit non-workflow exact candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Workflow authority is published separately through the GitHub connector.
+          git restore .github/workflows/pr-validation.yml
+          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md docs/finance/LIQUIDITY_RISK.md \
+            lib/documentation/language_policy.v1.json lib/testing/test_architecture.v1.json \
+            lib/risk/liquidity_risk.js lib/risk/liquidity_risk.v1.json tests/liquidity_risk_contract_test.js
+          git diff --cached --check
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$BASE_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')" = "$BASE_SHA"
+          git config user.name 'risk030-materializer'
+          git config user.email 'risk030-materializer@users.noreply.github.com'
+          git commit -m 'RISK-030: add liquidity and financial risk contract'
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          git push origin "HEAD:refs/heads/${WRITER_BRANCH}"
+          echo "candidate_nonworkflow_sha=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "candidate_nonworkflow_tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
