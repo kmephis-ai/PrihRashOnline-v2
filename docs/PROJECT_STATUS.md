@@ -32,14 +32,15 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 
 Текущая единственная writer-транзакция:
 
-- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, follow-up PR #291, branch `agent/ADWF-ADOPT-001-control-plane-main-verify`, trust anchor `main@29aeacc273b5562b4335f908fb8cd081d725fb87`. Основная adoption через PR #289 уже merged; текущий bounded follow-up закрывает post-merge native `verify` gap для ADWF/control-plane changes без product/runtime/data/FIN-TRUTH write authority.
-- `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена и не переносится на текущую транзакцию.
+- `ADWF-ADOPT-001` — **DONE / provider-verified**, Issue #287. Основная adoption PR #289 и control-plane main-verify follow-up PR #291 merged; canonical connected baseline `main@cef64cfb0c7e082b90bb096f0829e5fa0b1906ae`. Installation Record/gates/fresh-session rebind VERIFIED, operating mode `CONSUMER_NATIVE`, native `validate` / `verify` / `probe` binding сохранён, `ADWF Main` PASS, `ADWF Control` выполняет read-only `consumer-observer`, privileged `trusted-controller` SKIPPED, framework upgrade dry-run `READY` с blockers `[]`. Product/runtime/data/FIN-TRUTH mutation отсутствовала; writer authority завершена.
+- `ANL-091` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #292. Provider dependencies `MASTER-GSTUDIO` и `VIZ-090` завершены; `ANL-090` также DONE/Main Verification PASS. Writer authority атомарно передана после технического завершения ADWF adoption. Первый bounded unit — lifecycle handoff; analytics implementation начинается только от fresh post-handoff main.
+- `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена.
 
-Текущий bounded scope `ADWF-ADOPT-001`: подключить PrihRash к ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` в режиме `CONSUMER_NATIVE`; сохранить `docs/ROADMAP.md` + live GitHub Issues как product/work SSOT; делегировать PR/main/runtime evidence нативным `validate` / `verify` / `probe`; разрешить в PrihRash только read-only `consumer-observer`, без self-host mutation authority. `FREE_ONLY`, FIN-TRUTH и текущая business/runtime semantics не изменяются.
+PrihRash теперь подключён к ADWF как consumer-managed development project: ADWF остаётся отдельным верхним инженерным слоем, а `docs/ROADMAP.md` + live GitHub Issues остаются product/work SSOT PrihRash. Consumer control authority read-only/reference-only; `FREE_ONLY`, FIN-TRUTH, privacy и business/runtime semantics не ослаблены.
 
-Текущая последовательность: `PR #291 -> native PR Validation/validate + ADWF PR consumer delegation -> Trusted DEV/Runtime N/A без Apps Script mutation -> protected merge -> ADWF Consumer Main Verification/verify + ADWF Main delegation -> read-only consumer-observer -> fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed.
+Текущий R9 scope `ANL-091`: versioned deterministic seasonality/distribution/concentration поверх canonical analytics — calendar/weekday/month seasonality, percentiles/distribution, Pareto/ABC/concentration metrics с explicit sparse/missing-data semantics, synthetic/public-safe evidence и без financial write authority.
 
-`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Следующие product/R9 writer-транзакции не стартуют параллельно с текущим integration writer.
+`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно с `ANL-091`.
 
 ## R0 — завершён
 
