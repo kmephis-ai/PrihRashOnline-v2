@@ -1,0 +1,71 @@
+name: PERF-090 Main Markers v2
+
+on:
+  push:
+    branches:
+      - agent/perf090-ci-observer-20260817
+    paths:
+      - '.github/workflows/perf090-main-markers-v2.yml'
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  issues: read
+  pull-requests: read
+  statuses: read
+
+env:
+  PR: '302'
+  BRANCH: agent/perf090-ci-observer-20260817
+  DIR: .perf090-observer/v2
+
+jobs:
+  markers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Persist canonical main markers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")"
+          merge_sha="$(jq -r '.merge_commit_sha // empty' <<<"$pr")"
+          merged="$(jq -r '.merged' <<<"$pr")"
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$merged" == true && "$merge_sha" =~ ^[0-9a-f]{40}$ ]]
+          checks="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${merge_sha}/check-runs?per_page=100")"
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${merge_sha}&per_page=100")"
+          issue="$(gh api "repos/${GITHUB_REPOSITORY}/issues/301")"
+
+          verify="$(jq -r '[.check_runs[]|select(.name=="verify")]|sort_by(.started_at)|last|(.conclusion // .status // "MISSING")' <<<"$checks")"
+          adwfmain="$(jq -r '[.check_runs[]|select(.name=="canonical-verification")]|sort_by(.started_at)|last|(.conclusion // .status // "MISSING")' <<<"$checks")"
+          mainverification="$(jq -r '[.workflow_runs[]|select(.name=="Main Verification")]|sort_by(.created_at)|last|(.conclusion // .status // "MISSING")' <<<"$runs")"
+          consumermain="$(jq -r '[.workflow_runs[]|select(.name=="ADWF Consumer Main Verification")]|sort_by(.created_at)|last|(.conclusion // .status // "MISSING")' <<<"$runs")"
+          issuestate="$(jq -r '.state' <<<"$issue")"
+          eng="$(jq -r '.body // ""' <<<"$issue" | sed -nE 's/^engineering_status:[[:space:]]*([A-Z_]+)[[:space:]]*$/\1/p' | head -1)"
+          [[ -n "$eng" ]] || eng=MISSING
+          mainmatch=false; [[ "$main_sha" == "$merge_sha" ]] && mainmatch=true
+
+          put_marker() {
+            local name="$1" content
+            content="$(printf '%s\n' "$name" | base64 -w0)"
+            jq -n --arg message "chore: PERF-090 main marker ${name}" --arg content "$content" --arg branch "$BRANCH" \
+              '{message:$message,content:$content,branch:$branch}' | \
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${DIR}/${name}" --input - >/dev/null
+          }
+
+          put_marker "mainmatch.${mainmatch}"
+          put_marker "verify.${verify}"
+          put_marker "adwfmain.${adwfmain}"
+          put_marker "mainverification.${mainverification}"
+          put_marker "consumermain.${consumermain}"
+          put_marker "issue.${issuestate}"
+          put_marker "engineering.${eng}"
+          printf '%s\n' "$merge_sha" > /tmp/merge_sha
+          encoded="$(base64 -w0 /tmp/merge_sha)"
+          jq -n --arg message 'chore: store PERF-090 merge sha' --arg content "$encoded" --arg branch "$BRANCH" \
+            '{message:$message,content:$content,branch:$branch}' | \
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${DIR}/merge_sha.txt" --input - >/dev/null
