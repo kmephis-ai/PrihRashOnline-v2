@@ -32,13 +32,14 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 
 Текущая единственная writer-транзакция:
 
-- `ANL-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #217, branch `agent/ANL-090-contribution-decomposition-post-gstudio`, trust anchor `main@e62b3283927ffe0d564ec7f10d2671760a03ceec`. Это fresh post-GSTUDIO rebaseline сохранённого engineering capital: contribution decomposition выполняется только поверх canonical AnalyticsQuery/semantic aggregates, read-only, без financial-write/query-execution authority и без causal claims.
+- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`. Это bounded engineering/integration transaction: установка ADWF consumer-managed surfaces и sealed consumer bindings без product/runtime/data/FIN-TRUTH write authority.
+- `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена и не переносится на текущую транзакцию.
 
-Текущий bounded scope ANL-090: `INCOME`, `EXPENSE`, `CASH_FLOW` по canonical groupable driver dimensions `category_id`, `account_id`, `member_id`, `project_id`; current `tag` остаётся filter-only и не превращается в вымышленный `tag_id`. Исторический draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` не имеет current authority.
+Текущий bounded scope `ADWF-ADOPT-001`: подключить PrihRash к ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` в режиме `CONSUMER_NATIVE`; сохранить `docs/ROADMAP.md` + live GitHub Issues как product/work SSOT; делегировать PR/main/runtime evidence нативным `validate` / `verify` / `probe`; разрешить в PrihRash только read-only `consumer-observer`, без self-host mutation authority. `FREE_ONLY`, FIN-TRUTH и текущая business/runtime semantics не изменяются.
 
-Текущая последовательность: `ANL-090 fresh PR -> PR Validation -> immutable exact candidate -> Trusted DEV Deploy -> Trusted Runtime Health -> autonomous merge -> Main Verification`. Это `work_class=engineering`, поэтому Owner Product UAT и Product Ready E2E не требуются; `DONE_ENGINEERING` возможен только после fresh exact-head trusted chain.
+Текущая последовательность: `ADWF-ADOPT-001 PR #289 -> native PR Validation/validate + ADWF PR consumer delegation -> existing protected/autonomous merge contract -> Main Verification/verify + ADWF Main delegation -> consumer-observer + fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed.
 
-`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. `ADWF-ADOPT-001` остаётся отдельным blocked integration lane и не конкурирует за product writer authority.
+`E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Следующие product/R9 writer-транзакции не стартуют параллельно с текущим integration writer.
 
 ## R0 — завершён
 
@@ -93,7 +94,7 @@ R2 engineering contracts остаются reusable, но product credit даёт
 
 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. Studio/dashboard configuration contracts R8 остаются reusable.
 
-`MASTER-GSTUDIO` теперь PASS, поэтому R9 разрешён только через отдельный dependency-ready resolver. Первым выбран `ANL-090`; последующие `ANL-091`, `XRAY-090`, `PERF-090` и другие R9 items не получают writer authority, пока текущая транзакция не завершена.
+`MASTER-GSTUDIO` PASS. `ANL-090` завершён как **DONE_ENGINEERING / Main Verification PASS** через PR #288 и больше не является writer. `ANL-091`, `XRAY-090`, `PERF-090` и другие R9 items не получают writer authority, пока текущая интеграционная транзакция `ADWF-ADOPT-001` не завершена.
 
 ## R4 / YDB future backend
 
