@@ -1,0 +1,70 @@
+{
+  "observed_at": "2026-08-17T10:06:40Z",
+  "pr": {
+    "number": 302,
+    "state": "open",
+    "draft": false,
+    "merged": false,
+    "mergeable": true,
+    "mergeable_state": "clean",
+    "head_sha": "978c960458d2fc62c6303c63a7ce57d6da22c341",
+    "base_sha": "59480686dd92fd295d42c887c9003f6882758ff6"
+  },
+  "issue": {
+    "state": "open",
+    "title": "[PERF-090] Studio-scale rendering/performance gate",
+    "body": "```yaml\nroadmap_id: PERF-090\nwave: R9\npriority: P1\nstatus: IN_PROGRESS\nlanguage: ru\nwork_class: engineering\nengineering_status: NOT_STARTED\nproduct_stage: NOT_APPLICABLE\ntarget_stage: DONE_ENGINEERING\ndepends_on: [PERF-070, MASTER-GSTUDIO, VIZ-090]\ngoal: Реализовать versioned deterministic Studio-scale performance gate для Local-first Analytics Studio: lazy widget execution, bounded concurrency, cancellation/stale-result discard, semantic-safe downsampling/virtualization и render/query budgets на synthetic 20k/50k без изменения FIN-TRUTH.\nnon_goals:\n  - Не добавлять новые analytics families, KPI formulas или renderer business logic.\n  - Не менять FIN-TRUTH, canonical transaction semantics, storage ownership или product write authority.\n  - Не вводить paid/external performance SaaS, CDN или обязательный network provider.\n  - Не публиковать реальные/real-derived финансовые значения, labels/IDs или private runtime locators в GitHub evidence.\n  - Не считать wall-clock GitHub runner timings пользовательским SLA.\ndata_touched: independently generated synthetic analytics/dashboard configurations and technical timing/count/hash metadata only\nprivacy_class: public-safe synthetic-only evidence; private runtime payload remains runtime-only\ncost_class: FREE_ONLY\nacceptance:\n  - versioned PERF-090 contract задаёт bounded Studio workload profile, render/query budgets, hidden/offscreen widget policy, cancellation/generation semantics и technical evidence schema;\n  - hidden/offscreen widgets не выполняют лишние analytics queries и не создают render work до явной активации;\n  - visible widgets исполняются с bounded concurrency; identical eligible queries reuse/coalesce PERF-070 planner/cache path;\n  - stale completion после newer generation/filter/revision explicit DISCARDED_STALE и не commit-ится в current render state;\n  - semantic-safe virtualization/downsampling разрешены только как presentation optimization и не меняют canonical AnalyticsResult/query hash/FIN totals;\n  - high-density views имеют deterministic bounded fallback/accessible representation вместо unbounded DOM/render workload;\n  - seeded synthetic 20k/50k Studio benchmark доказывает zero financial writes, bounded query/render counts и generous non-SLA CI ceilings;\n  - hidden widgets produce zero extra query load; repeated warm same-revision views reuse approved cache path;\n  - public telemetry/evidence содержит только schema/version/profile/widget-count/query-count/render-count/cache/coalesce/discard/status/reason/hash-prefix/timing metadata;\n  - existing PERF-070, STUDIO-REC, VIZ-090, analytics/FIN/privacy/FREE_ONLY/full layered/UI/PWA gates remain green;\n  - Trusted exact-head deploy/runtime health, autonomous merge и Main Verification PASS до DONE_ENGINEERING.\nevidence_required:\n  - PERF-090 contract/property tests PASS;\n  - hidden/offscreen zero-query-load PASS;\n  - bounded concurrency + stale cancellation PASS;\n  - synthetic 20k/50k Studio-scale budget PASS;\n  - FIN/query identity/downsampling invariance PASS;\n  - privacy/FREE_ONLY/full native + ADWF consumer gates PASS;\n  - trusted-dev-deploy + trusted-runtime-health + autonomous merge + Main Verification PASS.\nrollback: Revert PERF-090 contracts/runtime coordinator/tests/docs/gate; PERF-070 planner/cache, Studio and VIZ-090 remain authoritative fallback without Studio-scale optimization gate.\nobservability: technical schema/version/profile/hash prefixes/widget/query/render/cache/coalesce/discard counts/status/reason/timing only; no financial payload/private IDs\nwriter_branch: agent/PERF-090-studio-scale-rendering-performance\nwriter_lease: 2da9a77e-bc9e-4b18-a990-97f1629af939\ntrust_anchor_main: 59480686dd92fd295d42c887c9003f6882758ff6\nactivation_transition: BACKLOG_TO_READY_TO_IN_PROGRESS\nactivation_reason: ANL_091_DONE_AND_PERF_070_MASTER_GSTUDIO_VIZ_090_PROVIDER_COMPLETE\n```\n\nКанонический источник: `docs/ROADMAP.md` v2.5. После `ANL-091` Main Verification PASS активного writer нет. `PERF-090` — dependency-ready P1 и поэтому имеет приоритет над оставшимися P2/P3 R9 items. `YC-041/YC-042` остаются BLOCKED и writer authority не получают.\n\nПервый bounded unit: fresh discovery существующих Studio/render/query/cache contracts и реализация минимального performance-control слоя + synthetic gate без изменения product semantics/runtime financial authority."
+  },
+  "checks": [
+    {
+      "id": 95352195502,
+      "name": "validate",
+      "status": "completed",
+      "conclusion": "success",
+      "app": "github-actions",
+      "details_url": "https://github.com/kmephis-ai/PrihRashOnline-v2/actions/runs/32018235689/job/95352195502"
+    },
+    {
+      "id": 95352195080,
+      "name": "fast-feedback",
+      "status": "completed",
+      "conclusion": "success",
+      "app": "github-actions",
+      "details_url": "https://github.com/kmephis-ai/PrihRashOnline-v2/actions/runs/32018235685/job/95352195080"
+    }
+  ],
+  "statuses": [
+    {
+      "context": "trusted-dev-deploy",
+      "state": "success",
+      "description": "CI-002 TRUSTED_DEPLOYED",
+      "target_url": null
+    },
+    {
+      "context": "trusted-dev-deploy-reason:OK",
+      "state": "success",
+      "description": "CI-002 deploy technical reason",
+      "target_url": null
+    }
+  ],
+  "workflow_runs": [
+    {
+      "id": 32018235689,
+      "name": "PR Validation",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 1059,
+      "html_url": "https://github.com/kmephis-ai/PrihRashOnline-v2/actions/runs/32018235689"
+    },
+    {
+      "id": 32018235685,
+      "name": "ADWF PR",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 13,
+      "html_url": "https://github.com/kmephis-ai/PrihRashOnline-v2/actions/runs/32018235685"
+    }
+  ]
+}
