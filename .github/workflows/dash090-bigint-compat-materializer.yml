@@ -1,0 +1,96 @@
+name: DASH-090 Trusted Apps Script BigInt Compatibility Materializer
+
+on:
+  push:
+    branches:
+      - agent/materializer-DASH-090-bigint-20260817-a
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MAIN_SHA: 51d5798671478c9cbfe63dcfb88bfbf3f5152de3
+      DASH_SHA: d079dcef18183d295e2b2e59642baad98e1b914d
+      EXPECTED_TREE: ccdf615967cba7f592ef295707794ea068c9bd8b
+      PATCH_SHA256: c901548b04cfb94fb5e742ecc14d48d6a476982a67983aa9648f74694832e06a
+      DASH_BRANCH: agent/DASH-090-expert-dashboard-gallery
+      TARGET_BRANCH: agent/integration-DASH-090-apps-script-bigint
+      PATCH_B64: ZGlmZiAtLWdpdCBhL3Rlc3RzL3IyX2ZpbmFuY2lhbF9ydW50aW1lX3Bhcml0eV9jb250cmFjdF90ZXN0LmpzIGIvdGVzdHMvcjJfZmluYW5jaWFsX3J1bnRpbWVfcGFyaXR5X2NvbnRyYWN0X3Rlc3QuanMKaW5kZXggMjg1MmNhNC4uOTFlZTI5ZSAxMDA2NDQKLS0tIGEvdGVzdHMvcjJfZmluYW5jaWFsX3J1bnRpbWVfcGFyaXR5X2NvbnRyYWN0X3Rlc3QuanMKKysrIGIvdGVzdHMvcjJfZmluYW5jaWFsX3J1bnRpbWVfcGFyaXR5X2NvbnRyYWN0X3Rlc3QuanMKQEAgLTExLDkgKzExLDE1IEBAIGNvbnN0IHsKICAgR0VORVJBVEVEX1JVTlRJTUVfQlVORExFLAogICBSVU5USU1FX1NDSEVNQSwKICAgRU5UUllfTU9EVUxFUywKKyAgbG93ZXJCaWdJbnRMaXRlcmFsc0ZvckFwcHNTY3JpcHQsCiAgIGJ1aWxkUnVudGltZUJ1bmRsZVNvdXJjZQogfSA9IHJlcXVpcmUoJy4uL3Rvb2xzL2J1aWxkLWFwcHMtc2NyaXB0LXJ1bnRpbWUtYnVuZGxlJyk7CiAKK2Fzc2VydC5zdHJpY3RFcXVhbChsb3dlckJpZ0ludExpdGVyYWxzRm9yQXBwc1NjcmlwdCgiY29uc3QgeD0wbjsgY29uc3QgeT0tMTAwMDBuOyIsICdzeW50aGV0aWMnKSwgJ2NvbnN0IHg9QmlnSW50KCIwIik7IGNvbnN0IHk9LUJpZ0ludCgiMTAwMDAiKTsnKTsKK2Fzc2VydC5zdHJpY3RFcXVhbChsb3dlckJpZ0ludExpdGVyYWxzRm9yQXBwc1NjcmlwdCgiY29uc3Qgcz0nMTAwbic7IC8vIDJuXG4vKiAzbiAqLyBjb25zdCB4PTRuOyIsICdzeW50aGV0aWMnKSwgImNvbnN0IHM9JzEwMG4nOyAvLyAyblxuLyogM24gKi8gY29uc3QgeD1CaWdJbnQoXCI0XCIpOyIpOworYXNzZXJ0LnRocm93cygoKSA9PiBsb3dlckJpZ0ludExpdGVyYWxzRm9yQXBwc1NjcmlwdCgnY29uc3QgeD0weDEwbjsnLCAnc3ludGhldGljJyksIC9CaWdJbnQgbGl0ZXJhbCBsb3dlcmluZyBpbmNvbXBsZXRlLyk7Cithc3NlcnQuc3RyaWN0RXF1YWwobG93ZXJCaWdJbnRMaXRlcmFsc0ZvckFwcHNTY3JpcHQoJ2NvbnN0IHJlPS8ybi87JywgJ3N5bnRoZXRpYycpLCAnY29uc3QgcmU9LzJuLzsnKTsKKwogY29uc3Qgcm9vdCA9IHBhdGguam9pbihfX2Rpcm5hbWUsICcuLicpOwogY29uc3QgYnJpZGdlU291cmNlID0gZnMucmVhZEZpbGVTeW5jKHBhdGguam9pbihyb290LCAnUjJGaW5hbmNpYWxSdW50aW1lU2VydmljZS5qcycpLCAndXRmOCcpOwogbmV3IHZtLlNjcmlwdChicmlkZ2VTb3VyY2UsIHsgZmlsZW5hbWU6ICdSMkZpbmFuY2lhbFJ1bnRpbWVTZXJ2aWNlLmpzJyB9KTsKQEAgLTExMSw2ICsxMTcsNyBAQCBjb25zdCBjb250ZXh0ID0gdm0uY3JlYXRlQ29udGV4dCh7CiB9KTsKIAogY29uc3QgYnVuZGxlU291cmNlID0gYnVpbGRSdW50aW1lQnVuZGxlU291cmNlKHJvb3QpOworYXNzZXJ0LnN0cmljdEVxdWFsKC8oPzpcYjBbeFhdWzAtOUEtRmEtZl0rblxifFxiMFtiQl1bMDFdK25cYnxcYjBbb09dWzAtN10rblxifFxiWzAtOV0rblxiKS8udGVzdChidW5kbGVTb3VyY2UpLCBmYWxzZSwgJ0FwcHMgU2NyaXB0IHJ1bnRpbWUgYnVuZGxlIG11c3Qgbm90IGNvbnRhaW4gQmlnSW50IGxpdGVyYWwgc3ludGF4Jyk7CiBuZXcgdm0uU2NyaXB0KGJ1bmRsZVNvdXJjZSwgeyBmaWxlbmFtZTogR0VORVJBVEVEX1JVTlRJTUVfQlVORExFIH0pOwogdm0ucnVuSW5Db250ZXh0KGJ1bmRsZVNvdXJjZSwgY29udGV4dCwgeyBmaWxlbmFtZTogR0VORVJBVEVEX1JVTlRJTUVfQlVORExFIH0pOwogdm0ucnVuSW5Db250ZXh0KGJyaWRnZVNvdXJjZSwgY29udGV4dCwgeyBmaWxlbmFtZTogJ1IyRmluYW5jaWFsUnVudGltZVNlcnZpY2UuanMnIH0pOwpkaWZmIC0tZ2l0IGEvdG9vbHMvYnVpbGQtYXBwcy1zY3JpcHQtcnVudGltZS1idW5kbGUuanMgYi90b29scy9idWlsZC1hcHBzLXNjcmlwdC1ydW50aW1lLWJ1bmRsZS5qcwppbmRleCBmZjRkZmEwLi4zZDkzOGIxIDEwMDY0NAotLS0gYS90b29scy9idWlsZC1hcHBzLXNjcmlwdC1ydW50aW1lLWJ1bmRsZS5qcworKysgYi90b29scy9idWlsZC1hcHBzLXNjcmlwdC1ydW50aW1lLWJ1bmRsZS5qcwpAQCAtMTE2LDYgKzExNiw3MyBAQCBmdW5jdGlvbiBjb2xsZWN0TW9kdWxlcyhyb290LCBlbnRyeU1vZHVsZXMgPSBFTlRSWV9NT0RVTEVTKSB7CiAgIHJldHVybiBtb2R1bGVzOwogfQogCitmdW5jdGlvbiBsb3dlckJpZ0ludExpdGVyYWxzRm9yQXBwc1NjcmlwdChzb3VyY2UsIG1vZHVsZUlkID0gJ3J1bnRpbWUtbW9kdWxlJykgeworICBjb25zdCB0ZXh0ID0gU3RyaW5nKHNvdXJjZSk7CisgIGNvbnN0IG91dCA9IFtdOworICBsZXQgc3RhdGUgPSAnQ09ERSc7CisgIGxldCBpbmRleCA9IDA7CisgIHdoaWxlIChpbmRleCA8IHRleHQubGVuZ3RoKSB7CisgICAgY29uc3QgY2ggPSB0ZXh0W2luZGV4XTsKKyAgICBjb25zdCBuZXh0ID0gdGV4dFtpbmRleCArIDFdIHx8ICcnOworICAgIGlmIChzdGF0ZSA9PT0gJ0xJTkVfQ09NTUVOVCcpIHsKKyAgICAgIG91dC5wdXNoKGNoKTsgaW5kZXggKz0gMTsKKyAgICAgIGlmIChjaCA9PT0gJ1xuJykgc3RhdGUgPSAnQ09ERSc7CisgICAgICBjb250aW51ZTsKKyAgICB9CisgICAgaWYgKHN0YXRlID09PSAnQkxPQ0tfQ09NTUVOVCcpIHsKKyAgICAgIG91dC5wdXNoKGNoKTsKKyAgICAgIGlmIChjaCA9PT0gJyonICYmIG5leHQgPT09ICcvJykgeyBvdXQucHVzaChuZXh0KTsgaW5kZXggKz0gMjsgc3RhdGUgPSAnQ09ERSc7IH0gZWxzZSBpbmRleCArPSAxOworICAgICAgY29udGludWU7CisgICAgfQorICAgIGlmIChzdGF0ZSA9PT0gJ1NJTkdMRScgfHwgc3RhdGUgPT09ICdET1VCTEUnIHx8IHN0YXRlID09PSAnVEVNUExBVEUnKSB7CisgICAgICBvdXQucHVzaChjaCk7IGluZGV4ICs9IDE7CisgICAgICBpZiAoY2ggPT09ICdcXCcgJiYgaW5kZXggPCB0ZXh0Lmxlbmd0aCkgeyBvdXQucHVzaCh0ZXh0W2luZGV4XSk7IGluZGV4ICs9IDE7IGNvbnRpbnVlOyB9CisgICAgICBpZiAoKHN0YXRlID09PSAnU0lOR0xFJyAmJiBjaCA9PT0gIiciKSB8fCAoc3RhdGUgPT09ICdET1VCTEUnICYmIGNoID09PSAnIicpIHx8IChzdGF0ZSA9PT0gJ1RFTVBMQVRFJyAmJiBjaCA9PT0gJ2AnKSkgc3RhdGUgPSAnQ09ERSc7CisgICAgICBjb250aW51ZTsKKyAgICB9CisgICAgaWYgKGNoID09PSAnLycgJiYgbmV4dCA9PT0gJy8nKSB7IG91dC5wdXNoKGNoLCBuZXh0KTsgaW5kZXggKz0gMjsgc3RhdGUgPSAnTElORV9DT01NRU5UJzsgY29udGludWU7IH0KKyAgICBpZiAoY2ggPT09ICcvJyAmJiBuZXh0ICE9PSAnLycgJiYgbmV4dCAhPT0gJyonKSB7CisgICAgICBsZXQgY2xvc2UgPSBpbmRleCArIDE7CisgICAgICBsZXQgZXNjYXBlZCA9IGZhbHNlOworICAgICAgd2hpbGUgKGNsb3NlIDwgdGV4dC5sZW5ndGggJiYgdGV4dFtjbG9zZV0gIT09ICdcbicgJiYgdGV4dFtjbG9zZV0gIT09ICdccicpIHsKKyAgICAgICAgaWYgKCFlc2NhcGVkICYmIHRleHRbY2xvc2VdID09PSAnLycpIGJyZWFrOworICAgICAgICBlc2NhcGVkID0gIWVzY2FwZWQgJiYgdGV4dFtjbG9zZV0gPT09ICdcXCc7CisgICAgICAgIGlmICh0ZXh0W2Nsb3NlXSAhPT0gJ1xcJykgZXNjYXBlZCA9IGZhbHNlOworICAgICAgICBjbG9zZSArPSAxOworICAgICAgfQorICAgICAgaWYgKGNsb3NlIDwgdGV4dC5sZW5ndGggJiYgdGV4dFtjbG9zZV0gPT09ICcvJykgeworICAgICAgICBjb25zdCBzbGFzaFNlZ21lbnQgPSB0ZXh0LnNsaWNlKGluZGV4LCBjbG9zZSArIDEpOworICAgICAgICBpZiAoLyg/OlxiMFt4WF1bMC05QS1GYS1mXStuXGJ8XGIwW2JCXVswMV0rblxifFxiMFtvT11bMC03XStuXGJ8XGJbMC05XStuXGIpLy50ZXN0KHNsYXNoU2VnbWVudCkpIHsKKyAgICAgICAgICBvdXQucHVzaChzbGFzaFNlZ21lbnQpOworICAgICAgICAgIGluZGV4ID0gY2xvc2UgKyAxOworICAgICAgICAgIGNvbnRpbnVlOworICAgICAgICB9CisgICAgICB9CisgICAgfQorICAgIGlmIChjaCA9PT0gJy8nICYmIG5leHQgPT09ICcqJykgeyBvdXQucHVzaChjaCwgbmV4dCk7IGluZGV4ICs9IDI7IHN0YXRlID0gJ0JMT0NLX0NPTU1FTlQnOyBjb250aW51ZTsgfQorICAgIGlmIChjaCA9PT0gIiciKSB7IG91dC5wdXNoKGNoKTsgaW5kZXggKz0gMTsgc3RhdGUgPSAnU0lOR0xFJzsgY29udGludWU7IH0KKyAgICBpZiAoY2ggPT09ICciJykgeyBvdXQucHVzaChjaCk7IGluZGV4ICs9IDE7IHN0YXRlID0gJ0RPVUJMRSc7IGNvbnRpbnVlOyB9CisgICAgaWYgKGNoID09PSAnYCcpIHsgb3V0LnB1c2goY2gpOyBpbmRleCArPSAxOyBzdGF0ZSA9ICdURU1QTEFURSc7IGNvbnRpbnVlOyB9CisgICAgaWYgKC9bMC05XS8udGVzdChjaCkgJiYgKGluZGV4ID09PSAwIHx8ICEvW0EtWmEtejAtOV8kXS8udGVzdCh0ZXh0W2luZGV4IC0gMV0pKSkgeworICAgICAgaWYgKGNoID09PSAnMCcgJiYgL1t4WGJCb09dLy50ZXN0KG5leHQpKSB7CisgICAgICAgIGxldCBlbmQgPSBpbmRleCArIDI7CisgICAgICAgIHdoaWxlIChlbmQgPCB0ZXh0Lmxlbmd0aCAmJiAvWzAtOUEtRmEtZl0vLnRlc3QodGV4dFtlbmRdKSkgZW5kICs9IDE7CisgICAgICAgIGlmICh0ZXh0W2VuZF0gPT09ICduJykgdGhyb3cgbmV3IEVycm9yKGBBcHBzIFNjcmlwdCBCaWdJbnQgbGl0ZXJhbCBsb3dlcmluZyBpbmNvbXBsZXRlOiAke21vZHVsZUlkfToke3RleHQuc2xpY2UoaW5kZXgsIGVuZCArIDEpfWApOworICAgICAgfQorICAgICAgbGV0IGVuZCA9IGluZGV4OworICAgICAgd2hpbGUgKGVuZCA8IHRleHQubGVuZ3RoICYmIC9bMC05XS8udGVzdCh0ZXh0W2VuZF0pKSBlbmQgKz0gMTsKKyAgICAgIGlmICh0ZXh0W2VuZF0gPT09ICduJyAmJiAoZW5kICsgMSA9PT0gdGV4dC5sZW5ndGggfHwgIS9bQS1aYS16MC05XyRdLy50ZXN0KHRleHRbZW5kICsgMV0pKSkgeworICAgICAgICBjb25zdCBkaWdpdHMgPSB0ZXh0LnNsaWNlKGluZGV4LCBlbmQpOworICAgICAgICBvdXQucHVzaChgQmlnSW50KCR7SlNPTi5zdHJpbmdpZnkoZGlnaXRzKX0pYCk7CisgICAgICAgIGluZGV4ID0gZW5kICsgMTsKKyAgICAgICAgY29udGludWU7CisgICAgICB9CisgICAgfQorICAgIG91dC5wdXNoKGNoKTsgaW5kZXggKz0gMTsKKyAgfQorICByZXR1cm4gb3V0LmpvaW4oJycpOworfQorCiBmdW5jdGlvbiBydW50aW1lQ3J5cHRvU2hpbVNvdXJjZSgpIHsKICAgcmV0dXJuIFsKICAgICAnZnVuY3Rpb24gX19wcmhTaGEyNTZIZXgodmFsdWUpeycsCkBAIC0xNDUsNyArMjEyLDEwIEBAIGZ1bmN0aW9uIGJ1aWxkUnVudGltZUJ1bmRsZVNvdXJjZShzb3VyY2VSb290LCBlbnRyeU1vZHVsZXMgPSBFTlRSWV9NT0RVTEVTKSB7CiAgICAgICBsaW5lcy5wdXNoKGBfX21vZHVsZXNbJHtKU09OLnN0cmluZ2lmeShtb2R1bGUuaWQpfV09ZnVuY3Rpb24obW9kdWxlKXttb2R1bGUuZXhwb3J0cz0ke21vZHVsZS5zb3VyY2V9O307YCk7CiAgICAgICByZXR1cm47CiAgICAgfQotICAgIGxpbmVzLnB1c2goYF9fbW9kdWxlc1ske0pTT04uc3RyaW5naWZ5KG1vZHVsZS5pZCl9XT1mdW5jdGlvbihtb2R1bGUsZXhwb3J0cyxyZXF1aXJlKXtcbiR7bW9kdWxlLnNvdXJjZX1cbn07YCk7CisgICAgY29uc3QgcnVudGltZVNvdXJjZSA9IGxvd2VyQmlnSW50TGl0ZXJhbHNGb3JBcHBzU2NyaXB0KG1vZHVsZS5zb3VyY2UsIG1vZHVsZS5pZCk7CisgICAgY29uc3QgcmVtYWluaW5nQmlnSW50TGl0ZXJhbCA9IC8oPzpcYjBbeFhdWzAtOUEtRmEtZl0rblxifFxiMFtiQl1bMDFdK25cYnxcYjBbb09dWzAtN10rblxifFxiWzAtOV0rblxiKS8uZXhlYyhydW50aW1lU291cmNlKTsKKyAgICBpZiAocmVtYWluaW5nQmlnSW50TGl0ZXJhbCkgdGhyb3cgbmV3IEVycm9yKGBBcHBzIFNjcmlwdCBCaWdJbnQgbGl0ZXJhbCByZW1haW5zIGFmdGVyIGxvd2VyaW5nOiAke21vZHVsZS5pZH06JHtyZW1haW5pbmdCaWdJbnRMaXRlcmFsWzBdfWApOworICAgIGxpbmVzLnB1c2goYF9fbW9kdWxlc1ske0pTT04uc3RyaW5naWZ5KG1vZHVsZS5pZCl9XT1mdW5jdGlvbihtb2R1bGUsZXhwb3J0cyxyZXF1aXJlKXtcbiR7cnVudGltZVNvdXJjZX1cbn07YCk7CiAgIH0pOwogICBsaW5lcy5wdXNoKAogICAgICd2YXIgX19kZXBlbmRlbmN5TWFwcz0nICsgSlNPTi5zdHJpbmdpZnkoT2JqZWN0LmZyb21FbnRyaWVzKFsuLi5tb2R1bGVzLnZhbHVlcygpXS5tYXAoKG1vZHVsZSkgPT4gW21vZHVsZS5pZCwgbW9kdWxlLmRlcGVuZGVuY2llc10pKSkgKyAnOycsCkBAIC0xOTAsNiArMjYwLDcgQEAgbW9kdWxlLmV4cG9ydHMgPSB7CiAgIGVmZmVjdGl2ZUVudHJ5TW9kdWxlcywKICAgcmVzb2x2ZUxvY2FsTW9kdWxlLAogICBjb2xsZWN0TW9kdWxlcywKKyAgbG93ZXJCaWdJbnRMaXRlcmFsc0ZvckFwcHNTY3JpcHQsCiAgIGJ1aWxkUnVudGltZUJ1bmRsZVNvdXJjZSwKICAgd3JpdGVSdW50aW1lQnVuZGxlCiB9Owo=
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.MAIN_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact provider refs and patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${DASH_BRANCH}:refs/remotes/origin/dash"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/dash)" = "$DASH_SHA"
+          printf '%s' "$PATCH_B64" | base64 -d > "$RUNNER_TEMP/bigint.patch"
+          test "$(sha256sum "$RUNNER_TEMP/bigint.patch" | awk '{print $1}')" = "$PATCH_SHA256"
+          git apply --check "$RUNNER_TEMP/bigint.patch"
+          git apply "$RUNNER_TEMP/bigint.patch"
+          mapfile -t changed < <(git diff --name-only | LC_ALL=C sort)
+          expected=(tests/r2_financial_runtime_parity_contract_test.js tools/build-apps-script-runtime-bundle.js)
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for i in "${!expected[@]}"; do test "${changed[$i]}" = "${expected[$i]}"; done
+          git add "${expected[@]}"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git diff --cached --check
+
+      - name: Run trusted packager compatibility regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check tools/build-apps-script-runtime-bundle.js
+          node tests/r2_financial_runtime_parity_contract_test.js
+          node tests/apps_script_candidate_contract_test.js
+          node tests/trusted_dev_deploy_runtime_contract_test.js
+
+      - name: Prove patched trusted builder against exact DASH-090 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dash-source" "$RUNNER_TEMP/candidate"
+          git archive "$DASH_SHA" | tar -x -C "$RUNNER_TEMP/dash-source"
+          node tools/build-apps-script-candidate.js --source "$RUNNER_TEMP/dash-source" --out "$RUNNER_TEMP/candidate" --sha "$DASH_SHA"
+          test -f "$RUNNER_TEMP/candidate/files/R2CanonicalRuntimeBundle.js"
+          node - "$RUNNER_TEMP/candidate/files/R2CanonicalRuntimeBundle.js" <<'NODE'
+          const fs=require('fs');
+          const file=process.argv[2];
+          const source=fs.readFileSync(file,'utf8');
+          const literal=/(?:\b0[xX][0-9A-Fa-f]+n\b|\b0[bB][01]+n\b|\b0[oO][0-7]+n\b|\b[0-9]+n\b)/.exec(source);
+          if(literal) throw new Error('BigInt literal remains in generated Apps Script runtime: '+literal[0]);
+          if(!source.includes('BigInt("0")')) throw new Error('expected decimal BigInt lowering evidence missing');
+          console.log('apps-script-bigint-compat: PASS');
+          NODE
+
+      - name: Seal bounded integration commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'PrihRash Trusted Integration'
+          git config user.email 'prihrash-integration@example.invalid'
+          git commit -m 'fix(runtime): lower BigInt literals in trusted Apps Script bundle'
+          test "$(git rev-parse HEAD^)" = "$MAIN_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          test -z "$(git status --porcelain)"
+          echo "candidate_commit=$(git rev-parse HEAD)"
+          echo "candidate_tree=$(git rev-parse HEAD^{tree})"
+
+      - name: Publish integration staging ref without force
+        shell: bash
+        env:
+          PUSH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth="$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "HEAD:refs/heads/$TARGET_BRANCH"
