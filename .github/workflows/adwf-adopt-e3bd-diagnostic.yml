@@ -1,0 +1,109 @@
+name: ADWF ADOPT E3BD Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/diag-ADWF-ADOPT-001-e3bd-a1
+
+permissions:
+  contents: read
+
+env:
+  PRIHRASH_BASE: 19dc9f653131715233da91a28598e012af64f36f
+  PRIHRASH_BASE_TREE: 7aaf96a4b9d8dbbb82acb76fcda2af73beb17b8e
+  ADWF_SOURCE: e3bd9fb33f699ae227521f7ed5866c8f11589ed4
+  ADWF_TREE: b86213004ea44085f0bc337f6e0212318d0a2f8f
+  EXPECTED_PARTIAL_TREE: e1e138650560436bdb4d1e631a780e95cad8de3f
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+
+      - name: Diagnose exact candidate materialization
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          exec > >(tee /tmp/adwf-adopt-diagnostic.txt) 2>&1
+          LAST=START
+          finish(){ rc=$?; echo "FINAL_RC=$rc"; echo "LAST_STAGE=$LAST"; if [ -d /mnt/data/prihrash-adoption-work/.git ]; then cd /mnt/data/prihrash-adoption-work; echo "HEAD=$(git rev-parse HEAD 2>/dev/null || true)"; echo "TREE=$(git write-tree 2>/dev/null || true)"; echo "STATUS_COUNT=$(git status --short 2>/dev/null | wc -l)"; fi; exit 0; }
+          trap finish EXIT
+          set -e
+          LAST=PREPARE_PATHS
+          sudo mkdir -p /mnt/data
+          sudo chown "$USER":"$USER" /mnt/data
+          rm -rf /mnt/data/prihrash-adoption-work /mnt/data/adwf-e3bd-local
+          LAST=CLONE
+          git clone -q "https://github.com/${GITHUB_REPOSITORY}.git" /mnt/data/prihrash-adoption-work
+          git clone -q "https://github.com/kmephis-ai/AI-Development-Framework.git" /mnt/data/adwf-e3bd-local
+          git -C /mnt/data/prihrash-adoption-work checkout -q --detach "$PRIHRASH_BASE"
+          git -C /mnt/data/adwf-e3bd-local checkout -q --detach "$ADWF_SOURCE"
+          LAST=VERIFY_BASE
+          test "$(git -C /mnt/data/prihrash-adoption-work rev-parse HEAD^{tree})" = "$PRIHRASH_BASE_TREE"
+          test "$(git -C /mnt/data/adwf-e3bd-local rev-parse HEAD^{tree})" = "$ADWF_TREE"
+          LAST=ADOPT
+          python /mnt/data/adwf-e3bd-local/.adwf/scripts/validate_managed_surface.py --root /mnt/data/adwf-e3bd-local --consumer-root /mnt/data/prihrash-adoption-work --source-revision "$ADWF_SOURCE" --apply > /tmp/adoption.json
+          cd /mnt/data/prihrash-adoption-work
+          LAST=PROJECT_PACK
+          python .adwf/adwf.py project-pack --project-root /mnt/data/prihrash-adoption-work --apply --product-name PrihRashOnline-v2 --default-branch main --repository-visibility PUBLIC > /tmp/project-pack.json
+          LAST=SEALS
+          python - <<'PY'
+          import json,sys
+          sys.path.insert(0,'/mnt/data/adwf-e3bd-local/.adwf')
+          from lib.consumer_installation import build_record,write_record
+          from lib.consumer_operational import build_binding as build_ops,write_binding as write_ops
+          from lib.consumer_gates import build_binding as build_gates,write_binding as write_gates
+          root='/mnt/data/prihrash-adoption-work'; fw='/mnt/data/adwf-e3bd-local'
+          a=json.load(open('/tmp/adoption.json'))
+          r=build_record(fw,root,a,consumer_repository='kmephis-ai/PrihRashOnline-v2',consumer_base_sha='19dc9f653131715233da91a28598e012af64f36f',consumer_base_tree='7aaf96a4b9d8dbbb82acb76fcda2af73beb17b8e'); write_record(r,root,fw)
+          o=build_ops(root,fw,consumer_repository='kmephis-ai/PrihRashOnline-v2',roadmap_path='docs/ROADMAP.md'); write_ops(o,root,fw)
+          g=build_gates(root,fw,phases={'pr':[{'check_name':'validate','app_slug':'github-actions','app_id':15368}],'main':[{'check_name':'verify','app_slug':'github-actions','app_id':15368}],'runtime':[{'check_name':'probe','app_slug':'github-actions','app_id':15368}]},required_phases=['pr','main']); write_gates(g,root,fw)
+          PY
+          LAST=CLEAN_RUNTIME
+          rm -rf .adwf-runtime
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          find . -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          LAST=FRESH_VERIFY
+          python .adwf/scripts/consumer_installation.py --consumer-root . --framework-root /mnt/data/adwf-e3bd-local --repository kmephis-ai/PrihRashOnline-v2
+          python .adwf/scripts/consumer_gates.py --project-root .
+          python .adwf/scripts/consumer_ci.py classify-current --repository kmephis-ai/PrihRashOnline-v2
+          LAST=NATIVE_SCANS
+          node tools/supply-chain-scan.js
+          node tools/ci-trust-boundary-scan.js
+          node tools/secret-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/docs-drift-scan.js
+          node tools/language-policy-scan.js
+          node tools/verify-adwf-local-git-mirror.js
+          LAST=PARTIAL_TREE
+          rm -f .github/workflows/adwf-control.yml .github/workflows/adwf-main.yml .github/workflows/adwf-platform-smoke.yml .github/workflows/adwf-pr.yml .github/workflows/adwf-release.yml
+          git add -A
+          ACTUAL="$(git write-tree)"
+          echo "EXPECTED_PARTIAL_TREE=$EXPECTED_PARTIAL_TREE"
+          echo "ACTUAL_PARTIAL_TREE=$ACTUAL"
+          echo "ADDED=$(git diff --cached --diff-filter=A --name-only | wc -l)"
+          echo "MODDEL=$(git diff --cached --diff-filter=MDR --name-only | wc -l)"
+          LAST=DONE
+
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: adwf-adopt-e3bd-diagnostic
+          path: /tmp/adwf-adopt-diagnostic.txt
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
