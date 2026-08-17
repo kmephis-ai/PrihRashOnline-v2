@@ -24,12 +24,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PATCH_B64='.adwf-publish/dash090-final.patch.gz.b64'
-          if [[ ! -f "$PATCH_B64" ]]; then
-            echo 'PATCH_NOT_PRESENT_YET'
+          PATCH_DIR='.adwf-publish'
+          if [[ ! -f "$PATCH_DIR/READY" ]]; then
+            echo 'PATCH_NOT_READY_YET'
             exit 0
           fi
-          base64 -d "$PATCH_B64" > /tmp/dash090-final.patch.gz
+          mapfile -t PARTS < <(find "$PATCH_DIR" -maxdepth 1 -type f -name 'dash090-final.patch.gz.b64.part-*' | sort)
+          [[ ${#PARTS[@]} -eq 4 ]] || { echo "PATCH_PART_COUNT_INVALID:${#PARTS[@]}"; exit 1; }
+          cat "${PARTS[@]}" > /tmp/dash090-final.patch.gz.b64
+          base64 -d /tmp/dash090-final.patch.gz.b64 > /tmp/dash090-final.patch.gz
           echo '2f18bb61514555e4a8d1e954e425df217d305fe136263cc473224776dd6bd18d  /tmp/dash090-final.patch.gz' | sha256sum -c -
           gunzip -c /tmp/dash090-final.patch.gz > /tmp/dash090-final.patch
           echo 'aa29a71a7278c24898085f856e64367ee988a2b1cf80f457b9c35caa985c04d8  /tmp/dash090-final.patch' | sha256sum -c -
