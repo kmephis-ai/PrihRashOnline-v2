@@ -1,0 +1,63 @@
+name: PERF-090 CI Markers v1
+
+on:
+  push:
+    branches:
+      - agent/perf090-ci-observer-20260817
+    paths:
+      - '.github/workflows/perf090-markers-v1.yml'
+
+permissions:
+  checks: read
+  contents: write
+  issues: read
+  pull-requests: read
+  statuses: read
+
+env:
+  SHA: 978c960458d2fc62c6303c63a7ce57d6da22c341
+  PR: '302'
+  BRANCH: agent/perf090-ci-observer-20260817
+  DIR: .perf090-observer/v1
+
+jobs:
+  markers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Persist state markers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          checks="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100")"
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status")"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")"
+          issue="$(gh api "repos/${GITHUB_REPOSITORY}/issues/301")"
+
+          validate="$(jq -r '[.check_runs[]|select(.name=="validate")]|sort_by(.started_at)|last|(.conclusion // .status // "MISSING")' <<<"$checks")"
+          adwf="$(jq -r '[.check_runs[]|select(.name=="fast-feedback")]|sort_by(.started_at)|last|(.conclusion // .status // "MISSING")' <<<"$checks")"
+          deploy="$(jq -r '[.statuses[]|select(.context=="trusted-dev-deploy")]|last|(.state // "MISSING")' <<<"$status")"
+          runtime="$(jq -r '[.statuses[]|select(.context=="trusted-runtime-health")]|last|(.state // "MISSING")' <<<"$status")"
+          merge_status="$(jq -r '[.statuses[]|select(.context=="autonomous-merge")]|last|(.state // "MISSING")' <<<"$status")"
+          merged="$(jq -r 'if .merged then "MERGED" else "OPEN" end' <<<"$pr")"
+          eng="$(jq -r '.body // ""' <<<"$issue" | sed -nE 's/^engineering_status:[[:space:]]*([A-Z_]+)[[:space:]]*$/\1/p' | head -1)"
+          [[ -n "$eng" ]] || eng=MISSING
+
+          put_marker() {
+            local name="$1"
+            local content
+            content="$(printf '%s\n' "$name" | base64 -w0)"
+            jq -n --arg message "chore: PERF-090 marker ${name}" --arg content "$content" --arg branch "$BRANCH" \
+              '{message:$message,content:$content,branch:$branch}' | \
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${DIR}/${name}" --input - >/dev/null
+          }
+
+          put_marker "validate.${validate}"
+          put_marker "adwf.${adwf}"
+          put_marker "deploy.${deploy}"
+          put_marker "runtime.${runtime}"
+          put_marker "merge.${merge_status}"
+          put_marker "pr.${merged}"
+          put_marker "engineering.${eng}"
