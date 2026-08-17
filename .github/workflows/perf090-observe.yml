@@ -1,0 +1,56 @@
+name: PERF-090 CI Observer
+
+on:
+  push:
+    branches:
+      - agent/perf090-ci-observer-20260817
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  issues: read
+  pull-requests: read
+  statuses: read
+
+env:
+  PR_NUMBER: '302'
+  CANDIDATE_SHA: 978c960458d2fc62c6303c63a7ce57d6da22c341
+
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Capture exact provider state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p observer
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > /tmp/pr.json
+          gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/check-runs?per_page=100" > /tmp/checks.json
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_SHA}/status" > /tmp/status.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${CANDIDATE_SHA}&per_page=100" > /tmp/runs.json
+          gh api "repos/${GITHUB_REPOSITORY}/issues/301" > /tmp/issue.json
+          jq -n \
+            --slurpfile pr /tmp/pr.json \
+            --slurpfile checks /tmp/checks.json \
+            --slurpfile status /tmp/status.json \
+            --slurpfile runs /tmp/runs.json \
+            --slurpfile issue /tmp/issue.json \
+            '{
+              pr:{number:$pr[0].number,state:$pr[0].state,draft:$pr[0].draft,merged:$pr[0].merged,mergeable:$pr[0].mergeable,mergeable_state:$pr[0].mergeable_state,head_sha:$pr[0].head.sha,base_sha:$pr[0].base.sha},
+              issue:{state:$issue[0].state,title:$issue[0].title,body:$issue[0].body},
+              checks:[$checks[0].check_runs[]|{id,name,status,conclusion,started_at,completed_at,details_url,app:.app.slug}],
+              combined_status:{state:$status[0].state,statuses:[$status[0].statuses[]|{context,state,description,target_url,created_at,updated_at}]},
+              workflow_runs:[$runs[0].workflow_runs[]|{id,name,event,status,conclusion,head_sha,run_number,created_at,updated_at,html_url}]
+            }' > observer/state.json
+          cat observer/state.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: perf090-ci-observer
+          path: observer/state.json
+          if-no-files-found: error
+          retention-days: 1
