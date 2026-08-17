@@ -6,7 +6,7 @@ on:
       - agent/materialize-adwf-adopt-001-e3bd9fb3
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CONSUMER_BASE_SHA: 19dc9f653131715233da91a28598e012af64f36f
@@ -27,7 +27,7 @@ jobs:
           ref: ${{ env.CONSUMER_BASE_SHA }}
           path: consumer
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Checkout exact certified ADWF source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -161,7 +161,6 @@ jobs:
           rm -rf .adwf-runtime
           git add -A
           git diff --cached --name-status "$CONSUMER_BASE_SHA" > /tmp/adoption-diff.txt
-          cat /tmp/adoption-diff.txt
           if awk '$1 !~ /^A/ {print "NON_ADDITIVE_CHANGE:",$0; bad=1} END{exit bad}' /tmp/adoption-diff.txt; then
             :
           else
@@ -177,8 +176,10 @@ jobs:
           git diff --cached --name-only | grep -q '^\.adwf-consumer/operations.json$'
           git diff --cached --name-only | grep -q '^\.adwf-consumer/gates.json$'
           git diff --cached --name-only | grep -q '^\.github/workflows/adwf-control.yml$'
+          count="$(wc -l < /tmp/adoption-diff.txt | tr -d ' ')"
+          test "$count" = "524"
 
-      - name: Publish exact candidate to existing writer branch
+      - name: Seal exact candidate commit and bundle
         shell: bash
         working-directory: consumer
         run: |
@@ -186,6 +187,37 @@ jobs:
           git config user.name 'adwf-adoption-materializer'
           git config user.email 'adwf-adoption-materializer@users.noreply.github.com'
           git commit -m '[ADWF-ADOPT-001] Materialize certified ADWF e3bd9fb3 adoption'
-          candidate="$(git rev-parse HEAD)"
-          git push --force-with-lease="refs/heads/$WRITER_BRANCH:$EXPECTED_OLD_WRITER_HEAD" origin "HEAD:refs/heads/$WRITER_BRANCH"
-          echo "CANDIDATE_SHA=$candidate"
+          candidate_sha="$(git rev-parse HEAD)"
+          candidate_tree="$(git rev-parse HEAD^{tree})"
+          test "$(git rev-parse HEAD^)" = "$CONSUMER_BASE_SHA"
+          mkdir -p ../candidate-artifact
+          git branch -f adwf-adopt-candidate "$candidate_sha"
+          git bundle create ../candidate-artifact/repository.bundle refs/heads/adwf-adopt-candidate
+          git bundle verify ../candidate-artifact/repository.bundle
+          bundle_sha="$(sha256sum ../candidate-artifact/repository.bundle | awk '{print $1}')"
+          cat > ../candidate-artifact/manifest.json <<JSON
+          {
+            "schema_version": 1,
+            "consumer_repository": "kmephis-ai/PrihRashOnline-v2",
+            "consumer_base_sha": "$CONSUMER_BASE_SHA",
+            "consumer_base_tree": "$CONSUMER_BASE_TREE",
+            "framework_source_sha": "$FRAMEWORK_SHA",
+            "framework_source_tree": "b86213004ea44085f0bc337f6e0212318d0a2f8f",
+            "candidate_sha": "$candidate_sha",
+            "candidate_tree": "$candidate_tree",
+            "candidate_parent": "$CONSUMER_BASE_SHA",
+            "added_files": 524,
+            "bundle_sha256": "$bundle_sha"
+          }
+          JSON
+          printf '%s  %s\n' "$bundle_sha" repository.bundle > ../candidate-artifact/SHA256SUMS.txt
+          cat ../candidate-artifact/manifest.json
+
+      - name: Upload exact candidate artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: prihrash-adwf-adopt-candidate-e3bd9fb3
+          path: candidate-artifact/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
