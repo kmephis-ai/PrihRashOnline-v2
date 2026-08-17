@@ -1,0 +1,109 @@
+name: PERF-090 Exact Materializer
+
+on:
+  push:
+    branches:
+      - agent/perf090-pub3
+
+permissions:
+  contents: write
+
+env:
+  BASE_SHA: 59480686dd92fd295d42c887c9003f6882758ff6
+  BASE_TREE: 3afc938f76fbbcc3a481635afdaede50bbb7ef9d
+  EXPECTED_PATCH_SHA256: 44541406ef1e48db796d6ffeff1e3559e353eb2d7387655476b31d5fcfc3faec
+  EXPECTED_TREE: 12d03290b89f9901dcffba03ce5bbd5403c8e6b2
+  WRITER_BRANCH: agent/PERF-090-studio-scale-rendering-performance
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct exact modified-files patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .perf090-mods/c*.b64 | base64 -d > /tmp/perf090-mods.patch
+          ACTUAL="$(sha256sum /tmp/perf090-mods.patch | awk '{print $1}')"
+          test "$ACTUAL" = "$EXPECTED_PATCH_SHA256"
+
+      - name: Materialize exact candidate from canonical base
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git reset --hard "$BASE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$BASE_TREE"
+          git apply /tmp/perf090-mods.patch
+
+          fetch_blob() {
+            local sha="$1" path="$2"
+            mkdir -p "$(dirname "$path")"
+            gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${sha}" --jq '.content' | tr -d '\n' | base64 -d > "$path"
+            test "$(git hash-object "$path")" = "$sha"
+          }
+
+          fetch_blob 587e04502eb5bbce0e8de5509cfcb6461e3b2e3a docs/performance/STUDIO_SCALE_RENDERING_PERFORMANCE.md
+          fetch_blob b366df93cdb43b14ae61f67c16f8a45a04758fd4 lib/performance/studio_scale_performance.js
+          fetch_blob 16d13a9a8c7d3d63af9c2584b3f953215c3899ba lib/performance/studio_scale_performance.v1.json
+          fetch_blob c26196c81953540cf3e3fdebf242cd7a7bb8d9e5 tests/studio_scale_performance_contract_test.js
+
+          git add .ai-context/PROJECT_CONTEXT.md .github/workflows/pr-validation.yml docs/PROJECT_STATUS.md \
+            docs/performance/STUDIO_SCALE_RENDERING_PERFORMANCE.md \
+            lib/documentation/language_policy.v1.json \
+            lib/performance/studio_scale_performance.js lib/performance/studio_scale_performance.v1.json \
+            lib/testing/test_architecture.v1.json tests/studio_scale_performance_contract_test.js
+
+          test "$(git hash-object .ai-context/PROJECT_CONTEXT.md)" = c9e107c901048ef60ddea639c0b028707123addd
+          test "$(git hash-object .github/workflows/pr-validation.yml)" = 5ec3b2be386b9b1b0f94cb1836f10489bd0a773d
+          test "$(git hash-object docs/PROJECT_STATUS.md)" = e8ca2c4f150e4327a1893c3f4a01555877c0b929
+          test "$(git hash-object lib/documentation/language_policy.v1.json)" = f0e5ca40d3043ccac7c004aba41da22ed9a21e20
+          test "$(git hash-object lib/testing/test_architecture.v1.json)" = 255f3facd84cd32de341adb3c185026260485f1d
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git diff --cached --check
+
+      - name: Focused PERF-090 and safety evidence
+        shell: bash
+        env:
+          GITHUB_HEAD_REF: agent/PERF-090-studio-scale-rendering-performance
+        run: |
+          set -euo pipefail
+          node tests/studio_scale_performance_contract_test.js
+          node tests/analytics_query_planner_cache_contract_test.js
+          node tests/analytics_query_planner_performance_contract_test.js
+          node tests/analytics_studio_shell_contract_test.js
+          node tests/advanced_visualization_pack_contract_test.js
+          node tests/test_architecture_contract_test.js
+          node tests/language_policy_contract_test.js
+          node tools/docs-drift-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/ci-trust-boundary-scan.js
+          node tools/supply-chain-scan.js
+          node tools/run-layered-tests.js pure
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+
+      - name: CAS publish exact candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_MAIN="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          REMOTE_WRITER="$(git ls-remote origin "refs/heads/${WRITER_BRANCH}" | awk '{print $1}')"
+          test "$REMOTE_MAIN" = "$BASE_SHA"
+          test "$REMOTE_WRITER" = "$BASE_SHA"
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+
+          git config user.name 'perf090-materializer'
+          git config user.email 'perf090-materializer@users.noreply.github.com'
+          git commit -m 'PERF-090: add Studio-scale performance gate'
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          git push origin "HEAD:refs/heads/${WRITER_BRANCH}"
+          echo "candidate_sha=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "candidate_tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
