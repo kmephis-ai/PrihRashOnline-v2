@@ -12,28 +12,33 @@ env:
   BASE_SHA: 2f9753d609b7ef05ec1993f7e36628b60de545db
   TARGET_BRANCH: agent/RISK-030-liquidity-financial-risk
   EXPECTED_TREE: e4aa2f221e8e6b63eab98412da4099e159c5d169
-  PATCH_GZIP_SHA256: 2545cd7c8d2ad7b160cfe908ec833dee16cec57f70cb76b761968f13c04ae24c
-  PATCH_SHA256: 36da91a0ada3b13f684f82cf46ce3fbbdfac4655044709ee17554878fa498088
+  PATCH_GZIP_SHA256: d9fb6cfb1b8f867bc94f1858334c88381070a6e052f089be759040eb298835b6
+  PATCH_SHA256: c4c093231c7be129aed4e725cc9008ab12c1209c9bee1a1cff22ec968e96a7b4
 
 jobs:
   materialize:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Read sealed payload from transport commit
+      - name: Read exact chunked payload from transport commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: agent/local-mirror-RISK-030-20260817-a
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Extract and verify sealed patch
+      - name: Verify and assemble sealed patch
         shell: bash
         run: |
           set -euo pipefail
-          awk '/^H4s/{print; exit}' .github/workflows/adwf-local-mirror-bootstrap.yml > /tmp/risk030.patch.gz.b64
-          test -s /tmp/risk030.patch.gz.b64
-          base64 -d /tmp/risk030.patch.gz.b64 > /tmp/risk030.patch.gz
+          test "$(git hash-object .transport/risk030/chunk-00)" = "ccb9f46fc21c856f34e64d7aa3b5a89416cf7185"
+          test "$(git hash-object .transport/risk030/chunk-01)" = "5631fefb74153b8519aa7e348feee201df565813"
+          test "$(git hash-object .transport/risk030/chunk-02)" = "efce3b99e22450fabf5faf57e49a8941f8f1176b"
+          test "$(git hash-object .transport/risk030/chunk-03)" = "163e595d44a275cb2aefd95d21b3d7436712c20e"
+          test "$(git hash-object .transport/risk030/chunk-04)" = "0214fa25ceb6ec5f69151771167313b81415c2e7"
+          test "$(git hash-object .transport/risk030/chunk-05)" = "fe014202fff483f2f5622a3e1e11c95b10e89778"
+          test "$(git hash-object .transport/risk030/chunk-06)" = "d9323c6a3bd5478ed98da56264df3034472dc74d"
+          cat .transport/risk030/chunk-* > /tmp/risk030.patch.gz
           echo "${PATCH_GZIP_SHA256}  /tmp/risk030.patch.gz" | sha256sum -c -
           gzip -dc /tmp/risk030.patch.gz > /tmp/risk030.patch
           echo "${PATCH_SHA256}  /tmp/risk030.patch" | sha256sum -c -
