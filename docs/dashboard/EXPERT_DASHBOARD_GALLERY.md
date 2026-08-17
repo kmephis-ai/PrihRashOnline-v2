@@ -22,6 +22,12 @@
 
 X-Ray preset принципиально **не содержит собственных правил**. Gallery может только сослаться на уже вычисленный typed finding/drill contract. Severity, threshold, evidence и missing-data semantics остаются ответственностью XRAY-090.
 
+## Целевой пользовательский вид
+
+Gallery является первым явно выровненным с `docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md` presentation surface. Основная пользовательская поверхность должна выглядеть как зрелая часть PrihRash, а не как contract browser: сильная визуальная иерархия, понятный аналитический вопрос, visual structure preview без финансовых значений и человеческие статусы. `required_capabilities`, `source_contract`, storage/version internals и другие developer details остаются доступны только через progressive technical disclosure.
+
+Preview показывает только форму будущего dashboard — например decomposition, динамику, структуру, сезонность или signals — и не содержит synthetic/fake household values. После `Создать копию` пользователь попадает в dashboard-like canvas + inspector, но persistence, versioning и semantic authority по-прежнему принадлежат существующим DASH-080/081/084 контрактам. Это presentation improvement, а не второй renderer/query/storage engine.
+
 ## Capability fail-closed
 
 Каждый preset содержит versioned `required_capabilities`. Для открытия/клонирования все они должны быть `AVAILABLE`. `DEGRADED`, `UNAVAILABLE`, отсутствующий или неизвестный capability не заменяется синтетическим финансовым результатом: preset получает `UNAVAILABLE / REQUIRED_CAPABILITY_NOT_AVAILABLE`.
