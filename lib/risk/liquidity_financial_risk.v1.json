@@ -1,0 +1,111 @@
+{
+  "schema": "PRH_LIQUIDITY_FINANCIAL_RISK_V1",
+  "version": "1.0.0",
+  "roadmap_id": "RISK-030",
+  "dependencies": {
+    "net_worth": "PRH_NET_WORTH_V1@1.0.0",
+    "cash_flow_projection": "PRH_CASH_FLOW_PROJECTION_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "schemas": {
+    "assessment_input": "PRH_LIQUIDITY_RISK_ASSESSMENT_INPUT_V1",
+    "result": "PRH_LIQUIDITY_RISK_RESULT_V1",
+    "evidence": "PRH_LIQUIDITY_RISK_EVIDENCE_V1",
+    "telemetry": "PRH_LIQUIDITY_RISK_TELEMETRY_V1"
+  },
+  "currency_policy": {
+    "single_currency_required": true,
+    "fx_conversion": false,
+    "projection_result_embeds_currency": false,
+    "projection_currency_binding": "EXPLICIT_CALLER_CONTEXT_REQUIRED"
+  },
+  "liquidity_policy": {
+    "selection_mode": "EXPLICIT_NET_WORTH_POSITION_IDS",
+    "selection_missing_state": "INSUFFICIENT_DATA",
+    "empty_selection_means": "EXPLICIT_ZERO_LIQUIDITY",
+    "allowed_position_types": [
+      "ACCOUNT",
+      "ASSET"
+    ],
+    "positive_value_required": true,
+    "cash_flow_as_current_balance_proxy": false
+  },
+  "essential_outflow_policy": {
+    "source_kinds": [
+      "DECLARED_PLANNING",
+      "SYNTHETIC_TEST"
+    ],
+    "missing_allowed": true,
+    "known_amount": "POSITIVE_SAFE_INTEGER_MINOR_UNITS",
+    "financial_truth": false
+  },
+  "emergency_runway": {
+    "formula_id": "LIQUID_ASSETS_DIV_ESSENTIAL_MONTHLY_OUTFLOW_V1",
+    "unit": "MONTH_BASIS_POINTS",
+    "basis_points_per_month": 10000,
+    "rounding": "FLOOR_CONSERVATIVE",
+    "threshold_policy": "HOUSEHOLD_BUFFER_POLICY_V1",
+    "critical_below_months_basis_points": 30000,
+    "warning_below_months_basis_points": 60000,
+    "states": [
+      "CRITICAL",
+      "WARNING",
+      "OK",
+      "INSUFFICIENT_DATA"
+    ]
+  },
+  "scenario_liquidity": {
+    "formula_id": "STARTING_LIQUIDITY_PLUS_PROJECTED_MONTHLY_CASH_FLOW_V1",
+    "starting_balance_source": "EXPLICIT_SELECTED_NET_WORTH_POSITIONS",
+    "monthly_delta_source": "PROJ_030_PROJECTED_CASH_FLOW_MINOR",
+    "shortfall_rule": "RUNNING_LIQUIDITY_BELOW_ZERO",
+    "states": [
+      "SHORTFALL",
+      "BUFFER_CRITICAL",
+      "BUFFER_WARNING",
+      "STABLE",
+      "BURN_RATE_REQUIRED",
+      "LIQUIDITY_SELECTION_REQUIRED"
+    ]
+  },
+  "result_statuses": [
+    "READY",
+    "PARTIAL",
+    "REVIEW_REQUIRED",
+    "INSUFFICIENT_DATA"
+  ],
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "status",
+    "reason_code",
+    "liquid_position_count",
+    "projection_month_count",
+    "essential_outflow_present",
+    "emergency_runway_state",
+    "scenario_risk_state",
+    "shortfall_detected",
+    "reconciliation_review_required"
+  ],
+  "public_evidence": "SYNTHETIC_ONLY",
+  "authorities": {
+    "financial_truth": false,
+    "net_worth_override": false,
+    "projection_override": false,
+    "fx": false,
+    "canonical_mutation": false,
+    "observation_mutation": false,
+    "financial_write": false,
+    "storage": false,
+    "network": false,
+    "runtime": false,
+    "deployment": false,
+    "llm_required": false
+  },
+  "free_only": true,
+  "period_policy": {
+    "net_worth_snapshot_not_after_first_forecast_month": true,
+    "max_snapshot_age_days_before_first_forecast_month": 31,
+    "incompatible_period": "FAIL_CLOSED"
+  }
+}
