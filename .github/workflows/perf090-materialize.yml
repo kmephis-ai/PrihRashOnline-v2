@@ -91,10 +91,12 @@ jobs:
 
       - name: CAS publish exact candidate
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          REMOTE_MAIN="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          REMOTE_WRITER="$(git ls-remote origin "refs/heads/${WRITER_BRANCH}" | awk '{print $1}')"
+          REMOTE_MAIN="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          REMOTE_WRITER="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')"
           test "$REMOTE_MAIN" = "$BASE_SHA"
           test "$REMOTE_WRITER" = "$BASE_SHA"
           test "$(git write-tree)" = "$EXPECTED_TREE"
@@ -104,6 +106,8 @@ jobs:
           git commit -m 'PERF-090: add Studio-scale performance gate'
           test "$(git rev-parse HEAD^)" = "$BASE_SHA"
           test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
-          git push origin "HEAD:refs/heads/${WRITER_BRANCH}"
+
+          PUSH_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$PUSH_URL" "HEAD:refs/heads/${WRITER_BRANCH}"
           echo "candidate_sha=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
           echo "candidate_tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
