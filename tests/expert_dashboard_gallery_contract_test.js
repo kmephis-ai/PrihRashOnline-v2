@@ -6,6 +6,8 @@ const path = require('path');
 const vm = require('vm');
 const GALLERY = require('../lib/dashboard/expert_dashboard_gallery');
 const SAVED = require('../lib/dashboard/dashboard_saved_views');
+const COMPOSER = require('../lib/dashboard/dashboard_composer');
+const FACTORY = require('../lib/dashboard/widget_factory');
 
 GALLERY.assertContract();
 assert.strictEqual(GALLERY.SCHEMA, 'PRH_EXPERT_DASHBOARD_GALLERY_V1');
@@ -32,7 +34,8 @@ for (const preset of catalog) {
   assert.strictEqual(preset.financial_payload, false);
   assert.strictEqual(preset.private_filters, false);
   assert(SAVED.PRESET_IDS.includes(preset.base_preset_id));
-  assert(preset.required_capabilities.length >= 2);
+  assert(preset.required_capabilities.includes(GALLERY.CAP.COMPOSER));
+  assert(preset.required_capabilities.includes(GALLERY.CAP.WIDGET_FACTORY));
   assert(preset.panels.length >= 1);
   assert.strictEqual(GALLERY.assertNoPrivatePayload(preset), true);
   for (const panel of preset.panels) assert(preset.required_capabilities.includes(panel.source_contract));
@@ -53,8 +56,8 @@ assert.deepStrictEqual(unavailable.missing_capabilities, [GALLERY.CAP.XRAY]);
 assert.throws(() => GALLERY.cloneToSavedView(SAVED.emptyStore(), xray.preset_id, {view_id:'xray-copy'}, 0, degraded), /DASH090_PRESET_UNAVAILABLE/);
 assert.throws(() => GALLERY.availability('SEASONALITY', {[GALLERY.CAP.SDC]:'PASS'}), /DASH090_CAPABILITY_STATE_INVALID/);
 
-// Pure-domain prototype still demonstrates DASH-084 lifecycle reuse. It is not exposed by runtime
-// until every expert panel can be represented losslessly in canonical DASH-080/081 configuration.
+// Lossless projection uses canonical DASH-080 layout inside the DASH-084 configuration.
+// Expert semantics remain an immutable catalog reference via dashboard_spec.id, not copied financial/query state.
 let store = SAVED.emptyStore();
 const sourceHash = GALLERY.presetById('SPENDING_DRIVERS').preset_hash;
 const clone = GALLERY.cloneToSavedView(store, 'SPENDING_DRIVERS', {view_id:'spending-drivers-copy'}, store.generation, capabilities);
@@ -65,6 +68,12 @@ assert.strictEqual(clone.view.view_id, 'spending-drivers-copy');
 assert.strictEqual(clone.view.revisions.length, 1);
 assert.strictEqual(clone.view.revisions[0].source, 'CREATE');
 assert.strictEqual(clone.view.origin_preset_id, null);
+assert.strictEqual(GALLERY.presetFromConfiguration(clone.revision.configuration).preset_id, 'SPENDING_DRIVERS');
+assert.strictEqual(clone.revision.configuration.dashboard_spec.id, GALLERY.projectionId('SPENDING_DRIVERS'));
+assert.deepStrictEqual(clone.revision.configuration.dashboard_spec.widgets.map((w) => w.title), GALLERY.presetById('SPENDING_DRIVERS').panels.map((p) => p.title));
+assert.strictEqual(clone.revision.configuration.dashboard_spec.schema, COMPOSER.SPEC_SCHEMA);
+assert.strictEqual(clone.revision.configuration.bound_widgets.length, 0);
+assert.strictEqual(FACTORY.CONTRACT.principles.explicit_bind_only, true);
 assert.strictEqual(GALLERY.presetById('SPENDING_DRIVERS').preset_hash, sourceHash);
 store = clone.store;
 
@@ -104,7 +113,9 @@ assert(html.includes('data-prh-dash090-gallery="1"'));
 assert(html.includes('data-financial-payload="false"'));
 assert(html.includes('data-query-execution="false"'));
 assert(html.includes('data-financial-write="false"'));
-assert(html.includes('RUNTIME_CAPABILITY_STATE_UNVERIFIED'));
+assert(html.includes('data-google-sheets-read="false"'));
+assert(html.includes('Создать копию'));
+assert(html.includes('Сохранить изменения'));
 assert(html.includes('@media(max-width:620px)'));
 assert(!/amount_minor|income_minor|expense_minor|cash_flow_minor|balance_minor/i.test(html));
 assert(router.includes("gallery: Object.freeze({ file: 'ExpertDashboardGalleryWebApp'"));
@@ -120,20 +131,27 @@ vm.runInContext(serviceSource, sandbox);
 const runtimeCatalog = sandbox.prhDash090PublicCatalog();
 assert.strictEqual(runtimeCatalog.presets.length, 7);
 assert.strictEqual(runtimeCatalog.financial_payload, false);
-assert(runtimeCatalog.presets.every((preset) => preset.status === 'UNAVAILABLE'));
-assert(runtimeCatalog.presets.every((preset) => preset.reason === 'LOSSLESS_EXPERT_PROJECTION_NOT_READY'));
-assert.throws(
-  () => sandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'dash090-spending-drivers-test',name:'Драйверы расходов'}),
-  /DASH090_LOSSLESS_EXPERT_PROJECTION_NOT_READY/
-);
-assert.strictEqual(writes, 0);
-assert.strictEqual(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'), null);
+assert.strictEqual(runtimeCatalog.google_sheets_read, false);
+assert(runtimeCatalog.presets.every((preset) => preset.status === 'AVAILABLE'));
+const runtimeClone = sandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'dash090-spending-drivers-test',name:'Драйверы расходов'});
+assert.strictEqual(runtimeClone.preset_id, 'SPENDING_DRIVERS');
+assert.strictEqual(runtimeClone.active_revision, 1);
+assert.strictEqual(runtimeClone.dashboard_spec.id, GALLERY.projectionId('SPENDING_DRIVERS'));
+assert.strictEqual(writes, 1);
+assert(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'));
+const runtimeRead = sandbox.prhDash090ReadView({view_id:'dash090-spending-drivers-test'});
+assert.strictEqual(runtimeRead.dashboard_spec.title, 'Драйверы расходов');
+const runtimeSaved = sandbox.prhDash090SaveViewConfiguration({view_id:'dash090-spending-drivers-test',expected_generation:runtimeRead.store_generation,dashboard_title:'Мои драйверы расходов'});
+assert.strictEqual(runtimeSaved.dashboard_spec.title, 'Мои драйверы расходов');
+assert.strictEqual(runtimeSaved.active_revision, 2);
+assert.strictEqual(runtimeSaved.preset_id, 'SPENDING_DRIVERS');
+assert.strictEqual(writes, 2);
 assert.throws(() => sandbox.prhDash090ClonePreset({preset_id:'UNKNOWN',view_id:'bad',name:'Bad'}), /DASH090_PRESET_UNKNOWN/);
-assert.strictEqual(writes, 0);
+assert.strictEqual(writes, 2);
 
 console.log('expert_dashboard_gallery_contract_test: PASS', {
   presets: catalog.length,
-  runtime_projection_status: 'UNAVAILABLE',
+  runtime_projection_status: 'AVAILABLE',
   user_properties_batch_writes: writes,
   xray_capability: GALLERY.CAP.XRAY,
   source_hash_prefix: sourceHash.slice(0,12),

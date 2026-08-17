@@ -17,6 +17,8 @@
   ],
   "upstream": {
     "saved_views": "PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0",
+    "dashboard_composer": "PRH_DASHBOARD_COMPOSER_V1@1.0.0",
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
     "contribution_decomposition": "PRH_CONTRIBUTION_DECOMPOSITION_V1@1.0.0",
     "seasonality_distribution_concentration": "PRH_SEASONALITY_DISTRIBUTION_CONCENTRATION_V1@1.0.0",
     "long_term_trends": "PRH_LONG_TERM_TRENDS_V1@1.0.0",
@@ -47,7 +49,14 @@
     "max_description_length": 320
   },
   "telemetry_allowlist": [
-    "schema", "version", "preset_id", "preset_hash_prefix", "action", "decision", "reason", "required_capability_count"
+    "schema",
+    "version",
+    "preset_id",
+    "preset_hash_prefix",
+    "action",
+    "decision",
+    "reason",
+    "required_capability_count"
   ],
   "authority": {
     "financial_truth": false,

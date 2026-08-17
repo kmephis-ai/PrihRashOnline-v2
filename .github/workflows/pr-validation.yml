@@ -265,6 +265,8 @@ jobs:
         run: node tests/privacy_presentation_modes_visual_test.js
       - name: Dashboard composer visual gate
         run: node tests/dashboard_composer_visual_test.js
+      - name: Expert dashboard gallery visual gate
+        run: node tests/expert_dashboard_gallery_visual_test.js
       - name: Transaction Explorer visual gate
         run: node tests/transaction_explorer_visual_test.js
       - name: Expense Analytics visual gate

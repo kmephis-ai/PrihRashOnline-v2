@@ -36,9 +36,11 @@ Gallery не имеет authority для financial truth, financial writes, quer
 
 ## Clone lifecycle
 
-`cloneToSavedView()` сначала проверяет required capabilities. Затем берёт только configuration ближайшего canonical DASH-084 preset и вызывает `DASH-084 createView`. Gallery не добавляет собственный storage key, revision chain или migration format. После clone действуют существующие DASH-084 optimistic generation, immutable revisions, bounded history и private UserProperties semantics.
+`cloneToSavedView()` сначала проверяет required capabilities. Затем строит lossless configuration projection в существующем `PRH_DASHBOARD_SPEC_V1`: каждый expert panel получает canonical DASH-080 placeholder geometry, а `dashboard_spec.id` содержит versioned immutable ссылку `expert-v1-<preset>`. Сами `source_contract`/`semantic_ref` не копируются в финансовый payload и восстанавливаются только из неизменяемого public catalog. Конфигурация сохраняется через `DASH-084 createView`; отдельного storage key, revision chain или migration format нет.
 
-Catalog original остаётся immutable. Изменение копии никогда не меняет preset hash или descriptor.
+DASH-081 остаётся единственным canonical semantic-binding contract после clone/edit. Public preset намеренно не подделывает `PRH_ANALYTICS_QUERY_V1` для advanced/X-Ray/Risk semantics и поэтому сохраняет placeholders как `UNBOUND`, пока private user context не сможет дать валидный explicit binding. Это fail-closed handoff, а не второй binding engine: DASH-090 явно требует exact `DASH-080`/`DASH-081` capability versions и не создаёт собственную query/binding schema.
+
+После clone пользователь открывает личную копию прямо из Gallery, меняет допустимую configuration-only часть (сейчас название dashboard), сохраняет новую DASH-084 revision и после reload получает ту же expert preset identity. Catalog original остаётся immutable. UserProperties — единственный persistence boundary; Google Sheets и FIN-TRUTH этим путём не читаются и не изменяются.
 
 ## Проверки
 
@@ -53,4 +55,4 @@ Catalog original остаётся immutable. Изменение копии ни�
 - отсутствие собственной финансовой/query/storage authority;
 - X-Ray preset только ссылается на canonical XRAY contract.
 
-Provider PR Validation должен выполнять named gate `Expert dashboard gallery`. Product/browser evidence добавляется в рамках того же DASH-090 writer до перехода в Product Ready/DONE; наличие только pure-domain PASS не является достаточным основанием объявлять DASH-090 завершённым.
+Provider PR Validation выполняет named contract gate `Expert dashboard gallery` и отдельный `Expert dashboard gallery visual gate`. Browser gate доказывает desktop+mobile keyboard flow: Gallery → `Создать копию` → открыть private copy → изменить название → сохранить новую version → reload, без horizontal overflow, console/page errors и без дополнительных browser network requests на warm clone/edit path в synthetic runtime harness. Exact-head trusted deploy/runtime и fresh Product Ready E2E остаются обязательными до DONE.
