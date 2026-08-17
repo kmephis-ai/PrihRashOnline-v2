@@ -1,0 +1,57 @@
+name: ADWF Local Mirror Assemble DASH-090
+
+on:
+  push:
+    branches:
+      - agent/local-mirror-DASH-090-20260817-ux2
+    paths:
+      - .github/workflows/adwf-local-mirror-assemble.yml
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Assemble exact local files
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=.adwf-local-mirror-output
+          mkdir -p "$OUT/docs/dashboard" "$OUT/tests" "$OUT/lib/documentation"
+          cat .adwf-local-mirror-upload/f0.*.b64 | base64 -d > "$OUT/ExpertDashboardGalleryWebApp.html"
+          cat .adwf-local-mirror-upload/f1.*.b64 | base64 -d > "$OUT/docs/dashboard/EXPERT_DASHBOARD_GALLERY.md"
+          cat .adwf-local-mirror-upload/f2.*.b64 | base64 -d > "$OUT/docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md"
+          cat .adwf-local-mirror-upload/f3.*.b64 | base64 -d > "$OUT/tests/expert_dashboard_gallery_visual_test.js"
+          cat .adwf-local-mirror-upload/f4.*.b64 | base64 -d > "$OUT/lib/documentation/language_policy.v1.json"
+
+          printf '%s  %s\n' \
+            '7188e39bd54d5b55777b04cae29c9c60d534434e6e739eb511149c4d079ffad3' "$OUT/ExpertDashboardGalleryWebApp.html" \
+            '209a9f492de85de071543b1673f4401173018daaf182ca159ab67bfe568eb7b9' "$OUT/docs/dashboard/EXPERT_DASHBOARD_GALLERY.md" \
+            '31c37c6d49cfe67b081aa612054ae43a8c6c0cf0ebd1927cca475328a1bade72' "$OUT/docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md" \
+            'a0d6f99258103bec43827fc8a00c3d4515691d3d501383342c143b504b20c637' "$OUT/tests/expert_dashboard_gallery_visual_test.js" \
+            '50c3d8c06e4cb9b9025d2c404b00f58860055074e09aa263357bafbf55e51ff5' "$OUT/lib/documentation/language_policy.v1.json" \
+            | sha256sum -c -
+
+          test "$(git hash-object "$OUT/ExpertDashboardGalleryWebApp.html")" = '9e19ff8f4a1707bdb09e90ff6c266cbe07e460d9'
+          test "$(git hash-object "$OUT/docs/dashboard/EXPERT_DASHBOARD_GALLERY.md")" = '0048b99a2dfb767d82052b726b5698d4ae7686b8'
+          test "$(git hash-object "$OUT/docs/dashboard/TARGET_DASHBOARD_EXPERIENCE.md")" = 'ef6d12f72412a1587203cf800c5e9d91a9ae5c8f'
+          test "$(git hash-object "$OUT/tests/expert_dashboard_gallery_visual_test.js")" = '65568f1e9807ad28eee06dbc95f39d9caa4b5cc1'
+          test "$(git hash-object "$OUT/lib/documentation/language_policy.v1.json")" = '2f113747f9aba6071e40b53d1b680ee58940327f'
+
+      - name: Commit exact assembled output
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .adwf-local-mirror-output
+          git commit -m 'chore: собрать точный DASH-090 output'
+          git push origin HEAD:agent/local-mirror-DASH-090-20260817-ux2
