@@ -1,0 +1,191 @@
+name: Materialize ADWF-ADOPT-001 exact candidate
+
+on:
+  push:
+    branches:
+      - agent/materialize-adwf-adopt-001-e3bd9fb3
+
+permissions:
+  contents: write
+
+env:
+  CONSUMER_BASE_SHA: 19dc9f653131715233da91a28598e012af64f36f
+  CONSUMER_BASE_TREE: 7aaf96a4b9d8dbbb82acb76fcda2af73beb17b8e
+  FRAMEWORK_SHA: e3bd9fb33f699ae227521f7ed5866c8f11589ed4
+  WRITER_BRANCH: agent/ADWF-ADOPT-001-real-adoption
+  EXPECTED_OLD_WRITER_HEAD: 2bb12ac27bb8b03f600fd00520a182490357168a
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PrihRash base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.CONSUMER_BASE_SHA }}
+          path: consumer
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout exact certified ADWF source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.FRAMEWORK_SHA }}
+          path: framework
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12.10"
+
+      - name: Verify exact clean inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C consumer rev-parse HEAD)" = "$CONSUMER_BASE_SHA"
+          test "$(git -C consumer rev-parse HEAD^{tree})" = "$CONSUMER_BASE_TREE"
+          test "$(git -C framework rev-parse HEAD)" = "$FRAMEWORK_SHA"
+          test -z "$(git -C consumer status --porcelain)"
+          test -z "$(git -C framework status --porcelain)"
+          test ! -e consumer/.adwf-consumer/profile.json
+          test ! -e consumer/.adwf-consumer/installation.json
+          test ! -e consumer/.adwf-consumer/operations.json
+          test ! -e consumer/.adwf-consumer/gates.json
+          actual="$(git -C consumer ls-remote origin "refs/heads/$WRITER_BRANCH" | awk '{print $1}')"
+          test "$actual" = "$EXPECTED_OLD_WRITER_HEAD"
+
+      - name: Execute canonical transactional adoption
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          from pathlib import Path
+          import json, os, sys
+
+          root = Path.cwd()
+          consumer = (root / "consumer").resolve()
+          framework = (root / "framework").resolve()
+          sys.path.insert(0, str(framework / ".adwf"))
+
+          from lib.managed_surface import plan_adoption
+          from lib.managed_surface_transaction import apply_adoption
+          from lib.consumer_profile import build_consumer_profile, validate_consumer_profile
+          from lib.consumer_installation import build_record, write_record, validate_fresh_session
+          from lib.consumer_operational import build_binding as build_operations, write_binding as write_operations, load_binding as load_operations
+          from lib.consumer_gates import build_binding as build_gates, write_binding as write_gates, load_binding as load_gates
+
+          consumer_sha = os.environ["CONSUMER_BASE_SHA"]
+          consumer_tree = os.environ["CONSUMER_BASE_TREE"]
+          framework_sha = os.environ["FRAMEWORK_SHA"]
+          repo = "kmephis-ai/PrihRashOnline-v2"
+
+          plan = plan_adoption(framework, consumer, source_revision=framework_sha)
+          counts = {}
+          for entry in plan.get("entries", []):
+              counts[entry["action"]] = counts.get(entry["action"], 0) + 1
+          print("ADOPTION_PLAN", json.dumps({"status": plan.get("status"), "blockers": plan.get("blockers"), "counts": counts}, sort_keys=True))
+          if plan.get("status") != "READY" or plan.get("blockers") != []:
+              raise SystemExit("ADOPTION_PLAN_NOT_READY")
+
+          profile = build_consumer_profile(
+              consumer,
+              framework,
+              product_name="PrihRashOnline-v2",
+              default_branch="main",
+              repository_visibility="PUBLIC",
+          )
+          if profile["project_packs"]["selected"] != "apps-script":
+              raise SystemExit("UNEXPECTED_PROJECT_PACK:" + str(profile["project_packs"]["selected"]))
+          validate_consumer_profile(profile, consumer, framework)
+          profile_path = consumer / ".adwf-consumer/profile.json"
+          profile_path.parent.mkdir(parents=True, exist_ok=True)
+          profile_path.write_text(json.dumps(profile, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+          adoption = apply_adoption(framework, consumer, plan)
+          if adoption.get("status") not in {"COMMITTED", "ALREADY_COMMITTED"}:
+              raise SystemExit("ADOPTION_NOT_COMMITTED:" + str(adoption.get("status")))
+          print("ADOPTION_APPLY", json.dumps({"status": adoption.get("status"), "transaction_id": adoption.get("transaction_id"), "created_files": adoption.get("created_files")}, sort_keys=True))
+
+          record = build_record(
+              framework,
+              consumer,
+              adoption,
+              consumer_repository=repo,
+              consumer_base_sha=consumer_sha,
+              consumer_base_tree=consumer_tree,
+          )
+          write_record(record, consumer, consumer)
+
+          operations = build_operations(
+              consumer,
+              consumer,
+              consumer_repository=repo,
+              roadmap_path="docs/ROADMAP.md",
+          )
+          write_operations(operations, consumer, consumer)
+
+          phases = {
+              "pr": [{"check_name": "validate", "app_slug": "github-actions", "app_id": 15368}],
+              "main": [{"check_name": "verify", "app_slug": "github-actions", "app_id": 15368}],
+              "runtime": [],
+          }
+          gates = build_gates(consumer, consumer, phases=phases, required_phases=["pr", "main"])
+          write_gates(gates, consumer, consumer)
+
+          fresh = validate_fresh_session(consumer, consumer, expected_repository=repo)
+          ops = load_operations(consumer, consumer)
+          loaded_gates = load_gates(consumer, consumer)
+          if ops.get("mode") != "CONSUMER_NATIVE":
+              raise SystemExit("OPERATIONAL_MODE_NOT_CONSUMER_NATIVE")
+          if ops.get("roadmap") != {"kind": "MARKDOWN_FILE", "path": "docs/ROADMAP.md"}:
+              raise SystemExit("ROADMAP_BINDING_MISMATCH")
+          if ops.get("work_items") != {"provider": "GITHUB_ISSUES", "repository": repo}:
+              raise SystemExit("WORK_SOURCE_BINDING_MISMATCH")
+          if loaded_gates.get("safety") != {"monetary_budget_usd": 0, "secrets": "FORBIDDEN"}:
+              raise SystemExit("GATE_SAFETY_MISMATCH")
+          print("FRESH_SESSION", json.dumps(fresh, sort_keys=True))
+          print("OPERATIONS_BINDING", ops["binding_sha256"])
+          print("GATES_BINDING", loaded_gates["binding_sha256"])
+          PY
+
+      - name: Prove consumer-owned tracked bytes unchanged
+        shell: bash
+        working-directory: consumer
+        run: |
+          set -euo pipefail
+          rm -rf .adwf-runtime
+          git add -A
+          git diff --cached --name-status "$CONSUMER_BASE_SHA" > /tmp/adoption-diff.txt
+          cat /tmp/adoption-diff.txt
+          if awk '$1 !~ /^A/ {print "NON_ADDITIVE_CHANGE:",$0; bad=1} END{exit bad}' /tmp/adoption-diff.txt; then
+            :
+          else
+            exit 1
+          fi
+          test -s /tmp/adoption-diff.txt
+          git diff --cached --quiet "$CONSUMER_BASE_SHA" -- .gitignore AGENTS.md CHANGELOG.md README.md || {
+            echo 'SHARED_CONSUMER_FILE_CHANGED'; exit 1;
+          }
+          git diff --cached --name-only | grep -q '^\.adwf/'
+          git diff --cached --name-only | grep -q '^\.adwf-consumer/profile.json$'
+          git diff --cached --name-only | grep -q '^\.adwf-consumer/installation.json$'
+          git diff --cached --name-only | grep -q '^\.adwf-consumer/operations.json$'
+          git diff --cached --name-only | grep -q '^\.adwf-consumer/gates.json$'
+          git diff --cached --name-only | grep -q '^\.github/workflows/adwf-control.yml$'
+
+      - name: Publish exact candidate to existing writer branch
+        shell: bash
+        working-directory: consumer
+        run: |
+          set -euo pipefail
+          git config user.name 'adwf-adoption-materializer'
+          git config user.email 'adwf-adoption-materializer@users.noreply.github.com'
+          git commit -m '[ADWF-ADOPT-001] Materialize certified ADWF e3bd9fb3 adoption'
+          candidate="$(git rev-parse HEAD)"
+          git push --force-with-lease="refs/heads/$WRITER_BRANCH:$EXPECTED_OLD_WRITER_HEAD" origin "HEAD:refs/heads/$WRITER_BRANCH"
+          echo "CANDIDATE_SHA=$candidate"
