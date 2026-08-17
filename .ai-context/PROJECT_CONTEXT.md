@@ -41,9 +41,9 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.
 
-`XRAY-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий writer.
+`XRAY-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #78, PR #305, candidate `3d12491cfac594bcbff9848e052c806d4a6a1877`, merge `d8307558a3439157b8e4714a7b6df8100dc215f9`; writer authority завершена.
 
-Текущая engineering цель XRAY-090: versioned deterministic Financial Health X-Ray rule registry + typed explainable findings поверх доказанных upstream contracts без альтернативной FIN-TRUTH. UI/LLM evaluation/write authority в bounded unit отсутствуют; public evidence synthetic-only; FREE_ONLY обязателен.
+`DASH-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #306, branch `agent/DASH-090-expert-dashboard-gallery`, lease `cecfe2cb-8ad8-4ac3-9c6d-8a4f9da9cc39`, trust anchor `main@d8307558a3439157b8e4714a7b6df8100dc215f9`. Текущая цель: immutable Expert dashboard gallery поверх DASH-084 и canonical ANL/VIZ/XRAY capabilities без второго storage/query/FIN engine; user-facing Product Ready evidence обязателен до DONE.
 
 PrihRash управляется ADWF как `CONSUMER_NATIVE`, но product authority остаётся у PrihRash: canonical Roadmap — `docs/ROADMAP.md`, lifecycle — live GitHub Issues, native provider gates — `validate` / `verify` / `probe`. ADWF self-host Roadmap/control mutation authority не переносится в consumer.
 
@@ -122,7 +122,7 @@ Real or real-derived household finance data stays private. Public repo соде�
 
 R2 finance/data/design/visual contracts, R3 planning/wealth contracts, R7 semantic analytics, VIZ-090 и R8 Studio/dashboard configuration contracts остаются reusable engineering capital. Product credit даётся только current exact-SHA evidence.
 
-После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ADWF-ADOPT-001`, `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` уже завершены/Main Verification PASS. Текущий single writer — `XRAY-090` #78; другие product/R9 writers не получают authority параллельно.
+После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ADWF-ADOPT-001`, `ANL-090`, `ANL-091`, `PERF-090`, `RISK-030` и `XRAY-090` уже завершены/Main Verification PASS. Текущий single writer — `DASH-090` #306; другие product/R9 writers не получают authority параллельно до полного user-facing lifecycle.
 
 ## Future YDB boundary
 
