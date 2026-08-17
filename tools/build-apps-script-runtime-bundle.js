@@ -116,6 +116,73 @@ function collectModules(root, entryModules = ENTRY_MODULES) {
   return modules;
 }
 
+function lowerBigIntLiteralsForAppsScript(source, moduleId = 'runtime-module') {
+  const text = String(source);
+  const out = [];
+  let state = 'CODE';
+  let index = 0;
+  while (index < text.length) {
+    const ch = text[index];
+    const next = text[index + 1] || '';
+    if (state === 'LINE_COMMENT') {
+      out.push(ch); index += 1;
+      if (ch === '\n') state = 'CODE';
+      continue;
+    }
+    if (state === 'BLOCK_COMMENT') {
+      out.push(ch);
+      if (ch === '*' && next === '/') { out.push(next); index += 2; state = 'CODE'; } else index += 1;
+      continue;
+    }
+    if (state === 'SINGLE' || state === 'DOUBLE' || state === 'TEMPLATE') {
+      out.push(ch); index += 1;
+      if (ch === '\\' && index < text.length) { out.push(text[index]); index += 1; continue; }
+      if ((state === 'SINGLE' && ch === "'") || (state === 'DOUBLE' && ch === '"') || (state === 'TEMPLATE' && ch === '`')) state = 'CODE';
+      continue;
+    }
+    if (ch === '/' && next === '/') { out.push(ch, next); index += 2; state = 'LINE_COMMENT'; continue; }
+    if (ch === '/' && next !== '/' && next !== '*') {
+      let close = index + 1;
+      let escaped = false;
+      while (close < text.length && text[close] !== '\n' && text[close] !== '\r') {
+        if (!escaped && text[close] === '/') break;
+        escaped = !escaped && text[close] === '\\';
+        if (text[close] !== '\\') escaped = false;
+        close += 1;
+      }
+      if (close < text.length && text[close] === '/') {
+        const slashSegment = text.slice(index, close + 1);
+        if (/(?:\b0[xX][0-9A-Fa-f]+n\b|\b0[bB][01]+n\b|\b0[oO][0-7]+n\b|\b[0-9]+n\b)/.test(slashSegment)) {
+          out.push(slashSegment);
+          index = close + 1;
+          continue;
+        }
+      }
+    }
+    if (ch === '/' && next === '*') { out.push(ch, next); index += 2; state = 'BLOCK_COMMENT'; continue; }
+    if (ch === "'") { out.push(ch); index += 1; state = 'SINGLE'; continue; }
+    if (ch === '"') { out.push(ch); index += 1; state = 'DOUBLE'; continue; }
+    if (ch === '`') { out.push(ch); index += 1; state = 'TEMPLATE'; continue; }
+    if (/[0-9]/.test(ch) && (index === 0 || !/[A-Za-z0-9_$]/.test(text[index - 1]))) {
+      if (ch === '0' && /[xXbBoO]/.test(next)) {
+        let end = index + 2;
+        while (end < text.length && /[0-9A-Fa-f]/.test(text[end])) end += 1;
+        if (text[end] === 'n') throw new Error(`Apps Script BigInt literal lowering incomplete: ${moduleId}:${text.slice(index, end + 1)}`);
+      }
+      let end = index;
+      while (end < text.length && /[0-9]/.test(text[end])) end += 1;
+      if (text[end] === 'n' && (end + 1 === text.length || !/[A-Za-z0-9_$]/.test(text[end + 1]))) {
+        const digits = text.slice(index, end);
+        out.push(`BigInt(${JSON.stringify(digits)})`);
+        index = end + 1;
+        continue;
+      }
+    }
+    out.push(ch); index += 1;
+  }
+  return out.join('');
+}
+
 function runtimeCryptoShimSource() {
   return [
     'function __prhSha256Hex(value){',
@@ -145,7 +212,10 @@ function buildRuntimeBundleSource(sourceRoot, entryModules = ENTRY_MODULES) {
       lines.push(`__modules[${JSON.stringify(module.id)}]=function(module){module.exports=${module.source};};`);
       return;
     }
-    lines.push(`__modules[${JSON.stringify(module.id)}]=function(module,exports,require){\n${module.source}\n};`);
+    const runtimeSource = lowerBigIntLiteralsForAppsScript(module.source, module.id);
+    const remainingBigIntLiteral = /(?:\b0[xX][0-9A-Fa-f]+n\b|\b0[bB][01]+n\b|\b0[oO][0-7]+n\b|\b[0-9]+n\b)/.exec(runtimeSource);
+    if (remainingBigIntLiteral) throw new Error(`Apps Script BigInt literal remains after lowering: ${module.id}:${remainingBigIntLiteral[0]}`);
+    lines.push(`__modules[${JSON.stringify(module.id)}]=function(module,exports,require){\n${runtimeSource}\n};`);
   });
   lines.push(
     'var __dependencyMaps=' + JSON.stringify(Object.fromEntries([...modules.values()].map((module) => [module.id, module.dependencies]))) + ';',
@@ -190,6 +260,7 @@ module.exports = {
   effectiveEntryModules,
   resolveLocalModule,
   collectModules,
+  lowerBigIntLiteralsForAppsScript,
   buildRuntimeBundleSource,
   writeRuntimeBundle
 };

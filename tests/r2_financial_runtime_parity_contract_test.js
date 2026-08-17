@@ -11,8 +11,14 @@ const {
   GENERATED_RUNTIME_BUNDLE,
   RUNTIME_SCHEMA,
   ENTRY_MODULES,
+  lowerBigIntLiteralsForAppsScript,
   buildRuntimeBundleSource
 } = require('../tools/build-apps-script-runtime-bundle');
+
+assert.strictEqual(lowerBigIntLiteralsForAppsScript("const x=0n; const y=-10000n;", 'synthetic'), 'const x=BigInt("0"); const y=-BigInt("10000");');
+assert.strictEqual(lowerBigIntLiteralsForAppsScript("const s='100n'; // 2n\n/* 3n */ const x=4n;", 'synthetic'), "const s='100n'; // 2n\n/* 3n */ const x=BigInt(\"4\");");
+assert.throws(() => lowerBigIntLiteralsForAppsScript('const x=0x10n;', 'synthetic'), /BigInt literal lowering incomplete/);
+assert.strictEqual(lowerBigIntLiteralsForAppsScript('const re=/2n/;', 'synthetic'), 'const re=/2n/;');
 
 const root = path.join(__dirname, '..');
 const bridgeSource = fs.readFileSync(path.join(root, 'R2FinancialRuntimeService.js'), 'utf8');
@@ -111,6 +117,7 @@ const context = vm.createContext({
 });
 
 const bundleSource = buildRuntimeBundleSource(root);
+assert.strictEqual(/(?:\b0[xX][0-9A-Fa-f]+n\b|\b0[bB][01]+n\b|\b0[oO][0-7]+n\b|\b[0-9]+n\b)/.test(bundleSource), false, 'Apps Script runtime bundle must not contain BigInt literal syntax');
 new vm.Script(bundleSource, { filename: GENERATED_RUNTIME_BUNDLE });
 vm.runInContext(bundleSource, context, { filename: GENERATED_RUNTIME_BUNDLE });
 vm.runInContext(bridgeSource, context, { filename: 'R2FinancialRuntimeService.js' });
