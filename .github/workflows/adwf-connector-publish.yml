@@ -1,0 +1,44 @@
+name: ADWF Connector Publish Staging
+
+on:
+  push:
+    branches:
+      - agent/publish-dash090-cadf361-20260817
+
+permissions:
+  contents: write
+
+concurrency:
+  group: adwf-publish-dash090-cadf361
+  cancel-in-progress: true
+
+jobs:
+  materialize-candidate-tree:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Materialize exact verified patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH_B64='.adwf-publish/dash090-final.patch.gz.b64'
+          if [[ ! -f "$PATCH_B64" ]]; then
+            echo 'PATCH_NOT_PRESENT_YET'
+            exit 0
+          fi
+          base64 -d "$PATCH_B64" > /tmp/dash090-final.patch.gz
+          echo '2f18bb61514555e4a8d1e954e425df217d305fe136263cc473224776dd6bd18d  /tmp/dash090-final.patch.gz' | sha256sum -c -
+          gunzip -c /tmp/dash090-final.patch.gz > /tmp/dash090-final.patch
+          echo 'aa29a71a7278c24898085f856e64367ee988a2b1cf80f457b9c35caa985c04d8  /tmp/dash090-final.patch' | sha256sum -c -
+          git apply --check /tmp/dash090-final.patch
+          git apply /tmp/dash090-final.patch
+          rm -rf .adwf-publish .github/workflows/adwf-connector-publish.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'adwf-connector-publish'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: materialize DASH-090 candidate tree'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
