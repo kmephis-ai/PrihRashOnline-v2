@@ -1,0 +1,90 @@
+name: ADWF ADOPT Main Verify Docs Materializer
+
+on:
+  push:
+    branches:
+      - agent/materialize-ADWF-ADOPT-001-main-verify-docs-a1
+
+permissions:
+  contents: write
+
+env:
+  TARGET_BRANCH: agent/ADWF-ADOPT-001-control-plane-main-verify
+  TARGET_SHA: 1643bc82be9126fafca87f9d41ca579a7500ce1f
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Align exact current-writer documentation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /mnt/data
+          sudo chown "$USER":"$USER" /mnt/data
+          rm -rf /mnt/data/prihrash-main-verify-docs
+          git clone -q "https://github.com/${GITHUB_REPOSITORY}.git" /mnt/data/prihrash-main-verify-docs
+          cd /mnt/data/prihrash-main-verify-docs
+          git checkout -q --detach "$TARGET_SHA"
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          remote_target="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_target" = "$TARGET_SHA"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          status = Path('docs/PROJECT_STATUS.md')
+          text = status.read_text(encoding='utf-8')
+          old = "- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`. Это bounded engineering/integration transaction: установка ADWF consumer-managed surfaces и sealed consumer bindings без product/runtime/data/FIN-TRUTH write authority."
+          new = "- `ADWF-ADOPT-001` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #287, follow-up PR #291, branch `agent/ADWF-ADOPT-001-control-plane-main-verify`, trust anchor `main@29aeacc273b5562b4335f908fb8cd081d725fb87`. Основная adoption через PR #289 уже merged; текущий bounded follow-up закрывает post-merge native `verify` gap для ADWF/control-plane changes без product/runtime/data/FIN-TRUTH write authority."
+          if old not in text:
+              raise SystemExit('PROJECT_STATUS_CURRENT_WRITER_ANCHOR_NOT_FOUND')
+          text = text.replace(old, new, 1)
+          old = "Текущая последовательность: `ADWF-ADOPT-001 PR #289 -> native PR Validation/validate + ADWF PR consumer delegation -> existing protected/autonomous merge contract -> Main Verification/verify + ADWF Main delegation -> consumer-observer + fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed."
+          new = "Текущая последовательность: `PR #291 -> native PR Validation/validate + ADWF PR consumer delegation -> Trusted DEV/Runtime N/A без Apps Script mutation -> protected merge -> ADWF Consumer Main Verification/verify + ADWF Main delegation -> read-only consumer-observer -> fresh-session provider readback -> framework upgrade dry-run`. До завершения этой цепочки PrihRash не объявляется ADWF-managed."
+          if old not in text:
+              raise SystemExit('PROJECT_STATUS_SEQUENCE_ANCHOR_NOT_FOUND')
+          text = text.replace(old, new, 1)
+          status.write_text(text, encoding='utf-8')
+
+          ctx = Path('.ai-context/PROJECT_CONTEXT.md')
+          text = ctx.read_text(encoding='utf-8')
+          old = "`ADWF-ADOPT-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`."
+          new = "`ADWF-ADOPT-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #287, follow-up PR #291, branch `agent/ADWF-ADOPT-001-control-plane-main-verify`, trust anchor `main@29aeacc273b5562b4335f908fb8cd081d725fb87`. PR #289 уже merged; текущий follow-up закрывает post-merge native `verify` gap для ADWF/control-plane changes."
+          if old not in text:
+              raise SystemExit('PROJECT_CONTEXT_CURRENT_WRITER_ANCHOR_NOT_FOUND')
+          text = text.replace(old, new, 1)
+          old = "До fresh exact-head `PR Validation/validate` + `ADWF PR` consumer delegation, existing protected delivery chain, `Main Verification/verify`, `ADWF Main`, read-only consumer-observer и fresh-session readback нельзя объявлять PrihRash подключённым к ADWF."
+          new = "До fresh exact-head `PR Validation/validate` + `ADWF PR` consumer delegation, trusted N/A без Apps Script mutation, protected merge, ADWF control-plane `verify`, `ADWF Main`, read-only consumer-observer, fresh-session readback и framework upgrade dry-run нельзя объявлять PrihRash подключённым к ADWF."
+          if old not in text:
+              raise SystemExit('PROJECT_CONTEXT_COMPLETION_ANCHOR_NOT_FOUND')
+          text = text.replace(old, new, 1)
+          ctx.write_text(text, encoding='utf-8')
+          PY
+
+          test "$(git diff --name-only)" = $'.ai-context/PROJECT_CONTEXT.md\ndocs/PROJECT_STATUS.md'
+          node tools/docs-drift-scan.js
+          node tools/language-policy-scan.js
+          node tools/secret-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+
+          git config user.name adwf-adoption-doc-materializer
+          git config user.email adwf-adoption-doc-materializer@users.noreply.github.com
+          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md
+          git commit -q -m "ADWF-ADOPT-001: align follow-up current writer docs"
+
+          remote_target="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_target" = "$TARGET_SHA"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -q origin "HEAD:refs/heads/${TARGET_BRANCH}"
