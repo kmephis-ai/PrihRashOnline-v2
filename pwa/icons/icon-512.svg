@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="ПрихРасхOnline">
-  <rect width="512" height="512" rx="112" fill="#0b6570"/>
-  <path d="M120 144h272v64H120zM120 236h171v64H120zM120 328h272v64H120z" fill="#ffffff" opacity=".96"/>
-  <circle cx="352" cy="268" r="46" fill="#8ee4d5"/>
-  <path d="M336 268h32M352 252v32" stroke="#0b4050" stroke-width="16" stroke-linecap="round"/>
-</svg>
