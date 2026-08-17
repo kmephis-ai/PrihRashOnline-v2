@@ -1,0 +1,209 @@
+name: XRAY-090 Exact Materializer
+
+on:
+  push:
+    branches:
+      - agent/xray090-publisher-20260817-a1
+
+permissions:
+  contents: write
+
+env:
+  BASE_SHA: da178555f2166fdb70071405e4c1422659ae7593
+  WRITER_BRANCH: agent/XRAY-090-financial-health-xray
+  PAYLOAD_SHA256: 35230025b5a0bb865f11ab855d46f1a223858407fabcf432951cc7a386415bb9
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact transport payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .xray090/payload.tgz.b64 > /tmp/xray090.tgz
+          test "$(sha256sum /tmp/xray090.tgz | awk '{print $1}')" = "$PAYLOAD_SHA256"
+          mkdir -p /tmp/xray090
+          tar -xzf /tmp/xray090.tgz -C /tmp/xray090
+          test "$(git hash-object /tmp/xray090/lib/xray/financial_health_xray.v1.json)" = 83efa40fc9574199efc6e1281d0ab3a0ecc7b46e
+          test "$(git hash-object /tmp/xray090/lib/xray/financial_health_xray.js)" = b4ddc337c9f515ada94045cedd381116fa63bbe2
+          test "$(git hash-object /tmp/xray090/tests/financial_health_xray_contract_test.js)" = 183d08511f0c2f53a887868c0e7b5c1eb71d2e80
+          test "$(git hash-object /tmp/xray090/FINANCIAL_HEALTH_XRAY.md)" = 903164ea62248d10ac83d8c1415d8f4e8ccac3ec
+
+      - name: Bind exact canonical writer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$BASE_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')" = "$BASE_SHA"
+          git fetch origin "${WRITER_BRANCH}" main
+          git checkout --detach "origin/${WRITER_BRANCH}"
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+
+      - name: Materialize XRAY-090 prototype and inventories
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p lib/xray docs/analytics
+          cp /tmp/xray090/lib/xray/financial_health_xray.v1.json lib/xray/financial_health_xray.v1.json
+          cp /tmp/xray090/lib/xray/financial_health_xray.js lib/xray/financial_health_xray.js
+          cp /tmp/xray090/tests/financial_health_xray_contract_test.js tests/financial_health_xray_contract_test.js
+          cp /tmp/xray090/FINANCIAL_HEALTH_XRAY.md docs/analytics/FINANCIAL_HEALTH_XRAY.md
+
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'REPLACE_COUNT_INVALID:{path}:{count}:{old[:80]}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          def validate_json(path):
+              with open(path, 'r', encoding='utf-8') as f:
+                  return json.load(f)
+
+          # Preserve file formatting while validating semantic anchors before and after insertion.
+          ta = validate_json('lib/testing/test_architecture.v1.json')
+          if 'financial_health_xray_contract_test.js' in ta.get('exact_overrides', {}):
+              raise SystemExit('XRAY_TEST_OVERRIDE_ALREADY_PRESENT')
+          if not any(g.get('name') == 'Liquidity & financial risk' for g in ta.get('workflow_required_gates', [])):
+              raise SystemExit('RISK_GATE_ANCHOR_MISSING')
+          replace_once(
+              'lib/testing/test_architecture.v1.json',
+              '"liquidity_financial_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","combinatorial_analytics_regression_contract_test.js":"PURE_DOMAIN_APPLICATION"',
+              '"liquidity_financial_risk_contract_test.js":"PURE_DOMAIN_APPLICATION","financial_health_xray_contract_test.js":"PURE_DOMAIN_APPLICATION","combinatorial_analytics_regression_contract_test.js":"PURE_DOMAIN_APPLICATION"'
+          )
+          replace_once(
+              'lib/testing/test_architecture.v1.json',
+              '{"name":"Liquidity & financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Net Worth","layer":"PURE_DOMAIN_APPLICATION"}',
+              '{"name":"Liquidity & financial risk","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Financial Health X-Ray","layer":"PURE_DOMAIN_APPLICATION"},{"name":"Net Worth","layer":"PURE_DOMAIN_APPLICATION"}'
+          )
+          ta2 = validate_json('lib/testing/test_architecture.v1.json')
+          if ta2['exact_overrides'].get('financial_health_xray_contract_test.js') != 'PURE_DOMAIN_APPLICATION':
+              raise SystemExit('XRAY_TEST_OVERRIDE_NOT_MATERIALIZED')
+          if sum(1 for g in ta2['workflow_required_gates'] if g.get('name') == 'Financial Health X-Ray') != 1:
+              raise SystemExit('XRAY_GATE_INVENTORY_NOT_MATERIALIZED')
+
+          lp = validate_json('lib/documentation/language_policy.v1.json')
+          target_doc = 'docs/analytics/FINANCIAL_HEALTH_XRAY.md'
+          if any(i.get('path') == target_doc for i in lp.get('normative_inventory', [])):
+              raise SystemExit('XRAY_LANG_INVENTORY_ALREADY_PRESENT')
+          replace_once(
+              'lib/documentation/language_policy.v1.json',
+              '{"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},',
+              '{"path":"docs/analytics/LONG_TERM_TRENDS.md","kind":"ANALYTICS","min_cyrillic_letters":260},\n    {"path":"docs/analytics/FINANCIAL_HEALTH_XRAY.md","kind":"ANALYTICS","min_cyrillic_letters":500},'
+          )
+          replace_once(
+              'lib/documentation/language_policy.v1.json',
+              '"docs/visualization/ADVANCED_VISUALIZATION_PACK.md": ["VIZ-090", "PRH_ADVANCED_VISUALIZATION_PACK_V1"],',
+              '"docs/analytics/FINANCIAL_HEALTH_XRAY.md": ["XRAY-090", "PRH_FINANCIAL_HEALTH_XRAY_V1"],\n    "docs/visualization/ADVANCED_VISUALIZATION_PACK.md": ["VIZ-090", "PRH_ADVANCED_VISUALIZATION_PACK_V1"],'
+          )
+          replace_once(
+              'lib/documentation/language_policy.v1.json',
+              '"PRH_LIQUIDITY_FINANCIAL_RISK_V1", "PRH_LIQUIDITY_RISK_RESULT_V1",',
+              '"PRH_LIQUIDITY_FINANCIAL_RISK_V1", "PRH_LIQUIDITY_RISK_RESULT_V1", "PRH_FINANCIAL_HEALTH_XRAY_V1", "PRH_FINANCIAL_HEALTH_XRAY_INPUT_V1", "PRH_XRAY_SIGNAL_V1", "PRH_XRAY_RULE_REGISTRY_V1", "PRH_XRAY_FINDING_V1", "PRH_FINANCIAL_HEALTH_XRAY_RESULT_V1", "PRH_XRAY_EVIDENCE_V1", "PRH_XRAY_DRILL_V1", "PRH_XRAY_TELEMETRY_V1", "PRH_XRAY_FINDING_TELEMETRY_V1", "TRIGGERED", "CLEAR", "INSUFFICIENT", "INCOMPATIBLE", "REVIEW_REQUIRED",'
+          )
+          lp2 = validate_json('lib/documentation/language_policy.v1.json')
+          if sum(1 for i in lp2['normative_inventory'] if i.get('path') == target_doc) != 1:
+              raise SystemExit('XRAY_LANG_INVENTORY_NOT_MATERIALIZED')
+          if lp2.get('required_markers', {}).get(target_doc) != ['XRAY-090', 'PRH_FINANCIAL_HEALTH_XRAY_V1']:
+              raise SystemExit('XRAY_REQUIRED_MARKERS_NOT_MATERIALIZED')
+
+          context_old = '''`RISK-030` — **IN_PROGRESS / current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` provider-complete; `XRAY-090` остаётся BACKLOG до завершения этой dependency.\n\nТекущая engineering цель RISK-030: versioned deterministic liquidity/risk layer поверх Net Worth и Cash-flow Projection с explicit date/currency binding, missing/review states, runway/scenario indicators и privacy-safe telemetry. FIN-TRUTH, canonical data, balance/projection semantics, storage/write authority и FREE_ONLY не меняются.'''
+          context_new = '''`RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.\n\n`XRAY-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий writer.\n\nТекущая engineering цель XRAY-090: versioned deterministic Financial Health X-Ray rule registry + typed explainable findings поверх доказанных upstream contracts без альтернативной FIN-TRUTH. UI/LLM evaluation/write authority в bounded unit отсутствуют; public evidence synthetic-only; FREE_ONLY обязателен.'''
+          replace_once('.ai-context/PROJECT_CONTEXT.md', context_old, context_new)
+          replace_once(
+              '.ai-context/PROJECT_CONTEXT.md',
+              'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ANL-090`, `ANL-091` и `PERF-090` уже завершены/Main Verification PASS. `RISK-030` является текущей dependency-транзакцией для будущего `XRAY-090`; другие product/R9 writers не получают authority параллельно.',
+              'После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` уже завершены/Main Verification PASS. `XRAY-090` является текущей R9 writer-транзакцией; другие product/R9 writers не получают authority параллельно.'
+          )
+
+          status_old = '- `RISK-030` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #303, branch `agent/RISK-030-liquidity-financial-risk`, trust anchor `main@2f9753d609b7ef05ec1993f7e36628b60de545db`. Dependencies `NW-030` и `PROJ-030` provider-complete; bounded scope — deterministic liquidity/runway/scenario risk indicators без новой financial truth или write authority.'
+          status_new = '- `RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.\n- `XRAY-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; bounded scope — deterministic rule registry + explainable typed findings без новой FIN-TRUTH, LLM evaluation или write authority.'
+          replace_once('docs/PROJECT_STATUS.md', status_old, status_new)
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              'Текущий dependency scope `RISK-030`: explicit Net Worth + Projection date/currency binding, account-based liquidity proxy, deterministic runway/scenario risk bands, fail-closed missing/review states и privacy-safe evidence/telemetry. Cash Flow не становится balance proxy; financial write authority отсутствует.',
+              'Текущий R9 scope `XRAY-090`: versioned deterministic rule registry и typed explainable findings поверх RISK/ANL/BAL/SCOPE upstream evidence. Missing/incompatible/review состояния не маскируются как CLEAR; diagnostic score не является financial truth; UI/LLM evaluation и financial write authority отсутствуют.'
+          )
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              '`XRAY-090` остаётся BACKLOG до Main Verification `RISK-030`; другие product/R9 writers не стартуют параллельно с `RISK-030`.',
+              '`XRAY-090` — текущий single writer; другие product/R9 writers не стартуют параллельно до его Main Verification.'
+          )
+          replace_once(
+              'docs/PROJECT_STATUS.md',
+              '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091` и `PERF-090` завершены как **DONE_ENGINEERING / Main Verification PASS**. `RISK-030` Issue #303 — текущий dependency-closing writer; `XRAY-090` остаётся BACKLOG до Main Verification RISK-030.',
+              '`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` завершены как **DONE_ENGINEERING / Main Verification PASS**. `XRAY-090` Issue #78 — текущий dependency-ready R9 writer.'
+          )
+
+          # Validate a named canonical gate in the candidate worktree, but publish workflow authority separately via connector.
+          wf = Path('.github/workflows/pr-validation.yml')
+          wt = wf.read_text(encoding='utf-8')
+          anchor = '      - name: Liquidity & financial risk\n        run: node tests/liquidity_financial_risk_contract_test.js\n'
+          insert = anchor + '      - name: Financial Health X-Ray\n        run: node tests/financial_health_xray_contract_test.js\n'
+          if wt.count(anchor) != 1 or '      - name: Financial Health X-Ray\n' in wt:
+              raise SystemExit('XRAY_WORKFLOW_GATE_ANCHOR_INVALID')
+          wf.write_text(wt.replace(anchor, insert), encoding='utf-8')
+          PY
+
+      - name: Focused XRAY-090 and safety evidence
+        shell: bash
+        env:
+          GITHUB_HEAD_REF: agent/XRAY-090-financial-health-xray
+        run: |
+          set -euo pipefail
+          node tests/financial_health_xray_contract_test.js
+          node tests/liquidity_financial_risk_contract_test.js
+          node tests/contribution_decomposition_contract_test.js
+          node tests/analytics_seasonality_distribution_concentration_contract_test.js
+          node tests/balance_reconciliation_contract_test.js
+          node tests/analytics_scope_contract_test.js
+          node tests/long_term_trends_contract_test.js
+          node tests/budget_control_contract_test.js
+          node tests/subscription_detection_contract_test.js
+          node tests/test_architecture_contract_test.js
+          node tests/language_policy_contract_test.js
+          node tools/docs-drift-scan.js
+          node tools/privacy-public-data-scan.js
+          node tools/free-only-scan.js
+          node tools/ci-trust-boundary-scan.js
+          node tools/supply-chain-scan.js
+          node tools/run-layered-tests.js pure
+
+      - name: Publish non-workflow exact candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git restore .github/workflows/pr-validation.yml
+          test "$(git hash-object lib/xray/financial_health_xray.v1.json)" = 83efa40fc9574199efc6e1281d0ab3a0ecc7b46e
+          test "$(git hash-object lib/xray/financial_health_xray.js)" = b4ddc337c9f515ada94045cedd381116fa63bbe2
+          test "$(git hash-object tests/financial_health_xray_contract_test.js)" = 183d08511f0c2f53a887868c0e7b5c1eb71d2e80
+          test "$(git hash-object docs/analytics/FINANCIAL_HEALTH_XRAY.md)" = 903164ea62248d10ac83d8c1415d8f4e8ccac3ec
+          git add .ai-context/PROJECT_CONTEXT.md docs/PROJECT_STATUS.md docs/analytics/FINANCIAL_HEALTH_XRAY.md \
+            lib/documentation/language_policy.v1.json lib/testing/test_architecture.v1.json \
+            lib/xray/financial_health_xray.js lib/xray/financial_health_xray.v1.json tests/financial_health_xray_contract_test.js
+          git diff --cached --check
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$BASE_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')" = "$BASE_SHA"
+          git config user.name 'xray090-materializer'
+          git config user.email 'xray090-materializer@users.noreply.github.com'
+          git commit -m 'XRAY-090: add deterministic financial health rule registry'
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          git push origin "HEAD:refs/heads/${WRITER_BRANCH}"
+          echo "candidate_nonworkflow_sha=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "candidate_nonworkflow_tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
