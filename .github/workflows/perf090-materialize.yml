@@ -89,25 +89,73 @@ jobs:
           node tools/run-layered-tests.js pure
           test "$(git write-tree)" = "$EXPECTED_TREE"
 
-      - name: CAS publish exact candidate
+      - name: Provider-native CAS publish exact candidate
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          REMOTE_MAIN="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          REMOTE_WRITER="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${WRITER_BRANCH}" --jq '.object.sha')"
-          test "$REMOTE_MAIN" = "$BASE_SHA"
-          test "$REMOTE_WRITER" = "$BASE_SHA"
+
+          get_ref() {
+            gh api "repos/${GITHUB_REPOSITORY}/git/ref/$1" --jq '.object.sha'
+          }
+
+          test "$(get_ref heads/main)" = "$BASE_SHA"
+          test "$(get_ref "heads/${WRITER_BRANCH}")" = "$BASE_SHA"
           test "$(git write-tree)" = "$EXPECTED_TREE"
 
-          git config user.name 'perf090-materializer'
-          git config user.email 'perf090-materializer@users.noreply.github.com'
-          git commit -m 'PERF-090: add Studio-scale performance gate'
-          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
-          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          post_blob() {
+            local path="$1" expected="$2"
+            local encoded actual
+            encoded="$(base64 -w0 "$path")"
+            actual="$(jq -n --arg content "$encoded" '{content:$content,encoding:"base64"}' | \
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha')"
+            test "$actual" = "$expected"
+            printf '%s' "$actual"
+          }
 
-          PUSH_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push "$PUSH_URL" "HEAD:refs/heads/${WRITER_BRANCH}"
-          echo "candidate_sha=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
-          echo "candidate_tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
+          B_CONTEXT="$(post_blob .ai-context/PROJECT_CONTEXT.md c9e107c901048ef60ddea639c0b028707123addd)"
+          B_WORKFLOW="$(post_blob .github/workflows/pr-validation.yml 5ec3b2be386b9b1b0f94cb1836f10489bd0a773d)"
+          B_STATUS="$(post_blob docs/PROJECT_STATUS.md e8ca2c4f150e4327a1893c3f4a01555877c0b929)"
+          B_DOC="$(post_blob docs/performance/STUDIO_SCALE_RENDERING_PERFORMANCE.md 587e04502eb5bbce0e8de5509cfcb6461e3b2e3a)"
+          B_LANG="$(post_blob lib/documentation/language_policy.v1.json f0e5ca40d3043ccac7c004aba41da22ed9a21e20)"
+          B_JS="$(post_blob lib/performance/studio_scale_performance.js b366df93cdb43b14ae61f67c16f8a45a04758fd4)"
+          B_JSON="$(post_blob lib/performance/studio_scale_performance.v1.json 16d13a9a8c7d3d63af9c2584b3f953215c3899ba)"
+          B_ARCH="$(post_blob lib/testing/test_architecture.v1.json 255f3facd84cd32de341adb3c185026260485f1d)"
+          B_TEST="$(post_blob tests/studio_scale_performance_contract_test.js c26196c81953540cf3e3fdebf242cd7a7bb8d9e5)"
+
+          TREE_SHA="$(jq -n \
+            --arg base "$BASE_TREE" \
+            --arg c "$B_CONTEXT" --arg w "$B_WORKFLOW" --arg s "$B_STATUS" --arg d "$B_DOC" \
+            --arg l "$B_LANG" --arg j "$B_JS" --arg v "$B_JSON" --arg a "$B_ARCH" --arg t "$B_TEST" \
+            '{base_tree:$base,tree:[
+              {path:".ai-context/PROJECT_CONTEXT.md",mode:"100644",type:"blob",sha:$c},
+              {path:".github/workflows/pr-validation.yml",mode:"100644",type:"blob",sha:$w},
+              {path:"docs/PROJECT_STATUS.md",mode:"100644",type:"blob",sha:$s},
+              {path:"docs/performance/STUDIO_SCALE_RENDERING_PERFORMANCE.md",mode:"100644",type:"blob",sha:$d},
+              {path:"lib/documentation/language_policy.v1.json",mode:"100644",type:"blob",sha:$l},
+              {path:"lib/performance/studio_scale_performance.js",mode:"100644",type:"blob",sha:$j},
+              {path:"lib/performance/studio_scale_performance.v1.json",mode:"100644",type:"blob",sha:$v},
+              {path:"lib/testing/test_architecture.v1.json",mode:"100644",type:"blob",sha:$a},
+              {path:"tests/studio_scale_performance_contract_test.js",mode:"100644",type:"blob",sha:$t}
+            ]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
+          test "$TREE_SHA" = "$EXPECTED_TREE"
+
+          COMMIT_SHA="$(jq -n --arg message 'PERF-090: add Studio-scale performance gate' --arg tree "$TREE_SHA" --arg parent "$BASE_SHA" \
+            '{message:$message,tree:$tree,parents:[$parent]}' | \
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
+
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${COMMIT_SHA}" --jq '.tree.sha')" = "$EXPECTED_TREE"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${COMMIT_SHA}" --jq '.parents[0].sha')" = "$BASE_SHA"
+
+          # Re-read immediately before mutation. A concurrent writer move makes the non-force ref update non-fast-forward and fail closed.
+          test "$(get_ref heads/main)" = "$BASE_SHA"
+          test "$(get_ref "heads/${WRITER_BRANCH}")" = "$BASE_SHA"
+
+          jq -n --arg sha "$COMMIT_SHA" '{sha:$sha,force:false}' | \
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/${WRITER_BRANCH}" --input - >/dev/null
+
+          test "$(get_ref "heads/${WRITER_BRANCH}")" = "$COMMIT_SHA"
+          test "$(get_ref heads/main)" = "$BASE_SHA"
+          echo "candidate_sha=${COMMIT_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "candidate_tree=${TREE_SHA}" >> "$GITHUB_STEP_SUMMARY"
