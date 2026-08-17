@@ -9,15 +9,13 @@ function prhDash090Runtime_() {
   return PRH_R2_CANONICAL_RUNTIME;
 }
 
-function prhDash090StoreFromStorage_() {
+function prhDash090ProjectionFromSnapshot_(snapshot, viewId) {
   var runtime = prhDash090Runtime_();
-  var snapshot = prhDash084StorageReadSnapshot_();
-  var views = snapshot.index.view_ids.map(function(viewId) {
-    var text = snapshot.view_json_by_id[viewId];
-    if (!text) throw new Error('DASH090_STORAGE_VIEW_MISSING:' + viewId);
-    return JSON.parse(text);
-  });
-  return runtime.dashboardSavedViews.hydrateStore(snapshot.generation, views);
+  if (viewId == null) return runtime.dashboardSavedViews.hydrateStore(snapshot.generation, []);
+  var id = prhDash084StorageViewId_(viewId);
+  var text = snapshot.view_json_by_id[id];
+  if (!text) throw new Error('DASH090_STORAGE_VIEW_MISSING:' + id);
+  return runtime.dashboardSavedViews.hydrateStore(snapshot.generation, [JSON.parse(text)]);
 }
 
 function prhDash090FindView_(store, viewId) {
@@ -61,14 +59,25 @@ function prhDash090ViewSummary_(store, view) {
   };
 }
 
-function prhDash090CommitOperation_(beforeStore, operation, viewId) {
-  if (operation.store.generation === beforeStore.generation) return null;
+function prhDash090CommitOperation_(snapshot, operation, viewId, createMode) {
+  if (operation.store.generation === snapshot.generation) return null;
+  if (operation.store.generation !== snapshot.generation + 1) throw new Error('DASH090_STORE_GENERATION_INVALID');
   var runtime = prhDash090Runtime_();
-  var view = prhDash090FindView_(operation.store, viewId);
+  var id = prhDash084StorageViewId_(viewId);
+  var ids = snapshot.index.view_ids.slice();
+  var present = ids.indexOf(id) >= 0;
+  if (createMode === true) {
+    if (present) throw new Error('DASH090_VIEW_ID_CONFLICT');
+    ids.push(id);
+  } else if (!present) {
+    throw new Error('DASH090_VIEW_NOT_FOUND');
+  }
+  ids.sort();
+  var view = prhDash090FindView_(operation.store, id);
   return prhDash084StorageCommit_({
-    expected_generation: beforeStore.generation,
-    view_id: view.view_id,
-    index_json: runtime.dashboardSavedViews.serializeIndex(operation.store),
+    expected_generation: snapshot.generation,
+    view_id: id,
+    index_json: JSON.stringify({schema:'PRH_DASHBOARD_SAVED_VIEW_INDEX_V1',contract_version:'1.0.0',generation:operation.store.generation,view_ids:ids}),
     view_json: runtime.dashboardSavedViews.serializeView(view)
   });
 }
@@ -105,18 +114,22 @@ function prhDash090ClonePreset(request) {
   var presetId = String(request.preset_id || '').trim().toUpperCase();
   var runtime = prhDash090Runtime_();
   var gallery = runtime.expertDashboardGallery;
-  var store = prhDash090StoreFromStorage_();
+  var snapshot = prhDash084StorageReadSnapshot_();
+  var id = prhDash084StorageViewId_(request.view_id);
+  if (snapshot.index.view_ids.indexOf(id) >= 0) throw new Error('DASH090_VIEW_ID_CONFLICT');
+  var store = prhDash090ProjectionFromSnapshot_(snapshot, null);
   var result = gallery.cloneToSavedView(store, presetId, {
-    view_id: request.view_id,
+    view_id: id,
     name: request.name
   }, store.generation, gallery.allAvailableCapabilities());
-  prhDash090CommitOperation_(store, result, result.view_id);
+  prhDash090CommitOperation_(snapshot, result, result.view_id, true);
   return prhDash090ViewSummary_(result.store, result.view);
 }
 
 function prhDash090ReadView(request) {
   if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('DASH090_RUNTIME_REQUEST_INVALID');
-  var store = prhDash090StoreFromStorage_();
+  var snapshot = prhDash084StorageReadSnapshot_();
+  var store = prhDash090ProjectionFromSnapshot_(snapshot, request.view_id);
   return prhDash090ViewSummary_(store, prhDash090FindView_(store, request.view_id));
 }
 
@@ -125,7 +138,8 @@ function prhDash090SaveViewConfiguration(request) {
   var runtime = prhDash090Runtime_();
   var saved = runtime.dashboardSavedViews;
   var gallery = runtime.expertDashboardGallery;
-  var store = prhDash090StoreFromStorage_();
+  var snapshot = prhDash084StorageReadSnapshot_();
+  var store = prhDash090ProjectionFromSnapshot_(snapshot, request.view_id);
   if (!Number.isInteger(request.expected_generation) || request.expected_generation !== store.generation) throw new Error('DASH090_STORE_GENERATION_CONFLICT');
   var view = prhDash090FindView_(store, request.view_id);
   var revision = view.revisions[view.active_revision - 1];
@@ -148,7 +162,7 @@ function prhDash090SaveViewConfiguration(request) {
   };
   if (gallery.presetFromConfiguration(nextConfiguration).preset_id !== preset.preset_id) throw new Error('DASH090_PRESET_IDENTITY_MUTATION_FORBIDDEN');
   var operation = saved.saveVersion(store, view.view_id, nextConfiguration, store.generation);
-  prhDash090CommitOperation_(store, operation, view.view_id);
+  prhDash090CommitOperation_(snapshot, operation, view.view_id, false);
   var nextView = prhDash090FindView_(operation.store, view.view_id);
   return prhDash090ViewSummary_(operation.store, nextView);
 }

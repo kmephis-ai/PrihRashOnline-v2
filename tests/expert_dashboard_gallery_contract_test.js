@@ -8,6 +8,12 @@ const GALLERY = require('../lib/dashboard/expert_dashboard_gallery');
 const SAVED = require('../lib/dashboard/dashboard_saved_views');
 const COMPOSER = require('../lib/dashboard/dashboard_composer');
 const FACTORY = require('../lib/dashboard/widget_factory');
+const DECOMP = require('../lib/analytics/contribution_decomposition');
+const SDC = require('../lib/analytics/seasonality_distribution_concentration');
+const TRENDS = require('../lib/analytics/long_term_trends');
+const RISK = require('../lib/risk/liquidity_financial_risk');
+const XRAY = require('../lib/xray/financial_health_xray');
+const ADV_VIZ = require('../lib/visualization/advanced_visualization_pack');
 
 GALLERY.assertContract();
 assert.strictEqual(GALLERY.SCHEMA, 'PRH_EXPERT_DASHBOARD_GALLERY_V1');
@@ -19,6 +25,13 @@ assert.strictEqual(GALLERY.CONTRACT.principles.financial_payload_in_catalog_allo
 assert.strictEqual(GALLERY.CONTRACT.principles.private_filter_values_in_catalog_allowed, false);
 assert.strictEqual(GALLERY.CONTRACT.principles.warm_mandatory_network_read, false);
 assert.strictEqual(GALLERY.CONTRACT.principles.free_only, true);
+assert.strictEqual(GALLERY.CAP.WIDGET_FACTORY, `${FACTORY.SCHEMA}@${FACTORY.VERSION}`);
+assert.strictEqual(GALLERY.CAP.DECOMP, `${DECOMP.SCHEMA}@${DECOMP.VERSION}`);
+assert.strictEqual(GALLERY.CAP.SDC, `${SDC.SCHEMA}@${SDC.VERSION}`);
+assert.strictEqual(GALLERY.CAP.TRENDS, `${TRENDS.SCHEMA}@${TRENDS.VERSION}`);
+assert.strictEqual(GALLERY.CAP.RISK, `${RISK.SCHEMA}@${RISK.VERSION}`);
+assert.strictEqual(GALLERY.CAP.XRAY, `${XRAY.SCHEMA}@${XRAY.VERSION}`);
+assert.strictEqual(GALLERY.CAP.ADV_VIZ, `${ADV_VIZ.SCHEMA}@${ADV_VIZ.VERSION}`);
 for (const [key, value] of Object.entries(GALLERY.CONTRACT.authority)) assert.strictEqual(value, false, key);
 
 const expected = [
@@ -129,6 +142,9 @@ vm.createContext(sandbox);
 vm.runInContext(storageSource, sandbox);
 vm.runInContext(serviceSource, sandbox);
 const runtimeCatalog = sandbox.prhDash090PublicCatalog();
+const opaqueLegacy = JSON.stringify({schema:'PRH_DASHBOARD_SAVED_VIEW_V1',contract_version:'1.0.0',view_id:'legacy-bound',opaque_bound_marker:true});
+map.set('PRH_DASH084_V1:INDEX', JSON.stringify({schema:'PRH_DASHBOARD_SAVED_VIEW_INDEX_V1',contract_version:'1.0.0',generation:7,view_ids:['legacy-bound']}));
+map.set('PRH_DASH084_V1:VIEW:legacy-bound', opaqueLegacy);
 assert.strictEqual(runtimeCatalog.presets.length, 7);
 assert.strictEqual(runtimeCatalog.financial_payload, false);
 assert.strictEqual(runtimeCatalog.google_sheets_read, false);
@@ -139,6 +155,8 @@ assert.strictEqual(runtimeClone.active_revision, 1);
 assert.strictEqual(runtimeClone.dashboard_spec.id, GALLERY.projectionId('SPENDING_DRIVERS'));
 assert.strictEqual(writes, 1);
 assert(sandbox.prhDash084StorageReadView_('dash090-spending-drivers-test'));
+assert.strictEqual(map.get('PRH_DASH084_V1:VIEW:legacy-bound'), opaqueLegacy);
+assert.deepStrictEqual(Array.from(sandbox.prhDash084StorageReadIndex_().view_ids), ['dash090-spending-drivers-test','legacy-bound']);
 const runtimeRead = sandbox.prhDash090ReadView({view_id:'dash090-spending-drivers-test'});
 assert.strictEqual(runtimeRead.dashboard_spec.title, 'Драйверы расходов');
 const runtimeSaved = sandbox.prhDash090SaveViewConfiguration({view_id:'dash090-spending-drivers-test',expected_generation:runtimeRead.store_generation,dashboard_title:'Мои драйверы расходов'});
