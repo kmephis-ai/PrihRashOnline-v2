@@ -33,8 +33,8 @@ const FIN_ENTRY_MODULES = Object.freeze({
   cashFlowDashboard: 'lib/cashflow/cash_flow_dashboard.js'
 });
 
-// DASH-090 adds configuration-only runtime entries. They reuse DASH-084 storage semantics
-// and carry no financial/query execution or financial write authority.
+// Optional configuration/runtime entries are admitted only when the candidate source owns the module.
+// This keeps default-branch trusted reconstruction safe before a product module lands.
 const DASH_CONFIGURATION_ENTRY_MODULES = Object.freeze({
   dashboardSavedViews: 'lib/dashboard/dashboard_saved_views.js',
   expertDashboardGallery: 'lib/dashboard/expert_dashboard_gallery.js'
@@ -53,8 +53,13 @@ function normalizeId(value) {
 function effectiveEntryModules(root, entryModules = ENTRY_MODULES) {
   const result = Object.fromEntries(Object.entries(entryModules).map(([name, id]) => [name, normalizeId(id)]));
   if (entryModules === ENTRY_MODULES) {
-    for (const group of [DATA_ENTRY_MODULES, FIN_ENTRY_MODULES, DASH_CONFIGURATION_ENTRY_MODULES]) {
+    for (const group of [DATA_ENTRY_MODULES, FIN_ENTRY_MODULES]) {
       for (const [name, id] of Object.entries(group)) result[name] = normalizeId(id);
+    }
+    for (const [name, id] of Object.entries(DASH_CONFIGURATION_ENTRY_MODULES)) {
+      const normalized = normalizeId(id);
+      const fullPath = path.join(root, normalized);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) result[name] = normalized;
     }
     for (const [name, id] of Object.entries(OPTIONAL_ENTRY_MODULES)) {
       const normalized = normalizeId(id);
