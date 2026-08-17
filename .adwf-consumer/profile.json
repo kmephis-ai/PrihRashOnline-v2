@@ -1,0 +1,85 @@
+{
+  "$schema": ".adwf/schemas/consumer-profile.schema.json",
+  "schema_version": 1,
+  "role": "CONSUMER_PROJECT_PROFILE",
+  "framework_config_sha256": "e84871fc9cb6145f2ddadd34b2e122a1ef897688d10ecf92cc58a68d79c02f47",
+  "project_pack_digest": "abefe63ed4d6eba2c24b71d53150a4c3ebab9a7c686e7fc91529de4d55c01866",
+  "project": {
+    "name": "PrihRashOnline-v2",
+    "default_branch": "main",
+    "type": "apps-script",
+    "runtime_product": true,
+    "repository_visibility": "PUBLIC"
+  },
+  "commands": {
+    "lint": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "pr"
+      ]
+    },
+    "unit": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "pr",
+        "main"
+      ]
+    },
+    "integration": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "main"
+      ]
+    },
+    "build": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "pr",
+        "main"
+      ]
+    },
+    "smoke": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "runtime"
+      ]
+    },
+    "golden_paths": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "runtime"
+      ]
+    },
+    "e2e": {
+      "required": false,
+      "command": [],
+      "phases": [
+        "runtime"
+      ]
+    }
+  },
+  "project_packs": {
+    "selected": "apps-script",
+    "selected_digest": "abefe63ed4d6eba2c24b71d53150a4c3ebab9a7c686e7fc91529de4d55c01866",
+    "materialized": true,
+    "runtime_commands": {},
+    "preview": {},
+    "safety": {
+      "monetary_budget_usd": 0,
+      "secrets": "FORBIDDEN",
+      "network": "NONE",
+      "environment": "PROCESS_MINIMAL",
+      "data_access": {
+        "read_scope": "PROJECT_TREE",
+        "write_scope": "TOOL_OUTPUTS_ONLY"
+      }
+    }
+  },
+  "profile_sha256": "fc8aa37f8b72380a009ced6c9d9083dc6f91ab8ad0b6858b53d2ca4196b80c79"
+}

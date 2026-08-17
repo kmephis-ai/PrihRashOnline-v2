@@ -33,13 +33,13 @@ Machine delivery chain: `PR Validation -> Trusted DEV Deploy -> Trusted Runtime 
 
 `STUDIO-REC-001` Issue #228 / PR #286 — **DONE / Main Verification PASS**, candidate `92c4139e552428a1726640487834952d523dab64`, Apps Script v263, merge `e62b3283927ffe0d564ec7f10d2671760a03ceec`; Owner Product UAT v263, Product Ready E2E и `MASTER-GSTUDIO / STUDIO-READY` PASS.
 
-`ANL-090` — **IN_PROGRESS / current writer / текущий writer**, Issue #217, branch `agent/ANL-090-contribution-decomposition-post-gstudio`, trust anchor `main@e62b3283927ffe0d564ec7f10d2671760a03ceec`.
+`ADWF-ADOPT-001` — **IN_PROGRESS / current writer / текущий writer**, Issue #287, PR #289, branch `agent/ADWF-ADOPT-001-real-adoption-e3bd9fb`, trust anchor `main@19dc9f653131715233da91a28598e012af64f36f`.
 
-ANL-090 — fresh post-GSTUDIO rebaseline сохранённого engineering capital. Он добавляет `PRH_CONTRIBUTION_DECOMPOSITION_V1@1.0.0` как pure read-only deterministic layer поверх existing `PRH_ANALYTICS_QUERY_V1`, semantic registry и VIZ-090. Arithmetic всегда `current-reference`; causality не утверждается; renderer/financial-write/query-execution/storage/network authority не добавляются.
+Текущая транзакция имеет `work_class=engineering/integration`: устанавливает ADWF `e3bd9fb33f699ae227521f7ed5866c8f11589ed4` как consumer-managed development layer, но не добавляет product/runtime/data/financial write authority. Canonical product Roadmap остаётся `docs/ROADMAP.md` + live GitHub Issues; operating mode = `CONSUMER_NATIVE`; native provider gates = `validate` / `verify` / `probe`; consumer control path = read-only `consumer-observer`. `FREE_ONLY`, privacy и FIN-TRUTH не ослабляются.
 
-Supported V1 measures: `INCOME`, `EXPENSE`, `CASH_FLOW`. Driver dimensions ограничены текущими canonical groupable/filterable IDs: `category_id`, `account_id`, `member_id`, `project_id`. `tag` остаётся filter-only; ANL-090 не создаёт synthetic `tag_id` и не расширяет upstream semantic authority. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` — только engineering capital и не имеет current authority.
+`ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288; canonical result включён в `main@19dc9f653131715233da91a28598e012af64f36f`. Его writer authority завершена. Historical draft PR #218 / candidate `73d747fea160826ec1bea67b6552c21414865d03` остаётся historical engineering capital без current authority.
 
-ANL-090 имеет `work_class=engineering`; Owner Product UAT/Product Ready не требуются. До fresh exact-head PR Validation/trusted chain `CODE_COMPLETE` и `DONE_ENGINEERING` не объявляются.
+До fresh exact-head `PR Validation/validate` + `ADWF PR` consumer delegation, existing protected delivery chain, `Main Verification/verify`, `ADWF Main`, read-only consumer-observer и fresh-session readback нельзя объявлять PrihRash подключённым к ADWF.
 
 ## Local-first architecture boundary
 
@@ -114,7 +114,7 @@ Real or real-derived household finance data stays private. Public repo соде�
 
 R2 finance/data/design/visual contracts, R3 planning/wealth contracts, R7 semantic analytics, VIZ-090 и R8 Studio/dashboard configuration contracts остаются reusable engineering capital. Product credit даётся только current exact-SHA evidence.
 
-После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. Сейчас authority имеет только ANL-090; ANL-091/XRAY-090/PERF-090 и другие R9 items не стартуют параллельно.
+После `MASTER-GSTUDIO` R9 разрешён только отдельным dependency-ready resolver. `ANL-090` уже завершён/Main Verification PASS; `ANL-091`/`XRAY-090`/`PERF-090` и другие R9 items не получают writer authority, пока текущая интеграционная транзакция `ADWF-ADOPT-001` не завершена.
 
 ## Future YDB boundary
 
