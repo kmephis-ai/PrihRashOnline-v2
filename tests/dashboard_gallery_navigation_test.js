@@ -38,11 +38,12 @@ const context = vm.createContext({
 
 vm.runInContext(serviceSource, context, {filename:'LocalFirstSpaService.js'});
 const rendered = context.prhLocalFirstSpaRender_({lf_route:'home',privacy:'NORMAL',lf_diag:'1'}).getContent();
-const absoluteGallery = `class="lf-studio-gallery-link" href="${selfUrl}?surface=gallery"`;
+const absoluteGallery = `class="lf-studio-gallery-link" href="${selfUrl}?surface=gallery" target="_top"`;
 
 assert(visualizationExtensionHtml.includes('class="lf-studio-gallery-link" href="?surface=gallery"'), 'DASH090 source launcher marker missing');
-assert(rendered.includes(absoluteGallery), 'DASH090 rendered launcher must target deployed Web App self URL');
+assert(rendered.includes(absoluteGallery), 'DASH090 rendered launcher must target deployed Web App self URL at the top browsing context');
 assert(!rendered.includes('class="lf-studio-gallery-link" href="?surface=gallery"'), 'DASH090 rendered launcher must not remain HtmlService-sandbox-relative');
+assert(!rendered.includes(`<iframe src="${selfUrl}?surface=gallery"`), 'DASH090 gallery must never embed script.google.com in an iframe');
 assert(rendered.includes(`href="${selfUrl}?surface=home"`), 'canonical Local-first rollback self URL must remain intact');
 
-console.log('dashboard_gallery_navigation_test: PASS', {self_url_routing:true, sandbox_relative_gallery:false, financial_payload:false});
+console.log('dashboard_gallery_navigation_test: PASS', {self_url_routing:true, top_level_gallery:true, sandbox_relative_gallery:false, framed_script_google:false, financial_payload:false});
