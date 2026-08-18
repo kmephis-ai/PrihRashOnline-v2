@@ -1,0 +1,73 @@
+{
+  "schema": "PRH_EXPERT_DASHBOARD_GALLERY_V1",
+  "version": "1.0.0",
+  "roadmap_id": "DASH-090",
+  "preset_schema": "PRH_EXPERT_DASHBOARD_PRESET_V1",
+  "availability_schema": "PRH_EXPERT_DASHBOARD_AVAILABILITY_V1",
+  "clone_schema": "PRH_EXPERT_DASHBOARD_CLONE_RESULT_V1",
+  "identity_algorithm": "SHA256_CANONICAL_JSON_V1",
+  "preset_order": [
+    "CASH_FLOW_DECOMPOSITION",
+    "SPENDING_DRIVERS",
+    "SEASONALITY",
+    "CONCENTRATION",
+    "LONG_TERM_TRENDS",
+    "WEALTH_RISK",
+    "FINANCIAL_HEALTH_XRAY"
+  ],
+  "upstream": {
+    "saved_views": "PRH_DASHBOARD_SAVED_VIEWS_V1@1.0.0",
+    "dashboard_composer": "PRH_DASHBOARD_COMPOSER_V1@1.0.0",
+    "widget_factory": "PRH_WIDGET_FACTORY_V1@1.0.0",
+    "contribution_decomposition": "PRH_CONTRIBUTION_DECOMPOSITION_V1@1.0.0",
+    "seasonality_distribution_concentration": "PRH_SEASONALITY_DISTRIBUTION_CONCENTRATION_V1@1.0.0",
+    "long_term_trends": "PRH_LONG_TERM_TRENDS_V1@1.0.0",
+    "liquidity_financial_risk": "PRH_LIQUIDITY_FINANCIAL_RISK_V1@1.0.0",
+    "financial_health_xray": "PRH_FINANCIAL_HEALTH_XRAY_V1@1.0.0",
+    "advanced_visualization_pack": "PRH_ADVANCED_VISUALIZATION_PACK_V1@1.0.0",
+    "financial_truth_policy": "FIN-TRUTH-v1"
+  },
+  "principles": {
+    "configuration_only": true,
+    "catalog_immutable": true,
+    "clone_to_saved_views_only": true,
+    "separate_storage_engine_allowed": false,
+    "query_execution_authority": false,
+    "financial_formula_authority": false,
+    "financial_write_authority": false,
+    "financial_payload_in_catalog_allowed": false,
+    "private_filter_values_in_catalog_allowed": false,
+    "capability_fail_closed": true,
+    "warm_mandatory_network_read": false,
+    "free_only": true
+  },
+  "limits": {
+    "max_presets": 16,
+    "max_panels_per_preset": 8,
+    "max_capabilities_per_preset": 8,
+    "max_title_length": 80,
+    "max_description_length": 320
+  },
+  "telemetry_allowlist": [
+    "schema",
+    "version",
+    "preset_id",
+    "preset_hash_prefix",
+    "action",
+    "decision",
+    "reason",
+    "required_capability_count"
+  ],
+  "authority": {
+    "financial_truth": false,
+    "financial_write": false,
+    "query_execution": false,
+    "query_mutation": false,
+    "canonical_financial_mutation": false,
+    "authorization": false,
+    "network": false,
+    "deployment": false,
+    "storage": false,
+    "renderer": false
+  }
+}

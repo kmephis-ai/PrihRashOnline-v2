@@ -36,14 +36,15 @@ Root `AGENTS.md` is the public-safe repository AI operating contract. Он за�
 - `ANL-091` — **DONE_ENGINEERING / Main Verification PASS**, Issue #292, PR #300, candidate `4e4c0984518a1acf84542fc62252045697748b95`, merge `59480686dd92fd295d42c887c9003f6882758ff6`; writer authority завершена.
 - `PERF-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #301, PR #302, candidate `978c960458d2fc62c6303c63a7ce57d6da22c341`, merge `2f9753d609b7ef05ec1993f7e36628b60de545db`; writer authority завершена.
 - `RISK-030` — **DONE_ENGINEERING / Main Verification PASS**, Issue #303, PR #304, candidate `bf80ff11049da740d6ff9107a46393f28f7797a3`, merge `da178555f2166fdb70071405e4c1422659ae7593`; writer authority завершена.
-- `XRAY-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #78, branch `agent/XRAY-090-financial-health-xray`, trust anchor `main@da178555f2166fdb70071405e4c1422659ae7593`. Dependencies `ANL-090`, `ANL-091`, `RISK-030`, `BAL-030`, `SCOPE-070` provider-complete; это единственный текущий PrihRash writer.
+- `XRAY-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #78, PR #305, candidate `3d12491cfac594bcbff9848e052c806d4a6a1877`, merge `d8307558a3439157b8e4714a7b6df8100dc215f9`; writer authority завершена.
+- `DASH-090` — **IN_PROGRESS**, **current writer / текущий writer**, Issue #306, branch `agent/DASH-090-expert-dashboard-gallery`, lease `cecfe2cb-8ad8-4ac3-9c6d-8a4f9da9cc39`, trust anchor `main@d8307558a3439157b8e4714a7b6df8100dc215f9`. Dependencies `ANL-090`, `ANL-091`, `XRAY-090`, `DASH-084` provider-complete; `STUDIO-REC-001` и `VIZ-REC-001` Product Ready/Main Verification PASS.
 - `ANL-090` — **DONE_ENGINEERING / Main Verification PASS**, Issue #217, PR #288, canonical result входит в `main@19dc9f653131715233da91a28598e012af64f36f`; writer authority завершена.
 
 PrihRash подключён к ADWF как consumer-managed development project: ADWF остаётся отдельным верхним инженерным слоем, а `docs/ROADMAP.md` + live GitHub Issues остаются product/work SSOT PrihRash. Consumer control authority read-only/reference-only; `FREE_ONLY`, FIN-TRUTH, privacy и business/runtime semantics не ослаблены.
 
-Текущий R9 scope `XRAY-090`: versioned deterministic rule registry и typed explainable findings поверх RISK/ANL/BAL/SCOPE upstream evidence. Missing/incompatible/review состояния не маскируются как CLEAR; diagnostic score не является financial truth; UI/LLM evaluation и financial write authority отсутствуют.
+Текущий R9 scope `DASH-090`: immutable Expert dashboard gallery поверх canonical DASH-084 saved views и существующих ANL/VIZ/XRAY capabilities. Gallery не получает собственный storage/query/FIN authority; availability fail-closed по exact capability/version; пользовательская копия продолжает жить только в DASH-084 version lifecycle.
 
-`XRAY-090` — текущий single writer. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно до Main Verification `XRAY-090`.
+`DASH-090` — текущий single writer. `E2E-REC-001` superseded завершённым `E2E-LF-001`; `YC-041`/`YC-042` остаются owner/cloud BLOCKED. Другие product/R9 writers не стартуют параллельно до полного DASH-090 lifecycle по его user-facing acceptance contract.
 
 ## R0 — завершён
 
@@ -98,7 +99,7 @@ R2 engineering contracts остаются reusable, но product credit даёт
 
 `TREND-030`, `PROJ-030`, `GOAL-030`, `BAL-030`, `NW-030`, `SUB-030` — DONE_ENGINEERING/Main Verification PASS. Semantic analytics `ANL-070`, `SCOPE-070`, `ANL-071`, `ANL-072`, `BENCH-070`, `ANL-073`, `ANL-074`, `PERF-070`, `TEST-070`, `VIZ-070` — DONE_ENGINEERING/Main Verification PASS. Studio/dashboard configuration contracts R8 остаются reusable.
 
-`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091`, `PERF-090` и `RISK-030` завершены как **DONE_ENGINEERING / Main Verification PASS**. `XRAY-090` Issue #78 — текущий dependency-ready R9 writer.
+`MASTER-GSTUDIO` PASS. `ANL-090`, `ANL-091`, `PERF-090`, `RISK-030` и `XRAY-090` завершены как **DONE_ENGINEERING / Main Verification PASS**. `DASH-090` Issue #306 — текущий dependency-ready user-facing R9 writer.
 
 ## R4 / YDB future backend
 

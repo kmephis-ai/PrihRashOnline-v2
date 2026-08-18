@@ -18,7 +18,8 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
     transactions: Object.freeze({ file: 'TransactionExplorerWebApp', placeholder: null, title: 'Операции', financial_runtime: true, runtime_private_data: true }),
     'data-quality': Object.freeze({ file: 'DataQualityWebApp', placeholder: null, title: 'Качество данных', financial_runtime: true, runtime_private_data: true }),
     studio: Object.freeze({ file: 'AnalyticsStudioWebApp', placeholder: null, title: 'Студия аналитики', financial_runtime: false, runtime_private_data: false }),
-    composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Конструктор', financial_runtime: false, runtime_private_data: false })
+    composer: Object.freeze({ file: 'DashboardComposerWebApp', placeholder: null, title: 'Конструктор', financial_runtime: false, runtime_private_data: false }),
+    gallery: Object.freeze({ file: 'ExpertDashboardGalleryWebApp', placeholder: null, title: 'Галерея экспертных дашбордов', financial_runtime: false, runtime_private_data: false })
   }),
   SAFE_UNBOUND_SURFACES: Object.freeze({
     expenses: 'Расходы',
@@ -30,6 +31,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   ROUTE_TRUTH: Object.freeze({
     home: Object.freeze({ label: 'Главная', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
     studio: Object.freeze({ label: 'Студия аналитики', runtime_private_data: false, navigation: 'SECONDARY', binding_state: 'CONFIGURATION_ONLY' }),
+    gallery: Object.freeze({ label: 'Галерея дашбордов', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'CONFIGURATION_ONLY' }),
     legacy: Object.freeze({ label: 'Старый интерфейс', runtime_private_data: true, navigation: 'SECONDARY', binding_state: 'BOUND_READ_ONLY' }),
     transactions: Object.freeze({ label: 'Операции', runtime_private_data: true, navigation: 'PRIMARY', binding_state: 'BOUND_READ_ONLY' }),
     expenses: Object.freeze({ label: 'Расходы', runtime_private_data: false, navigation: 'HIDDEN', binding_state: 'SAFE_UNBOUND' }),
@@ -46,6 +48,7 @@ var PRH_CANONICAL_R2_WEB = Object.freeze({
   ]),
   STUDIO_SURFACE: 'studio',
   COMPOSER_SURFACE: 'composer',
+  GALLERY_SURFACE: 'gallery',
   LEGACY_SURFACE: 'legacy',
   LOCAL_FIRST_SURFACE: 'local-first',
   FINANCIAL_WRITE: false,
@@ -252,6 +255,7 @@ function doGet(e) {
     return prhDashboardComposerDecorateStudioOutput_(prhPrivacyDecorateStudioOutput_(prhR2RenderFile_('studio', null, params), params[PRH_PRIVACY_PRESENTATION_RUNTIME.URL_PARAMETER]));
   }
   if (surface === PRH_CANONICAL_R2_WEB.COMPOSER_SURFACE) return prhR2RenderFile_('composer', null, params);
+  if (surface === PRH_CANONICAL_R2_WEB.GALLERY_SURFACE) return prhR2RenderFile_('gallery', null, params);
   return prhR2RenderUnavailable_(surface, params);
 }
 

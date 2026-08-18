@@ -114,6 +114,8 @@ jobs:
         run: node tests/dashboard_drill_through_contract_test.js
       - name: Dashboard saved views
         run: node tests/dashboard_saved_views_contract_test.js
+      - name: Expert dashboard gallery
+        run: node tests/expert_dashboard_gallery_contract_test.js
       - name: Dashboard visual customization
         run: node tests/dashboard_visual_customization_contract_test.js
       - name: Dashboard safe import/export
@@ -263,6 +265,8 @@ jobs:
         run: node tests/privacy_presentation_modes_visual_test.js
       - name: Dashboard composer visual gate
         run: node tests/dashboard_composer_visual_test.js
+      - name: Expert dashboard gallery visual gate
+        run: node tests/expert_dashboard_gallery_visual_test.js
       - name: Transaction Explorer visual gate
         run: node tests/transaction_explorer_visual_test.js
       - name: Expense Analytics visual gate
