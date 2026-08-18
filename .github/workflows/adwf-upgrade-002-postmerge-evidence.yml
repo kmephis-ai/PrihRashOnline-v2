@@ -1,0 +1,186 @@
+name: ADWF UPGRADE-002 Postmerge Evidence
+
+on:
+  pull_request:
+    branches:
+      - helper/adwf-upgrade-002-postmerge-evidence-base
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_SHA: 59bb5319052f378f10a0216ee3956f12944c0b77
+      TARGET_TREE: 38918d7993329d564b9cc920bec9317714638379
+      TARGET_ADWF: 017042c1f2bcde8d89d4b344201e848d873ec5a9
+      TARGET_ADWF_TREE: c7e709a29df431460abb9bc17025d62d7803cda1
+    steps:
+      - name: Read exact postmerge Actions evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/adwf-upgrade-002-postmerge"
+          RUNS="$RUNNER_TEMP/adwf-upgrade-002-postmerge/runs.json"
+          for attempt in $(seq 1 60); do
+            gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/runs" \
+              -f head_sha="$TARGET_SHA" -f per_page=100 > "$RUNS"
+            state="$(jq -r --arg sha "$TARGET_SHA" '
+              def ok($n): [.workflow_runs[] | select(.name==$n and .head_sha==$sha and .head_branch=="main" and .event=="push" and .status=="completed" and .conclusion=="success")] | length;
+              def terminal_bad($n): [.workflow_runs[] | select(.name==$n and .head_sha==$sha and .head_branch=="main" and .event=="push" and .status=="completed" and .conclusion!="success")] | length;
+              if terminal_bad("ADWF Consumer Main Verification")>0 or terminal_bad("ADWF Main")>0 or terminal_bad("ADWF Platform Smoke")>0 then "FAIL"
+              elif ok("ADWF Consumer Main Verification")>0 and ok("ADWF Main")>0 and ok("ADWF Platform Smoke")>0 then "PASS"
+              else "WAIT" end' "$RUNS")"
+            if [[ "$state" == PASS ]]; then break; fi
+            if [[ "$state" == FAIL ]]; then
+              jq --arg sha "$TARGET_SHA" '[.workflow_runs[] | select(.head_sha==$sha)] | map({id,name,event,status,conclusion,head_branch,head_sha})' "$RUNS"
+              exit 11
+            fi
+            sleep 10
+          done
+          [[ "$state" == PASS ]] || { echo "POSTMERGE_RUNS_NOT_TERMINAL_SUCCESS" >&2; exit 12; }
+          jq --arg sha "$TARGET_SHA" '{target_sha:$sha,runs:[.workflow_runs[] | select(.head_sha==$sha and .head_branch=="main" and .event=="push" and (.name=="ADWF Consumer Main Verification" or .name=="ADWF Main" or .name=="ADWF Platform Smoke")) | {id,name,event,status,conclusion,head_branch,head_sha}]}' "$RUNS" > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/actions-evidence.json"
+          cat "$RUNNER_TEMP/adwf-upgrade-002-postmerge/actions-evidence.json"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+          fetch-depth: 2
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+
+      - name: Verify exact merged tree and bounded scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$TARGET_TREE"
+          test "$(git rev-parse HEAD^)" = "300bf7ce2ebde00164e5424d8aa6b9038593d1f1"
+          cat > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/expected-paths.txt" <<'EOF'
+          .adwf-consumer/gates.json
+          .adwf-consumer/installation.json
+          .adwf-consumer/operations.json
+          .adwf/docs-registry.json
+          .adwf/instructions/CORE.md
+          .adwf/lib/github_runtime_store.py
+          .adwf/lib/project_packs.py
+          .adwf/lib/session_continuity.py
+          .adwf/schemas/session-continuity-checkpoint.schema.json
+          .adwf/scripts/github_runtime_sync.py
+          .adwf/tests/test_session_continuity.py
+          .adwf/tests/test_session_continuity_persistence.py
+          .adwf/tests/test_session_delivery.py
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/adwf-upgrade-002-postmerge/expected-paths.txt"
+          git diff --name-only HEAD^ HEAD | sort > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/adwf-upgrade-002-postmerge/expected-paths.txt" "$RUNNER_TEMP/adwf-upgrade-002-postmerge/actual-paths.txt"
+          test ! -e .adwf-runtime
+          git diff --quiet HEAD^ HEAD -- AGENTS.md docs/ROADMAP.md .github/workflows
+
+      - name: Fresh validate installed B and native bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          FW="$RUNNER_TEMP/adwf-target"
+          git clone --quiet --no-tags https://github.com/kmephis-ai/AI-Development-Framework.git "$FW"
+          git -C "$FW" checkout --quiet --detach "$TARGET_ADWF"
+          test "$(git -C "$FW" rev-parse HEAD)" = "$TARGET_ADWF"
+          test "$(git -C "$FW" rev-parse HEAD^{tree})" = "$TARGET_ADWF_TREE"
+          python "$FW/.adwf/scripts/consumer_installation.py" \
+            --consumer-root "$GITHUB_WORKSPACE" --framework-root "$FW" \
+            --repository "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/installation-validation.json"
+          python - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])/'adwf-upgrade-002-postmerge'
+          v=json.loads((root/'installation-validation.json').read_text())
+          assert v.get('status')=='VERIFIED', v
+          ins=json.loads(pathlib.Path('.adwf-consumer/installation.json').read_text())
+          assert ins['framework']['source_sha']==os.environ['TARGET_ADWF']
+          assert ins['framework']['source_tree']==os.environ['TARGET_ADWF_TREE']
+          assert ins['adoption']['status']=='COMMITTED'
+          ops=json.loads(pathlib.Path('.adwf-consumer/operations.json').read_text())
+          assert ops['mode']=='CONSUMER_NATIVE'
+          assert ops['roadmap']=={'kind':'MARKDOWN_FILE','path':'docs/ROADMAP.md'}
+          assert ops['work_items']['provider']=='GITHUB_ISSUES'
+          assert ops['safety']=={'monetary_budget_usd':0,'secrets':'FORBIDDEN'}
+          gates=json.loads(pathlib.Path('.adwf-consumer/gates.json').read_text())
+          assert gates['phases']['pr'][0]['check_name']=='validate'
+          assert gates['phases']['main'][0]['check_name']=='verify'
+          assert gates['phases']['runtime'][0]['check_name']=='probe'
+          assert gates['required_phases']==['pr','main']
+          PY
+          python .adwf/scripts/consumer_ci.py classify-current --repository "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/consumer-ci.json"
+          python .adwf/scripts/consumer_gates.py --project-root . > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/consumer-gates.txt"
+          python .adwf/adwf.py roadmap-view > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/roadmap-view.json"
+
+      - name: Verify automatic SESSION instruction and Project Pack delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'WORK_UNTIL_NATURAL_BOUNDARY' .adwf/instructions/CORE.md
+          grep -q 'fresh reconciliation' .adwf/instructions/CORE.md
+          PYTHONPATH=.adwf python - <<'PY' > "$RUNNER_TEMP/adwf-upgrade-002-postmerge/session-delivery.json"
+          import json
+          from lib.project_packs import commands_for_pack
+          value=commands_for_pack('.', '.')
+          assert value['pack']=='apps-script', value
+          s=value['session_continuity']
+          assert s['role']=='SESSION_CONTINUITY_PROJECT_PACK_BINDING'
+          assert s['inherits_framework_core'] is True
+          assert s['provider_authority'] is False
+          assert s['pack_id']=='apps-script'
+          assert s['workspace_reconstruction']=='FRESH_PROVIDER_CHECKOUT'
+          assert s['runtime_evidence_mode']=='CONSUMER_NATIVE_EXTERNAL_RUNTIME_READBACK'
+          assert s['resumable_commands']==[]
+          for boundary in ['NO_AUTHORITY_EXPANSION','FRESH_RECONCILE_BEFORE_WRITE','NO_LOCAL_RUNTIME_INFERENCE','NO_SECRET_SESSION_HANDLE','NO_NETWORK']:
+              assert boundary in s['safety_boundaries'], (boundary,s)
+          print(json.dumps({'pack':value['pack'],'session_continuity':s},sort_keys=True))
+          PY
+          cat "$RUNNER_TEMP/adwf-upgrade-002-postmerge/session-delivery.json"
+
+      - name: Build public-safe final evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/adwf-upgrade-002-postmerge"
+          ROOT="$ROOT" TARGET_SHA="$TARGET_SHA" TARGET_TREE="$TARGET_TREE" TARGET_ADWF="$TARGET_ADWF" python - <<'PY'
+          import json, os, pathlib
+          r=pathlib.Path(os.environ['ROOT'])
+          actions=json.loads((r/'actions-evidence.json').read_text())
+          install=json.loads((r/'installation-validation.json').read_text())
+          delivery=json.loads((r/'session-delivery.json').read_text())
+          evidence={
+            'schema_version':1,
+            'consumer_main_sha':os.environ['TARGET_SHA'],
+            'consumer_main_tree':os.environ['TARGET_TREE'],
+            'installed_adwf':os.environ['TARGET_ADWF'],
+            'installation_status':install.get('status'),
+            'actions_runs':actions['runs'],
+            'native_mode':'CONSUMER_NATIVE',
+            'native_gates':['validate','verify','probe'],
+            'roadmap':'docs/ROADMAP.md',
+            'session_delivery':delivery,
+            'adwf_runtime_tracked':False,
+            'product_fin_drift':'NO_BY_EXACT_MERGE_SCOPE',
+            'free_only':True,
+          }
+          (r/'evidence.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(evidence,sort_keys=True))
+          PY
+
+      - name: Upload public-safe evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: adwf-upgrade-002-postmerge-evidence
+          path: ${{ runner.temp }}/adwf-upgrade-002-postmerge/evidence.json
+          if-no-files-found: error
+          retention-days: 14
