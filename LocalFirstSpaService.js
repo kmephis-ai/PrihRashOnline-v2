@@ -195,8 +195,7 @@ function prhLocalFirstSpaInjectDataExtension_(html) {
   if (!extension || extension.indexOf('data-prh-local-first-data-extension="1.0.0"') < 0) {
     throw new Error('LF_SPA_DATA_EXTENSION_INVALID');
   }
-  return source.replace(marker, extension + '\
-' + marker);
+  return source.replace(marker, extension + '\n' + marker);
 }
 
 function prhLocalFirstSpaInjectPlanningExtension_(html) {
@@ -207,8 +206,7 @@ function prhLocalFirstSpaInjectPlanningExtension_(html) {
   if (!extension || extension.indexOf('data-prh-local-first-planning-extension="1.0.0"') < 0) {
     throw new Error('LF_SPA_PLANNING_EXTENSION_INVALID');
   }
-  return source.replace(marker, extension + '\
-' + marker);
+  return source.replace(marker, extension + '\n' + marker);
 }
 
 function prhLocalFirstSpaInjectVisualizationExtension_(html) {
@@ -219,8 +217,7 @@ function prhLocalFirstSpaInjectVisualizationExtension_(html) {
   if (!extension || extension.indexOf('data-prh-local-first-visualization-extension="1.0.0"') < 0) {
     throw new Error('LF_SPA_VISUALIZATION_EXTENSION_INVALID');
   }
-  return source.replace(marker, extension + '\
-' + marker);
+  return source.replace(marker, extension + '\n' + marker);
 }
 
 function prhLocalFirstSpaRender_(params) {
@@ -253,14 +250,11 @@ function prhLocalFirstSpaRender_(params) {
     );
   }
 
-  var appScriptMarker = '<script>\
-(function(){';
+  var appScriptMarker = '<script>\n(function(){';
   if (html.indexOf(appScriptMarker) < 0) throw new Error('LF_SPA_APP_SCRIPT_MARKER_MISSING');
   html = html.replace(
     appScriptMarker,
-    prhLocalFirstSpaResponsiveGuard_() + '\
-' + prhLocalFirstSpaBootstrap_(params) + '\
-' + appScriptMarker
+    prhLocalFirstSpaResponsiveGuard_() + '\n' + prhLocalFirstSpaBootstrap_(params) + '\n' + appScriptMarker
   );
 
   var output = HtmlService.createHtmlOutput(html);
