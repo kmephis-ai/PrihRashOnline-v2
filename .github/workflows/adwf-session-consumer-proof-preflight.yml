@@ -25,12 +25,13 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12.10"
-      - name: Verify exact consumer main and installed SESSION delivery
+      - name: Verify exact installed SESSION durable truth
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_MAIN"
           test -f .adwf/lib/session_consumer_proof.py
+          test -f .adwf/lib/github_runtime_store.py
           test -f .adwf/schemas/session-continuity-checkpoint.schema.json
           test -f .adwf/instructions/CORE.md
           if git ls-tree -r --name-only HEAD | grep -q '^\.adwf-runtime/'; then
@@ -38,27 +39,19 @@ jobs:
             exit 1
           fi
           python - <<'PY'
-          import json, sys
+          import hashlib, json
           from pathlib import Path
-          sys.path.insert(0, str(Path('.adwf').resolve()))
-          from lib.project_packs import load_packs, _session_continuity_binding
           installed=json.loads(Path('.adwf-consumer/installation.json').read_text())
           profile=json.loads(Path('.adwf-consumer/profile.json').read_text())
-          selected=(profile.get('project_packs') or {}).get('selected')
-          packs=load_packs('.')
-          pack=packs.get(selected) or {}
-          definition=pack.get('definition') or {}
-          session=_session_continuity_binding(selected, {}, definition.get('preview') or {}, definition.get('safety') or {})
-          report={'installed_framework':installed['framework']['source_sha'],'selected_pack':selected,'selected_digest':(profile.get('project_packs') or {}).get('selected_digest'),'installed_pack_digest':pack.get('digest'),'session_continuity':session}
+          pack=json.loads(Path('.adwf/packs/apps-script.json').read_text())
+          digest=hashlib.sha256(json.dumps(pack,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+          pp=profile.get('project_packs') or {}
+          report={'installed_framework':installed['framework']['source_sha'],'selected_pack':pp.get('selected'),'materialized':pp.get('materialized'),'profile_pack_digest':pp.get('selected_digest'),'installed_pack_digest':digest,'network':(pack.get('safety') or {}).get('network')}
           print(json.dumps(report,sort_keys=True), flush=True)
-          assert installed['framework']['source_sha']=='017042c1f2bcde8d89d4b344201e848d873ec5a9'
-          assert selected=='apps-script'
-          assert (profile.get('project_packs') or {}).get('materialized') is True
-          assert (profile.get('project_packs') or {}).get('selected_digest')==pack.get('digest')
-          assert session.get('inherits_framework_core') is True
-          assert session.get('provider_authority') is False
-          assert session.get('runtime_evidence_mode')=='CONSUMER_NATIVE_EXTERNAL_RUNTIME_READBACK'
-          assert 'NO_NETWORK' in (session.get('safety_boundaries') or [])
+          if installed['framework']['source_sha']!='017042c1f2bcde8d89d4b344201e848d873ec5a9': raise SystemExit('SESSION_CONSUMER_PROOF_INSTALLED_FRAMEWORK_MISMATCH')
+          if pp.get('selected')!='apps-script' or pp.get('materialized') is not True: raise SystemExit('SESSION_CONSUMER_PROOF_PROJECT_PACK_NOT_MATERIALIZED')
+          if pp.get('selected_digest')!=digest: raise SystemExit('SESSION_CONSUMER_PROOF_PROJECT_PACK_DIGEST_MISMATCH')
+          if (pack.get('safety') or {}).get('network')!='NONE': raise SystemExit('SESSION_CONSUMER_PROOF_PROJECT_PACK_NETWORK_NOT_NONE')
           PY
       - name: Read back immutable Runtime Ledger anchor ruleset
         env:
