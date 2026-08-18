@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_MAIN"
-          test -f .adwf/lib/session_consumer_proof.py
+          test -f .adwf/lib/session_continuity.py
           test -f .adwf/lib/github_runtime_store.py
           test -f .adwf/schemas/session-continuity-checkpoint.schema.json
           test -f .adwf/instructions/CORE.md
