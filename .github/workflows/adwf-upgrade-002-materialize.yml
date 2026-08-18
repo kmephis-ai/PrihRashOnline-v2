@@ -29,6 +29,8 @@ jobs:
           persist-credentials: true
 
       - name: Reproduce exact connected-consumer transaction and publish candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -131,6 +133,7 @@ jobs:
           git config user.email 'prihrash-adwf-integration@example.invalid'
           git commit -m '[ADWF-UPGRADE-002] Upgrade connected framework to 017042c1'
           test "$(git rev-parse HEAD^{tree})" = "${EXPECTED_TREE}"
+          gh auth setup-git
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
 
       - name: Publish materializer status
