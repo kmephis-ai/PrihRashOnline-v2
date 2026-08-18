@@ -10,6 +10,8 @@ on:
       - 'AGENTS.md'
       - 'llms.txt'
       - '.ai-context/**'
+      - '.adwf/**'
+      - '.adwf-consumer/**'
       - 'package.json'
       - 'package-lock.json'
       - '.nvmrc'
