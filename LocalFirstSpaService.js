@@ -195,7 +195,8 @@ function prhLocalFirstSpaInjectDataExtension_(html) {
   if (!extension || extension.indexOf('data-prh-local-first-data-extension="1.0.0"') < 0) {
     throw new Error('LF_SPA_DATA_EXTENSION_INVALID');
   }
-  return source.replace(marker, extension + '\n' + marker);
+  return source.replace(marker, extension + '\
+' + marker);
 }
 
 function prhLocalFirstSpaInjectPlanningExtension_(html) {
@@ -206,7 +207,8 @@ function prhLocalFirstSpaInjectPlanningExtension_(html) {
   if (!extension || extension.indexOf('data-prh-local-first-planning-extension="1.0.0"') < 0) {
     throw new Error('LF_SPA_PLANNING_EXTENSION_INVALID');
   }
-  return source.replace(marker, extension + '\n' + marker);
+  return source.replace(marker, extension + '\
+' + marker);
 }
 
 function prhLocalFirstSpaInjectVisualizationExtension_(html) {
@@ -217,7 +219,8 @@ function prhLocalFirstSpaInjectVisualizationExtension_(html) {
   if (!extension || extension.indexOf('data-prh-local-first-visualization-extension="1.0.0"') < 0) {
     throw new Error('LF_SPA_VISUALIZATION_EXTENSION_INVALID');
   }
-  return source.replace(marker, extension + '\n' + marker);
+  return source.replace(marker, extension + '\
+' + marker);
 }
 
 function prhLocalFirstSpaRender_(params) {
@@ -239,22 +242,25 @@ function prhLocalFirstSpaRender_(params) {
 
     // HtmlService pages run in a sandbox. A query-only href can resolve against
     // the sandbox document instead of the deployed Web App and produce a blank
-    // page. Keep the DASH-090 launcher on the authoritative Web App self URL,
-    // matching the existing fail-closed rollback routing boundary.
+    // page. Keep the DASH-090 launcher on the authoritative Web App self URL
+    // and force top-level navigation so script.google.com is never framed.
     var galleryLauncher = '<a class="lf-studio-gallery-link" href="?surface=gallery">';
     if (html.indexOf(galleryLauncher) < 0) throw new Error('LF_SPA_GALLERY_LAUNCHER_MARKER_MISSING');
     var galleryHref = prhLocalFirstSpaEscapeAttr_(selfUrl + '?surface=gallery');
     html = html.replace(
       galleryLauncher,
-      '<a class="lf-studio-gallery-link" href="' + galleryHref + '">'
+      '<a class="lf-studio-gallery-link" href="' + galleryHref + '" target="_top">'
     );
   }
 
-  var appScriptMarker = '<script>\n(function(){';
+  var appScriptMarker = '<script>\
+(function(){';
   if (html.indexOf(appScriptMarker) < 0) throw new Error('LF_SPA_APP_SCRIPT_MARKER_MISSING');
   html = html.replace(
     appScriptMarker,
-    prhLocalFirstSpaResponsiveGuard_() + '\n' + prhLocalFirstSpaBootstrap_(params) + '\n' + appScriptMarker
+    prhLocalFirstSpaResponsiveGuard_() + '\
+' + prhLocalFirstSpaBootstrap_(params) + '\
+' + appScriptMarker
   );
 
   var output = HtmlService.createHtmlOutput(html);
