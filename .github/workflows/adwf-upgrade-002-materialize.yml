@@ -11,7 +11,7 @@ permissions:
 
 env:
   BASE_SHA: fee1ae2ed4097165bcb8b692ca57bb9fc51ff17b
-  SOURCE_A: 278014b98f6067051f7ed5866c8f11589ed4
+  SOURCE_A: 278014b98f606705e7ccd89c6faa5c95df530cd8
   TARGET_B: 017042c1f2bcde8d89d4b344201e848d873ec5a9
   EXPECTED_COMPAT: dbd9da683594dcf1717b29ed1033c17e32e0e6a7a88f39ccaea0f63ae5e0ae72
   EXPECTED_PLAN: 8c73b3483dc070590de2c9aa64fcc89f29e871fc8fa29f54f71d70d55e26d2bd
@@ -61,7 +61,7 @@ jobs:
           python - <<'PY'
           import json
           x=json.load(open('/tmp/source-validation.json'))
-          assert x['status']=='VERIFIED' and x['framework_source_sha']=='278014b98f6067051f7ed5866c8f11589ed4'
+          assert x['status']=='VERIFIED' and x['framework_source_sha']=='278014b98f606705e7ccd89c6faa5c95df530cd8'
           PY
 
           python "${ADWF_TARGET}/.adwf/scripts/plan_consumer_upgrade.py" \
