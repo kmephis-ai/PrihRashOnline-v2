@@ -4,8 +4,8 @@
   "role": "CONSUMER_NATIVE_GATE_BINDING",
   "consumer_repository": "kmephis-ai/PrihRashOnline-v2",
   "consumer_profile_sha256": "d04ea9efcba86a95d85f720fc14a1db319ac1150932e5111ea2422b9f734f4a5",
-  "installation_record_sha256": "1522cadf1f5a0d6758d5134abc45d514b28a096d81008a901ed65d2628056253",
-  "operational_binding_sha256": "df3ed3b32962337595d79c83bb9041c79b87104d05826e28e4d54cffb754bf72",
+  "installation_record_sha256": "a61f8c4f7cf7eea0d23732e944e9934bbd9f929e95ffb76e7a9ad93a531a44cd",
+  "operational_binding_sha256": "aed8a194424d280254cf5adcd93294634ce11877b4997a8f290104e6b3341c61",
   "phases": {
     "pr": [
       {
@@ -38,5 +38,5 @@
     "secrets": "FORBIDDEN"
   },
   "mutation_authority": "NONE_BINDING_IS_REFERENCE_ONLY",
-  "binding_sha256": "2f0b9f969e21d2b4aba26be590b71fd70ce93eff007f569d447ac47ac54c150e"
+  "binding_sha256": "3a1bad11ed91a781cbf4d977be4261533190225c6558f4e7abfe4a8c4cd81c40"
 }

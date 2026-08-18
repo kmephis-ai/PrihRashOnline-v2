@@ -5,7 +5,7 @@
   "mode": "CONSUMER_NATIVE",
   "consumer_repository": "kmephis-ai/PrihRashOnline-v2",
   "consumer_profile_sha256": "d04ea9efcba86a95d85f720fc14a1db319ac1150932e5111ea2422b9f734f4a5",
-  "installation_record_sha256": "1522cadf1f5a0d6758d5134abc45d514b28a096d81008a901ed65d2628056253",
+  "installation_record_sha256": "a61f8c4f7cf7eea0d23732e944e9934bbd9f929e95ffb76e7a9ad93a531a44cd",
   "roadmap": {
     "kind": "MARKDOWN_FILE",
     "path": "docs/ROADMAP.md"
@@ -22,5 +22,5 @@
     "secrets": "FORBIDDEN"
   },
   "mutation_authority": "NONE_BINDING_IS_REFERENCE_ONLY",
-  "binding_sha256": "6c487d82ddbeb793b4dbcab86d9e16147d3fd07e712e02318ce38b3ff2daedfd"
+  "binding_sha256": "8388cd672935482d78fd3adf2159aa43e6f3c7bec223e699bbe36699cfba8e66"
 }
