@@ -62,11 +62,21 @@ function close(server) { return new Promise((resolve) => server.close(resolve));
       assert.strictEqual(await page.locator('.card').count(),7,`${viewport.name} availability filter`);
       await page.locator('#catalog-filter').selectOption('ALL');
       assert.strictEqual(requests.length,initialRequests,`${viewport.name} search/filter must stay local`);
+      if (viewport.name === 'desktop') {
+        await page.evaluate(() => {
+          const original = history.replaceState.bind(history);
+          history.replaceState = function() {
+            history.replaceState = original;
+            throw new DOMException('Apps Script sandbox blocks History API mutation', 'SecurityError');
+          };
+        });
+      }
       const first=page.locator('.card[data-preset-id="CASH_FLOW_DECOMPOSITION"] button');
       await first.focus();
       await page.keyboard.press('Enter');
       await page.waitForSelector('#dashboard-title');
       assert((await page.locator('#dashboard-title').inputValue()).includes('Декомпозиция'),`${viewport.name} cloned view opens`);
+      assert((await page.locator('#result').textContent()).includes('Личная копия создана'),`${viewport.name} clone success stays visible`);
       await page.locator('#dashboard-title').fill('Мой экспертный денежный поток');
       await page.locator('#save-view').focus();
       await page.keyboard.press('Enter');
@@ -74,11 +84,17 @@ function close(server) { return new Promise((resolve) => server.close(resolve));
       assert.strictEqual(requests.length,initialRequests,`${viewport.name} warm clone/edit must not add browser network requests`);
       const overflow=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth}));
       assert(overflow.scrollWidth<=overflow.clientWidth+1,`${viewport.name} horizontal overflow`);
+      if (viewport.name === 'desktop') {
+        await page.evaluate(() => {
+          const current=JSON.parse(localStorage.getItem('dash090-visual-state'));
+          history.replaceState(null,'','?surface=gallery&view='+encodeURIComponent(current.view_id));
+        });
+      }
       await page.reload({waitUntil:'load'});
       await page.waitForSelector('#dashboard-title');
       assert.strictEqual(await page.locator('#dashboard-title').inputValue(),'Мой экспертный денежный поток',`${viewport.name} reload persisted title`);
       assert.strictEqual(errors.length,0,`${viewport.name} browser errors: ${errors.join('; ')}`);
-      results.push({viewport:viewport.name,cards:7,previews:7,local_search:true,integrated_navigation:true,active_revision:2,warm_extra_requests:0,overflow:false});
+      results.push({viewport:viewport.name,cards:7,previews:7,local_search:true,integrated_navigation:true,sandbox_history_safe:true,active_revision:2,warm_extra_requests:0,overflow:false});
       await context.close();
     }
     console.log('expert_dashboard_gallery_visual_test: PASS', results);
