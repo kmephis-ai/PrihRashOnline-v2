@@ -43,14 +43,15 @@ jobs:
           sys.path.insert(0, str(Path('.adwf').resolve()))
           from lib.project_packs import commands_for_pack
           installed=json.loads(Path('.adwf-consumer/installation.json').read_text())
-          binding=commands_for_pack('.', '.adwf')
+          binding=commands_for_pack('.', '.')
           session=binding.get('session_continuity') or {}
+          report={'installed_framework':installed['framework']['source_sha'],'pack':binding.get('pack'),'session_continuity':session}
+          print(json.dumps(report,sort_keys=True))
           assert installed['framework']['source_sha']=='017042c1f2bcde8d89d4b344201e848d873ec5a9'
           assert binding.get('pack')=='apps-script'
           assert session.get('inherits_framework_core') is True
           assert session.get('provider_authority') is False
           assert session.get('runtime_evidence_mode')=='CONSUMER_NATIVE_EXTERNAL_RUNTIME_READBACK'
-          print(json.dumps({'installed_framework':installed['framework']['source_sha'],'pack':binding.get('pack'),'session_continuity':session},sort_keys=True))
           PY
       - name: Read back immutable Runtime Ledger anchor ruleset
         env:
