@@ -1,9 +1,11 @@
 'use strict';
 
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { buildRuntimeBundleSource } = require('../tools/build-apps-script-runtime-bundle');
 const GALLERY = require('../lib/dashboard/expert_dashboard_gallery');
 const SAVED = require('../lib/dashboard/dashboard_saved_views');
 const COMPOSER = require('../lib/dashboard/dashboard_composer');
@@ -120,6 +122,7 @@ assert.strictEqual(GALLERY.CONTRACT.authority.query_execution, false);
 const root = path.join(__dirname, '..');
 const storageSource = fs.readFileSync(path.join(root, 'DashboardSavedViewsStorageService.js'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(root, 'ExpertDashboardGalleryService.js'), 'utf8');
+const compatSource = fs.readFileSync(path.join(root, 'AppsScriptNodeCompat.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'ExpertDashboardGalleryWebApp.html'), 'utf8');
 const localFirstStudioHtml = fs.readFileSync(path.join(root, 'LocalFirstVisualizationSpaExtension.html'), 'utf8');
 const router = fs.readFileSync(path.join(root, 'CanonicalR2WebAppService.js'), 'utf8');
@@ -138,11 +141,53 @@ assert(html.includes('@media(max-width:620px)'));
 assert(!/amount_minor|income_minor|expense_minor|cash_flow_minor|balance_minor/i.test(html));
 assert(router.includes("gallery: Object.freeze({ file: 'ExpertDashboardGalleryWebApp'"));
 assert(router.includes("GALLERY_SURFACE: 'gallery'"));
+
+// The real generated runtime must execute in an Apps Script-like VM where Node Buffer does not exist.
+// This covers the owner-observed failure mode: catalog -> clone -> save -> reload, without a fake PASS.
+const NativeBuffer = Buffer;
+const appsMap = new Map();
+let appsWrites = 0;
+const appsProps = {getProperty:k=>appsMap.has(k)?appsMap.get(k):null,setProperties:u=>{appsWrites++;Object.entries(u).forEach(([k,v])=>appsMap.set(k,String(v)));}};
+const appsLock = {held:false,tryLock(){if(this.held)return false;this.held=true;return true;},releaseLock(){this.held=false;}};
+const digest = value => Array.from(crypto.createHash('sha256').update(String(value),'utf8').digest()).map(byte => byte > 127 ? byte - 256 : byte);
+const appsScriptSandbox = {
+  PropertiesService:{getUserProperties:()=>appsProps},
+  LockService:{getUserLock:()=>appsLock},
+  Utilities:{
+    DigestAlgorithm:{SHA_256:'SHA_256'},
+    Charset:{UTF_8:'UTF_8'},
+    computeDigest:(_algorithm,value)=>digest(value),
+    newBlob:value=>({getBytes:()=>Array.from(NativeBuffer.from(String(value),'utf8'))})
+  },
+  JSON,Number,String,Object,Array,RegExp,Error,Map,Set,Date,Math,unescape,encodeURIComponent
+};
+vm.createContext(appsScriptSandbox);
+assert.strictEqual(typeof appsScriptSandbox.Buffer, 'undefined');
+vm.runInContext(compatSource, appsScriptSandbox, {filename:'AppsScriptNodeCompat.js'});
+assert.strictEqual(appsScriptSandbox.Buffer.byteLength('Ж€🙂','utf8'), 9);
+vm.runInContext(buildRuntimeBundleSource(root), appsScriptSandbox, {filename:'R2CanonicalRuntimeBundle.js'});
+vm.runInContext(storageSource, appsScriptSandbox, {filename:'DashboardSavedViewsStorageService.js'});
+vm.runInContext(serviceSource, appsScriptSandbox, {filename:'ExpertDashboardGalleryService.js'});
+const appsCatalog = appsScriptSandbox.prhDash090PublicCatalog();
+assert.strictEqual(appsCatalog.presets.length, 7);
+assert(appsCatalog.presets.every((preset) => preset.status === 'AVAILABLE'));
+const appsClone = appsScriptSandbox.prhDash090ClonePreset({preset_id:'SPENDING_DRIVERS',view_id:'apps-script-spending-test',name:'Драйверы расходов'});
+assert.strictEqual(appsClone.active_revision, 1);
+assert.strictEqual(appsClone.preset_id, 'SPENDING_DRIVERS');
+const appsSaved = appsScriptSandbox.prhDash090SaveViewConfiguration({view_id:'apps-script-spending-test',expected_generation:appsClone.store_generation,dashboard_title:'Мои драйверы расходов'});
+assert.strictEqual(appsSaved.active_revision, 2);
+assert.strictEqual(appsSaved.dashboard_spec.title, 'Мои драйверы расходов');
+const appsReload = appsScriptSandbox.prhDash090ReadView({view_id:'apps-script-spending-test'});
+assert.strictEqual(appsReload.active_revision, 2);
+assert.strictEqual(appsReload.dashboard_spec.title, 'Мои драйверы расходов');
+assert.strictEqual(appsWrites, 2);
+
+// Existing storage integration remains stable in the Node contract realm as well.
 const map = new Map();
 let writes = 0;
 const props = {getProperty:k=>map.has(k)?map.get(k):null,setProperties:u=>{writes++;Object.entries(u).forEach(([k,v])=>map.set(k,String(v)));}};
 const lock = {held:false,tryLock(){if(this.held)return false;this.held=true;return true;},releaseLock(){this.held=false;}};
-const sandbox = {PRH_R2_CANONICAL_RUNTIME:{expertDashboardGallery:GALLERY,dashboardSavedViews:SAVED},PropertiesService:{getUserProperties:()=>props},LockService:{getUserLock:()=>lock},Utilities:{newBlob:v=>({getBytes:()=>Buffer.from(String(v),'utf8')})},JSON,Number,String,Object,Array,RegExp,Error,Buffer,unescape,encodeURIComponent};
+const sandbox = {PRH_R2_CANONICAL_RUNTIME:{expertDashboardGallery:GALLERY,dashboardSavedViews:SAVED},PropertiesService:{getUserProperties:()=>props},LockService:{getUserLock:()=>lock},Utilities:{newBlob:v=>({getBytes:()=>NativeBuffer.from(String(v),'utf8')})},JSON,Number,String,Object,Array,RegExp,Error,Buffer:NativeBuffer,unescape,encodeURIComponent};
 vm.createContext(sandbox);
 vm.runInContext(storageSource, sandbox);
 vm.runInContext(serviceSource, sandbox);
@@ -175,6 +220,8 @@ assert.strictEqual(writes, 2);
 console.log('expert_dashboard_gallery_contract_test: PASS', {
   presets: catalog.length,
   runtime_projection_status: 'AVAILABLE',
+  apps_script_buffer_compat: true,
+  apps_script_batch_writes: appsWrites,
   user_properties_batch_writes: writes,
   xray_capability: GALLERY.CAP.XRAY,
   source_hash_prefix: sourceHash.slice(0,12),
