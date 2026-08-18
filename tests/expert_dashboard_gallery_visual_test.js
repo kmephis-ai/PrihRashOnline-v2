@@ -81,7 +81,13 @@ function close(server) { return new Promise((resolve) => server.close(resolve));
       await page.locator('#save-view').focus();
       await page.keyboard.press('Enter');
       await page.waitForFunction(() => document.getElementById('result').textContent.includes('новая версия'));
-      assert.strictEqual(requests.length,initialRequests,`${viewport.name} warm clone/edit must not add browser network requests`);
+      await page.locator('#dashboard-title').fill('Несохранённое локальное изменение');
+      await page.locator('#reload-view').focus();
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => document.getElementById('result').textContent.includes('перезагружена'));
+      assert.strictEqual(await page.locator('#dashboard-title').inputValue(),'Мой экспертный денежный поток',`${viewport.name} reload button restores persisted title`);
+      assert.strictEqual((await page.locator('#reload-view').textContent()).trim(),'Перезагрузить копию',`${viewport.name} reload button returns to ready state`);
+      assert.strictEqual(requests.length,initialRequests,`${viewport.name} warm clone/edit/reload must not add browser network requests`);
       const overflow=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth}));
       assert(overflow.scrollWidth<=overflow.clientWidth+1,`${viewport.name} horizontal overflow`);
       if (viewport.name === 'desktop') {
@@ -94,7 +100,7 @@ function close(server) { return new Promise((resolve) => server.close(resolve));
       await page.waitForSelector('#dashboard-title');
       assert.strictEqual(await page.locator('#dashboard-title').inputValue(),'Мой экспертный денежный поток',`${viewport.name} reload persisted title`);
       assert.strictEqual(errors.length,0,`${viewport.name} browser errors: ${errors.join('; ')}`);
-      results.push({viewport:viewport.name,cards:7,previews:7,local_search:true,integrated_navigation:true,sandbox_history_safe:true,active_revision:2,warm_extra_requests:0,overflow:false});
+      results.push({viewport:viewport.name,cards:7,previews:7,local_search:true,integrated_navigation:true,sandbox_history_safe:true,reload_button:true,active_revision:2,warm_extra_requests:0,overflow:false});
       await context.close();
     }
     console.log('expert_dashboard_gallery_visual_test: PASS', results);
