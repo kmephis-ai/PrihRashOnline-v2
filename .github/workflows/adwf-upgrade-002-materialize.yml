@@ -1,0 +1,148 @@
+name: ADWF Upgrade 002 Candidate Materializer
+
+on:
+  push:
+    branches:
+      - agent/materialize-ADWF-UPGRADE-002-20260818-a1
+
+permissions:
+  contents: write
+  statuses: write
+
+env:
+  BASE_SHA: fee1ae2ed4097165bcb8b692ca57bb9fc51ff17b
+  SOURCE_A: 278014b98f6067051f7ed5866c8f11589ed4
+  TARGET_B: 017042c1f2bcde8d89d4b344201e848d873ec5a9
+  EXPECTED_COMPAT: dbd9da683594dcf1717b29ed1033c17e32e0e6a7a88f39ccaea0f63ae5e0ae72
+  EXPECTED_PLAN: 8c73b3483dc070590de2c9aa64fcc89f29e871fc8fa29f54f71d70d55e26d2bd
+  EXPECTED_TREE: 52377e5f6dc99840588f997c55b5065d34d62ef9
+  TARGET_BRANCH: integration/ADWF-UPGRADE-002-skipped-version-framework-upgrade
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reproduce exact connected-consumer transaction and publish candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          test "$(git rev-parse origin/main)" = "${BASE_SHA}"
+          if git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | grep -q .; then
+            echo "TARGET_BRANCH_ALREADY_EXISTS" >&2
+            exit 1
+          fi
+          git checkout --detach "${BASE_SHA}"
+
+          sudo mkdir -p /mnt/data/upgrade-002-work
+          sudo chown -R "$(id -u):$(id -g)" /mnt/data/upgrade-002-work
+          CONSUMER_ROOT=/mnt/data/upgrade-002-work/prih-lifecycle
+          ADWF_TARGET=/mnt/data/upgrade-002-work/adwf-target
+          ADWF_SOURCE=/mnt/data/upgrade-002-work/adwf-source-a
+          rm -rf "${CONSUMER_ROOT}" "${ADWF_TARGET}" "${ADWF_SOURCE}"
+          mkdir -p "${CONSUMER_ROOT}"
+          cp -a "${GITHUB_WORKSPACE}/." "${CONSUMER_ROOT}/"
+
+          git clone -q https://github.com/kmephis-ai/AI-Development-Framework.git "${ADWF_TARGET}"
+          test "$(git -C "${ADWF_TARGET}" rev-parse origin/main)" = "${TARGET_B}"
+          git -C "${ADWF_TARGET}" checkout -q "${TARGET_B}"
+          git -C "${ADWF_TARGET}" worktree add -q --detach "${ADWF_SOURCE}" "${SOURCE_A}"
+
+          python "${ADWF_TARGET}/.adwf/scripts/consumer_installation.py" \
+            --consumer-root "${CONSUMER_ROOT}" \
+            --framework-root "${ADWF_SOURCE}" \
+            --repository kmephis-ai/PrihRashOnline-v2 > /tmp/source-validation.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/source-validation.json'))
+          assert x['status']=='VERIFIED' and x['framework_source_sha']=='278014b98f6067051f7ed5866c8f11589ed4'
+          PY
+
+          python "${ADWF_TARGET}/.adwf/scripts/plan_consumer_upgrade.py" \
+            --source-root "${ADWF_SOURCE}" \
+            --target-root "${ADWF_TARGET}" \
+            --consumer-root "${CONSUMER_ROOT}" \
+            --source-revision "${SOURCE_A}" \
+            --target-revision "${TARGET_B}" > /tmp/plan-bundle.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/plan-bundle.json'))
+          assert x['compatibility']['status']=='PASS' and x['compatibility']['findings']==[]
+          assert x['plan']['status']=='READY' and x['plan']['findings']==[]
+          assert x['compatibility']['compatibility_sha256']=='dbd9da683594dcf1717b29ed1033c17e32e0e6a7a88f39ccaea0f63ae5e0ae72'
+          assert x['plan']['plan_sha256']=='8c73b3483dc070590de2c9aa64fcc89f29e871fc8fa29f54f71d70d55e26d2bd'
+          open('/tmp/compatibility.json','w').write(json.dumps(x['compatibility'],indent=2,sort_keys=True)+'\n')
+          open('/tmp/plan.json','w').write(json.dumps(x['plan'],indent=2,sort_keys=True)+'\n')
+          PY
+
+          python "${ADWF_TARGET}/.adwf/scripts/apply_consumer_upgrade.py" apply \
+            --source-root "${ADWF_SOURCE}" \
+            --target-root "${ADWF_TARGET}" \
+            --consumer-root "${CONSUMER_ROOT}" \
+            --compatibility /tmp/compatibility.json \
+            --plan /tmp/plan.json > /tmp/apply.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/apply.json'))
+          assert x['status']=='COMMITTED' and x['projection_status']=='COMMITTED' and x['write_performed'] is True
+          assert x['transaction_id']=='10ce6653eb707ace5e72ec977ecf54beae3689630b8a11b5fcac5aea7c6e1ca9'
+          PY
+
+          python "${ADWF_TARGET}/.adwf/scripts/consumer_installation.py" \
+            --consumer-root "${CONSUMER_ROOT}" \
+            --framework-root "${ADWF_TARGET}" \
+            --repository kmephis-ai/PrihRashOnline-v2 > /tmp/target-validation.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/target-validation.json'))
+          assert x['status']=='VERIFIED' and x['framework_source_sha']=='017042c1f2bcde8d89d4b344201e848d873ec5a9' and x['managed_entries_verified']==552
+          PY
+
+          cd "${CONSUMER_ROOT}"
+          git add .adwf .adwf-consumer
+          test -z "$(git ls-files .adwf-runtime)"
+          cat > /tmp/expected-paths.txt <<'EOF'
+          .adwf-consumer/gates.json
+          .adwf-consumer/installation.json
+          .adwf-consumer/operations.json
+          .adwf/docs-registry.json
+          .adwf/instructions/CORE.md
+          .adwf/lib/github_runtime_store.py
+          .adwf/lib/project_packs.py
+          .adwf/lib/session_continuity.py
+          .adwf/schemas/session-continuity-checkpoint.schema.json
+          .adwf/scripts/github_runtime_sync.py
+          .adwf/tests/test_session_continuity.py
+          .adwf/tests/test_session_continuity_persistence.py
+          .adwf/tests/test_session_delivery.py
+          EOF
+          sed -i 's/^          //' /tmp/expected-paths.txt
+          git diff --cached --name-only | sort > /tmp/actual-paths.txt
+          diff -u /tmp/expected-paths.txt /tmp/actual-paths.txt
+          git diff --cached --check
+          test "$(git write-tree)" = "${EXPECTED_TREE}"
+          git config user.name 'PrihRash ADWF Integration'
+          git config user.email 'prihrash-adwf-integration@example.invalid'
+          git commit -m '[ADWF-UPGRADE-002] Upgrade connected framework to 017042c1'
+          test "$(git rev-parse HEAD^{tree})" = "${EXPECTED_TREE}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+      - name: Publish materializer status
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -d "{\"state\":\"success\",\"context\":\"adwf-upgrade-002-materializer\",\"description\":\"run:${GITHUB_RUN_ID}\",\"target_url\":\"https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
