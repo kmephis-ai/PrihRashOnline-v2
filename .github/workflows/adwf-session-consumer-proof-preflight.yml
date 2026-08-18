@@ -41,17 +41,24 @@ jobs:
           import json, sys
           from pathlib import Path
           sys.path.insert(0, str(Path('.adwf').resolve()))
-          from lib.project_packs import commands_for_pack
+          from lib.project_packs import load_packs, _session_continuity_binding
           installed=json.loads(Path('.adwf-consumer/installation.json').read_text())
-          binding=commands_for_pack('.', '.')
-          session=binding.get('session_continuity') or {}
-          report={'installed_framework':installed['framework']['source_sha'],'pack':binding.get('pack'),'session_continuity':session}
-          print(json.dumps(report,sort_keys=True))
+          profile=json.loads(Path('.adwf-consumer/profile.json').read_text())
+          selected=(profile.get('project_packs') or {}).get('selected')
+          packs=load_packs('.')
+          pack=packs.get(selected) or {}
+          definition=pack.get('definition') or {}
+          session=_session_continuity_binding(selected, {}, definition.get('preview') or {}, definition.get('safety') or {})
+          report={'installed_framework':installed['framework']['source_sha'],'selected_pack':selected,'selected_digest':(profile.get('project_packs') or {}).get('selected_digest'),'installed_pack_digest':pack.get('digest'),'session_continuity':session}
+          print(json.dumps(report,sort_keys=True), flush=True)
           assert installed['framework']['source_sha']=='017042c1f2bcde8d89d4b344201e848d873ec5a9'
-          assert binding.get('pack')=='apps-script'
+          assert selected=='apps-script'
+          assert (profile.get('project_packs') or {}).get('materialized') is True
+          assert (profile.get('project_packs') or {}).get('selected_digest')==pack.get('digest')
           assert session.get('inherits_framework_core') is True
           assert session.get('provider_authority') is False
           assert session.get('runtime_evidence_mode')=='CONSUMER_NATIVE_EXTERNAL_RUNTIME_READBACK'
+          assert 'NO_NETWORK' in (session.get('safety_boundaries') or [])
           PY
       - name: Read back immutable Runtime Ledger anchor ruleset
         env:
@@ -67,7 +74,7 @@ jobs:
           from lib.github_rulesets import verify_runtime_anchor_ruleset
           client=GitHubClient(os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_TOKEN'])
           result=verify_runtime_anchor_ruleset(client.rulesets())
-          print(json.dumps(result,sort_keys=True))
+          print(json.dumps(result,sort_keys=True), flush=True)
           if result.get('readback_verified') is not True:
               raise SystemExit('SESSION_CONSUMER_PROOF_RUNTIME_ANCHOR_RULESET_NOT_VERIFIED')
           PY
