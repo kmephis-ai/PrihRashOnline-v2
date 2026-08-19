@@ -1,0 +1,20 @@
+{
+  "bindings": "VERIFIED",
+  "consumer_main_verification": "SUCCESS",
+  "consumer_main_verification_jobs": [
+    "verify"
+  ],
+  "consumer_main_verification_run_id": 32302087177,
+  "installation": "VERIFIED",
+  "managed_entries_verified": 557,
+  "merge_sha": "91d91252cd7d08e33a3c004290d486024424a69e",
+  "merge_tree": "a492f56fd8dfe298d7744d4228902255c971c42d",
+  "monetary_budget_usd": 0,
+  "operating_mode": "CONSUMER_NATIVE",
+  "project_pack": "apps-script",
+  "roadmap": "docs/ROADMAP.md",
+  "schema_version": 1,
+  "secrets": "FORBIDDEN",
+  "target_sha": "1f38866eeb242f8d1e56c54632b059cf8adde77d",
+  "target_tree": "463fce58eb20e2d01b15aed8f400ef1c40b2020a"
+}
