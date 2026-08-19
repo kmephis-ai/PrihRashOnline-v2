@@ -1,0 +1,65 @@
+name: ADWF UPGRADE-003 Proof Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - helper/adwf-upgrade-003-diagnostic-base-20260819-a1
+    types: [opened]
+
+permissions:
+  contents: read
+
+env:
+  CONSUMER_SHA: 59bb5319052f378f10a0216ee3956f12944c0b77
+  CONSUMER_TREE: 38918d7993329d564b9cc920bec9317714638379
+  SOURCE_SHA: 017042c1f2bcde8d89d4b344201e848d873ec5a9
+  SOURCE_TREE: c7e709a29df431460abb9bc17025d62d7803cda1
+  TARGET_SHA: b10ab53e926b57c637c9c253cd43266e0fe1acfb
+  TARGET_TREE: aa8d72c61d1392147840698ce9960dd99b35381f
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.CONSUMER_SHA }}
+          path: consumer
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.TARGET_SHA }}
+          path: target
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+      - name: Emit deterministic external-proof result
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python consumer/.adwf/scripts/run_external_consumer_upgrade_proof.py \
+            --consumer-root consumer --consumer-repository kmephis-ai/PrihRashOnline-v2 \
+            --consumer-sha "$CONSUMER_SHA" --consumer-tree "$CONSUMER_TREE" \
+            --source-root source --source-sha "$SOURCE_SHA" --source-tree "$SOURCE_TREE" \
+            --target-root target --target-sha "$TARGET_SHA" --target-tree "$TARGET_TREE" \
+            --provider-run-id "$GITHUB_RUN_ID" > "$RUNNER_TEMP/result.json"
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/result.json"
+          exit "$rc"
