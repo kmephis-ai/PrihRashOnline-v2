@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "proof_phase": "SESSION_B_FRESH_PROVIDER_RESTORE",
+  "github_run_id": "32214714968",
+  "github_run_attempt": "1",
+  "source_session_a_run_id": "32214358545",
+  "session_a_readback_run_id": "32214596730",
+  "subject_sha": "59bb5319052f378f10a0216ee3956f12944c0b77",
+  "writer_lease": "0f25333a-c813-48a6-af5f-4b4d268187ac",
+  "independent_checkout": true,
+  "session_a_local_runtime_present": false,
+  "preflight": {
+    "actual_main": "59bb5319052f378f10a0216ee3956f12944c0b77",
+    "anchor_tag_object_sha": "91e61a52888ecddbe44115ff049e940ec774edc4",
+    "installed_adwf": "017042c1f2bcde8d89d4b344201e848d873ec5a9",
+    "ledger_issue": 329,
+    "pack": "apps-script",
+    "pack_digest": "abefe63ed4d6eba2c24b71d53150a4c3ebab9a7c686e7fc91529de4d55c01866",
+    "ruleset_id": 21023491,
+    "unique_proof_writer_issue": 327,
+    "writer_lease": "0f25333a-c813-48a6-af5f-4b4d268187ac",
+    "wunb_delivered": true
+  },
+  "restored": {
+    "checkpoint_id": "session-consumer-proof-001-checkpoint",
+    "checkpoint_revision": 0,
+    "checkpoint_digest": "a77a45a7bd846df657335845681af4f93ee0adfa6c3bac8874906381f20d1aa6",
+    "work_identity": {
+      "ai_work_package_digest": null,
+      "issue_id": "327",
+      "roadmap_id": "ADWF-SESSION-CONSUMER-PROOF-001"
+    },
+    "boundary_type": "EXECUTOR_LIMIT",
+    "event_hash": "e545573a2c2640f1adca04c0c914d6fff9b1f9121fdab72be1d9607f53302f35",
+    "provider_object_id": "5337377059",
+    "reconciliation": {
+      "checkpoint_id": "session-consumer-proof-001-checkpoint",
+      "checkpoint_revision": 0,
+      "provider_authority": false,
+      "stale": false,
+      "stale_main": false,
+      "stale_head": false,
+      "actual_main_sha": "59bb5319052f378f10a0216ee3956f12944c0b77",
+      "actual_head_sha": null,
+      "next_step": "RESUME_CONTEXT_ONLY"
+    }
+  },
+  "no_runtime_ledger_write": true,
+  "no_duplicate_writer_created": true,
+  "no_stale_mutation": true
+}
