@@ -1,0 +1,93 @@
+name: ADWF UPGRADE-003 Candidate Readback
+
+on:
+  pull_request:
+    branches:
+      - helper/adwf-upgrade-003-readback-base-20260819-a2
+    types: [opened]
+
+permissions:
+  contents: read
+
+env:
+  BASE_SHA: 59bb5319052f378f10a0216ee3956f12944c0b77
+  CANDIDATE_SHA: ddb0e8228eed93aacab05ab763e45337b2499b2c
+  CANDIDATE_TREE: cda702ed0d22a5e35c31e91ac6f8b9956c04405a
+  TARGET_SHA: 86d943b03a1fc591b5b533d1ac211da93dc70694
+  TARGET_TREE: d75b43087ee6ebe3c773866936161028ad92749c
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  readback:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Fresh checkout exact published candidate
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: consumer
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fresh checkout exact certified ADWF B
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.TARGET_SHA }}
+          path: target
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+      - name: Verify exact candidate identity and current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C consumer rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git -C consumer rev-parse HEAD^{tree})" = "$CANDIDATE_TREE"
+          test "$(git -C target rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git -C target rev-parse HEAD^{tree})" = "$TARGET_TREE"
+          test "$(git -C consumer ls-remote origin refs/heads/main | cut -f1)" = "$BASE_SHA"
+      - name: Verify provider-published B installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python consumer/.adwf/scripts/consumer_installation.py \
+            --consumer-root consumer --framework-root target \
+            --repository kmephis-ai/PrihRashOnline-v2 > "$RUNNER_TEMP/installation.json"
+          python - "$RUNNER_TEMP/installation.json" <<'PY'
+          import json, os, sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert r['status']=='VERIFIED'
+          assert r['framework_source_sha']==os.environ['TARGET_SHA']
+          assert r['framework_source_tree']==os.environ['TARGET_TREE']
+          assert r['managed_entries_verified']==557
+          assert r['monetary_budget_usd']==0
+          assert r['secrets']=='FORBIDDEN'
+          print(json.dumps(r,sort_keys=True))
+          PY
+      - name: Verify automatic continuity and apps-script delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          profile=json.loads(Path('consumer/.adwf-consumer/profile.json').read_text(encoding='utf-8'))
+          packs=profile.get('project_packs') or {}
+          safety=packs.get('safety') or {}
+          assert (profile.get('project') or {}).get('type')=='apps-script'
+          assert packs.get('selected')=='apps-script'
+          assert packs.get('materialized') is True
+          assert safety.get('monetary_budget_usd')==0
+          assert safety.get('secrets')=='FORBIDDEN'
+          assert safety.get('network')=='NONE'
+          core=Path('consumer/.adwf/instructions/CORE.md').read_text(encoding='utf-8')
+          assert 'WORK_UNTIL_NATURAL_BOUNDARY' in core
+          assert 'fresh provider/runtime discovery' in core or 'provider/runtime state' in core
+          installation=json.loads(Path('consumer/.adwf-consumer/installation.json').read_text(encoding='utf-8'))
+          print(json.dumps({'project_type':'apps-script','selected_pack':packs.get('selected'),'pack_materialized':packs.get('materialized'),'continuity_instruction':True,'installed_framework_sha':installation.get('framework_source_sha'),'safety':safety},sort_keys=True))
+          PY
