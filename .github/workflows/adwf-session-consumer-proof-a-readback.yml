@@ -1,0 +1,130 @@
+name: ADWF SESSION Consumer Proof A Readback
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/adwf-session-consumer-proof-a-readback.yml
+
+permissions:
+  contents: write
+  issues: read
+
+env:
+  SUBJECT_SHA: 59bb5319052f378f10a0216ee3956f12944c0b77
+  PROOF_ISSUE: '327'
+  WRITER_LEASE: 0f25333a-c813-48a6-af5f-4b4d268187ac
+  CONFLICT_KEY: SESSION_CONSUMER_RUNTIME_LEDGER
+  SOURCE_SESSION_A_RUN: '32214358545'
+  EXPECTED_LEDGER_ISSUE: '329'
+  EXPECTED_PROVIDER_OBJECT_ID: '5337377059'
+  EXPECTED_EVENT_HASH: e545573a2c2640f1adca04c0c914d6fff9b1f9121fdab72be1d9607f53302f35
+  EXPECTED_CHECKPOINT_DIGEST: a77a45a7bd846df657335845681af4f93ee0adfa6c3bac8874906381f20d1aa6
+  EXPECTED_CHECKPOINT_ID: session-consumer-proof-001-checkpoint
+  EXPECTED_ANCHOR: adwf-runtime-anchor-000001-e545573a2c2640f1
+  GITHUB_TOKEN: ${{ github.token }}
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  verify-existing-session-a:
+    if: github.event.action == 'synchronize'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: evidence/ADWF-SESSION-CONSUMER-PROOF-001-a-20260819-a1
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+      - name: Verify canonical existing ledger event, immutable anchor, and unique writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_main="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha')"
+          test "${actual_main}" = "${SUBJECT_SHA}"
+          subject_dir="${RUNNER_TEMP}/consumer-session-a-readback"
+          git worktree add --detach "${subject_dir}" "${SUBJECT_SHA}"
+          test "$(git -C "${subject_dir}" rev-parse HEAD)" = "${SUBJECT_SHA}"
+          echo "SUBJECT_DIR=${subject_dir}" >> "${GITHUB_ENV}"
+          cd "${subject_dir}"
+          python - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+          sys.path.insert(0,str(Path('.adwf').resolve()))
+          from lib.github_provider import GitHubClient
+          from lib.github_runtime_store import GitHubRuntimeStore
+          from lib.github_rulesets import verify_runtime_anchor_ruleset
+
+          client=GitHubClient(os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_TOKEN'])
+          rules=verify_runtime_anchor_ruleset(client.rulesets())
+          if rules.get('readback_verified') is not True: raise SystemExit('RUNTIME_ANCHOR_RULESET_NOT_VERIFIED')
+          issue,events=GitHubRuntimeStore(client).read()
+          if str(issue.get('number'))!=os.environ['EXPECTED_LEDGER_ISSUE']: raise SystemExit('CANONICAL_LEDGER_ISSUE_MISMATCH')
+          if len(events)!=1: raise SystemExit('RUNTIME_LEDGER_EVENT_COUNT_MISMATCH')
+          event=events[0]
+          checkpoint=event.get('session_continuity_projection') or {}
+          checks={
+            'event_hash': event.get('event_hash')==os.environ['EXPECTED_EVENT_HASH'],
+            'provider_object_id': str(event.get('provider_object_id'))==os.environ['EXPECTED_PROVIDER_OBJECT_ID'],
+            'checkpoint_digest': event.get('session_continuity_digest')==os.environ['EXPECTED_CHECKPOINT_DIGEST'],
+            'checkpoint_id': event.get('session_continuity_id')==os.environ['EXPECTED_CHECKPOINT_ID'],
+            'issue_binding': str((checkpoint.get('work_identity') or {}).get('issue_id'))==os.environ['PROOF_ISSUE'],
+            'lease_binding': checkpoint.get('lease_identity')==os.environ['WRITER_LEASE'],
+            'main_binding': (checkpoint.get('observed_provider_state') or {}).get('main_sha')==os.environ['SUBJECT_SHA'],
+          }
+          if not all(checks.values()): raise SystemExit('SESSION_A_EVENT_BINDING_MISMATCH:'+','.join(k for k,v in checks.items() if not v))
+          ref=client.tag_ref(os.environ['EXPECTED_ANCHOR'])
+          tag_sha=str((ref.get('object') or {}).get('sha') or '')
+          if not tag_sha: raise SystemExit('SESSION_A_ANCHOR_REF_MISSING')
+          tag=client.tag_object(tag_sha)
+          try: payload=json.loads(str(tag.get('message') or '{}'))
+          except Exception as exc: raise SystemExit('SESSION_A_ANCHOR_PAYLOAD_INVALID') from exc
+          if payload.get('event_hash')!=os.environ['EXPECTED_EVENT_HASH'] or str(payload.get('provider_comment_id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_A_ANCHOR_BINDING_MISMATCH')
+          restored=GitHubRuntimeStore(client).restore_latest_session_continuity(actual_main_sha=os.environ['SUBJECT_SHA'])
+          if not restored: raise SystemExit('SESSION_A_RESTORE_MISSING')
+          reconciliation=restored.get('reconciliation') or {}
+          if reconciliation.get('provider_authority') is not False or reconciliation.get('stale') is not False or reconciliation.get('next_step')!='RESUME_CONTEXT_ONLY':
+              raise SystemExit('SESSION_A_RECONCILIATION_INVALID')
+          holders=[]
+          for item in client.issues():
+              if item.get('state')!='open': continue
+              body=str(item.get('body') or '')
+              if f"Proof-Conflict-Key: `{os.environ['CONFLICT_KEY']}`" in body: holders.append(item)
+          if len(holders)!=1 or str(holders[0].get('number'))!=os.environ['PROOF_ISSUE'] or os.environ['WRITER_LEASE'] not in str(holders[0].get('body') or ''):
+              raise SystemExit('DUPLICATE_OR_STALE_PROOF_WRITER')
+          out={
+            'schema_version':1,
+            'proof_phase':'SESSION_A_PROVIDER_READBACK_RECOVERY',
+            'source_session_a_run_id':os.environ['SOURCE_SESSION_A_RUN'],
+            'readback_run_id':os.environ.get('GITHUB_RUN_ID'),
+            'subject_sha':os.environ['SUBJECT_SHA'],
+            'ledger_issue':int(os.environ['EXPECTED_LEDGER_ISSUE']),
+            'provider_object_id':os.environ['EXPECTED_PROVIDER_OBJECT_ID'],
+            'event_hash':os.environ['EXPECTED_EVENT_HASH'],
+            'checkpoint_id':os.environ['EXPECTED_CHECKPOINT_ID'],
+            'checkpoint_digest':os.environ['EXPECTED_CHECKPOINT_DIGEST'],
+            'writer_lease':os.environ['WRITER_LEASE'],
+            'unique_proof_writer_issue':int(os.environ['PROOF_ISSUE']),
+            'ruleset_id':rules.get('ruleset_id'),
+            'external_anchor':{'tag':os.environ['EXPECTED_ANCHOR'],'tag_object_sha':tag_sha,'verified':True},
+            'reconciliation':reconciliation,
+            'duplicate_empty_ledger_issue_closed':330,
+            'no_second_append':True,
+          }
+          Path(os.environ['GITHUB_WORKSPACE']).joinpath('session-a-evidence.json').write_text(json.dumps(out,ensure_ascii=False,sort_keys=True,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,sort_keys=True),flush=True)
+          PY
+      - name: Publish bounded Session A recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'adwf-session-consumer-proof'
+          git config user.email 'adwf-session-consumer-proof@users.noreply.github.com'
+          git add session-a-evidence.json
+          git commit -m '[EVIDENCE] ADWF-SESSION-CONSUMER-PROOF-001 Session A provider readback'
+          git push origin HEAD:evidence/ADWF-SESSION-CONSUMER-PROOF-001-a-20260819-a1
