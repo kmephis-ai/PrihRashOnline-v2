@@ -1,0 +1,179 @@
+name: ADWF UPGRADE-003 C Postmerge Proof
+
+on:
+  push:
+    branches:
+      - helper/adwf-upgrade-003-c-postmerge-proof-20260819-a1
+    paths:
+      - .github/workflows/adwf-upgrade-003-c-postmerge-proof.yml
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  MERGE_SHA: 91d91252cd7d08e33a3c004290d486024424a69e
+  MERGE_TREE: a492f56fd8dfe298d7744d4228902255c971c42d
+  TARGET_SHA: 1f38866eeb242f8d1e56c54632b059cf8adde77d
+  TARGET_TREE: 463fce58eb20e2d01b15aed8f400ef1c40b2020a
+  HELPER_BRANCH: helper/adwf-upgrade-003-c-postmerge-proof-20260819-a1
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  prove:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout proof branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Checkout exact merged consumer main
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.MERGE_SHA }}
+          path: consumer
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact certified ADWF C
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.TARGET_SHA }}
+          path: target
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Prove exact postmerge provider and installation state
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          python - <<'PY'
+          from __future__ import annotations
+          from pathlib import Path
+          import json, os, subprocess, time, urllib.request
+
+          merge_sha=os.environ['MERGE_SHA']
+          merge_tree=os.environ['MERGE_TREE']
+          target_sha=os.environ['TARGET_SHA']
+          target_tree=os.environ['TARGET_TREE']
+          token=os.environ['GITHUB_TOKEN']
+          out={
+              'schema_version':1,
+              'merge_sha':merge_sha,
+              'merge_tree':merge_tree,
+              'target_sha':target_sha,
+              'target_tree':target_tree,
+              'consumer_main_verification':'NOT_VERIFIED',
+              'installation':'NOT_VERIFIED',
+              'bindings':'NOT_VERIFIED',
+              'monetary_budget_usd':0,
+              'secrets':'FORBIDDEN',
+          }
+
+          def api(url:str)->dict:
+              req=urllib.request.Request(url,headers={
+                  'Accept':'application/vnd.github+json',
+                  'Authorization':'Bearer '+token,
+                  'X-GitHub-Api-Version':'2022-11-28',
+                  'User-Agent':'adwf-upgrade-003-postmerge-proof',
+              })
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.loads(response.read().decode('utf-8'))
+
+          error=None
+          try:
+              def git(path,*args):
+                  return subprocess.check_output(['git','-C',str(path),*args],text=True).strip()
+              assert git('consumer','rev-parse','HEAD')==merge_sha
+              assert git('consumer','rev-parse','HEAD^{tree}')==merge_tree
+              assert git('target','rev-parse','HEAD')==target_sha
+              assert git('target','rev-parse','HEAD^{tree}')==target_tree
+
+              runs=[]
+              for attempt in range(30):
+                  payload=api('https://api.github.com/repos/kmephis-ai/PrihRashOnline-v2/actions/runs?per_page=100')
+                  runs=[r for r in (payload.get('workflow_runs') or [])
+                        if r.get('name')=='ADWF Consumer Main Verification'
+                        and r.get('event')=='push'
+                        and r.get('head_sha')==merge_sha]
+                  if runs:
+                      latest=max(runs,key=lambda r:int(r['id']))
+                      if latest.get('status')=='completed':
+                          break
+                  if attempt < 29:
+                      time.sleep(10)
+              if not runs:
+                  raise RuntimeError('CONSUMER_MAIN_VERIFICATION_RUN_MISSING')
+              latest=max(runs,key=lambda r:int(r['id']))
+              if latest.get('status')!='completed' or latest.get('conclusion')!='success':
+                  raise RuntimeError('CONSUMER_MAIN_VERIFICATION_NOT_SUCCESS:'+str(latest.get('status'))+':'+str(latest.get('conclusion')))
+              jobs=api(latest['jobs_url']+'?per_page=100').get('jobs') or []
+              if not jobs or any(j.get('status')!='completed' or j.get('conclusion')!='success' for j in jobs):
+                  raise RuntimeError('CONSUMER_MAIN_VERIFICATION_JOB_NOT_SUCCESS')
+              out['consumer_main_verification']='SUCCESS'
+              out['consumer_main_verification_run_id']=latest['id']
+              out['consumer_main_verification_jobs']=sorted(str(j.get('name') or '') for j in jobs)
+
+              result=subprocess.run([
+                  'python','consumer/.adwf/scripts/consumer_installation.py',
+                  '--consumer-root','consumer','--framework-root','target',
+                  '--repository','kmephis-ai/PrihRashOnline-v2'
+              ],capture_output=True,text=True,check=True)
+              verified=json.loads(result.stdout)
+              if verified.get('status')!='VERIFIED':
+                  raise RuntimeError('INSTALLATION_NOT_VERIFIED')
+              if verified.get('framework_source_sha')!=target_sha or verified.get('framework_source_tree')!=target_tree:
+                  raise RuntimeError('INSTALLATION_TARGET_MISMATCH')
+              out['installation']='VERIFIED'
+              out['managed_entries_verified']=verified.get('managed_entries_verified')
+
+              ops=json.loads(Path('consumer/.adwf-consumer/operations.json').read_text(encoding='utf-8'))
+              gates=json.loads(Path('consumer/.adwf-consumer/gates.json').read_text(encoding='utf-8'))
+              profile=json.loads(Path('consumer/.adwf-consumer/profile.json').read_text(encoding='utf-8'))
+              if ops.get('mode')!='CONSUMER_NATIVE' or ops.get('roadmap')!={'kind':'MARKDOWN_FILE','path':'docs/ROADMAP.md'}:
+                  raise RuntimeError('OPERATIONS_BINDING_MISMATCH')
+              if [x.get('check_name') for x in gates.get('phases',{}).get('pr',[])]!=['validate']:
+                  raise RuntimeError('PR_GATE_BINDING_MISMATCH')
+              if [x.get('check_name') for x in gates.get('phases',{}).get('main',[])]!=['verify']:
+                  raise RuntimeError('MAIN_GATE_BINDING_MISMATCH')
+              packs=profile.get('project_packs') or {}
+              if packs.get('selected')!='apps-script' or packs.get('materialized') is not True:
+                  raise RuntimeError('PROJECT_PACK_MISMATCH')
+              out['bindings']='VERIFIED'
+              out['operating_mode']='CONSUMER_NATIVE'
+              out['roadmap']='docs/ROADMAP.md'
+              out['project_pack']='apps-script'
+          except Exception as exc:
+              error=f'{type(exc).__name__}:{exc}'
+              out['error']=error
+
+          Path('proof').mkdir(exist_ok=True)
+          Path('proof/postmerge-outcome.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          print(json.dumps(out,sort_keys=True))
+          raise SystemExit(1 if error else 0)
+          PY
+          exit $?
+
+      - name: Publish public-safe postmerge outcome
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f proof/postmerge-outcome.json || printf '{"schema_version":1,"consumer_main_verification":"NOT_VERIFIED","error":"OUTCOME_MISSING"}\n' > proof/postmerge-outcome.json
+          git config user.name 'adwf-upgrade-003-postmerge-proof'
+          git config user.email 'adwf-upgrade-003-postmerge-proof@users.noreply.github.com'
+          git add proof/postmerge-outcome.json
+          git commit -m 'chore: publish ADWF-UPGRADE-003 C postmerge proof'
+          git push origin "HEAD:refs/heads/${HELPER_BRANCH}"
