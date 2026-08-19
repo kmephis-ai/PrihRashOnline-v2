@@ -1,0 +1,256 @@
+name: ADWF UPGRADE-003 Session Root A
+
+on:
+  push:
+    branches:
+      - evidence/ADWF-UPGRADE-003-session-root-a-20260819-a1
+    paths:
+      - .github/workflows/adwf-upgrade-003-session-root-a.yml
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  SUBJECT_SHA: 91d91252cd7d08e33a3c004290d486024424a69e
+  SUBJECT_TREE: a492f56fd8dfe298d7744d4228902255c971c42d
+  INSTALLED_ADWF: 1f38866eeb242f8d1e56c54632b059cf8adde77d
+  CURRENT_WRITER_ISSUE: '332'
+  CURRENT_WRITER_LEASE: 56a8de8a-af0e-468b-9517-c347fe4a3672
+  EXPECTED_LEDGER_ISSUE: '329'
+  EXPECTED_CLOSED_DUPLICATE: '330'
+  EXPECTED_PROVIDER_OBJECT_ID: '5337377059'
+  EXPECTED_EVENT_HASH: e545573a2c2640f1adca04c0c914d6fff9b1f9121fdab72be1d9607f53302f35
+  EXPECTED_CHECKPOINT_ID: session-consumer-proof-001-checkpoint
+  EXPECTED_CHECKPOINT_DIGEST: a77a45a7bd846df657335845681af4f93ee0adfa6c3bac8874906381f20d1aa6
+  EXPECTED_EVENT_ANCHOR: adwf-runtime-anchor-000001-e545573a2c2640f1
+  EXPECTED_EVENT_TAG_OBJECT: 91e61a52888ecddbe44115ff049e940ec774edc4
+  EVIDENCE_BRANCH: evidence/ADWF-UPGRADE-003-session-root-a-20260819-a1
+  GITHUB_TOKEN: ${{ github.token }}
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  adopt-root:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout evidence branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Checkout exact connected consumer main
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.SUBJECT_SHA }}
+          path: consumer
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Fresh preflight, legacy root adoption, and immediate root-only restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C consumer rev-parse HEAD)" = "$SUBJECT_SHA"
+          test "$(git -C consumer rev-parse HEAD^{tree})" = "$SUBJECT_TREE"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha')" = "$SUBJECT_SHA"
+          test -z "$(git -C consumer ls-files .adwf-runtime)"
+          python - <<'PY'
+          from __future__ import annotations
+          from pathlib import Path
+          import hashlib, json, os, sys
+          root=Path('consumer').resolve()
+          sys.path.insert(0,str(root/'.adwf'))
+          from lib.github_provider import GitHubClient
+          from lib.github_runtime_store import GitHubRuntimeStore, ROOT_ANCHOR, TITLE
+          from lib.github_rulesets import verify_runtime_anchor_ruleset
+          from lib.provider_contracts import ProviderContractError
+
+          repo=os.environ['GITHUB_REPOSITORY']
+          subject=os.environ['SUBJECT_SHA']
+          client=GitHubClient(repo,os.environ['GITHUB_TOKEN'])
+          rules=verify_runtime_anchor_ruleset(client.rulesets())
+          if rules.get('readback_verified') is not True or rules.get('ruleset_id') is None:
+              raise SystemExit('SESSION_A_RUNTIME_ANCHOR_RULESET_NOT_VERIFIED')
+
+          installed=json.loads((root/'.adwf-consumer/installation.json').read_text(encoding='utf-8'))
+          if installed['framework']['source_sha']!=os.environ['INSTALLED_ADWF']:
+              raise SystemExit('SESSION_A_INSTALLED_ADWF_MISMATCH')
+          core=(root/'.adwf/instructions/CORE.md').read_text(encoding='utf-8')
+          if 'WORK_UNTIL_NATURAL_BOUNDARY' not in core:
+              raise SystemExit('SESSION_A_CONTINUITY_INSTRUCTION_MISSING')
+
+          # Root must still be absent immediately before this repaired acceptance mutation.
+          try:
+              client.tag_ref(ROOT_ANCHOR)
+          except ProviderContractError as exc:
+              if str(exc)!='PROVIDER_HTTP_404':
+                  raise
+              root_before='ABSENT'
+          else:
+              raise SystemExit('SESSION_A_ROOT_ALREADY_PRESENT_BEFORE_ACCEPTANCE')
+
+          open_ledgers=[i for i in client.issues() if i.get('title')==TITLE and i.get('state')=='open']
+          if [int(i.get('number') or 0) for i in open_ledgers] != [int(os.environ['EXPECTED_LEDGER_ISSUE'])]:
+              raise SystemExit('SESSION_A_OPEN_LEDGER_SET_INVALID')
+          writer=client.get(f"/repos/{repo}/issues/{os.environ['CURRENT_WRITER_ISSUE']}")
+          if writer.get('state')!='open' or os.environ['CURRENT_WRITER_LEASE'] not in str(writer.get('body') or ''):
+              raise SystemExit('SESSION_A_CURRENT_WRITER_NOT_BOUND')
+          lease_holders=[i for i in client.issues() if i.get('state')=='open' and os.environ['CURRENT_WRITER_LEASE'] in str(i.get('body') or '')]
+          if [int(i.get('number') or 0) for i in lease_holders] != [int(os.environ['CURRENT_WRITER_ISSUE'])]:
+              raise SystemExit('SESSION_A_DUPLICATE_CURRENT_WRITER')
+
+          duplicate=client.get(f"/repos/{repo}/issues/{os.environ['EXPECTED_CLOSED_DUPLICATE']}")
+          if duplicate.get('state')!='closed':
+              raise SystemExit('SESSION_A_HISTORICAL_DUPLICATE_NOT_CLOSED')
+
+          raw_comments=client.issue_comments(int(os.environ['EXPECTED_LEDGER_ISSUE']))
+          if len(raw_comments)!=1 or str(raw_comments[0].get('id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_A_ORIGINAL_COMMENT_SET_INVALID')
+          comment_hash_before=hashlib.sha256(str(raw_comments[0].get('body') or '').encode()).hexdigest()
+          ledger_issue=client.get(f"/repos/{repo}/issues/{os.environ['EXPECTED_LEDGER_ISSUE']}")
+          issue_body_hash_before=hashlib.sha256(str(ledger_issue.get('body') or '').encode()).hexdigest()
+
+          event_ref_before=client.tag_ref(os.environ['EXPECTED_EVENT_ANCHOR'])
+          event_tag_sha_before=str((event_ref_before.get('object') or {}).get('sha') or '')
+          if event_tag_sha_before!=os.environ['EXPECTED_EVENT_TAG_OBJECT']:
+              raise SystemExit('SESSION_A_EVENT_TAG_OBJECT_DRIFT')
+          event_tag_before=client.tag_object(event_tag_sha_before)
+          event_tag_message_hash_before=hashlib.sha256(str(event_tag_before.get('message') or '').encode()).hexdigest()
+
+          store=GitHubRuntimeStore(client)
+          issue,events=store.read()
+          if int(issue.get('number') or 0)!=int(os.environ['EXPECTED_LEDGER_ISSUE']) or len(events)!=1:
+              raise SystemExit('SESSION_A_LEGACY_LEDGER_READ_INVALID')
+          event=events[0]
+          if event.get('event_hash')!=os.environ['EXPECTED_EVENT_HASH'] or str(event.get('provider_object_id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_A_LEGACY_EVENT_IDENTITY_DRIFT')
+          if event.get('session_continuity_id')!=os.environ['EXPECTED_CHECKPOINT_ID'] or event.get('session_continuity_digest')!=os.environ['EXPECTED_CHECKPOINT_DIGEST']:
+              raise SystemExit('SESSION_A_LEGACY_CHECKPOINT_IDENTITY_DRIFT')
+
+          # Authoritative append path elects the repaired singleton root, but exact existing state/checkpoint must return UNCHANGED.
+          adopted=store.append(event['state'],work_memory=None,session_checkpoint=event['session_continuity_projection'])
+          if adopted.get('status')!='UNCHANGED' or int(adopted.get('issue_number') or 0)!=int(os.environ['EXPECTED_LEDGER_ISSUE']):
+              raise SystemExit('SESSION_A_ROOT_ADOPTION_NOT_UNCHANGED')
+
+          root_ref=client.tag_ref(ROOT_ANCHOR)
+          root_tag_sha=str((root_ref.get('object') or {}).get('sha') or '')
+          if not root_tag_sha:
+              raise SystemExit('SESSION_A_ROOT_REF_MISSING')
+          root_tag=client.tag_object(root_tag_sha)
+          root_payload=json.loads(str(root_tag.get('message') or '{}'))
+          if root_payload!={'issue_number':int(os.environ['EXPECTED_LEDGER_ISSUE']),'role':'ADWF_RUNTIME_LEDGER_ROOT_V1','title':TITLE}:
+              raise SystemExit('SESSION_A_ROOT_BINDING_INVALID')
+          if str((root_tag.get('object') or {}).get('sha') or '')!=subject:
+              raise SystemExit('SESSION_A_ROOT_TARGET_NOT_CURRENT_MAIN')
+
+          # Re-read every immutable/original provider identity after mutation.
+          open_after=[i for i in client.issues() if i.get('title')==TITLE and i.get('state')=='open']
+          if [int(i.get('number') or 0) for i in open_after] != [int(os.environ['EXPECTED_LEDGER_ISSUE'])]:
+              raise SystemExit('SESSION_A_LEDGER_SINGLETON_BROKEN')
+          comments_after=client.issue_comments(int(os.environ['EXPECTED_LEDGER_ISSUE']))
+          if len(comments_after)!=1 or str(comments_after[0].get('id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_A_ORIGINAL_COMMENT_REWRITTEN_OR_APPENDED')
+          comment_hash_after=hashlib.sha256(str(comments_after[0].get('body') or '').encode()).hexdigest()
+          issue_after=client.get(f"/repos/{repo}/issues/{os.environ['EXPECTED_LEDGER_ISSUE']}")
+          issue_body_hash_after=hashlib.sha256(str(issue_after.get('body') or '').encode()).hexdigest()
+          event_ref_after=client.tag_ref(os.environ['EXPECTED_EVENT_ANCHOR'])
+          event_tag_sha_after=str((event_ref_after.get('object') or {}).get('sha') or '')
+          event_tag_after=client.tag_object(event_tag_sha_after)
+          event_tag_message_hash_after=hashlib.sha256(str(event_tag_after.get('message') or '').encode()).hexdigest()
+          if comment_hash_after!=comment_hash_before or issue_body_hash_after!=issue_body_hash_before:
+              raise SystemExit('SESSION_A_LEGACY_LEDGER_BYTES_CHANGED')
+          if event_tag_sha_after!=event_tag_sha_before or event_tag_message_hash_after!=event_tag_message_hash_before:
+              raise SystemExit('SESSION_A_LEGACY_EVENT_ANCHOR_CHANGED')
+          duplicate_after=client.get(f"/repos/{repo}/issues/{os.environ['EXPECTED_CLOSED_DUPLICATE']}")
+          if duplicate_after.get('state')!='closed':
+              raise SystemExit('SESSION_A_CLOSED_DUPLICATE_REOPENED')
+
+          class RootOnlyClient:
+              def __init__(self,base):
+                  self._base=base
+                  self.repo=base.repo
+              def __getattr__(self,name):
+                  return getattr(self._base,name)
+              def issues(self):
+                  raise RuntimeError('ISSUE_LIST_MUST_NOT_BE_USED_AFTER_ROOT_ADOPTION')
+
+          fresh=GitHubRuntimeStore(RootOnlyClient(client))
+          restored=fresh.restore_latest_session_continuity(actual_main_sha=subject,actual_head_sha=None)
+          if restored is None:
+              raise SystemExit('SESSION_A_IMMEDIATE_ROOT_ONLY_RESTORE_MISSING')
+          reconciliation=restored['reconciliation']
+          if reconciliation.get('provider_authority') is not False or reconciliation.get('stale') is not True or reconciliation.get('stale_main') is not True or reconciliation.get('next_step')!='FRESH_AUTHORITY_RESOLUTION_REQUIRED':
+              raise SystemExit('SESSION_A_STALE_RECONCILIATION_INVALID')
+          if restored['checkpoint'].get('checkpoint_id')!=os.environ['EXPECTED_CHECKPOINT_ID'] or restored.get('event_hash')!=os.environ['EXPECTED_EVENT_HASH'] or str(restored.get('provider_object_id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_A_ROOT_ONLY_RESTORE_IDENTITY_MISMATCH')
+
+          lease_holders_after=[i for i in client.issues() if i.get('state')=='open' and os.environ['CURRENT_WRITER_LEASE'] in str(i.get('body') or '')]
+          if [int(i.get('number') or 0) for i in lease_holders_after] != [int(os.environ['CURRENT_WRITER_ISSUE'])]:
+              raise SystemExit('SESSION_A_WRITER_SET_CHANGED')
+
+          evidence={
+              'schema_version':1,
+              'proof_phase':'SESSION_A_LEGACY_ROOT_ADOPTION_AND_IMMEDIATE_RESTORE',
+              'github_run_id':os.environ.get('GITHUB_RUN_ID'),
+              'runner_name':os.environ.get('RUNNER_NAME'),
+              'runner_os':os.environ.get('RUNNER_OS'),
+              'subject_sha':subject,
+              'installed_adwf':installed['framework']['source_sha'],
+              'ruleset_id':rules.get('ruleset_id'),
+              'root_before':root_before,
+              'root_after':'PRESENT',
+              'root_tag_object_sha':root_tag_sha,
+              'root_target_sha':str((root_tag.get('object') or {}).get('sha') or ''),
+              'ledger_issue':int(os.environ['EXPECTED_LEDGER_ISSUE']),
+              'open_ledger_count_before':len(open_ledgers),
+              'open_ledger_count_after':len(open_after),
+              'legacy_event_count_before':1,
+              'legacy_event_count_after':1,
+              'legacy_provider_object_id':os.environ['EXPECTED_PROVIDER_OBJECT_ID'],
+              'legacy_event_hash':os.environ['EXPECTED_EVENT_HASH'],
+              'legacy_comment_sha256':comment_hash_after,
+              'legacy_issue_body_sha256':issue_body_hash_after,
+              'legacy_event_anchor':os.environ['EXPECTED_EVENT_ANCHOR'],
+              'legacy_event_tag_object_sha':event_tag_sha_after,
+              'legacy_event_tag_message_sha256':event_tag_message_hash_after,
+              'adoption_status':adopted.get('status'),
+              'immediate_root_only_restore':{
+                  'checkpoint_id':restored['checkpoint']['checkpoint_id'],
+                  'checkpoint_digest':restored['checkpoint']['checkpoint_digest'],
+                  'event_hash':restored['event_hash'],
+                  'provider_object_id':restored['provider_object_id'],
+                  'reconciliation':reconciliation,
+              },
+              'current_writer_issue':int(os.environ['CURRENT_WRITER_ISSUE']),
+              'current_writer_lease':os.environ['CURRENT_WRITER_LEASE'],
+              'current_writer_unique':True,
+              'historical_duplicate_issue':int(os.environ['EXPECTED_CLOSED_DUPLICATE']),
+              'historical_duplicate_state':'closed',
+              'no_new_ledger_event':True,
+              'no_legacy_rewrite':True,
+              'provider_authority':False,
+              'monetary_budget_usd':0,
+              'secrets':'FORBIDDEN',
+          }
+          Path('session-root-a-evidence.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+          print(json.dumps(evidence,sort_keys=True),flush=True)
+          PY
+
+      - name: Publish bounded Session A evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f session-root-a-evidence.json
+          git config user.name 'adwf-upgrade-003-session-proof'
+          git config user.email 'adwf-upgrade-003-session-proof@users.noreply.github.com'
+          git add session-root-a-evidence.json
+          git commit -m '[EVIDENCE] ADWF-UPGRADE-003 repaired Session A root adoption'
+          git push origin "HEAD:refs/heads/${EVIDENCE_BRANCH}"
