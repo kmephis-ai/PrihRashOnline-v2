@@ -1,0 +1,140 @@
+name: ADWF SESSION Consumer Proof B
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/adwf-session-consumer-proof-b.yml
+
+permissions:
+  contents: write
+  issues: read
+
+env:
+  SUBJECT_SHA: 59bb5319052f378f10a0216ee3956f12944c0b77
+  INSTALLED_ADWF: 017042c1f2bcde8d89d4b344201e848d873ec5a9
+  PACK_DIGEST: abefe63ed4d6eba2c24b71d53150a4c3ebab9a7c686e7fc91529de4d55c01866
+  PROOF_ISSUE: '327'
+  ROADMAP_ID: ADWF-SESSION-CONSUMER-PROOF-001
+  WRITER_LEASE: 0f25333a-c813-48a6-af5f-4b4d268187ac
+  CONFLICT_KEY: SESSION_CONSUMER_RUNTIME_LEDGER
+  SOURCE_SESSION_A_RUN: '32214358545'
+  SESSION_A_READBACK_RUN: '32214596730'
+  EXPECTED_LEDGER_ISSUE: '329'
+  EXPECTED_PROVIDER_OBJECT_ID: '5337377059'
+  EXPECTED_EVENT_HASH: e545573a2c2640f1adca04c0c914d6fff9b1f9121fdab72be1d9607f53302f35
+  EXPECTED_CHECKPOINT_DIGEST: a77a45a7bd846df657335845681af4f93ee0adfa6c3bac8874906381f20d1aa6
+  EXPECTED_CHECKPOINT_ID: session-consumer-proof-001-checkpoint
+  EXPECTED_ANCHOR: adwf-runtime-anchor-000001-e545573a2c2640f1
+  GITHUB_TOKEN: ${{ github.token }}
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  restore-checkpoint:
+    if: github.event.action == 'opened'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: evidence/ADWF-SESSION-CONSUMER-PROOF-001-b-20260819-a1
+          fetch-depth: 0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+      - name: Materialize independent fresh exact-main consumer checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_RUN_ID}" != "${SOURCE_SESSION_A_RUN}"
+          test "${GITHUB_RUN_ID}" != "${SESSION_A_READBACK_RUN}"
+          actual_main="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha')"
+          test "${actual_main}" = "${SUBJECT_SHA}"
+          subject_dir="${RUNNER_TEMP}/consumer-session-b"
+          git worktree add --detach "${subject_dir}" "${actual_main}"
+          test "$(git -C "${subject_dir}" rev-parse HEAD)" = "${actual_main}"
+          test ! -e "${subject_dir}/.adwf-runtime/orchestration/session-consumer-proof-001-a.json"
+          test ! -e "${subject_dir}/session-checkpoint.json"
+          if git -C "${subject_dir}" ls-tree -r --name-only HEAD | grep -q '^\.adwf-runtime/'; then
+            echo 'SESSION_B_TRANSIENT_RUNTIME_TRACKED'
+            exit 1
+          fi
+          echo "SUBJECT_DIR=${subject_dir}" >> "${GITHUB_ENV}"
+          echo "ACTUAL_MAIN=${actual_main}" >> "${GITHUB_ENV}"
+      - name: Fresh provider reconcile, unique writer, and automatic delivery proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${SUBJECT_DIR}"
+          python - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          sys.path.insert(0,str(Path('.adwf').resolve()))
+          from lib.github_provider import GitHubClient
+          from lib.github_runtime_store import GitHubRuntimeStore
+          from lib.github_rulesets import verify_runtime_anchor_ruleset
+
+          installed=json.loads(Path('.adwf-consumer/installation.json').read_text())
+          profile=json.loads(Path('.adwf-consumer/profile.json').read_text())
+          pack=json.loads(Path('.adwf/packs/apps-script.json').read_text())
+          digest=hashlib.sha256(json.dumps(pack,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+          core=Path('.adwf/instructions/CORE.md').read_text(encoding='utf-8')
+          pp=profile.get('project_packs') or {}
+          if installed['framework']['source_sha']!=os.environ['INSTALLED_ADWF']: raise SystemExit('SESSION_B_INSTALLED_ADWF_MISMATCH')
+          if pp.get('selected')!='apps-script' or pp.get('materialized') is not True: raise SystemExit('SESSION_B_PROJECT_PACK_NOT_MATERIALIZED')
+          if pp.get('selected_digest')!=os.environ['PACK_DIGEST'] or digest!=os.environ['PACK_DIGEST']: raise SystemExit('SESSION_B_PROJECT_PACK_DIGEST_MISMATCH')
+          if (pack.get('safety') or {}).get('network')!='NONE': raise SystemExit('SESSION_B_PROJECT_PACK_NETWORK_NOT_NONE')
+          if 'WORK_UNTIL_NATURAL_BOUNDARY' not in core or 'fresh' not in core.lower(): raise SystemExit('SESSION_B_CORE_INSTRUCTION_NOT_DELIVERED')
+
+          client=GitHubClient(os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_TOKEN'])
+          rules=verify_runtime_anchor_ruleset(client.rulesets())
+          if rules.get('readback_verified') is not True or rules.get('ruleset_id')!=21023491: raise SystemExit('SESSION_B_RUNTIME_ANCHOR_RULESET_NOT_VERIFIED')
+          holders=[]
+          for item in client.issues():
+              if item.get('state')!='open': continue
+              body=str(item.get('body') or '')
+              if f"Proof-Conflict-Key: `{os.environ['CONFLICT_KEY']}`" in body: holders.append(item)
+          if len(holders)!=1 or str(holders[0].get('number'))!=os.environ['PROOF_ISSUE'] or os.environ['WRITER_LEASE'] not in str(holders[0].get('body') or ''):
+              raise SystemExit('SESSION_B_DUPLICATE_OR_STALE_PROOF_WRITER')
+          issue,events=GitHubRuntimeStore(client).read()
+          if str(issue.get('number'))!=os.environ['EXPECTED_LEDGER_ISSUE'] or len(events)!=1: raise SystemExit('SESSION_B_LEDGER_IDENTITY_MISMATCH')
+          event=events[0]
+          if event.get('event_hash')!=os.environ['EXPECTED_EVENT_HASH'] or str(event.get('provider_object_id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_B_EVENT_PROVIDER_IDENTITY_MISMATCH')
+          checkpoint=event.get('session_continuity_projection') or {}
+          if event.get('session_continuity_digest')!=os.environ['EXPECTED_CHECKPOINT_DIGEST'] or event.get('session_continuity_id')!=os.environ['EXPECTED_CHECKPOINT_ID']:
+              raise SystemExit('SESSION_B_CHECKPOINT_IDENTITY_MISMATCH')
+          if checkpoint.get('lease_identity')!=os.environ['WRITER_LEASE'] or str((checkpoint.get('work_identity') or {}).get('issue_id'))!=os.environ['PROOF_ISSUE']:
+              raise SystemExit('SESSION_B_CHECKPOINT_WRITER_BINDING_MISMATCH')
+          ref=client.tag_ref(os.environ['EXPECTED_ANCHOR'])
+          tag_sha=str((ref.get('object') or {}).get('sha') or '')
+          if not tag_sha: raise SystemExit('SESSION_B_ANCHOR_REF_MISSING')
+          tag=client.tag_object(tag_sha)
+          payload=json.loads(str(tag.get('message') or '{}'))
+          if payload.get('event_hash')!=os.environ['EXPECTED_EVENT_HASH'] or str(payload.get('provider_comment_id'))!=os.environ['EXPECTED_PROVIDER_OBJECT_ID']:
+              raise SystemExit('SESSION_B_ANCHOR_BINDING_MISMATCH')
+          preflight={'actual_main':os.environ['ACTUAL_MAIN'],'installed_adwf':installed['framework']['source_sha'],'pack':'apps-script','pack_digest':digest,'wunb_delivered':True,'ruleset_id':rules.get('ruleset_id'),'unique_proof_writer_issue':int(os.environ['PROOF_ISSUE']),'writer_lease':os.environ['WRITER_LEASE'],'ledger_issue':int(os.environ['EXPECTED_LEDGER_ISSUE']),'anchor_tag_object_sha':tag_sha}
+          Path(os.environ['GITHUB_WORKSPACE']).joinpath('session-b-preflight.json').write_text(json.dumps(preflight,sort_keys=True)+'\n')
+          print(json.dumps(preflight,sort_keys=True),flush=True)
+          PY
+      - name: Restore only from provider Runtime Ledger and reconcile fresh facts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${SUBJECT_DIR}"
+          python .adwf/scripts/github_runtime_sync.py --restore-session --actual-main-sha "${ACTUAL_MAIN}" > "${GITHUB_WORKSPACE}/session-b-restore.raw.json"
+          jq -e '.session_continuity.checkpoint.checkpoint_id == env.EXPECTED_CHECKPOINT_ID and .session_continuity.checkpoint.checkpoint_revision == 0 and .session_continuity.checkpoint.checkpoint_digest == env.EXPECTED_CHECKPOINT_DIGEST and .session_continuity.checkpoint.work_identity.roadmap_id == env.ROADMAP_ID and .session_continuity.checkpoint.work_identity.issue_id == env.PROOF_ISSUE and .session_continuity.checkpoint.lease_identity == env.WRITER_LEASE and .session_continuity.checkpoint.observed_provider_state.main_sha == env.SUBJECT_SHA and .session_continuity.checkpoint.boundary_type == "EXECUTOR_LIMIT" and .session_continuity.event_hash == env.EXPECTED_EVENT_HASH and .session_continuity.provider_object_id == env.EXPECTED_PROVIDER_OBJECT_ID and .session_continuity.reconciliation.provider_authority == false and .session_continuity.reconciliation.stale == false and .session_continuity.reconciliation.stale_main == false and .session_continuity.reconciliation.stale_head == false and .session_continuity.reconciliation.actual_main_sha == env.SUBJECT_SHA and .session_continuity.reconciliation.next_step == "RESUME_CONTEXT_ONLY"' "${GITHUB_WORKSPACE}/session-b-restore.raw.json" >/dev/null
+      - name: Publish bounded independent Session B evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg github_run_id "${GITHUB_RUN_ID}" --arg github_run_attempt "${GITHUB_RUN_ATTEMPT}" --arg source_session_a_run "${SOURCE_SESSION_A_RUN}" --arg session_a_readback_run "${SESSION_A_READBACK_RUN}" --arg subject_sha "${SUBJECT_SHA}" --arg writer_lease "${WRITER_LEASE}" --slurpfile preflight session-b-preflight.json --slurpfile restored session-b-restore.raw.json '{schema_version:1,proof_phase:"SESSION_B_FRESH_PROVIDER_RESTORE",github_run_id:$github_run_id,github_run_attempt:$github_run_attempt,source_session_a_run_id:$source_session_a_run,session_a_readback_run_id:$session_a_readback_run,subject_sha:$subject_sha,writer_lease:$writer_lease,independent_checkout:true,session_a_local_runtime_present:false,preflight:$preflight[0],restored:{checkpoint_id:$restored[0].session_continuity.checkpoint.checkpoint_id,checkpoint_revision:$restored[0].session_continuity.checkpoint.checkpoint_revision,checkpoint_digest:$restored[0].session_continuity.checkpoint.checkpoint_digest,work_identity:$restored[0].session_continuity.checkpoint.work_identity,boundary_type:$restored[0].session_continuity.checkpoint.boundary_type,event_hash:$restored[0].session_continuity.event_hash,provider_object_id:$restored[0].session_continuity.provider_object_id,reconciliation:$restored[0].session_continuity.reconciliation},no_runtime_ledger_write:true,no_duplicate_writer_created:true,no_stale_mutation:true}' > session-b-evidence.json
+          cat session-b-evidence.json
+          rm -f session-b-preflight.json session-b-restore.raw.json
+          git config user.name 'adwf-session-consumer-proof'
+          git config user.email 'adwf-session-consumer-proof@users.noreply.github.com'
+          git add session-b-evidence.json
+          git commit -m '[EVIDENCE] ADWF-SESSION-CONSUMER-PROOF-001 Session B'
+          git push origin HEAD:evidence/ADWF-SESSION-CONSUMER-PROOF-001-b-20260819-a1
