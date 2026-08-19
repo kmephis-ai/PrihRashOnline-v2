@@ -1,9 +1,9 @@
 name: ADWF SESSION Consumer Ruleset Readback
 
 on:
-  push:
+  pull_request:
     branches:
-      - helper/session-consumer-ruleset-readback-20260819-a1
+      - main
     paths:
       - .github/workflows/adwf-session-consumer-ruleset-readback.yml
 
