@@ -1,0 +1,34 @@
+{
+  "event_anchor_tag_object_sha": "91e61a52888ecddbe44115ff049e940ec774edc4",
+  "ledger_comment_count": 1,
+  "ledger_comment_ids": [
+    "5337377059"
+  ],
+  "ledger_comment_sha256": [
+    "5b4dc468a7bbcd4c64d53dea6892185a4379e25d865b830090e424d065b055a8"
+  ],
+  "open_ledgers": [
+    329
+  ],
+  "root_payload": {
+    "issue_number": 329,
+    "role": "ADWF_RUNTIME_LEDGER_ROOT_V1",
+    "title": "[ADWF] Runtime Ledger"
+  },
+  "root_state": "PRESENT",
+  "root_tag_object_sha": "d4f48948feec35d0b857f1f786fda0313b13135b",
+  "root_target_sha": "91d91252cd7d08e33a3c004290d486024424a69e",
+  "schema_version": 1,
+  "session_a_conclusion": "success",
+  "session_a_jobs": [
+    {
+      "conclusion": "success",
+      "id": 96228370856,
+      "name": "adopt-root",
+      "status": "completed"
+    }
+  ],
+  "session_a_run_id": 32302616125,
+  "session_a_status": "completed",
+  "subject_sha": "91d91252cd7d08e33a3c004290d486024424a69e"
+}
