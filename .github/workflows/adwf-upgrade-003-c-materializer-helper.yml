@@ -1,0 +1,310 @@
+name: ADWF UPGRADE-003 C Materializer
+
+on:
+  pull_request:
+    branches:
+      - helper/adwf-upgrade-003-c-materialize-base-20260819-a1
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+env:
+  CONSUMER_SHA: cb5e4b9a947f3728b77c4be437b706d8f9c2a52d
+  CONSUMER_TREE: a1927291541073d30113cdfccd6e669224d24ad1
+  SOURCE_SHA: 017042c1f2bcde8d89d4b344201e848d873ec5a9
+  SOURCE_TREE: c7e709a29df431460abb9bc17025d62d7803cda1
+  TARGET_SHA: 1f38866eeb242f8d1e56c54632b059cf8adde77d
+  TARGET_TREE: 463fce58eb20e2d01b15aed8f400ef1c40b2020a
+  TARGET_BRANCH: agent/ADWF-UPGRADE-003-certified-c-session-reproof
+  DIAG_BRANCH: helper/adwf-upgrade-003-c-materialize-diag-20260819-a1
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact consumer base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.CONSUMER_SHA }}
+          path: consumer
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Checkout exact installed ADWF A
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout exact certified ADWF C
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.TARGET_SHA }}
+          path: target
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Run exact A-C-A-C transaction
+        id: transaction
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          STAGE='start'
+          CANDIDATE_SHA=''
+          CANDIDATE_TREE=''
+          OUTCOME="$RUNNER_TEMP/adwf-upgrade-003-c-outcome.json"
+          finish() {
+            rc=$?
+            python - "$OUTCOME" "$rc" "$STAGE" "$CANDIDATE_SHA" "$CANDIDATE_TREE" <<'PY'
+          import json, os, sys
+          path, rc, stage, candidate_sha, candidate_tree = sys.argv[1:]
+          payload = {
+              'schema_version': 1,
+              'consumer_sha': os.environ['CONSUMER_SHA'],
+              'consumer_tree': os.environ['CONSUMER_TREE'],
+              'source_sha': os.environ['SOURCE_SHA'],
+              'source_tree': os.environ['SOURCE_TREE'],
+              'target_sha': os.environ['TARGET_SHA'],
+              'target_tree': os.environ['TARGET_TREE'],
+              'target_branch': os.environ['TARGET_BRANCH'],
+              'provider_run_id': os.environ.get('GITHUB_RUN_ID',''),
+              'status': 'SUCCESS' if int(rc) == 0 else 'FAILURE',
+              'terminal_stage': stage,
+              'candidate_sha': candidate_sha or None,
+              'candidate_tree': candidate_tree or None,
+              'monetary_budget_usd': 0,
+              'secrets': 'FORBIDDEN',
+          }
+          with open(path, 'w', encoding='utf-8', newline='\n') as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+              handle.write('\n')
+          print(json.dumps(payload, sort_keys=True))
+          PY
+          }
+          trap finish EXIT
+
+          STAGE='exact-identities-and-cas'
+          test "$(git -C consumer rev-parse HEAD)" = "$CONSUMER_SHA"
+          test "$(git -C consumer rev-parse HEAD^{tree})" = "$CONSUMER_TREE"
+          test "$(git -C source rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git -C source rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+          test "$(git -C target rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git -C target rev-parse HEAD^{tree})" = "$TARGET_TREE"
+          test -z "$(git -C consumer status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git -C source status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git -C target status --porcelain=v1 --untracked-files=all)"
+          test "$(git -C consumer ls-remote origin refs/heads/main | cut -f1)" = "$CONSUMER_SHA"
+          test "$(git -C consumer ls-remote origin refs/heads/$TARGET_BRANCH | cut -f1)" = "$CONSUMER_SHA"
+          test "$(git -C target ls-remote origin refs/heads/main | cut -f1)" = "$TARGET_SHA"
+
+          STAGE='validate-installed-a'
+          python consumer/.adwf/scripts/consumer_installation.py \
+            --consumer-root consumer --framework-root source \
+            --repository kmephis-ai/PrihRashOnline-v2
+
+          STAGE='external-connected-proof'
+          python target/.adwf/scripts/run_external_consumer_upgrade_proof.py \
+            --consumer-root consumer \
+            --consumer-repository kmephis-ai/PrihRashOnline-v2 \
+            --consumer-sha "$CONSUMER_SHA" --consumer-tree "$CONSUMER_TREE" \
+            --source-root source --source-sha "$SOURCE_SHA" --source-tree "$SOURCE_TREE" \
+            --target-root target --target-sha "$TARGET_SHA" --target-tree "$TARGET_TREE" \
+            --provider-run-id "$GITHUB_RUN_ID" > "$RUNNER_TEMP/external-proof.json"
+          python - "$RUNNER_TEMP/external-proof.json" <<'PY'
+          import json, sys
+          p=json.load(open(sys.argv[1], encoding='utf-8'))
+          assert p['status']=='PASS'
+          assert p['write_back_performed'] is False
+          print(json.dumps({'status':p['status'],'report_sha256':p['report_sha256'],'upgrade':p['upgrade'],'transitions':p['transitions']},sort_keys=True))
+          PY
+
+          STAGE='plan-and-first-c-apply'
+          python consumer/.adwf/scripts/plan_consumer_upgrade.py \
+            --source-root source --target-root target --consumer-root consumer \
+            --source-revision "$SOURCE_SHA" --target-revision "$TARGET_SHA" \
+            > "$RUNNER_TEMP/plan1-bundle.json"
+          python - "$RUNNER_TEMP/plan1-bundle.json" "$RUNNER_TEMP/compat1.json" "$RUNNER_TEMP/plan1.json" <<'PY'
+          import json,sys
+          b=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert b['compatibility']['status']=='PASS'
+          assert b['plan']['status']=='READY'
+          json.dump(b['compatibility'],open(sys.argv[2],'w',encoding='utf-8'),sort_keys=True)
+          json.dump(b['plan'],open(sys.argv[3],'w',encoding='utf-8'),sort_keys=True)
+          print(json.dumps({'compatibility_sha256':b['compatibility']['compatibility_sha256'],'plan_sha256':b['plan']['plan_sha256']},sort_keys=True))
+          PY
+          python consumer/.adwf/scripts/apply_consumer_upgrade.py apply \
+            --source-root source --target-root target --consumer-root consumer \
+            --compatibility "$RUNNER_TEMP/compat1.json" --plan "$RUNNER_TEMP/plan1.json" \
+            > "$RUNNER_TEMP/apply1.json"
+          python - "$RUNNER_TEMP/apply1.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert r['status']=='COMMITTED' and r.get('transaction_id')
+          print(json.dumps({'status':r['status'],'transaction_id':r['transaction_id']},sort_keys=True))
+          PY
+          python consumer/.adwf/scripts/consumer_installation.py \
+            --consumer-root consumer --framework-root target \
+            --repository kmephis-ai/PrihRashOnline-v2
+          python - <<'PY'
+          import json, os
+          p=json.load(open('consumer/.adwf-consumer/installation.json',encoding='utf-8'))
+          assert p['framework']['source_sha']==os.environ['TARGET_SHA']
+          assert p['framework']['source_tree']==os.environ['TARGET_TREE']
+          PY
+
+          STAGE='idempotency-and-rollback-a'
+          python consumer/.adwf/scripts/apply_consumer_upgrade.py apply \
+            --source-root source --target-root target --consumer-root consumer \
+            --compatibility "$RUNNER_TEMP/compat1.json" --plan "$RUNNER_TEMP/plan1.json" \
+            > "$RUNNER_TEMP/repeat.json"
+          python - "$RUNNER_TEMP/repeat.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert r['status']=='ALREADY_COMMITTED'
+          print(json.dumps({'repeat_status':r['status']},sort_keys=True))
+          PY
+          TX="$(python -c "import json;print(json.load(open('$RUNNER_TEMP/apply1.json'))['transaction_id'])")"
+          python consumer/.adwf/scripts/apply_consumer_upgrade.py rollback \
+            --source-root source --target-root target --consumer-root consumer \
+            --transaction-id "$TX" > "$RUNNER_TEMP/rollback.json"
+          python - "$RUNNER_TEMP/rollback.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert r['status']=='ROLLED_BACK'
+          print(json.dumps({'rollback_status':r['status']},sort_keys=True))
+          PY
+          python consumer/.adwf/scripts/consumer_installation.py \
+            --consumer-root consumer --framework-root source \
+            --repository kmephis-ai/PrihRashOnline-v2
+          python - <<'PY'
+          import json, os
+          p=json.load(open('consumer/.adwf-consumer/installation.json',encoding='utf-8'))
+          assert p['framework']['source_sha']==os.environ['SOURCE_SHA']
+          assert p['framework']['source_tree']==os.environ['SOURCE_TREE']
+          PY
+
+          STAGE='deterministic-replan-final-c-reapply'
+          python consumer/.adwf/scripts/plan_consumer_upgrade.py \
+            --source-root source --target-root target --consumer-root consumer \
+            --source-revision "$SOURCE_SHA" --target-revision "$TARGET_SHA" \
+            > "$RUNNER_TEMP/plan2-bundle.json"
+          python - "$RUNNER_TEMP/plan1-bundle.json" "$RUNNER_TEMP/plan2-bundle.json" "$RUNNER_TEMP/compat2.json" "$RUNNER_TEMP/plan2.json" <<'PY'
+          import json,sys
+          a=json.load(open(sys.argv[1],encoding='utf-8'))
+          b=json.load(open(sys.argv[2],encoding='utf-8'))
+          assert b['compatibility']['status']=='PASS' and b['plan']['status']=='READY'
+          assert a['compatibility']['compatibility_sha256']==b['compatibility']['compatibility_sha256']
+          assert a['plan']['plan_sha256']==b['plan']['plan_sha256']
+          json.dump(b['compatibility'],open(sys.argv[3],'w',encoding='utf-8'),sort_keys=True)
+          json.dump(b['plan'],open(sys.argv[4],'w',encoding='utf-8'),sort_keys=True)
+          print(json.dumps({'deterministic':True,'compatibility_sha256':b['compatibility']['compatibility_sha256'],'plan_sha256':b['plan']['plan_sha256']},sort_keys=True))
+          PY
+          python consumer/.adwf/scripts/apply_consumer_upgrade.py apply \
+            --source-root source --target-root target --consumer-root consumer \
+            --compatibility "$RUNNER_TEMP/compat2.json" --plan "$RUNNER_TEMP/plan2.json" \
+            > "$RUNNER_TEMP/apply2.json"
+          python - "$RUNNER_TEMP/apply2.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert r['status']=='COMMITTED'
+          print(json.dumps({'final_status':r['status'],'transaction_id':r['transaction_id']},sort_keys=True))
+          PY
+          python consumer/.adwf/scripts/consumer_installation.py \
+            --consumer-root consumer --framework-root target \
+            --repository kmephis-ai/PrihRashOnline-v2
+          python - <<'PY'
+          import json, os
+          p=json.load(open('consumer/.adwf-consumer/installation.json',encoding='utf-8'))
+          assert p['framework']['source_sha']==os.environ['TARGET_SHA']
+          assert p['framework']['source_tree']==os.environ['TARGET_TREE']
+          PY
+
+          STAGE='discard-runtime-and-bound-scope'
+          test -z "$(git -C consumer ls-files .adwf-runtime)"
+          if test -d consumer/.adwf-runtime; then
+            find consumer/.adwf-runtime -type f -print | sort | sed 's#^consumer/##' > "$RUNNER_TEMP/runtime-files.txt"
+            rm -rf consumer/.adwf-runtime
+          fi
+          git -C consumer status --porcelain=v1 --untracked-files=all > "$RUNNER_TEMP/status.txt"
+          python - "$RUNNER_TEMP/status.txt" <<'PY'
+          import json,sys
+          paths=[]
+          for raw in open(sys.argv[1],encoding='utf-8'):
+              raw=raw.rstrip('\n')
+              if not raw:
+                  continue
+              p=raw[3:]
+              if ' -> ' in p:
+                  p=p.split(' -> ',1)[1]
+              if not (p.startswith('.adwf/') or p.startswith('.adwf-consumer/')):
+                  raise SystemExit('UPGRADE003_UNEXPECTED_PATH:'+p)
+              paths.append(p)
+          if not paths:
+              raise SystemExit('UPGRADE003_NO_CHANGES')
+          print(json.dumps({'changed_paths':sorted(paths),'count':len(paths)},sort_keys=True))
+          PY
+          test -z "$(git -C consumer diff --name-only -- .github docs/ROADMAP.md AGENTS.md)"
+
+          STAGE='final-cas-and-publish'
+          test "$(git -C consumer ls-remote origin refs/heads/main | cut -f1)" = "$CONSUMER_SHA"
+          test "$(git -C consumer ls-remote origin refs/heads/$TARGET_BRANCH | cut -f1)" = "$CONSUMER_SHA"
+          test "$(git -C target ls-remote origin refs/heads/main | cut -f1)" = "$TARGET_SHA"
+          git -C consumer config user.name 'adwf-upgrade-003-materializer'
+          git -C consumer config user.email 'adwf-upgrade-003-materializer@users.noreply.github.com'
+          git -C consumer add .adwf .adwf-consumer
+          git -C consumer commit -m '[ADWF-UPGRADE-003] Материализовать certified ADWF 1f38866e'
+          CANDIDATE_SHA="$(git -C consumer rev-parse HEAD)"
+          CANDIDATE_TREE="$(git -C consumer rev-parse HEAD^{tree})"
+          test "$(git -C consumer rev-list --count "$CONSUMER_SHA"..HEAD)" = '1'
+          test -z "$(git -C consumer status --porcelain=v1 --untracked-files=all)"
+          git -C consumer push origin HEAD:refs/heads/$TARGET_BRANCH
+          test "$(git -C consumer ls-remote origin refs/heads/$TARGET_BRANCH | cut -f1)" = "$CANDIDATE_SHA"
+          STAGE='done'
+
+      - name: Publish privacy-safe transaction outcome
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$RUNNER_TEMP/adwf-upgrade-003-c-outcome.json" || {
+            printf '{"schema_version":1,"status":"FAILURE","terminal_stage":"outcome-missing"}\n' > "$RUNNER_TEMP/adwf-upgrade-003-c-outcome.json"
+          }
+          git clone --depth 1 --branch "$DIAG_BRANCH" "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" diag
+          mkdir -p diag/proof
+          cp "$RUNNER_TEMP/adwf-upgrade-003-c-outcome.json" diag/proof/materializer-outcome.json
+          git -C diag config user.name 'adwf-upgrade-003-diagnostic'
+          git -C diag config user.email 'adwf-upgrade-003-diagnostic@users.noreply.github.com'
+          git -C diag add proof/materializer-outcome.json
+          if ! git -C diag diff --cached --quiet; then
+            git -C diag commit -m 'chore: publish ADWF-UPGRADE-003 C materializer outcome'
+            git -C diag push origin "HEAD:refs/heads/$DIAG_BRANCH"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Enforce materializer success
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - "$RUNNER_TEMP/adwf-upgrade-003-c-outcome.json" <<'PY'
+          import json,sys
+          p=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert p.get('status')=='SUCCESS', p
+          assert p.get('terminal_stage')=='done', p
+          assert p.get('candidate_sha') and p.get('candidate_tree'), p
+          PY
