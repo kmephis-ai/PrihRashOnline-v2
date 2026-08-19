@@ -1,0 +1,68 @@
+name: ADWF UPGRADE-003 Planner Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - helper/adwf-upgrade-003-plan-diag-base-20260819-a1
+    types: [opened]
+
+permissions:
+  contents: read
+
+env:
+  CONSUMER_SHA: 59bb5319052f378f10a0216ee3956f12944c0b77
+  SOURCE_SHA: 017042c1f2bcde8d89d4b344201e848d873ec5a9
+  TARGET_SHA: b10ab53e926b57c637c9c253cd43266e0fe1acfb
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/PrihRashOnline-v2
+          ref: ${{ env.CONSUMER_SHA }}
+          path: consumer
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: kmephis-ai/AI-Development-Framework
+          ref: ${{ env.TARGET_SHA }}
+          path: target
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+      - name: Emit planner findings and snapshot provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python consumer/.adwf/scripts/plan_consumer_upgrade.py \
+            --source-root source --target-root target --consumer-root consumer \
+            --source-revision "$SOURCE_SHA" --target-revision "$TARGET_SHA" \
+            > "$RUNNER_TEMP/bundle.json"
+          rc=$?
+          set -e
+          python - "$RUNNER_TEMP/bundle.json" <<'PY'
+          import json,sys
+          b=json.load(open(sys.argv[1],encoding='utf-8'))
+          c=b.get('compatibility') or {}
+          p=b.get('plan') or {}
+          findings=c.get('findings') or []
+          blocked=[x for x in findings if x.get('code')=='UPGRADE_PREEXISTING_PATH_CHANGE']
+          print(json.dumps({'compatibility_status':c.get('status'),'plan_status':p.get('status'),'preexisting_blockers':blocked,'all_findings':findings},sort_keys=True))
+          PY
+          exit "$rc"
