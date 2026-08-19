@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - helper/adwf-upgrade-003-materialize-base-20260819-a2
-    types: [opened]
+    types: [opened, synchronize]
 
 permissions:
   contents: write
@@ -176,10 +176,16 @@ jobs:
           python consumer/.adwf/scripts/consumer_installation.py \
             --consumer-root consumer --framework-root target \
             --repository kmephis-ai/PrihRashOnline-v2
-      - name: Enforce managed-only candidate scope
+      - name: Discard transient runtime and enforce managed-only candidate scope
         shell: bash
         run: |
           set -euo pipefail
+          test -z "$(git -C consumer ls-files .adwf-runtime)"
+          if test -d consumer/.adwf-runtime; then
+            find consumer/.adwf-runtime -type f -print | sort | sed 's#^consumer/##' > "$RUNNER_TEMP/runtime-files.txt"
+            echo "transient_runtime_files=$(wc -l < "$RUNNER_TEMP/runtime-files.txt")"
+            rm -rf consumer/.adwf-runtime
+          fi
           git -C consumer status --porcelain=v1 --untracked-files=all > "$RUNNER_TEMP/status.txt"
           python - "$RUNNER_TEMP/status.txt" <<'PY'
           import json,sys
@@ -191,8 +197,6 @@ jobs:
               if ' -> ' in p: p=p.split(' -> ',1)[1]
               if not (p.startswith('.adwf/') or p.startswith('.adwf-consumer/')):
                   raise SystemExit('UPGRADE003_UNEXPECTED_PATH:'+p)
-              if p.startswith('.adwf-runtime/'):
-                  raise SystemExit('UPGRADE003_RUNTIME_PATH_FORBIDDEN:'+p)
               paths.append(p)
           if not paths: raise SystemExit('UPGRADE003_NO_CHANGES')
           print(json.dumps({'changed_paths':sorted(paths),'count':len(paths)},sort_keys=True))
