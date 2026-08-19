@@ -1,0 +1,17 @@
+{
+  "candidate_sha": "f1bbdbd0004ba3933c025528f900ef813e63de2e",
+  "candidate_tree": "a492f56fd8dfe298d7744d4228902255c971c42d",
+  "consumer_sha": "cb5e4b9a947f3728b77c4be437b706d8f9c2a52d",
+  "consumer_tree": "a1927291541073d30113cdfccd6e669224d24ad1",
+  "monetary_budget_usd": 0,
+  "provider_run_id": "32300101212",
+  "schema_version": 1,
+  "secrets": "FORBIDDEN",
+  "source_sha": "017042c1f2bcde8d89d4b344201e848d873ec5a9",
+  "source_tree": "c7e709a29df431460abb9bc17025d62d7803cda1",
+  "status": "SUCCESS",
+  "target_branch": "agent/ADWF-UPGRADE-003-certified-c-session-reproof",
+  "target_sha": "1f38866eeb242f8d1e56c54632b059cf8adde77d",
+  "target_tree": "463fce58eb20e2d01b15aed8f400ef1c40b2020a",
+  "terminal_stage": "done"
+}
