@@ -38,7 +38,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -251,6 +251,30 @@ jobs:
           node tests/mig010_documentation_contract_test.js
       - name: Prepare dashboard bundle
         run: npm run prepare:web
+      - name: Stabilize Ubuntu apt mirror for Playwright
+        shell: bash
+        run: |
+          set -euo pipefail
+          for source in \
+            /etc/apt/apt-mirrors.txt \
+            /etc/apt/sources.list \
+            /etc/apt/sources.list.d/ubuntu.sources
+          do
+            if [[ -f "$source" ]]; then
+              sudo sed -i \
+                's#http://azure.archive.ubuntu.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' \
+                "$source"
+            fi
+          done
+          if grep -Rqs \
+            'http://azure.archive.ubuntu.com/ubuntu' \
+            /etc/apt/apt-mirrors.txt \
+            /etc/apt/sources.list \
+            /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null
+          then
+            echo "APT_MIRROR_STABILIZATION_FAILED" >&2
+            exit 1
+          fi
       - name: Install Playwright browser
         run: npx --no-install playwright install --with-deps chromium
       - name: Run all contract tests
