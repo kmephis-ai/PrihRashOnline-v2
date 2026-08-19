@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - helper/adwf-upgrade-003-replan-base-20260819-a2
-    types: [opened]
+    types: [opened, synchronize]
 
 permissions:
   contents: read
@@ -47,29 +47,44 @@ jobs:
         with:
           python-version: '3.12.10'
           check-latest: false
-      - name: Fresh provider governance readback
+      - name: Fresh consumer governance readback
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, sys
+          import hashlib, json, os, sys
           from pathlib import Path
           sys.path.insert(0, str(Path('consumer/.adwf').resolve()))
           from lib.github_provider import GitHubClient
-          from lib.github_rulesets import verify_rulesets, verify_runtime_anchor_ruleset
+          from lib.github_rulesets import verify_runtime_anchor_ruleset
           client = GitHubClient(os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_TOKEN'])
           current_main = str((client.branch('main').get('commit') or {}).get('sha') or '')
           if current_main != os.environ['CONSUMER_SHA']:
               raise SystemExit('CONSUMER_MAIN_DRIFT')
           full = client.rulesets()
-          main = verify_rulesets(full, expected_integration_id=15368)
           anchors = verify_runtime_anchor_ruleset(full)
-          out = {'consumer_main': current_main, 'main_ruleset': main, 'runtime_anchors': anchors, 'ruleset_ids': [x.get('id') for x in full if isinstance(x, dict)]}
+          pr_validation = Path('consumer/.github/workflows/pr-validation.yml')
+          adwf_pr = Path('consumer/.github/workflows/adwf-pr.yml')
+          if not pr_validation.is_file() or not adwf_pr.is_file():
+              raise SystemExit('CONSUMER_REQUIRED_WORKFLOW_MISSING')
+          text = pr_validation.read_text(encoding='utf-8')
+          if 'name: PR Validation' not in text:
+              raise SystemExit('CONSUMER_NATIVE_PR_GATE_NAME_MISMATCH')
+          if "- '.adwf/**'" not in text or "- '.adwf-consumer/**'" not in text:
+              raise SystemExit('CONSUMER_NATIVE_PR_GATE_PATH_BINDING_MISSING')
+          out = {
+              'consumer_main': current_main,
+              'runtime_anchors': anchors,
+              'ruleset_ids': [x.get('id') for x in full if isinstance(x, dict)],
+              'native_pr_validation_sha256': hashlib.sha256(pr_validation.read_bytes()).hexdigest(),
+              'installed_adwf_pr_sha256': hashlib.sha256(adwf_pr.read_bytes()).hexdigest(),
+              'native_adwf_paths_bound': True,
+          }
           print(json.dumps(out, sort_keys=True), flush=True)
-          if main.get('status') != 'VERIFIED' or anchors.get('status') != 'VERIFIED':
-              raise SystemExit('GOVERNANCE_NOT_VERIFIED')
+          if anchors.get('status') != 'VERIFIED':
+              raise SystemExit('RUNTIME_ANCHOR_GOVERNANCE_NOT_VERIFIED')
           PY
       - name: Fresh canonical A-to-B planner
         shell: bash
@@ -91,7 +106,7 @@ jobs:
               'findings': c.get('findings') or [],
               'target_tree': tree,
               'expected_target_tree': os.environ['TARGET_TREE'],
-              'changed_paths': p.get('changed_paths') or p.get('paths') or []
+              'changed_paths': p.get('changed_paths') or p.get('paths') or [],
           }
           print(json.dumps(out, sort_keys=True), flush=True)
           if tree != os.environ['TARGET_TREE']:
