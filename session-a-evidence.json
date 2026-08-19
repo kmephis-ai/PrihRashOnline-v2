@@ -1,0 +1,33 @@
+{
+  "checkpoint_digest": "a77a45a7bd846df657335845681af4f93ee0adfa6c3bac8874906381f20d1aa6",
+  "checkpoint_id": "session-consumer-proof-001-checkpoint",
+  "duplicate_empty_ledger_issue_closed": 330,
+  "event_hash": "e545573a2c2640f1adca04c0c914d6fff9b1f9121fdab72be1d9607f53302f35",
+  "external_anchor": {
+    "tag": "adwf-runtime-anchor-000001-e545573a2c2640f1",
+    "tag_object_sha": "91e61a52888ecddbe44115ff049e940ec774edc4",
+    "verified": true
+  },
+  "ledger_issue": 329,
+  "no_second_append": true,
+  "proof_phase": "SESSION_A_PROVIDER_READBACK_RECOVERY",
+  "provider_object_id": "5337377059",
+  "readback_run_id": "32214596730",
+  "reconciliation": {
+    "actual_head_sha": null,
+    "actual_main_sha": "59bb5319052f378f10a0216ee3956f12944c0b77",
+    "checkpoint_id": "session-consumer-proof-001-checkpoint",
+    "checkpoint_revision": 0,
+    "next_step": "RESUME_CONTEXT_ONLY",
+    "provider_authority": false,
+    "stale": false,
+    "stale_head": false,
+    "stale_main": false
+  },
+  "ruleset_id": 21023491,
+  "schema_version": 1,
+  "source_session_a_run_id": "32214358545",
+  "subject_sha": "59bb5319052f378f10a0216ee3956f12944c0b77",
+  "unique_proof_writer_issue": 327,
+  "writer_lease": "0f25333a-c813-48a6-af5f-4b4d268187ac"
+}
